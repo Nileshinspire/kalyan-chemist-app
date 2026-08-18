@@ -1,4 +1,4 @@
-import { Doc } from "convex/_generated/dataModel";
+import { Doc } from "@/convex/_generated/dataModel";
 
 /**
  * Check if the current user is an admin
