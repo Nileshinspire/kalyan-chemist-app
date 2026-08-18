@@ -150,6 +150,22 @@ export default function Checkout() {
           receipt: `order_${Date.now()}`,
         });
 
+        // Demo mode: if no real Razorpay keys, simulate success
+        if ((razorpayOrder as any)._demo) {
+          const result = await createOrder({
+            shippingAddress: formatAddress(selectedAddress),
+            phone: selectedAddress.phone,
+            paymentMethod: "online",
+            notes: notes || undefined,
+            razorpayOrderId: razorpayOrder.id,
+            razorpayPaymentId: `pay_demo_${Date.now()}`,
+            razorpaySignature: `demo_sig_${Date.now()}`,
+          });
+          toast.success("Demo payment successful! Order placed.");
+          navigate(`/orders/${result.orderId}`);
+          return;
+        }
+
         const keyId = await getRazorpayKeyId();
 
         // Open Razorpay checkout

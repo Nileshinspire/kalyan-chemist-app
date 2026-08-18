@@ -1,7 +1,7 @@
 import { action } from "./_generated/server";
 import { v } from "convex/values";
 
-// ── Create a Razorpay order ──
+// ── Create a Razorpay order (or simulate in demo mode) ──
 export const createOrder = action({
   args: {
     amount: v.number(), // in INR
@@ -11,10 +11,17 @@ export const createOrder = action({
     const keyId = process.env.RAZORPAY_KEY_ID;
     const keySecret = process.env.RAZORPAY_KEY_SECRET;
 
+    // Demo mode: simulate a successful Razorpay order if no keys configured
     if (!keyId || !keySecret) {
-      throw new Error(
-        "Razorpay credentials are not configured. Please add RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET to your project's Keys tab."
-      );
+      console.log("[Razorpay] No keys configured — running in demo mode");
+      return {
+        id: `order_demo_${Date.now()}`,
+        amount: Math.round(args.amount * 100),
+        currency: "INR",
+        receipt: args.receipt,
+        status: "created",
+        _demo: true,
+      };
     }
 
     const auth = Buffer.from(`${keyId}:${keySecret}`).toString("base64");
@@ -48,7 +55,8 @@ export const getKeyId = action({
   handler: async () => {
     const keyId = process.env.RAZORPAY_KEY_ID;
     if (!keyId) {
-      throw new Error("RAZORPAY_KEY_ID is not configured");
+      // Return demo key for demo mode
+      return "rzp_test_demo";
     }
     return keyId;
   },
