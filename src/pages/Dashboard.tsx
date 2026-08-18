@@ -7,7 +7,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useAuth } from "@/hooks/use-auth";
-import { useAction } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import {
   LayoutDashboard,
@@ -21,6 +21,7 @@ import {
   CheckCircle,
   ClipboardList,
   Shield,
+  Crown,
 } from "lucide-react";
 import { useNavigate } from "react-router";
 import { getDisplayName, isAdmin } from "@/lib/auth-utils";
@@ -30,8 +31,11 @@ export default function Dashboard() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const seedAll = useAction(api.seed.seedAll);
+  const becomeAdmin = useMutation(api.users.becomeAdmin);
+  const hasAdmin = useQuery(api.users.hasAdmin);
   const [isSeeding, setIsSeeding] = useState(false);
   const [seedDone, setSeedDone] = useState(false);
+  const [isPromoting, setIsPromoting] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
@@ -60,6 +64,7 @@ export default function Dashboard() {
   };
 
   const displayName = getDisplayName(user);
+  const showBecomeAdmin = !isAdmin(user) && hasAdmin === false;
 
   return (
     <main className="min-h-screen bg-background px-6 py-10 text-foreground">
@@ -84,6 +89,58 @@ export default function Dashboard() {
             Sign Out
           </Button>
         </header>
+
+        {/* Become Admin Banner (first user only) */}
+        {showBecomeAdmin && (
+          <Card className="border-amber-300/50 bg-amber-50 dark:border-amber-700/50 dark:bg-amber-950/30">
+            <CardContent className="flex items-center gap-4 py-5">
+              <div className="flex size-10 items-center justify-center rounded-lg bg-amber-100 text-amber-600 dark:bg-amber-900/50 dark:text-amber-400">
+                <Crown className="size-5" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-foreground">
+                  Set Up Administrator Access
+                </p>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  You are the first user on Kalyan Chemist. Click below to
+                  become the administrator and manage products, orders, and
+                  store settings.
+                </p>
+              </div>
+              <Button
+                size="sm"
+                className="font-semibold shrink-0 bg-amber-600 hover:bg-amber-700 text-white"
+                onClick={async () => {
+                  setIsPromoting(true);
+                  try {
+                    await becomeAdmin();
+                    toast.success("You are now an administrator!", {
+                      description: "Refresh the page to see the Admin Panel link.",
+                    });
+                  } catch (err) {
+                    toast.error("Could not promote", {
+                      description: err instanceof Error ? err.message : "Unknown error",
+                    });
+                  }
+                  setIsPromoting(false);
+                }}
+                disabled={isPromoting}
+              >
+                {isPromoting ? (
+                  <>
+                    <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                    Setting up…
+                  </>
+                ) : (
+                  <>
+                    <Crown className="mr-1.5 size-3.5" />
+                    Become Admin
+                  </>
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Seed Data Banner (Admin only) */}
         {isAdmin(user) && !seedDone && (

@@ -67,3 +67,43 @@ export const getById = query({
     return await ctx.db.get(args.userId);
   },
 });
+
+/**
+ * Promote the current user to admin — only allowed when no admin exists yet.
+ * This is the bootstrap path: the first user to click this becomes the store admin.
+ */
+export const becomeAdmin = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
+
+    const existingAdmin = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("role"), "admin"))
+      .first();
+
+    if (existingAdmin) {
+      throw new Error(
+        "An administrator already exists. Contact them to grant you admin access."
+      );
+    }
+
+    await ctx.db.patch(userId, { role: "admin" });
+    return { success: true };
+  },
+});
+
+/**
+ * Check whether any admin user exists in the system.
+ */
+export const hasAdmin = query({
+  args: {},
+  handler: async (ctx) => {
+    const admin = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("role"), "admin"))
+      .first();
+    return admin !== null;
+  },
+});
