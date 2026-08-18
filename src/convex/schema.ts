@@ -162,6 +162,18 @@ const schema = defineSchema(
     })
       .index("by_user", ["userId"])
       .index("by_user_product", ["userId", "productId"]),
+
+    // Product reviews and ratings
+    reviews: defineTable({
+      userId: v.id("users"),
+      productId: v.id("products"),
+      rating: v.number(),
+      title: v.string(),
+      body: v.string(),
+      createdAt: v.number(),
+    })
+      .index("by_product", ["productId"])
+      .index("by_user_product", ["userId", "productId"]),
   },
   {
     schemaValidation: false,
