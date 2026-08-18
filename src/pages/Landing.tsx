@@ -1,4 +1,4 @@
-import { motion } from "framer-motion";
+import { motion, type Variants } from "framer-motion";
 import {
   ShieldCheck,
   Truck,
@@ -17,12 +17,16 @@ import {
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router";
 
-const fadeUp = {
+const fadeUp: Variants = {
   hidden: { opacity: 0, y: 24 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.6, ease: "easeOut" },
+  },
 };
 
-const stagger = {
+const stagger: Variants = {
   visible: { transition: { staggerChildren: 0.1 } },
 };
 
@@ -150,7 +154,6 @@ export default function Landing() {
             </motion.div>
           </div>
         </div>
-        {/* Decorative gradient blob */}
         <div className="pointer-events-none absolute -right-40 top-10 h-[500px] w-[500px] rounded-full bg-primary/[0.06] blur-3xl" />
       </motion.section>
 
