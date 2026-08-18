@@ -280,6 +280,34 @@ export const updateOrderStatus = mutation({
       updatedAt: Date.now(),
     });
 
+    // Notify the customer of the status change
+    const statusTitles: Record<string, string> = {
+      confirmed: "Order Confirmed ✓",
+      processing: "Order Being Prepared",
+      shipped: "Order Shipped 🚚",
+      delivered: "Order Delivered ✓",
+      cancelled: "Order Cancelled",
+    };
+    const statusBodies: Record<string, string> = {
+      confirmed: `Your order ${order.invoiceNumber || ""} has been confirmed and is being processed.`,
+      processing: `Your order ${order.invoiceNumber || ""} is being packed by our pharmacist.`,
+      shipped: `Your order ${order.invoiceNumber || ""} is on its way to you.`,
+      delivered: `Your order ${order.invoiceNumber || ""} has been delivered. We hope you feel better soon!`,
+      cancelled: `Your order ${order.invoiceNumber || ""} has been cancelled.${order.paymentMethod === "online" ? " A refund will be initiated." : ""}`,
+    };
+    if (statusTitles[args.status]) {
+      await ctx.db.insert("notifications", {
+        userId: order.userId,
+        type: "order_status",
+        title: statusTitles[args.status],
+        body: statusBodies[args.status],
+        read: false,
+        link: `/orders/${args.orderId}`,
+        metadata: JSON.stringify({ orderId: args.orderId, status: args.status }),
+        createdAt: Date.now(),
+      });
+    }
+
     return { success: true };
   },
 });

@@ -29,6 +29,8 @@ const AdminReviews = lazy(() => import("./pages/admin/AdminReviews"));
 const AdminUsers = lazy(() => import("./pages/admin/AdminUsers"));
 const AdminReports = lazy(() => import("./pages/admin/AdminReports"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
+const Notifications = lazy(() => import("./pages/Notifications.tsx"));
+const Reminders = lazy(() => import("./pages/Reminders.tsx"));
 
 // Simple loading fallback for route transitions
 function RouteLoading() {
@@ -190,6 +192,8 @@ createRoot(document.getElementById("root")!).render(
               <Route path="/admin/coupons" element={<RequireAuth><AdminCoupons /></RequireAuth>} />
               <Route path="/admin/users" element={<RequireAuth><AdminUsers /></RequireAuth>} />
               <Route path="/admin/reports" element={<RequireAuth><AdminReports /></RequireAuth>} />
+              <Route path="/notifications" element={<RequireAuth><Notifications /></RequireAuth>} />
+              <Route path="/reminders" element={<RequireAuth><Reminders /></RequireAuth>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>

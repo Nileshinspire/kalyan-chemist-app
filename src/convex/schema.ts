@@ -189,6 +189,49 @@ const schema = defineSchema(
     })
       .index("by_code", ["code"])
       .index("by_isActive", ["isActive"]),
+
+    // In-app notifications + WhatsApp message log
+    notifications: defineTable({
+      userId: v.id("users"),
+      type: v.union(
+        v.literal("order_status"),
+        v.literal("refill_reminder"),
+        v.literal("promo"),
+        v.literal("system"),
+      ),
+      title: v.string(),
+      body: v.string(),
+      read: v.boolean(),
+      // WhatsApp delivery tracking
+      whatsappStatus: v.optional(v.union(
+        v.literal("pending"),
+        v.literal("sent"),
+        v.literal("delivered"),
+        v.literal("failed"),
+      )),
+      // Link to related entity
+      link: v.optional(v.string()),
+      metadata: v.optional(v.string()), // JSON string for extra data
+      createdAt: v.number(),
+    })
+      .index("by_user", ["userId"])
+      .index("by_user_read", ["userId", "read"])
+      .index("by_user_created", ["userId", "createdAt"]),
+
+    // Medicine refill reminders
+    refill_reminders: defineTable({
+      userId: v.id("users"),
+      productId: v.id("products"),
+      intervalDays: v.number(),       // days between reminders
+      lastReminderAt: v.number(),     // timestamp of last reminder
+      nextReminderAt: v.number(),     // timestamp when next reminder fires
+      isActive: v.boolean(),
+      notes: v.optional(v.string()),   // e.g. "Take after breakfast"
+      createdAt: v.number(),
+    })
+      .index("by_user", ["userId"])
+      .index("by_user_active", ["userId", "isActive"])
+      .index("by_next_reminder", ["nextReminderAt"]),
   },
   {
     schemaValidation: false,

@@ -99,6 +99,17 @@ export const create = mutation({
     const orderCount = allOrders.length;
     const invoiceNumber = `KC-${String(orderCount + 1).padStart(5, "0")}`;
 
+    // Create order notification
+    await ctx.db.insert("notifications", {
+      userId,
+      type: "order_status",
+      title: "Order Placed Successfully ✓",
+      body: `Your order has been placed. Total: ₹${totalAmount.toLocaleString("en-IN")}. You will receive updates as your order progresses.`,
+      read: false,
+      link: undefined, // Will be set after order creation
+      createdAt: Date.now(),
+    });
+
     // Create order
     const now = Date.now();
     const orderId = await ctx.db.insert("orders", {
@@ -154,6 +165,17 @@ export const confirmPayment = mutation({
       updatedAt: Date.now(),
     });
 
+    // Notify user of confirmation
+    await ctx.db.insert("notifications", {
+      userId,
+      type: "order_status",
+      title: "Payment Confirmed ✓",
+      body: `Your payment for order ${order.invoiceNumber || ""} has been confirmed. Your order is now being processed.`,
+      read: false,
+      link: `/orders/${args.orderId}`,
+      createdAt: Date.now(),
+    });
+
     return { success: true };
   },
 });
@@ -184,6 +206,17 @@ export const cancel = mutation({
     await ctx.db.patch(args.orderId, {
       status: "cancelled",
       updatedAt: Date.now(),
+    });
+
+    // Notify user of cancellation
+    await ctx.db.insert("notifications", {
+      userId,
+      type: "order_status",
+      title: "Order Cancelled",
+      body: `Your order ${order.invoiceNumber || ""} has been cancelled.${order.paymentMethod === "online" ? " Your refund will be processed within 5-7 business days." : ""}`,
+      read: false,
+      link: `/orders/${args.orderId}`,
+      createdAt: Date.now(),
     });
 
     return { success: true };
