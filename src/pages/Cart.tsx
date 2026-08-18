@@ -311,9 +311,7 @@ export default function Cart() {
                   <Button
                     size="lg"
                     className="w-full font-semibold"
-                    onClick={() =>
-                      toast.info("Checkout will be available in the next update")
-                    }
+                    onClick={() => navigate("/checkout")}
                   >
                     Proceed to Checkout
                   </Button>

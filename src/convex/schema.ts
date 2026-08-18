@@ -122,10 +122,23 @@ const schema = defineSchema(
       phone: v.string(),
       status: orderStatusValidator,
       paymentMethod: paymentMethodValidator,
+      paymentStatus: v.optional(v.union(
+        v.literal("pending"),
+        v.literal("paid"),
+        v.literal("failed"),
+        v.literal("refunded"),
+      )),
+      razorpayOrderId: v.optional(v.string()),
+      razorpayPaymentId: v.optional(v.string()),
+      razorpaySignature: v.optional(v.string()),
+      invoiceNumber: v.optional(v.string()),
       notes: v.optional(v.string()),
+      createdAt: v.number(),
+      updatedAt: v.number(),
     })
       .index("by_user", ["userId"])
-      .index("by_status", ["status"]),
+      .index("by_status", ["status"])
+      .index("by_user_created", ["userId", "createdAt"]),
 
     // Delivery addresses saved to a user's account
     addresses: defineTable({

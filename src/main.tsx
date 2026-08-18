@@ -17,6 +17,9 @@ const Products = lazy(() => import("./pages/Products.tsx"));
 const ProductDetail = lazy(() => import("./pages/ProductDetail.tsx"));
 const Cart = lazy(() => import("./pages/Cart.tsx"));
 const Wishlist = lazy(() => import("./pages/Wishlist.tsx"));
+const Checkout = lazy(() => import("./pages/Checkout.tsx"));
+const Orders = lazy(() => import("./pages/Orders.tsx"));
+const OrderDetail = lazy(() => import("./pages/OrderDetail.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 
 // Simple loading fallback for route transitions
@@ -144,6 +147,30 @@ createRoot(document.getElementById("root")!).render(
                 element={
                   <RequireAuth>
                     <Wishlist />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/checkout"
+                element={
+                  <RequireAuth>
+                    <Checkout />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/orders"
+                element={
+                  <RequireAuth>
+                    <Orders />
+                  </RequireAuth>
+                }
+              />
+              <Route
+                path="/orders/:id"
+                element={
+                  <RequireAuth>
+                    <OrderDetail />
                   </RequireAuth>
                 }
               />

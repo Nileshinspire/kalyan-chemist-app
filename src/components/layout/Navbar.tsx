@@ -23,6 +23,7 @@ import {
   LogOut,
   Home,
   Package,
+  ClipboardList,
   X,
 } from "lucide-react";
 
@@ -131,6 +132,10 @@ export default function Navbar() {
                   <Home className="mr-2 size-4" />
                   Dashboard
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate("/orders")}>
+                  <ClipboardList className="mr-2 size-4" />
+                  My Orders
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate("/wishlist")}>
                   <Heart className="mr-2 size-4" />
                   Wishlist
@@ -220,14 +225,24 @@ export default function Navbar() {
                       Browse Medicines
                     </Button>
                     {isAuthenticated && (
-                      <Button
-                        variant="ghost"
-                        className="justify-start"
-                        onClick={() => { navigate("/wishlist"); setMobileOpen(false); }}
-                      >
-                        <Heart className="mr-2 size-4" />
-                        Wishlist
-                      </Button>
+                      <>
+                        <Button
+                          variant="ghost"
+                          className="justify-start"
+                          onClick={() => { navigate("/orders"); setMobileOpen(false); }}
+                        >
+                          <ClipboardList className="mr-2 size-4" />
+                          My Orders
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          className="justify-start"
+                          onClick={() => { navigate("/wishlist"); setMobileOpen(false); }}
+                        >
+                          <Heart className="mr-2 size-4" />
+                          Wishlist
+                        </Button>
+                      </>
                     )}
                     <Button
                       variant="ghost"

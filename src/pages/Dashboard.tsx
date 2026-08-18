@@ -19,6 +19,7 @@ import {
   Database,
   Loader2,
   CheckCircle,
+  ClipboardList,
 } from "lucide-react";
 import { useNavigate } from "react-router";
 import { getDisplayName, isAdmin } from "@/lib/auth-utils";
@@ -148,22 +149,16 @@ export default function Dashboard() {
               action: () => navigate("/products"),
             },
             {
-              icon: Package,
+              icon: ClipboardList,
               title: "My Orders",
               description: "Track your current and past orders in one place.",
-              action: () => navigate("/account"),
+              action: () => navigate("/orders"),
             },
             {
-              icon: MapPin,
-              title: "Delivery Addresses",
-              description: "Manage your saved addresses for faster checkout.",
-              action: () => navigate("/account"),
-            },
-            {
-              icon: User,
-              title: "Account Settings",
-              description: "Update your profile, phone number, and preferences.",
-              action: () => navigate("/account"),
+              icon: ShoppingBag,
+              title: "Continue Shopping",
+              description: "Browse our medicine catalogue and add items to cart.",
+              action: () => navigate("/products"),
             },
           ].map((item) => (
             <Card
