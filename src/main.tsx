@@ -20,6 +20,14 @@ const Wishlist = lazy(() => import("./pages/Wishlist.tsx"));
 const Checkout = lazy(() => import("./pages/Checkout.tsx"));
 const Orders = lazy(() => import("./pages/Orders.tsx"));
 const OrderDetail = lazy(() => import("./pages/OrderDetail.tsx"));
+const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
+const AdminProducts = lazy(() => import("./pages/admin/AdminProducts"));
+const AdminCategories = lazy(() => import("./pages/admin/AdminCategories"));
+const AdminOrders = lazy(() => import("./pages/admin/AdminOrders"));
+const AdminCoupons = lazy(() => import("./pages/admin/AdminCoupons"));
+const AdminReviews = lazy(() => import("./pages/admin/AdminReviews"));
+const AdminUsers = lazy(() => import("./pages/admin/AdminUsers"));
+const AdminReports = lazy(() => import("./pages/admin/AdminReports"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 
 // Simple loading fallback for route transitions
@@ -174,6 +182,14 @@ createRoot(document.getElementById("root")!).render(
                   </RequireAuth>
                 }
               />
+              <Route path="/admin" element={<RequireAuth><AdminDashboard /></RequireAuth>} />
+              <Route path="/admin/products" element={<RequireAuth><AdminProducts /></RequireAuth>} />
+              <Route path="/admin/categories" element={<RequireAuth><AdminCategories /></RequireAuth>} />
+              <Route path="/admin/orders" element={<RequireAuth><AdminOrders /></RequireAuth>} />
+              <Route path="/admin/reviews" element={<RequireAuth><AdminReviews /></RequireAuth>} />
+              <Route path="/admin/coupons" element={<RequireAuth><AdminCoupons /></RequireAuth>} />
+              <Route path="/admin/users" element={<RequireAuth><AdminUsers /></RequireAuth>} />
+              <Route path="/admin/reports" element={<RequireAuth><AdminReports /></RequireAuth>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>

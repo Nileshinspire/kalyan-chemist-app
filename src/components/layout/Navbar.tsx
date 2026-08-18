@@ -24,8 +24,10 @@ import {
   Home,
   Package,
   ClipboardList,
+  Shield,
   X,
 } from "lucide-react";
+import { isAdmin } from "@/lib/auth-utils";
 
 export default function Navbar() {
   const { isAuthenticated, user, signOut } = useAuth();
@@ -144,6 +146,15 @@ export default function Navbar() {
                   <ShoppingCart className="mr-2 size-4" />
                   Cart
                 </DropdownMenuItem>
+                {isAdmin(user) && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => navigate("/admin")}>
+                      <Shield className="mr-2 size-4" />
+                      Admin Panel
+                    </DropdownMenuItem>
+                  </>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={handleSignOut}
@@ -252,6 +263,16 @@ export default function Navbar() {
                       <ShoppingCart className="mr-2 size-4" />
                       Cart
                     </Button>
+                    {isAdmin(user) && (
+                      <Button
+                        variant="ghost"
+                        className="justify-start"
+                        onClick={() => { navigate("/admin"); setMobileOpen(false); }}
+                      >
+                        <Shield className="mr-2 size-4" />
+                        Admin Panel
+                      </Button>
+                    )}
                   </nav>
                 </div>
                 <div className="mt-auto p-4 border-t">

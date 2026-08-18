@@ -174,6 +174,21 @@ const schema = defineSchema(
     })
       .index("by_product", ["productId"])
       .index("by_user_product", ["userId", "productId"]),
+
+    // Discount coupons
+    coupons: defineTable({
+      code: v.string(),
+      discountPercent: v.number(),
+      maxDiscount: v.number(),
+      minOrder: v.number(),
+      usageLimit: v.number(),
+      usedCount: v.number(),
+      isActive: v.boolean(),
+      expiresAt: v.number(),
+      createdAt: v.number(),
+    })
+      .index("by_code", ["code"])
+      .index("by_isActive", ["isActive"]),
   },
   {
     schemaValidation: false,

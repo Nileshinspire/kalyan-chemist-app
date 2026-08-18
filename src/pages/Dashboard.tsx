@@ -20,6 +20,7 @@ import {
   Loader2,
   CheckCircle,
   ClipboardList,
+  Shield,
 } from "lucide-react";
 import { useNavigate } from "react-router";
 import { getDisplayName, isAdmin } from "@/lib/auth-utils";
@@ -160,6 +161,16 @@ export default function Dashboard() {
               description: "Browse our medicine catalogue and add items to cart.",
               action: () => navigate("/products"),
             },
+            ...(isAdmin(user)
+              ? [
+                  {
+                    icon: Shield,
+                    title: "Admin Panel",
+                    description: "Manage products, orders, coupons, and site settings.",
+                    action: () => navigate("/admin"),
+                  },
+                ]
+              : []),
           ].map((item) => (
             <Card
               key={item.title}
