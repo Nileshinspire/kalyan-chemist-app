@@ -2,46 +2,149 @@ import { authTables } from "@convex-dev/auth/server";
 import { defineSchema, defineTable } from "convex/server";
 import { Infer, v } from "convex/values";
 
-// default user roles. can add / remove based on the project as needed
+// User roles
 export const ROLES = {
   ADMIN: "admin",
-  USER: "user",
-  MEMBER: "member",
+  CUSTOMER: "customer",
 } as const;
 
 export const roleValidator = v.union(
   v.literal(ROLES.ADMIN),
-  v.literal(ROLES.USER),
-  v.literal(ROLES.MEMBER),
+  v.literal(ROLES.CUSTOMER),
 );
 export type Role = Infer<typeof roleValidator>;
 
+// Order statuses
+export const ORDER_STATUS = {
+  PENDING: "pending",
+  CONFIRMED: "confirmed",
+  PROCESSING: "processing",
+  SHIPPED: "shipped",
+  DELIVERED: "delivered",
+  CANCELLED: "cancelled",
+} as const;
+
+export const orderStatusValidator = v.union(
+  v.literal(ORDER_STATUS.PENDING),
+  v.literal(ORDER_STATUS.CONFIRMED),
+  v.literal(ORDER_STATUS.PROCESSING),
+  v.literal(ORDER_STATUS.SHIPPED),
+  v.literal(ORDER_STATUS.DELIVERED),
+  v.literal(ORDER_STATUS.CANCELLED),
+);
+
+// Payment methods
+export const PAYMENT_METHOD = {
+  COD: "cod",
+  ONLINE: "online",
+} as const;
+
+export const paymentMethodValidator = v.union(
+  v.literal(PAYMENT_METHOD.COD),
+  v.literal(PAYMENT_METHOD.ONLINE),
+);
+
 const schema = defineSchema(
   {
-    // default auth tables using convex auth.
-    ...authTables, // do not remove or modify
+    // Default auth tables (DO NOT MODIFY)
+    ...authTables,
 
-    // the users table is the default users table that is brought in by the authTables
+    // Users table (extended from auth)
     users: defineTable({
-      name: v.optional(v.string()), // name of the user. do not remove
-      image: v.optional(v.string()), // image of the user. do not remove
-      email: v.optional(v.string()), // email of the user. do not remove
-      emailVerificationTime: v.optional(v.number()), // email verification time. do not remove
-      isAnonymous: v.optional(v.boolean()), // is the user anonymous. do not remove
+      name: v.optional(v.string()),
+      image: v.optional(v.string()),
+      email: v.optional(v.string()),
+      emailVerificationTime: v.optional(v.number()),
+      isAnonymous: v.optional(v.boolean()),
+      role: v.optional(roleValidator),
+      phone: v.optional(v.string()),
+      address: v.optional(v.string()),
+      city: v.optional(v.string()),
+      state: v.optional(v.string()),
+      pincode: v.optional(v.string()),
+    }).index("email", ["email"]),
 
-      role: v.optional(roleValidator), // role of the user. do not remove
-    }).index("email", ["email"]), // index for the email. do not remove or modify
+    // Categories for medicines
+    categories: defineTable({
+      name: v.string(),
+      slug: v.string(),
+      description: v.optional(v.string()),
+      imageUrl: v.optional(v.string()),
+      isActive: v.boolean(),
+      sortOrder: v.number(),
+    })
+      .index("by_slug", ["slug"])
+      .index("by_sortOrder", ["sortOrder"]),
 
-    // add other tables here
+    // Products (medicines)
+    products: defineTable({
+      name: v.string(),
+      slug: v.string(),
+      description: v.string(),
+      price: v.number(),
+      discountPrice: v.optional(v.number()),
+      categoryId: v.id("categories"),
+      imageUrl: v.string(),
+      manufacturer: v.string(),
+      dosage: v.string(),
+      packSize: v.string(),
+      requiresPrescription: v.boolean(),
+      stockQuantity: v.number(),
+      isActive: v.boolean(),
+    })
+      .index("by_slug", ["slug"])
+      .index("by_category", ["categoryId"])
+      .index("by_isActive", ["isActive"])
+      .index("by_price", ["price"]),
 
-    // tableName: defineTable({
-    //   ...
-    //   // table fields
-    // }).index("by_field", ["field"])
+    // Shopping cart items
+    cart_items: defineTable({
+      userId: v.id("users"),
+      productId: v.id("products"),
+      quantity: v.number(),
+    })
+      .index("by_user", ["userId"])
+      .index("by_user_product", ["userId", "productId"]),
+
+    // Orders
+    orders: defineTable({
+      userId: v.id("users"),
+      items: v.array(
+        v.object({
+          productId: v.id("products"),
+          name: v.string(),
+          price: v.number(),
+          quantity: v.number(),
+        })
+      ),
+      totalAmount: v.number(),
+      shippingAddress: v.string(),
+      phone: v.string(),
+      status: orderStatusValidator,
+      paymentMethod: paymentMethodValidator,
+      notes: v.optional(v.string()),
+    })
+      .index("by_user", ["userId"])
+      .index("by_status", ["status"]),
+
+    // Saved addresses
+    addresses: defineTable({
+      userId: v.id("users"),
+      name: v.string(),
+      phone: v.string(),
+      addressLine1: v.string(),
+      addressLine2: v.optional(v.string()),
+      city: v.string(),
+      state: v.string(),
+      pincode: v.string(),
+      isDefault: v.boolean(),
+    })
+      .index("by_user", ["userId"])
+      .index("by_user_default", ["userId", "isDefault"]),
   },
   {
     schemaValidation: false,
-  },
+  }
 );
 
 export default schema;
