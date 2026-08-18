@@ -22,6 +22,8 @@ import {
   ClipboardList,
   Shield,
   Crown,
+  Bell,
+  Clock,
 } from "lucide-react";
 import { useNavigate } from "react-router";
 import { getDisplayName, isAdmin } from "@/lib/auth-utils";
@@ -198,7 +200,7 @@ export default function Dashboard() {
         )}
 
         {/* Quick Actions */}
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {[
             {
               icon: ShoppingBag,
@@ -213,10 +215,22 @@ export default function Dashboard() {
               action: () => navigate("/orders"),
             },
             {
-              icon: ShoppingBag,
-              title: "Continue Shopping",
-              description: "Browse our medicine catalogue and add items to cart.",
-              action: () => navigate("/products"),
+              icon: Bell,
+              title: "Notifications",
+              description: "Stay updated on order status, offers, and reminders.",
+              action: () => navigate("/notifications"),
+            },
+            {
+              icon: Clock,
+              title: "Reminders",
+              description: "Manage medicine refill schedules and alerts.",
+              action: () => navigate("/reminders"),
+            },
+            {
+              icon: MapPin,
+              title: "My Addresses",
+              description: "Manage your delivery addresses for faster checkout.",
+              action: () => navigate("/dashboard"),
             },
             ...(isAdmin(user)
               ? [

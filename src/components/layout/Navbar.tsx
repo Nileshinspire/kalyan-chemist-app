@@ -25,6 +25,8 @@ import {
   Package,
   ClipboardList,
   Shield,
+  Bell,
+  Clock,
   X,
 } from "lucide-react";
 import { isAdmin } from "@/lib/auth-utils";
@@ -37,6 +39,9 @@ export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const cartCount = useQuery(api.cart.getCount);
+  const unreadCount = useQuery(
+    api.notifications.unreadCount
+  );
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,6 +57,7 @@ export default function Navbar() {
   };
 
   const isActive = (path: string) => location.pathname === path;
+  const notifCount = unreadCount ?? 0;
 
   return (
     <header className="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-md">
@@ -96,14 +102,32 @@ export default function Navbar() {
             Medicines
           </Button>
           {isAuthenticated && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="relative"
-              onClick={() => navigate("/wishlist")}
-            >
-              <Heart className="size-4" />
-            </Button>
+            <>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="relative"
+                onClick={() => navigate("/notifications")}
+              >
+                <Bell className="size-4" />
+                {notifCount > 0 && (
+                  <Badge
+                    variant="destructive"
+                    className="absolute -top-1.5 -right-1.5 h-4 min-w-4 flex items-center justify-center px-1 text-[10px] rounded-full"
+                  >
+                    {notifCount > 9 ? "9+" : notifCount}
+                  </Badge>
+                )}
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="relative"
+                onClick={() => navigate("/wishlist")}
+              >
+                <Heart className="size-4" />
+              </Button>
+            </>
           )}
           <Button
             variant="ghost"
@@ -137,6 +161,19 @@ export default function Navbar() {
                 <DropdownMenuItem onClick={() => navigate("/orders")}>
                   <ClipboardList className="mr-2 size-4" />
                   My Orders
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate("/notifications")}>
+                  <Bell className="mr-2 size-4" />
+                  Notifications
+                  {notifCount > 0 && (
+                    <Badge variant="destructive" className="ml-auto h-5 min-w-5 flex items-center justify-center px-1 text-[10px] rounded-full">
+                      {notifCount > 9 ? "9+" : notifCount}
+                    </Badge>
+                  )}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate("/reminders")}>
+                  <Clock className="mr-2 size-4" />
+                  Reminders
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate("/wishlist")}>
                   <Heart className="mr-2 size-4" />
@@ -244,6 +281,27 @@ export default function Navbar() {
                         >
                           <ClipboardList className="mr-2 size-4" />
                           My Orders
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          className="justify-start"
+                          onClick={() => { navigate("/notifications"); setMobileOpen(false); }}
+                        >
+                          <Bell className="mr-2 size-4" />
+                          Notifications
+                          {notifCount > 0 && (
+                            <Badge variant="destructive" className="ml-auto h-5 min-w-5 flex items-center justify-center px-1 text-[10px] rounded-full">
+                              {notifCount}
+                            </Badge>
+                          )}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          className="justify-start"
+                          onClick={() => { navigate("/reminders"); setMobileOpen(false); }}
+                        >
+                          <Clock className="mr-2 size-4" />
+                          Reminders
                         </Button>
                         <Button
                           variant="ghost"
