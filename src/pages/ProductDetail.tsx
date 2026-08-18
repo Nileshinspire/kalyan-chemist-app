@@ -114,6 +114,23 @@ export default function ProductDetail() {
     setIsAdding(false);
   };
 
+  const handleBuyNow = async () => {
+    setIsAdding(true);
+    try {
+      await addToCart({
+        productId: product._id,
+        quantity,
+      });
+      navigate("/checkout");
+    } catch (error) {
+      toast.error("Could not proceed", {
+        description:
+          error instanceof Error ? error.message : "Please try again",
+      });
+    }
+    setIsAdding(false);
+  };
+
   const handleWishlist = async () => {
     try {
       await toggleWishlist({ productId: product._id });
@@ -272,11 +289,20 @@ export default function ProductDetail() {
                   <Button
                     size="lg"
                     className="flex-1 font-semibold gap-2"
+                    onClick={handleBuyNow}
+                    disabled={isAdding || product.stockQuantity === 0}
+                  >
+                    {product.stockQuantity === 0 ? "Out of Stock" : "Buy Now"}
+                  </Button>
+                  <Button
+                    size="lg"
+                    variant="secondary"
+                    className="flex-1 font-semibold gap-2"
                     onClick={handleAddToCart}
                     disabled={isAdding || product.stockQuantity === 0}
                   >
                     <ShoppingCart className="size-4" />
-                    {product.stockQuantity === 0 ? "Out of Stock" : "Add to Cart"}
+                    Add to Cart
                   </Button>
                   <Button
                     size="lg"
