@@ -49,7 +49,7 @@ const schema = defineSchema(
     // Default auth tables (DO NOT MODIFY)
     ...authTables,
 
-    // Users table (extended from auth)
+    // Kalyan Chemist user profiles (extends auth)
     users: defineTable({
       name: v.optional(v.string()),
       image: v.optional(v.string()),
@@ -64,7 +64,7 @@ const schema = defineSchema(
       pincode: v.optional(v.string()),
     }).index("email", ["email"]),
 
-    // Categories for medicines
+    // Medicine categories (e.g. Pain Relief, Diabetes Care)
     categories: defineTable({
       name: v.string(),
       slug: v.string(),
@@ -76,7 +76,7 @@ const schema = defineSchema(
       .index("by_slug", ["slug"])
       .index("by_sortOrder", ["sortOrder"]),
 
-    // Products (medicines)
+    // Product catalogue — medicines, supplements, devices
     products: defineTable({
       name: v.string(),
       slug: v.string(),
@@ -97,7 +97,7 @@ const schema = defineSchema(
       .index("by_isActive", ["isActive"])
       .index("by_price", ["price"]),
 
-    // Shopping cart items
+    // Per-user shopping cart
     cart_items: defineTable({
       userId: v.id("users"),
       productId: v.id("products"),
@@ -106,7 +106,7 @@ const schema = defineSchema(
       .index("by_user", ["userId"])
       .index("by_user_product", ["userId", "productId"]),
 
-    // Orders
+    // Customer orders with line items
     orders: defineTable({
       userId: v.id("users"),
       items: v.array(
@@ -127,7 +127,7 @@ const schema = defineSchema(
       .index("by_user", ["userId"])
       .index("by_status", ["status"]),
 
-    // Saved addresses
+    // Delivery addresses saved to a user's account
     addresses: defineTable({
       userId: v.id("users"),
       name: v.string(),
