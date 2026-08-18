@@ -141,6 +141,14 @@ const schema = defineSchema(
     })
       .index("by_user", ["userId"])
       .index("by_user_default", ["userId", "isDefault"]),
+
+    // Wishlist — saved products a user intends to buy later
+    wishlist_items: defineTable({
+      userId: v.id("users"),
+      productId: v.id("products"),
+    })
+      .index("by_user", ["userId"])
+      .index("by_user_product", ["userId", "productId"]),
   },
   {
     schemaValidation: false,
