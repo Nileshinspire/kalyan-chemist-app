@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router";
-import { useMutation, useQuery } from "convex/react";
+import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -67,26 +67,34 @@ export default function ProductCard({ product }: ProductCardProps) {
 
   return (
     <Card
-      className="group relative overflow-hidden border-border/60 bg-card cursor-pointer transition-all hover:border-primary/30 hover:shadow-md"
+      className="group relative overflow-hidden border-border/60 bg-card cursor-pointer transition-all duration-300 hover:shadow-card-hover hover:border-primary/20 hover:-translate-y-0.5"
       onClick={() => navigate(`/products/${product.slug}`)}
     >
       {/* Wishlist button */}
       <Button
         variant="ghost"
         size="icon"
-        className="absolute top-2 right-2 z-10 h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background"
+        className="absolute top-3 right-3 z-10 h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background hover:scale-110 transition-all"
         onClick={handleWishlist}
       >
         <Heart className="size-4 text-muted-foreground transition-colors group-hover:text-rose-500" />
       </Button>
 
-      {/* Product image placeholder */}
-      <div className="flex items-center justify-center bg-primary/[0.03] h-40 border-b border-border/40">
-        <Pill className="size-12 text-primary/20" />
+      {/* Product image placeholder with gradient */}
+      <div className="relative flex items-center justify-center bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] h-44 border-b border-border/40 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.06] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+        <Pill className="size-14 text-primary/20 transition-transform duration-500 group-hover:scale-110 group-hover:text-primary/30" />
+        {hasDiscount && (
+          <div className="absolute top-3 left-3">
+            <Badge className="text-[10px] font-bold bg-gradient-to-r from-green-500 to-emerald-500 text-white border-0 shadow-md">
+              {discountPct}% OFF
+            </Badge>
+          </div>
+        )}
       </div>
 
       <CardContent className="p-4">
-        <div className="space-y-2">
+        <div className="space-y-2.5">
           {/* Badges */}
           <div className="flex flex-wrap gap-1.5">
             {product.requiresPrescription && (
@@ -94,21 +102,16 @@ export default function ProductCard({ product }: ProductCardProps) {
                 Rx Required
               </Badge>
             )}
-            {hasDiscount && (
-              <Badge className="text-[10px] font-medium bg-green-600 hover:bg-green-600">
-                {discountPct}% OFF
-              </Badge>
-            )}
             {product.stockQuantity < 10 && product.stockQuantity > 0 && (
-              <Badge variant="outline" className="text-[10px] font-medium text-amber-600">
-                Low Stock
+              <Badge variant="outline" className="text-[10px] font-medium text-amber-600 border-amber-300">
+                Only {product.stockQuantity} left
               </Badge>
             )}
           </div>
 
           {/* Name & manufacturer */}
           <div>
-            <h3 className="text-sm font-semibold leading-snug text-foreground line-clamp-2 group-hover:text-primary transition-colors">
+            <h3 className="text-sm font-semibold leading-snug text-foreground line-clamp-2 group-hover:text-primary transition-colors duration-200">
               {product.name}
             </h3>
             <p className="mt-0.5 text-xs text-muted-foreground">
@@ -122,8 +125,8 @@ export default function ProductCard({ product }: ProductCardProps) {
           </p>
 
           {/* Price */}
-          <div className="flex items-baseline gap-1.5 pt-1">
-            <span className="text-lg font-bold text-foreground">
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-lg font-extrabold text-foreground">
               {formatCurrency(hasDiscount ? product.discountPrice! : product.price)}
             </span>
             {hasDiscount && (
@@ -134,10 +137,10 @@ export default function ProductCard({ product }: ProductCardProps) {
           </div>
 
           {/* Action buttons */}
-          <div className="flex gap-2 pt-1">
+          <div className="flex gap-2">
             <Button
               size="sm"
-              className="flex-1 h-8 text-xs font-semibold gap-1"
+              className="flex-1 h-9 text-xs font-semibold gap-1 gradient-primary text-white shadow-sm hover:shadow-glow transition-all hover:scale-[1.02] active:scale-[0.98]"
               onClick={handleBuyNow}
               disabled={isAdding || product.stockQuantity === 0}
             >
@@ -147,7 +150,7 @@ export default function ProductCard({ product }: ProductCardProps) {
             <Button
               size="sm"
               variant="secondary"
-              className="h-8 text-xs font-semibold gap-1"
+              className="h-9 text-xs font-semibold gap-1 border border-border/60 hover:border-primary/30 hover:bg-primary/[0.03] transition-all"
               onClick={handleAddToCart}
               disabled={isAdding || product.stockQuantity === 0}
             >
