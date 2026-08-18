@@ -19,9 +19,9 @@ import {
   CreditCard,
   Banknote,
   Loader2,
-  CheckCircle,
   Pill,
   Plus,
+  AlertCircle,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/auth-utils";
 import { toast } from "sonner";
@@ -39,7 +39,6 @@ export default function Checkout() {
   const addresses = useQuery(api.addresses.list);
   const defaultAddress = useQuery(api.addresses.getDefault);
   const createOrder = useMutation(api.orders.create);
-  const confirmPayment = useMutation(api.orders.confirmPayment);
   const createRazorpayOrder = useAction(api.razorpay.createOrder);
   const getRazorpayKeyId = useAction(api.razorpay.getKeyId);
 
@@ -63,16 +62,25 @@ export default function Checkout() {
     }
   }, [defaultAddress, selectedAddressId]);
 
+  // Auto-select first address if none is selected yet
+  useEffect(() => {
+    if (addresses && addresses.length > 0 && !selectedAddressId) {
+      setSelectedAddressId(addresses[0]._id);
+    }
+  }, [addresses, selectedAddressId]);
+
   // Load Razorpay script
   useEffect(() => {
-    const script = document.createElement("script");
-    script.src = "https://checkout.razorpay.com/v1/checkout.js";
-    script.async = true;
-    document.body.appendChild(script);
-    return () => {
-      document.body.removeChild(script);
-    };
-  }, []);
+    if (paymentMethod === "online") {
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.async = true;
+      document.body.appendChild(script);
+      return () => {
+        document.body.removeChild(script);
+      };
+    }
+  }, [paymentMethod]);
 
   if (cartItems === undefined || addresses === undefined) {
     return (
@@ -112,6 +120,8 @@ export default function Checkout() {
     return sum;
   }, 0);
 
+  const canPlaceOrder = selectedAddress && selectedAddress.phone && selectedAddress.phone.trim().length > 0 && !isPlacing;
+
   const handleSaveNewAddress = async () => {
     if (!newAddr.name || !newAddr.phone || !newAddr.addressLine1 || !newAddr.city || !newAddr.state || !newAddr.pincode) {
       toast.error("Please fill in all required address fields");
@@ -137,6 +147,12 @@ export default function Checkout() {
   const handlePlaceOrder = async () => {
     if (!selectedAddress) {
       toast.error("Please select a delivery address");
+      return;
+    }
+    if (!selectedAddress.phone || selectedAddress.phone.trim().length === 0) {
+      toast.error("Phone number is required", {
+        description: "Please add a phone number to your address",
+      });
       return;
     }
 
@@ -178,7 +194,6 @@ export default function Checkout() {
           order_id: razorpayOrder.id,
           handler: async (response: any) => {
             try {
-              // Create order in our DB
               const result = await createOrder({
                 shippingAddress: formatAddress(selectedAddress),
                 phone: selectedAddress.phone,
@@ -212,6 +227,8 @@ export default function Checkout() {
 
         const rzp = new window.Razorpay(options);
         rzp.open();
+        // Note: isPlacing stays true until Razorpay modal closes or payment succeeds
+        return;
       } else {
         // COD order
         const result = await createOrder({
@@ -220,8 +237,11 @@ export default function Checkout() {
           paymentMethod: "cod",
           notes: notes || undefined,
         });
-        toast.success("Order placed! Pay cash on delivery.");
+        toast.success("Order placed successfully!", {
+          description: "Pay cash on delivery when your order arrives.",
+        });
         navigate(`/orders/${result.orderId}`);
+        return;
       }
     } catch (error) {
       toast.error("Could not place order", {
@@ -260,13 +280,20 @@ export default function Checkout() {
                   <CardTitle className="flex items-center gap-2 text-base">
                     <MapPin className="size-4" />
                     Delivery Address
+                    {!selectedAddress && (
+                      <Badge variant="destructive" className="text-[10px] ml-1">Required</Badge>
+                    )}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   {addresses.length === 0 && !showNewAddress ? (
                     <div className="text-center py-6">
-                      <p className="text-sm text-muted-foreground mb-3">
-                        No saved addresses. Add one to continue.
+                      <AlertCircle className="mx-auto size-8 text-muted-foreground/40 mb-2" />
+                      <p className="text-sm font-medium text-foreground mb-1">
+                        No delivery address found
+                      </p>
+                      <p className="text-xs text-muted-foreground mb-3">
+                        Add a delivery address to continue with your order.
                       </p>
                       <Button size="sm" onClick={() => setShowNewAddress(true)}>
                         <Plus className="mr-1.5 size-3.5" />
@@ -333,20 +360,20 @@ export default function Checkout() {
                       <h4 className="text-sm font-semibold">New Address</h4>
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <Label className="text-xs">Name *</Label>
+                          <Label className="text-xs">Full Name *</Label>
                           <Input
                             value={newAddr.name}
                             onChange={(e) => setNewAddr({ ...newAddr, name: e.target.value })}
-                            placeholder="Full name"
+                            placeholder="Receiver's full name"
                             className="h-8 text-sm"
                           />
                         </div>
                         <div>
-                          <Label className="text-xs">Phone *</Label>
+                          <Label className="text-xs">Phone Number *</Label>
                           <Input
                             value={newAddr.phone}
                             onChange={(e) => setNewAddr({ ...newAddr, phone: e.target.value })}
-                            placeholder="+91 XXXXX XXXXX"
+                            placeholder="10-digit mobile number"
                             className="h-8 text-sm"
                           />
                         </div>
@@ -361,11 +388,11 @@ export default function Checkout() {
                         />
                       </div>
                       <div>
-                        <Label className="text-xs">Address Line 2</Label>
+                        <Label className="text-xs">Landmark (Optional)</Label>
                         <Input
                           value={newAddr.addressLine2}
                           onChange={(e) => setNewAddr({ ...newAddr, addressLine2: e.target.value })}
-                          placeholder="Landmark (optional)"
+                          placeholder="Near hospital, opposite park, etc."
                           className="h-8 text-sm"
                         />
                       </div>
@@ -375,6 +402,7 @@ export default function Checkout() {
                           <Input
                             value={newAddr.city}
                             onChange={(e) => setNewAddr({ ...newAddr, city: e.target.value })}
+                            placeholder="City"
                             className="h-8 text-sm"
                           />
                         </div>
@@ -383,6 +411,7 @@ export default function Checkout() {
                           <Input
                             value={newAddr.state}
                             onChange={(e) => setNewAddr({ ...newAddr, state: e.target.value })}
+                            placeholder="State"
                             className="h-8 text-sm"
                           />
                         </div>
@@ -391,6 +420,7 @@ export default function Checkout() {
                           <Input
                             value={newAddr.pincode}
                             onChange={(e) => setNewAddr({ ...newAddr, pincode: e.target.value })}
+                            placeholder="6-digit pincode"
                             className="h-8 text-sm"
                           />
                         </div>
@@ -434,7 +464,7 @@ export default function Checkout() {
                       <div>
                         <span className="text-sm font-medium">Online Payment</span>
                         <p className="text-xs text-muted-foreground">
-                          Pay securely via UPI, cards, or net banking
+                          Pay securely via UPI, credit/debit cards, or net banking
                         </p>
                       </div>
                     </label>
@@ -523,11 +553,21 @@ export default function Checkout() {
                       </div>
                     </div>
 
+                    {/* Missing address warning */}
+                    {!selectedAddress && (
+                      <div className="flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-200 p-3">
+                        <AlertCircle className="size-4 text-amber-600 shrink-0" />
+                        <p className="text-xs text-amber-700">
+                          Please add and select a delivery address to continue.
+                        </p>
+                      </div>
+                    )}
+
                     <Button
                       size="lg"
                       className="w-full font-semibold"
                       onClick={handlePlaceOrder}
-                      disabled={isPlacing || !selectedAddress}
+                      disabled={!canPlaceOrder}
                     >
                       {isPlacing ? (
                         <>
@@ -540,6 +580,10 @@ export default function Checkout() {
                         `Place Order — ${formatCurrency(subtotal)}`
                       )}
                     </Button>
+
+                    <p className="text-[10px] text-center text-muted-foreground">
+                      By placing this order, you agree to our terms of service.
+                    </p>
                   </CardContent>
                 </Card>
               </div>
