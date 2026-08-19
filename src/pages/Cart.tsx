@@ -20,6 +20,7 @@ import {
   Truck,
   Zap,
   Tag,
+  Sparkles,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/auth-utils";
 import { toast } from "sonner";
@@ -99,27 +100,42 @@ export default function Cart() {
       <Navbar />
 
       <main className="flex-1">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8">
-          {/* Header */}
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex items-center justify-between mb-6"
-          >
-            <Button
-              variant="ghost"
-              size="sm"
-              className="gap-1.5 text-muted-foreground hover:text-primary transition-colors rounded-xl"
-              onClick={() => navigate(-1)}
+        {/* Page header */}
+        <div className="bg-gradient-to-b from-primary/[0.03] to-transparent border-b border-border/30">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8">
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex items-center justify-between"
             >
-              <ArrowLeft className="size-4" />
-              Continue Shopping
-            </Button>
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">
-              Shopping Cart
-            </h1>
-          </motion.div>
+              <div>
+                <div className="inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary mb-3">
+                  <Sparkles className="size-3" />
+                  Shopping Cart
+                </div>
+                <h1 className="text-2xl font-bold tracking-tight text-foreground">
+                  Shopping Cart
+                </h1>
+                {cartItems && cartItems.length > 0 && (
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    <span className="font-semibold text-foreground">{itemCount}</span> item{itemCount !== 1 ? "s" : ""} in your cart
+                  </p>
+                )}
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-1.5 text-muted-foreground hover:text-primary transition-colors rounded-xl"
+                onClick={() => navigate("/products")}
+              >
+                <ArrowLeft className="size-4" />
+                Continue Shopping
+              </Button>
+            </motion.div>
+          </div>
+        </div>
 
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8">
           {cartItems === undefined ? (
             <div className="grid lg:grid-cols-3 gap-8">
               <div className="lg:col-span-2 space-y-4">
@@ -157,10 +173,6 @@ export default function Cart() {
             <div className="grid lg:grid-cols-3 gap-8">
               {/* Cart items */}
               <div className="lg:col-span-2 space-y-3">
-                <p className="text-sm text-muted-foreground mb-2">
-                  <span className="font-semibold text-foreground">{itemCount}</span> item{itemCount !== 1 ? "s" : ""} in your cart
-                </p>
-
                 <AnimatePresence>
                   {cartItems.map((item, index) => {
                     if (!item.product) return null;
@@ -174,8 +186,8 @@ export default function Cart() {
                         initial={{ opacity: 0, x: -16 }}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: 16, height: 0 }}
-                        transition={{ duration: 0.3, delay: index * 0.05 }}
-                        className="flex gap-4 p-4 rounded-2xl border border-border/60 bg-card transition-all duration-200 hover:shadow-card-hover hover:border-primary/15"
+                        transition={{ duration: 0.35, delay: index * 0.05, ease: [0.22, 1, 0.36, 1] }}
+                        className="flex gap-4 p-4 rounded-2xl border border-border/60 bg-card transition-all duration-300 hover:shadow-card-hover hover:border-primary/15"
                       >
                         {/* Image */}
                         <div
@@ -259,7 +271,7 @@ export default function Cart() {
                 <motion.div
                   initial={{ opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2 }}
+                  transition={{ delay: 0.2, duration: 0.5 }}
                   className="sticky top-24 rounded-2xl border border-border/60 bg-card p-6 space-y-5 shadow-sm"
                 >
                   <h2 className="text-lg font-bold text-foreground">Order Summary</h2>

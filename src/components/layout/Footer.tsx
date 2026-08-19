@@ -1,7 +1,8 @@
+import { memo } from "react";
 import { useNavigate } from "react-router";
 import { Phone, MapPin, Mail, Clock, ArrowUpRight, Heart } from "lucide-react";
 
-export default function Footer() {
+const Footer = memo(function Footer() {
   const navigate = useNavigate();
 
   return (
@@ -27,6 +28,12 @@ export default function Footer() {
               Your trusted neighbourhood pharmacy, now available online. Genuine
               medicines, delivered with care to your doorstep.
             </p>
+            <div className="mt-4 flex items-center gap-3">
+              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                <Clock className="size-3" />
+                <span>Mon – Sat, 8 AM – 10 PM</span>
+              </div>
+            </div>
           </div>
 
           {/* Quick Links */}
@@ -163,4 +170,6 @@ export default function Footer() {
       </div>
     </footer>
   );
-}
+});
+
+export default Footer;

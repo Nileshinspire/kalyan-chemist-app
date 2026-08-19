@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { motion } from "framer-motion";
 import {
   ArrowLeft,
   Heart,
@@ -18,9 +19,9 @@ import {
   Truck,
   AlertTriangle,
   Pill,
-  Clock3,
   BadgeCheck,
   Zap,
+  Sparkles,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/auth-utils";
 import { useState } from "react";
@@ -68,21 +69,27 @@ export default function ProductDetail() {
       <div className="min-h-screen flex flex-col bg-background">
         <Navbar />
         <main className="flex-1 flex flex-col items-center justify-center text-center px-4">
-          <div className="size-20 rounded-full bg-muted flex items-center justify-center mb-4">
-            <Pill className="size-10 text-muted-foreground/40" />
-          </div>
-          <h1 className="text-2xl font-bold text-foreground">
-            Product Not Found
-          </h1>
-          <p className="mt-2 text-sm text-muted-foreground max-w-sm">
-            The medicine you are looking for does not exist or has been removed from our catalogue.
-          </p>
-          <Button
-            className="mt-6 font-semibold"
-            onClick={() => navigate("/products")}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="flex flex-col items-center"
           >
-            Browse Medicines
-          </Button>
+            <div className="size-20 rounded-2xl bg-muted/50 flex items-center justify-center mb-4">
+              <Pill className="size-10 text-muted-foreground/40" />
+            </div>
+            <h1 className="text-2xl font-bold text-foreground">
+              Product Not Found
+            </h1>
+            <p className="mt-2 text-sm text-muted-foreground max-w-sm">
+              The medicine you are looking for does not exist or has been removed from our catalogue.
+            </p>
+            <Button
+              className="mt-6 font-semibold gradient-primary text-white rounded-xl"
+              onClick={() => navigate("/products")}
+            >
+              Browse Medicines
+            </Button>
+          </motion.div>
         </main>
         <Footer />
       </div>
@@ -147,7 +154,7 @@ export default function ProductDetail() {
           <Button
             variant="ghost"
             size="sm"
-            className="mb-6 gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
+            className="mb-6 gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors rounded-xl"
             onClick={() => navigate(-1)}
           >
             <ArrowLeft className="size-4" />
@@ -157,9 +164,14 @@ export default function ProductDetail() {
           {/* Product detail grid */}
           <div className="grid md:grid-cols-2 gap-8 lg:gap-12">
             {/* Image */}
-            <div className="relative flex items-center justify-center rounded-2xl bg-gradient-to-br from-primary/[0.06] to-primary/[0.01] border border-border/40 h-72 sm:h-96 overflow-hidden">
+            <motion.div
+              initial={{ opacity: 0, x: -16 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5 }}
+              className="relative flex items-center justify-center rounded-2xl bg-gradient-to-br from-primary/[0.06] to-primary/[0.01] border border-border/40 h-72 sm:h-96 overflow-hidden group"
+            >
               <div className="absolute inset-0 bg-gradient-to-t from-primary/[0.03] to-transparent" />
-              <Pill className="size-24 text-primary/15 relative z-10" />
+              <Pill className="size-24 text-primary/15 relative z-10 transition-transform duration-500 group-hover:scale-110 group-hover:rotate-6" />
               {hasDiscount && (
                 <div className="absolute top-4 left-4 z-10">
                   <Badge className="text-sm font-bold bg-gradient-to-r from-green-500 to-emerald-500 text-white border-0 shadow-md px-3 py-1">
@@ -167,10 +179,15 @@ export default function ProductDetail() {
                   </Badge>
                 </div>
               )}
-            </div>
+            </motion.div>
 
             {/* Info */}
-            <div className="space-y-5">
+            <motion.div
+              initial={{ opacity: 0, x: 16 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+              className="space-y-5"
+            >
               {/* Badges */}
               <div className="flex flex-wrap gap-1.5">
                 {product.requiresPrescription && (
@@ -279,7 +296,7 @@ export default function ProductDetail() {
                 <div className="flex gap-3">
                   <Button
                     size="lg"
-                    className="flex-1 font-semibold gap-2 gradient-primary text-white shadow-glow hover:shadow-card-hover transition-all hover:scale-[1.01] active:scale-[0.99]"
+                    className="flex-1 font-semibold gap-2 gradient-primary text-white shadow-glow hover:shadow-card-hover transition-all hover:scale-[1.01] active:scale-[0.99] rounded-xl"
                     onClick={handleBuyNow}
                     disabled={isAdding || product.stockQuantity === 0}
                   >
@@ -293,7 +310,7 @@ export default function ProductDetail() {
                   <Button
                     size="lg"
                     variant="secondary"
-                    className="flex-1 font-semibold gap-2 border border-border/60 hover:border-primary/30 transition-all"
+                    className="flex-1 font-semibold gap-2 border border-border/60 hover:border-primary/30 transition-all rounded-xl"
                     onClick={handleAddToCart}
                     disabled={isAdding || product.stockQuantity === 0}
                   >
@@ -303,7 +320,7 @@ export default function ProductDetail() {
                   <Button
                     size="lg"
                     variant="outline"
-                    className="px-3 hover:bg-rose-50 hover:border-rose-200 hover:text-rose-600 transition-all"
+                    className="px-3 hover:bg-rose-50 hover:border-rose-200 hover:text-rose-600 transition-all rounded-xl"
                     onClick={handleWishlist}
                   >
                     <Heart className="size-4" />
@@ -331,7 +348,7 @@ export default function ProductDetail() {
               {product.requiresPrescription && (
                 <div className="flex items-start gap-3 rounded-xl border border-amber-300/50 bg-gradient-to-r from-amber-50 to-amber-50/50 p-4">
                   <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-amber-100">
-                    <AlertTriangle className="size-4.5 text-amber-600" />
+                    <AlertTriangle className="size-4 text-amber-600" />
                   </div>
                   <div>
                     <p className="text-sm font-semibold text-amber-800">
@@ -357,12 +374,21 @@ export default function ProductDetail() {
                   {product.description}
                 </p>
               </div>
-            </div>
+            </motion.div>
           </div>
 
           {/* Related products */}
           {relatedProducts && relatedProducts.length > 0 && (
-            <div className="mt-16">
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3, duration: 0.5 }}
+              className="mt-16"
+            >
+              <div className="inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary mb-3">
+                <Sparkles className="size-3" />
+                You may also like
+              </div>
               <h2 className="text-xl font-bold tracking-tight text-foreground mb-6">
                 Related Products
               </h2>
@@ -371,7 +397,7 @@ export default function ProductDetail() {
                   <ProductCard key={p._id} product={p} />
                 ))}
               </div>
-            </div>
+            </motion.div>
           )}
         </div>
       </main>

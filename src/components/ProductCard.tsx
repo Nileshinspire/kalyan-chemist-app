@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { useNavigate } from "react-router";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -14,11 +15,12 @@ interface ProductCardProps {
   product: Doc<"products">;
 }
 
-export default function ProductCard({ product }: ProductCardProps) {
+const ProductCard = memo(function ProductCard({ product }: ProductCardProps) {
   const navigate = useNavigate();
   const addToCart = useMutation(api.cart.addItem);
   const toggleWishlist = useMutation(api.wishlist.toggle);
   const [isAdding, setIsAdding] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -52,6 +54,7 @@ export default function ProductCard({ product }: ProductCardProps) {
     e.stopPropagation();
     try {
       await toggleWishlist({ productId: product._id });
+      toast.success("Added to wishlist");
     } catch {
       toast.error("Please sign in to save items");
     }
@@ -67,14 +70,16 @@ export default function ProductCard({ product }: ProductCardProps) {
 
   return (
     <Card
-      className="group relative overflow-hidden border-border/60 bg-card cursor-pointer transition-all duration-300 hover:shadow-card-hover hover:border-primary/20 hover:-translate-y-0.5"
+      className="group relative overflow-hidden border-border/60 bg-card cursor-pointer transition-all duration-500 hover:shadow-card-hover hover:border-primary/20 hover:-translate-y-1"
       onClick={() => navigate(`/products/${product.slug}`)}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
       {/* Wishlist button */}
       <Button
         variant="ghost"
         size="icon"
-        className="absolute top-3 right-3 z-10 h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background hover:scale-110 transition-all"
+        className="absolute top-3 right-3 z-10 h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background hover:scale-110 transition-all duration-300 opacity-0 group-hover:opacity-100"
         onClick={handleWishlist}
       >
         <Heart className="size-4 text-muted-foreground transition-colors group-hover:text-rose-500" />
@@ -82,12 +87,24 @@ export default function ProductCard({ product }: ProductCardProps) {
 
       {/* Product image placeholder with gradient */}
       <div className="relative flex items-center justify-center bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] h-44 border-b border-border/40 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.06] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-        <Pill className="size-14 text-primary/20 transition-transform duration-500 group-hover:scale-110 group-hover:text-primary/30" />
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.08] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+        <Pill
+          className={`size-14 text-primary/20 transition-all duration-500 ${
+            isHovered ? "scale-125 text-primary/35 rotate-6" : ""
+          }`}
+        />
         {hasDiscount && (
           <div className="absolute top-3 left-3">
             <Badge className="text-[10px] font-bold bg-gradient-to-r from-green-500 to-emerald-500 text-white border-0 shadow-md">
               {discountPct}% OFF
+            </Badge>
+          </div>
+        )}
+        {/* Low stock badge */}
+        {product.stockQuantity > 0 && product.stockQuantity < 10 && (
+          <div className="absolute bottom-3 left-3">
+            <Badge variant="outline" className="text-[10px] font-medium text-amber-600 border-amber-300 bg-amber-50/80 backdrop-blur-sm">
+              Only {product.stockQuantity} left
             </Badge>
           </div>
         )}
@@ -102,16 +119,11 @@ export default function ProductCard({ product }: ProductCardProps) {
                 Rx Required
               </Badge>
             )}
-            {product.stockQuantity < 10 && product.stockQuantity > 0 && (
-              <Badge variant="outline" className="text-[10px] font-medium text-amber-600 border-amber-300">
-                Only {product.stockQuantity} left
-              </Badge>
-            )}
           </div>
 
           {/* Name & manufacturer */}
           <div>
-            <h3 className="text-sm font-semibold leading-snug text-foreground line-clamp-2 group-hover:text-primary transition-colors duration-200">
+            <h3 className="text-sm font-semibold leading-snug text-foreground line-clamp-2 group-hover:text-primary transition-colors duration-300">
               {product.name}
             </h3>
             <p className="mt-0.5 text-xs text-muted-foreground">
@@ -140,7 +152,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           <div className="flex gap-2">
             <Button
               size="sm"
-              className="flex-1 h-9 text-xs font-semibold gap-1 gradient-primary text-white shadow-sm hover:shadow-glow transition-all hover:scale-[1.02] active:scale-[0.98]"
+              className="flex-1 h-9 text-xs font-semibold gap-1 gradient-primary text-white shadow-sm hover:shadow-glow transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
               onClick={handleBuyNow}
               disabled={isAdding || product.stockQuantity === 0}
             >
@@ -150,7 +162,7 @@ export default function ProductCard({ product }: ProductCardProps) {
             <Button
               size="sm"
               variant="secondary"
-              className="h-9 text-xs font-semibold gap-1 border border-border/60 hover:border-primary/30 hover:bg-primary/[0.03] transition-all"
+              className="h-9 text-xs font-semibold gap-1 border border-border/60 hover:border-primary/30 hover:bg-primary/[0.03] transition-all duration-300"
               onClick={handleAddToCart}
               disabled={isAdding || product.stockQuantity === 0}
             >
@@ -162,4 +174,6 @@ export default function ProductCard({ product }: ProductCardProps) {
       </CardContent>
     </Card>
   );
-}
+});
+
+export default ProductCard;

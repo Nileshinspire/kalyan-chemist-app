@@ -5,10 +5,10 @@ import { useAuth } from "@/hooks/use-auth";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { Heart, ShoppingCart, Trash2, Pill, ArrowLeft } from "lucide-react";
+import { Heart, ShoppingCart, Trash2, Pill, ArrowLeft, Sparkles } from "lucide-react";
 import { formatCurrency } from "@/lib/auth-utils";
 import { toast } from "sonner";
+import { motion, AnimatePresence } from "framer-motion";
 
 export default function Wishlist() {
   const navigate = useNavigate();
@@ -65,40 +65,51 @@ export default function Wishlist() {
 
       <main className="flex-1">
         <div className="mx-auto max-w-4xl px-4 sm:px-6 py-8">
-          {/* Header */}
-          <div className="flex items-center gap-3 mb-6">
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+          >
             <Button
               variant="ghost"
               size="sm"
-              className="gap-1.5 text-muted-foreground"
+              className="mb-4 gap-1.5 text-muted-foreground rounded-xl"
               onClick={() => navigate(-1)}
             >
               <ArrowLeft className="size-4" />
               Back
             </Button>
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground mb-2">
-            My Wishlist
-          </h1>
-          <p className="text-sm text-muted-foreground mb-8">
-            {wishlistItems === undefined
-              ? "Loading…"
-              : `${wishlistItems.length} saved item${wishlistItems.length !== 1 ? "s" : ""}`}
-          </p>
+            <div className="inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary mb-3">
+              <Heart className="size-3" />
+              Saved Items
+            </div>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground mb-2">
+              My Wishlist
+            </h1>
+            <p className="text-sm text-muted-foreground mb-8">
+              {wishlistItems === undefined
+                ? "Loading…"
+                : `${wishlistItems.length} saved item${wishlistItems.length !== 1 ? "s" : ""}`}
+            </p>
+          </motion.div>
 
           {wishlistItems === undefined ? (
             <div className="space-y-4">
               {Array.from({ length: 3 }).map((_, i) => (
                 <div
                   key={i}
-                  className="h-24 rounded-xl border border-border/60 animate-pulse bg-muted/30"
+                  className="h-24 rounded-2xl border border-border/60 animate-pulse bg-muted/30"
                 />
               ))}
             </div>
           ) : wishlistItems.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-center">
-              <div className="size-16 rounded-full bg-muted flex items-center justify-center mb-4">
-                <Heart className="size-7 text-muted-foreground/50" />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="flex flex-col items-center justify-center py-20 text-center"
+            >
+              <div className="size-16 rounded-2xl bg-muted/50 flex items-center justify-center mb-4">
+                <Heart className="size-7 text-muted-foreground/40" />
               </div>
               <h3 className="text-lg font-semibold text-foreground">
                 No saved items yet
@@ -108,83 +119,89 @@ export default function Wishlist() {
                 later.
               </p>
               <Button
-                className="mt-4 font-semibold"
+                className="mt-5 font-semibold gradient-primary text-white rounded-xl"
                 onClick={() => navigate("/products")}
               >
                 Browse Medicines
               </Button>
-            </div>
+            </motion.div>
           ) : (
             <div className="space-y-3">
-              {wishlistItems.map((item) => {
-                if (!item.product) return null;
-                const p = item.product;
-                const effectivePrice =
-                  p.discountPrice && p.discountPrice < p.price
-                    ? p.discountPrice
-                    : p.price;
+              <AnimatePresence>
+                {wishlistItems.map((item, index) => {
+                  if (!item.product) return null;
+                  const p = item.product;
+                  const effectivePrice =
+                    p.discountPrice && p.discountPrice < p.price
+                      ? p.discountPrice
+                      : p.price;
 
-                return (
-                  <div
-                    key={item._id}
-                    className="flex gap-4 p-4 rounded-xl border border-border/60 bg-card transition-colors hover:border-border"
-                  >
-                    {/* Image */}
-                    <div
-                      className="flex items-center justify-center h-20 w-20 shrink-0 rounded-lg bg-primary/[0.03] border border-border/40 cursor-pointer"
-                      onClick={() => navigate(`/products/${p.slug}`)}
+                  return (
+                    <motion.div
+                      key={item._id}
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, x: 16 }}
+                      transition={{ delay: index * 0.05, duration: 0.4 }}
+                      className="flex gap-4 p-4 rounded-2xl border border-border/60 bg-card transition-all duration-300 hover:shadow-card-hover hover:border-primary/15"
                     >
-                      <Pill className="size-8 text-primary/20" />
-                    </div>
-
-                    {/* Details */}
-                    <div className="flex-1 min-w-0 flex flex-col justify-between">
-                      <div>
-                        <h3
-                          className="text-sm font-semibold text-foreground truncate cursor-pointer hover:text-primary transition-colors"
-                          onClick={() => navigate(`/products/${p.slug}`)}
-                        >
-                          {p.name}
-                        </h3>
-                        <p className="text-xs text-muted-foreground">
-                          {p.manufacturer} · {p.dosage} · {p.packSize}
-                        </p>
+                      {/* Image */}
+                      <div
+                        className="flex items-center justify-center h-20 w-20 shrink-0 rounded-xl bg-gradient-to-br from-primary/[0.05] to-primary/[0.01] border border-border/40 cursor-pointer hover:scale-105 transition-transform"
+                        onClick={() => navigate(`/products/${p.slug}`)}
+                      >
+                        <Pill className="size-8 text-primary/20" />
                       </div>
 
-                      <div className="flex items-center justify-between mt-2">
-                        <span className="text-sm font-bold text-foreground">
-                          {formatCurrency(effectivePrice)}
-                          {p.discountPrice && p.discountPrice < p.price && (
-                            <span className="ml-1.5 text-xs text-muted-foreground line-through">
-                              {formatCurrency(p.price)}
-                            </span>
-                          )}
-                        </span>
+                      {/* Details */}
+                      <div className="flex-1 min-w-0 flex flex-col justify-between">
+                        <div>
+                          <h3
+                            className="text-sm font-semibold text-foreground truncate cursor-pointer hover:text-primary transition-colors"
+                            onClick={() => navigate(`/products/${p.slug}`)}
+                          >
+                            {p.name}
+                          </h3>
+                          <p className="text-xs text-muted-foreground">
+                            {p.manufacturer} · {p.dosage} · {p.packSize}
+                          </p>
+                        </div>
 
-                        <div className="flex items-center gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                            onClick={() => handleRemove(p._id, p.name)}
-                          >
-                            <Trash2 className="size-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            className="h-8 text-xs font-semibold gap-1"
-                            onClick={() => handleAddToCart(p._id, p.name)}
-                            disabled={p.stockQuantity === 0}
-                          >
-                            <ShoppingCart className="size-3" />
-                            {p.stockQuantity === 0 ? "Out of Stock" : "Add to Cart"}
-                          </Button>
+                        <div className="flex items-center justify-between mt-2">
+                          <span className="text-sm font-bold text-foreground">
+                            {formatCurrency(effectivePrice)}
+                            {p.discountPrice && p.discountPrice < p.price && (
+                              <span className="ml-1.5 text-xs text-muted-foreground line-through">
+                                {formatCurrency(p.price)}
+                              </span>
+                            )}
+                          </span>
+
+                          <div className="flex items-center gap-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all rounded-xl"
+                              onClick={() => handleRemove(p._id, p.name)}
+                            >
+                              <Trash2 className="size-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              className="h-8 text-xs font-semibold gap-1 gradient-primary text-white rounded-xl"
+                              onClick={() => handleAddToCart(p._id, p.name)}
+                              disabled={p.stockQuantity === 0}
+                            >
+                              <ShoppingCart className="size-3" />
+                              {p.stockQuantity === 0 ? "Out of Stock" : "Add to Cart"}
+                            </Button>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </div>
-                );
-              })}
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
             </div>
           )}
         </div>

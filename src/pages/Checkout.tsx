@@ -24,11 +24,11 @@ import {
   Plus,
   AlertCircle,
   CheckCircle2,
+  Sparkles,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/auth-utils";
 import { toast } from "sonner";
 
-// Declare Razorpay on window
 declare global {
   interface Window {
     Razorpay: any;
@@ -50,28 +50,24 @@ export default function Checkout() {
   const [isPlacing, setIsPlacing] = useState(false);
   const [showNewAddress, setShowNewAddress] = useState(false);
 
-  // New address form
   const [newAddr, setNewAddr] = useState({
     name: "", phone: "", addressLine1: "", addressLine2: "",
     city: "", state: "", pincode: "",
   });
   const createAddress = useMutation(api.addresses.create);
 
-  // Auto-select default address
   useEffect(() => {
     if (defaultAddress && !selectedAddressId) {
       setSelectedAddressId(defaultAddress._id);
     }
   }, [defaultAddress, selectedAddressId]);
 
-  // Auto-select first address if none is selected yet
   useEffect(() => {
     if (addresses && addresses.length > 0 && !selectedAddressId) {
       setSelectedAddressId(addresses[0]._id);
     }
   }, [addresses, selectedAddressId]);
 
-  // Load Razorpay script
   useEffect(() => {
     if (paymentMethod === "online") {
       const script = document.createElement("script");
@@ -204,7 +200,7 @@ export default function Checkout() {
               });
               toast.success("Payment successful! Order placed.");
               navigate(`/orders/${result.orderId}`);
-            } catch (error) {
+            } catch {
               toast.error("Payment received but order creation failed. Please contact support.");
               navigate("/orders");
             }
@@ -264,19 +260,25 @@ export default function Checkout() {
             Back to Cart
           </Button>
 
-          <motion.h1
+          <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            className="text-2xl font-bold tracking-tight text-foreground mb-8"
+            transition={{ duration: 0.5 }}
           >
-            Checkout
-          </motion.h1>
+            <div className="inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary mb-3">
+              <Sparkles className="size-3" />
+              Checkout
+            </div>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground mb-8">
+              Checkout
+            </h1>
+          </motion.div>
 
           <div className="grid lg:grid-cols-3 gap-8">
             {/* Left: Address & Payment */}
             <div className="lg:col-span-2 space-y-6">
               {/* Address Selection */}
-              <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+              <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1, duration: 0.5 }}>
                 <Card className="border-border/60 rounded-2xl overflow-hidden">
                   <CardHeader className="pb-4">
                     <CardTitle className="flex items-center gap-2 text-base">
@@ -454,7 +456,7 @@ export default function Checkout() {
               </motion.div>
 
               {/* Payment Method */}
-              <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+              <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2, duration: 0.5 }}>
                 <Card className="border-border/60 rounded-2xl overflow-hidden">
                   <CardHeader className="pb-4">
                     <CardTitle className="flex items-center gap-2 text-base">
@@ -502,7 +504,7 @@ export default function Checkout() {
               </motion.div>
 
               {/* Order Notes */}
-              <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+              <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.5 }}>
                 <Card className="border-border/60 rounded-2xl overflow-hidden">
                   <CardHeader className="pb-4">
                     <CardTitle className="text-base">Order Notes (Optional)</CardTitle>
@@ -525,7 +527,7 @@ export default function Checkout() {
               <motion.div
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.15 }}
+                transition={{ delay: 0.15, duration: 0.5 }}
                 className="sticky top-24 space-y-4"
               >
                 <Card className="border-border/60 rounded-2xl overflow-hidden">
@@ -533,7 +535,6 @@ export default function Checkout() {
                     <CardTitle className="text-base">Order Summary</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    {/* Items */}
                     <div className="space-y-3 max-h-48 overflow-y-auto">
                       {cartItems.map((item) => {
                         if (!item.product) return null;
@@ -558,7 +559,6 @@ export default function Checkout() {
 
                     <Separator />
 
-                    {/* Totals */}
                     <div className="space-y-2 text-sm">
                       {savings > 0 && (
                         <div className="flex justify-between text-green-600">
@@ -577,7 +577,6 @@ export default function Checkout() {
                       </div>
                     </div>
 
-                    {/* Missing address warning */}
                     {!selectedAddress && (
                       <div className="flex items-center gap-2 rounded-xl bg-amber-50 border border-amber-200 p-3">
                         <AlertCircle className="size-4 text-amber-600 shrink-0" />

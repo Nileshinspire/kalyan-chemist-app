@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, memo } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "convex/react";
@@ -32,17 +32,28 @@ import {
 } from "lucide-react";
 import { isAdmin } from "@/lib/auth-utils";
 
-export default function Navbar() {
+const Navbar = memo(function Navbar() {
   const { isAuthenticated, user, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   const searchRef = useRef<HTMLFormElement>(null);
 
+  // Memoize queries to avoid unnecessary re-subscription
   const cartCount = useQuery(api.cart.getCount);
   const unreadCount = useQuery(api.notifications.unreadCount);
+
+  // Track scroll for navbar background enhancement
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 10);
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,14 +72,20 @@ export default function Navbar() {
   const notifCount = unreadCount ?? 0;
 
   return (
-    <header className="sticky top-0 z-50 glass-strong border-b border-border/30 shadow-sm">
+    <header
+      className={`sticky top-0 z-50 border-b transition-all duration-300 ${
+        scrolled
+          ? "glass-strong border-border/20 shadow-md shadow-primary/[0.03]"
+          : "glass-strong border-border/30 shadow-sm"
+      }`}
+    >
       <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 sm:px-6 py-3">
         {/* Logo */}
         <div
           className="flex items-center gap-2.5 cursor-pointer shrink-0 group"
           onClick={() => navigate("/")}
         >
-          <div className="flex size-9 items-center justify-center rounded-xl gradient-primary text-white font-bold text-sm shadow-glow group-hover:shadow-card-hover transition-shadow duration-300">
+          <div className="flex size-9 items-center justify-center rounded-xl gradient-primary text-white font-bold text-sm shadow-glow group-hover:shadow-card-hover group-hover:scale-105 transition-all duration-300">
             KC
           </div>
           <div className="hidden sm:block leading-tight">
@@ -402,4 +419,6 @@ export default function Navbar() {
       </div>
     </header>
   );
-}
+});
+
+export default Navbar;

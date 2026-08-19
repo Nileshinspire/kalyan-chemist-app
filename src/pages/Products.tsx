@@ -16,6 +16,7 @@ import {
   SlidersHorizontal,
   ChevronDown,
   PackageOpen,
+  Sparkles,
 } from "lucide-react";
 
 export default function Products() {
@@ -31,24 +32,20 @@ export default function Products() {
   const categories = useQuery(api.categories.list);
   const allProducts = useQuery(api.products.list, {});
 
-  // Find the category ID from the slug
   const selectedCategoryId = useMemo(() => {
     if (!selectedCategorySlug || !categories) return undefined;
     const cat = categories.find((c) => c.slug === selectedCategorySlug);
     return cat?._id;
   }, [selectedCategorySlug, categories]);
 
-  // Filter products
   const filteredProducts = useMemo(() => {
     if (!allProducts) return [];
     let products = allProducts.filter((p) => p.isActive);
 
-    // Category filter
     if (selectedCategoryId) {
       products = products.filter((p) => p.categoryId === selectedCategoryId);
     }
 
-    // Search filter
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
       products = products.filter(
@@ -62,7 +59,6 @@ export default function Products() {
     return products;
   }, [allProducts, selectedCategoryId, searchQuery]);
 
-  // Update URL params
   useEffect(() => {
     const params = new URLSearchParams();
     if (searchQuery) params.set("search", searchQuery);
@@ -83,26 +79,35 @@ export default function Products() {
       <Navbar />
 
       <main className="flex-1">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8">
-          {/* Page header */}
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-            className="mb-6"
-          >
-            <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
-              {selectedCategoryId && categories
-                ? categories.find((c) => c._id === selectedCategoryId)?.name || "Medicines"
-                : searchQuery
-                ? `Results for "${searchQuery}"`
-                : "All Medicines"}
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {filteredProducts.length} product{filteredProducts.length !== 1 ? "s" : ""} available
-            </p>
-          </motion.div>
+        {/* Page header */}
+        <div className="bg-gradient-to-b from-primary/[0.03] to-transparent border-b border-border/30">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8">
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <div className="inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary mb-3">
+                <Sparkles className="size-3" />
+                Medicine Catalogue
+              </div>
+              <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+                {selectedCategoryId && categories
+                  ? categories.find((c) => c._id === selectedCategoryId)?.name || "Medicines"
+                  : searchQuery
+                  ? `Results for "${searchQuery}"`
+                  : "All Medicines"}
+              </h1>
+              <p className="mt-1.5 text-sm text-muted-foreground">
+                {allProducts === undefined
+                  ? "Loading medicines…"
+                  : `${filteredProducts.length} product${filteredProducts.length !== 1 ? "s" : ""} available`}
+              </p>
+            </motion.div>
+          </div>
+        </div>
 
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8">
           <div className="flex gap-8">
             {/* Desktop sidebar filters */}
             <aside className="hidden lg:block w-64 shrink-0">
@@ -285,12 +290,18 @@ export default function Products() {
               {allProducts === undefined ? (
                 <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
                   {Array.from({ length: 8 }).map((_, i) => (
-                    <div key={i} className="space-y-3">
-                      <Skeleton className="h-40 w-full rounded-2xl animate-pulse" />
+                    <motion.div
+                      key={i}
+                      initial={{ opacity: 0, y: 16 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.05, duration: 0.4 }}
+                      className="space-y-3"
+                    >
+                      <Skeleton className="h-44 w-full rounded-2xl" />
                       <Skeleton className="h-4 w-3/4 rounded-lg" />
                       <Skeleton className="h-3 w-1/2 rounded-lg" />
                       <Skeleton className="h-10 w-full rounded-xl" />
-                    </div>
+                    </motion.div>
                   ))}
                 </div>
               ) : filteredProducts.length === 0 ? (
@@ -329,7 +340,7 @@ export default function Products() {
                         initial={{ opacity: 0, y: 16 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95 }}
-                        transition={{ duration: 0.3, delay: Math.min(index * 0.04, 0.3) }}
+                        transition={{ duration: 0.35, delay: Math.min(index * 0.04, 0.3), ease: [0.22, 1, 0.36, 1] }}
                       >
                         <ProductCard product={product} />
                       </motion.div>
