@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { motion } from "framer-motion";
 import {
   ArrowLeft,
   MapPin,
@@ -22,6 +23,7 @@ import {
   Pill,
   Plus,
   AlertCircle,
+  CheckCircle2,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/auth-utils";
 import { toast } from "sonner";
@@ -89,8 +91,8 @@ export default function Checkout() {
         <main className="flex-1 mx-auto max-w-4xl w-full px-4 sm:px-6 py-8">
           <Skeleton className="h-8 w-48 mb-8" />
           <div className="grid md:grid-cols-2 gap-8">
-            <Skeleton className="h-64 rounded-xl" />
-            <Skeleton className="h-64 rounded-xl" />
+            <Skeleton className="h-64 rounded-2xl" />
+            <Skeleton className="h-64 rounded-2xl" />
           </div>
         </main>
         <Footer />
@@ -160,13 +162,11 @@ export default function Checkout() {
 
     try {
       if (paymentMethod === "online") {
-        // Create Razorpay order
         const razorpayOrder = await createRazorpayOrder({
           amount: subtotal,
           receipt: `order_${Date.now()}`,
         });
 
-        // Demo mode: if no real Razorpay keys, simulate success
         if ((razorpayOrder as any)._demo) {
           const result = await createOrder({
             shippingAddress: formatAddress(selectedAddress),
@@ -184,7 +184,6 @@ export default function Checkout() {
 
         const keyId = await getRazorpayKeyId();
 
-        // Open Razorpay checkout
         const options = {
           key: keyId,
           amount: razorpayOrder.amount,
@@ -227,10 +226,8 @@ export default function Checkout() {
 
         const rzp = new window.Razorpay(options);
         rzp.open();
-        // Note: isPlacing stays true until Razorpay modal closes or payment succeeds
         return;
       } else {
-        // COD order
         const result = await createOrder({
           shippingAddress: formatAddress(selectedAddress),
           phone: selectedAddress.phone,
@@ -260,251 +257,278 @@ export default function Checkout() {
           <Button
             variant="ghost"
             size="sm"
-            className="mb-6 gap-1.5 text-sm text-muted-foreground"
+            className="mb-6 gap-1.5 text-sm text-muted-foreground rounded-xl"
             onClick={() => navigate("/cart")}
           >
             <ArrowLeft className="size-4" />
             Back to Cart
           </Button>
 
-          <h1 className="text-2xl font-bold tracking-tight text-foreground mb-8">
+          <motion.h1
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-2xl font-bold tracking-tight text-foreground mb-8"
+          >
             Checkout
-          </h1>
+          </motion.h1>
 
           <div className="grid lg:grid-cols-3 gap-8">
             {/* Left: Address & Payment */}
             <div className="lg:col-span-2 space-y-6">
               {/* Address Selection */}
-              <Card className="border-border/60">
-                <CardHeader className="pb-4">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <MapPin className="size-4" />
-                    Delivery Address
-                    {!selectedAddress && (
-                      <Badge variant="destructive" className="text-[10px] ml-1">Required</Badge>
-                    )}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {addresses.length === 0 && !showNewAddress ? (
-                    <div className="text-center py-6">
-                      <AlertCircle className="mx-auto size-8 text-muted-foreground/40 mb-2" />
-                      <p className="text-sm font-medium text-foreground mb-1">
-                        No delivery address found
-                      </p>
-                      <p className="text-xs text-muted-foreground mb-3">
-                        Add a delivery address to continue with your order.
-                      </p>
-                      <Button size="sm" onClick={() => setShowNewAddress(true)}>
-                        <Plus className="mr-1.5 size-3.5" />
-                        Add Address
-                      </Button>
-                    </div>
-                  ) : (
-                    <>
-                      <RadioGroup
-                        value={selectedAddressId ?? ""}
-                        onValueChange={(val) => setSelectedAddressId(val)}
-                        className="space-y-2"
-                      >
-                        {addresses.map((addr) => (
-                          <label
-                            key={addr._id}
-                            className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                              selectedAddressId === addr._id
-                                ? "border-primary bg-primary/[0.03]"
-                                : "border-border/60 hover:border-border"
-                            }`}
-                          >
-                            <RadioGroupItem value={addr._id} className="mt-0.5" />
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm font-medium text-foreground">
-                                  {addr.name}
-                                </span>
-                                <span className="text-xs text-muted-foreground">
-                                  {addr.phone}
-                                </span>
-                                {addr.isDefault && (
-                                  <Badge variant="secondary" className="text-[10px]">
-                                    Default
-                                  </Badge>
-                                )}
-                              </div>
-                              <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                                {addr.addressLine1}
-                                {addr.addressLine2 && `, ${addr.addressLine2}`}
-                                <br />
-                                {addr.city}, {addr.state} — {addr.pincode}
-                              </p>
-                            </div>
-                          </label>
-                        ))}
-                      </RadioGroup>
-                      {!showNewAddress && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="text-xs"
-                          onClick={() => setShowNewAddress(true)}
-                        >
-                          <Plus className="mr-1 size-3" />
-                          Add Another Address
-                        </Button>
+              <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+                <Card className="border-border/60 rounded-2xl overflow-hidden">
+                  <CardHeader className="pb-4">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <MapPin className="size-4" />
+                      Delivery Address
+                      {!selectedAddress && (
+                        <Badge variant="destructive" className="text-[10px] ml-1">Required</Badge>
                       )}
-                    </>
-                  )}
-
-                  {showNewAddress && (
-                    <div className="border border-border/60 rounded-lg p-4 space-y-3 mt-3">
-                      <h4 className="text-sm font-semibold">New Address</h4>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <Label className="text-xs">Full Name *</Label>
-                          <Input
-                            value={newAddr.name}
-                            onChange={(e) => setNewAddr({ ...newAddr, name: e.target.value })}
-                            placeholder="Receiver's full name"
-                            className="h-8 text-sm"
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-xs">Phone Number *</Label>
-                          <Input
-                            value={newAddr.phone}
-                            onChange={(e) => setNewAddr({ ...newAddr, phone: e.target.value })}
-                            placeholder="10-digit mobile number"
-                            className="h-8 text-sm"
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <Label className="text-xs">Address Line 1 *</Label>
-                        <Input
-                          value={newAddr.addressLine1}
-                          onChange={(e) => setNewAddr({ ...newAddr, addressLine1: e.target.value })}
-                          placeholder="House/Flat No., Building, Street"
-                          className="h-8 text-sm"
-                        />
-                      </div>
-                      <div>
-                        <Label className="text-xs">Landmark (Optional)</Label>
-                        <Input
-                          value={newAddr.addressLine2}
-                          onChange={(e) => setNewAddr({ ...newAddr, addressLine2: e.target.value })}
-                          placeholder="Near hospital, opposite park, etc."
-                          className="h-8 text-sm"
-                        />
-                      </div>
-                      <div className="grid grid-cols-3 gap-3">
-                        <div>
-                          <Label className="text-xs">City *</Label>
-                          <Input
-                            value={newAddr.city}
-                            onChange={(e) => setNewAddr({ ...newAddr, city: e.target.value })}
-                            placeholder="City"
-                            className="h-8 text-sm"
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-xs">State *</Label>
-                          <Input
-                            value={newAddr.state}
-                            onChange={(e) => setNewAddr({ ...newAddr, state: e.target.value })}
-                            placeholder="State"
-                            className="h-8 text-sm"
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-xs">Pincode *</Label>
-                          <Input
-                            value={newAddr.pincode}
-                            onChange={(e) => setNewAddr({ ...newAddr, pincode: e.target.value })}
-                            placeholder="6-digit pincode"
-                            className="h-8 text-sm"
-                          />
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button size="sm" onClick={handleSaveNewAddress}>
-                          Save Address
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {addresses.length === 0 && !showNewAddress ? (
+                      <div className="text-center py-6">
+                        <AlertCircle className="mx-auto size-8 text-muted-foreground/40 mb-2" />
+                        <p className="text-sm font-medium text-foreground mb-1">
+                          No delivery address found
+                        </p>
+                        <p className="text-xs text-muted-foreground mb-3">
+                          Add a delivery address to continue with your order.
+                        </p>
+                        <Button size="sm" onClick={() => setShowNewAddress(true)} className="rounded-xl">
+                          <Plus className="mr-1.5 size-3.5" />
+                          Add Address
                         </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => setShowNewAddress(false)}
+                      </div>
+                    ) : (
+                      <>
+                        <RadioGroup
+                          value={selectedAddressId ?? ""}
+                          onValueChange={(val) => setSelectedAddressId(val)}
+                          className="space-y-2"
                         >
-                          Cancel
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                          {addresses.map((addr) => (
+                            <label
+                              key={addr._id}
+                              className={`flex items-start gap-3 p-3.5 rounded-xl border cursor-pointer transition-all duration-200 ${
+                                selectedAddressId === addr._id
+                                  ? "border-primary bg-primary/[0.03] shadow-sm"
+                                  : "border-border/60 hover:border-border hover:bg-muted/30"
+                              }`}
+                            >
+                              <RadioGroupItem value={addr._id} className="mt-0.5" />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-medium text-foreground">
+                                    {addr.name}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {addr.phone}
+                                  </span>
+                                  {addr.isDefault && (
+                                    <Badge variant="secondary" className="text-[10px] rounded-lg">
+                                      Default
+                                    </Badge>
+                                  )}
+                                </div>
+                                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                                  {addr.addressLine1}
+                                  {addr.addressLine2 && `, ${addr.addressLine2}`}
+                                  <br />
+                                  {addr.city}, {addr.state} — {addr.pincode}
+                                </p>
+                              </div>
+                              {selectedAddressId === addr._id && (
+                                <CheckCircle2 className="size-4 text-primary shrink-0 mt-0.5" />
+                              )}
+                            </label>
+                          ))}
+                        </RadioGroup>
+                        {!showNewAddress && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-xs rounded-xl"
+                            onClick={() => setShowNewAddress(true)}
+                          >
+                            <Plus className="mr-1 size-3" />
+                            Add Another Address
+                          </Button>
+                        )}
+                      </>
+                    )}
+
+                    {showNewAddress && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        className="border border-border/60 rounded-xl p-4 space-y-3 mt-3 bg-muted/20"
+                      >
+                        <h4 className="text-sm font-semibold">New Address</h4>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <Label className="text-xs">Full Name *</Label>
+                            <Input
+                              value={newAddr.name}
+                              onChange={(e) => setNewAddr({ ...newAddr, name: e.target.value })}
+                              placeholder="Receiver's full name"
+                              className="h-9 rounded-xl text-sm"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs">Phone Number *</Label>
+                            <Input
+                              value={newAddr.phone}
+                              onChange={(e) => setNewAddr({ ...newAddr, phone: e.target.value })}
+                              placeholder="10-digit mobile number"
+                              className="h-9 rounded-xl text-sm"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <Label className="text-xs">Address Line 1 *</Label>
+                          <Input
+                            value={newAddr.addressLine1}
+                            onChange={(e) => setNewAddr({ ...newAddr, addressLine1: e.target.value })}
+                            placeholder="House/Flat No., Building, Street"
+                            className="h-9 rounded-xl text-sm"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Landmark (Optional)</Label>
+                          <Input
+                            value={newAddr.addressLine2}
+                            onChange={(e) => setNewAddr({ ...newAddr, addressLine2: e.target.value })}
+                            placeholder="Near hospital, opposite park, etc."
+                            className="h-9 rounded-xl text-sm"
+                          />
+                        </div>
+                        <div className="grid grid-cols-3 gap-3">
+                          <div>
+                            <Label className="text-xs">City *</Label>
+                            <Input
+                              value={newAddr.city}
+                              onChange={(e) => setNewAddr({ ...newAddr, city: e.target.value })}
+                              placeholder="City"
+                              className="h-9 rounded-xl text-sm"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs">State *</Label>
+                            <Input
+                              value={newAddr.state}
+                              onChange={(e) => setNewAddr({ ...newAddr, state: e.target.value })}
+                              placeholder="State"
+                              className="h-9 rounded-xl text-sm"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-xs">Pincode *</Label>
+                            <Input
+                              value={newAddr.pincode}
+                              onChange={(e) => setNewAddr({ ...newAddr, pincode: e.target.value })}
+                              placeholder="6-digit pincode"
+                              className="h-9 rounded-xl text-sm"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <Button size="sm" onClick={handleSaveNewAddress} className="rounded-xl">
+                            Save Address
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="rounded-xl"
+                            onClick={() => setShowNewAddress(false)}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </CardContent>
+                </Card>
+              </motion.div>
 
               {/* Payment Method */}
-              <Card className="border-border/60">
-                <CardHeader className="pb-4">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <CreditCard className="size-4" />
-                    Payment Method
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <RadioGroup
-                    value={paymentMethod}
-                    onValueChange={(val: "cod" | "online") => setPaymentMethod(val)}
-                    className="space-y-2"
-                  >
-                    <label className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                      paymentMethod === "online" ? "border-primary bg-primary/[0.03]" : "border-border/60 hover:border-border"
-                    }`}>
-                      <RadioGroupItem value="online" />
-                      <CreditCard className="size-4 text-muted-foreground" />
-                      <div>
-                        <span className="text-sm font-medium">Online Payment</span>
-                        <p className="text-xs text-muted-foreground">
-                          Pay securely via UPI, credit/debit cards, or net banking
-                        </p>
-                      </div>
-                    </label>
-                    <label className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                      paymentMethod === "cod" ? "border-primary bg-primary/[0.03]" : "border-border/60 hover:border-border"
-                    }`}>
-                      <RadioGroupItem value="cod" />
-                      <Banknote className="size-4 text-muted-foreground" />
-                      <div>
-                        <span className="text-sm font-medium">Cash on Delivery</span>
-                        <p className="text-xs text-muted-foreground">
-                          Pay when your order arrives at your doorstep
-                        </p>
-                      </div>
-                    </label>
-                  </RadioGroup>
-                </CardContent>
-              </Card>
+              <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+                <Card className="border-border/60 rounded-2xl overflow-hidden">
+                  <CardHeader className="pb-4">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <CreditCard className="size-4" />
+                      Payment Method
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <RadioGroup
+                      value={paymentMethod}
+                      onValueChange={(val: "cod" | "online") => setPaymentMethod(val)}
+                      className="space-y-2"
+                    >
+                      <label className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all duration-200 ${
+                        paymentMethod === "online" ? "border-primary bg-primary/[0.03] shadow-sm" : "border-border/60 hover:border-border hover:bg-muted/30"
+                      }`}>
+                        <RadioGroupItem value="online" />
+                        <div className="flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0">
+                          <CreditCard className="size-4" />
+                        </div>
+                        <div>
+                          <span className="text-sm font-medium">Online Payment</span>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            Pay securely via UPI, credit/debit cards, or net banking
+                          </p>
+                        </div>
+                      </label>
+                      <label className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all duration-200 ${
+                        paymentMethod === "cod" ? "border-primary bg-primary/[0.03] shadow-sm" : "border-border/60 hover:border-border hover:bg-muted/30"
+                      }`}>
+                        <RadioGroupItem value="cod" />
+                        <div className="flex size-9 items-center justify-center rounded-lg bg-green-500/10 text-green-600 shrink-0">
+                          <Banknote className="size-4" />
+                        </div>
+                        <div>
+                          <span className="text-sm font-medium">Cash on Delivery</span>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            Pay when your order arrives at your doorstep
+                          </p>
+                        </div>
+                      </label>
+                    </RadioGroup>
+                  </CardContent>
+                </Card>
+              </motion.div>
 
               {/* Order Notes */}
-              <Card className="border-border/60">
-                <CardHeader className="pb-4">
-                  <CardTitle className="text-base">Order Notes (Optional)</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Textarea
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    placeholder="Any special delivery instructions, timing preferences, etc."
-                    className="text-sm"
-                    rows={2}
-                  />
-                </CardContent>
-              </Card>
+              <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+                <Card className="border-border/60 rounded-2xl overflow-hidden">
+                  <CardHeader className="pb-4">
+                    <CardTitle className="text-base">Order Notes (Optional)</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <Textarea
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      placeholder="Any special delivery instructions, timing preferences, etc."
+                      className="text-sm rounded-xl"
+                      rows={2}
+                    />
+                  </CardContent>
+                </Card>
+              </motion.div>
             </div>
 
             {/* Right: Order Summary */}
             <div className="lg:col-span-1">
-              <div className="sticky top-24 space-y-4">
-                <Card className="border-border/60">
+              <motion.div
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15 }}
+                className="sticky top-24 space-y-4"
+              >
+                <Card className="border-border/60 rounded-2xl overflow-hidden">
                   <CardHeader className="pb-3">
                     <CardTitle className="text-base">Order Summary</CardTitle>
                   </CardHeader>
@@ -516,8 +540,8 @@ export default function Checkout() {
                         const p = item.product;
                         const price = p.discountPrice && p.discountPrice < p.price ? p.discountPrice : p.price;
                         return (
-                          <div key={item._id} className="flex items-center gap-2 text-xs">
-                            <div className="flex size-8 shrink-0 items-center justify-center rounded bg-primary/[0.05]">
+                          <div key={item._id} className="flex items-center gap-2.5 text-xs">
+                            <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/[0.05]">
                               <Pill className="size-3.5 text-primary/30" />
                             </div>
                             <div className="flex-1 min-w-0">
@@ -555,7 +579,7 @@ export default function Checkout() {
 
                     {/* Missing address warning */}
                     {!selectedAddress && (
-                      <div className="flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-200 p-3">
+                      <div className="flex items-center gap-2 rounded-xl bg-amber-50 border border-amber-200 p-3">
                         <AlertCircle className="size-4 text-amber-600 shrink-0" />
                         <p className="text-xs text-amber-700">
                           Please add and select a delivery address to continue.
@@ -565,7 +589,7 @@ export default function Checkout() {
 
                     <Button
                       size="lg"
-                      className="w-full font-semibold"
+                      className="w-full font-semibold rounded-xl gradient-primary text-white shadow-glow hover:shadow-card-hover transition-all hover:scale-[1.01] active:scale-[0.99]"
                       onClick={handlePlaceOrder}
                       disabled={!canPlaceOrder}
                     >
@@ -586,7 +610,7 @@ export default function Checkout() {
                     </p>
                   </CardContent>
                 </Card>
-              </div>
+              </motion.div>
             </div>
           </div>
         </div>

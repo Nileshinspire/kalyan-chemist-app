@@ -7,6 +7,9 @@ import { ConvexReactClient } from "convex/react";
 import React, { StrictMode, useEffect, lazy, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Route, Routes, useLocation } from "react-router";
+import { AnimatePresence, motion } from "framer-motion";
+import ScrollRestorer from "@/components/ScrollRestorer";
+import { PageErrorBoundary } from "@/components/PageErrorBoundary";
 import "./index.css";
 
 // Lazy load route components for better code splitting
@@ -32,12 +35,36 @@ const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 const Notifications = lazy(() => import("./pages/Notifications.tsx"));
 const Reminders = lazy(() => import("./pages/Reminders.tsx"));
 
-// Simple loading fallback for route transitions
+/** Animated loading skeleton for route transitions */
 function RouteLoading() {
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="animate-pulse text-muted-foreground">Loading...</div>
+    <div className="flex min-h-screen items-center justify-center bg-background">
+      <div className="flex flex-col items-center gap-4">
+        <div className="relative">
+          <div className="size-12 rounded-xl bg-primary/10 animate-pulse" />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="size-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+          </div>
+        </div>
+        <p className="text-sm font-medium text-muted-foreground animate-pulse">
+          Loading…
+        </p>
+      </div>
     </div>
+  );
+}
+
+/** Wrapper that adds a subtle fade-in animation to page transitions */
+function PageTransition({ children }: { children: React.ReactNode }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -6 }}
+      transition={{ duration: 0.2, ease: "easeOut" }}
+    >
+      {children}
+    </motion.div>
   );
 }
 
@@ -78,17 +105,23 @@ class RootErrorBoundary extends React.Component<
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen flex items-center justify-center bg-background text-foreground p-6">
+        <div className="flex min-h-screen items-center justify-center bg-background p-6">
           <div className="max-w-lg text-center">
-            <p className="text-sm font-semibold">Preview runtime error</p>
-            <p className="mt-2 text-xs text-muted-foreground break-words">
+            <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-2xl bg-destructive/10">
+              <svg className="size-8 text-destructive" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+              </svg>
+            </div>
+            <h2 className="text-lg font-bold text-foreground">Something went wrong</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
               {this.state.message}
             </p>
-            {this.state.stack && (
-              <pre className="mt-3 text-left text-[10px] leading-4 text-muted-foreground/80 max-h-40 overflow-auto rounded border border-border/60 p-2">
-                {this.state.stack}
-              </pre>
-            )}
+            <button
+              className="mt-4 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 transition-opacity"
+              onClick={() => window.location.reload()}
+            >
+              Reload Page
+            </button>
           </div>
         </div>
       );
@@ -98,8 +131,6 @@ class RootErrorBoundary extends React.Component<
 }
 
 const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string);
-
-
 
 function RouteSyncer() {
   const location = useLocation();
@@ -124,6 +155,38 @@ function RouteSyncer() {
   return null;
 }
 
+/** Animated routes with page transitions */
+function AnimatedRoutes() {
+  const location = useLocation();
+
+  return (
+    <AnimatePresence mode="wait">
+      <Routes location={location} key={location.pathname}>
+        <Route path="/" element={<PageTransition><Landing /></PageTransition>} />
+        <Route path="/auth" element={<PageTransition><AuthPage redirectAfterAuth="/dashboard" /></PageTransition>} />
+        <Route path="/dashboard" element={<PageTransition><RequireAuth><Dashboard /></RequireAuth></PageTransition>} />
+        <Route path="/products" element={<PageTransition><Products /></PageTransition>} />
+        <Route path="/products/:slug" element={<PageTransition><ProductDetail /></PageTransition>} />
+        <Route path="/cart" element={<PageTransition><Cart /></PageTransition>} />
+        <Route path="/wishlist" element={<PageTransition><RequireAuth><Wishlist /></RequireAuth></PageTransition>} />
+        <Route path="/checkout" element={<PageTransition><RequireAuth><Checkout /></RequireAuth></PageTransition>} />
+        <Route path="/orders" element={<PageTransition><RequireAuth><Orders /></RequireAuth></PageTransition>} />
+        <Route path="/orders/:id" element={<PageTransition><RequireAuth><OrderDetail /></RequireAuth></PageTransition>} />
+        <Route path="/admin" element={<PageTransition><RequireAuth><AdminDashboard /></RequireAuth></PageTransition>} />
+        <Route path="/admin/products" element={<PageTransition><RequireAuth><AdminProducts /></RequireAuth></PageTransition>} />
+        <Route path="/admin/categories" element={<PageTransition><RequireAuth><AdminCategories /></RequireAuth></PageTransition>} />
+        <Route path="/admin/orders" element={<PageTransition><RequireAuth><AdminOrders /></RequireAuth></PageTransition>} />
+        <Route path="/admin/reviews" element={<PageTransition><RequireAuth><AdminReviews /></RequireAuth></PageTransition>} />
+        <Route path="/admin/coupons" element={<PageTransition><RequireAuth><AdminCoupons /></RequireAuth></PageTransition>} />
+        <Route path="/admin/users" element={<PageTransition><RequireAuth><AdminUsers /></RequireAuth></PageTransition>} />
+        <Route path="/admin/reports" element={<PageTransition><RequireAuth><AdminReports /></RequireAuth></PageTransition>} />
+        <Route path="/notifications" element={<PageTransition><RequireAuth><Notifications /></RequireAuth></PageTransition>} />
+        <Route path="/reminders" element={<PageTransition><RequireAuth><Reminders /></RequireAuth></PageTransition>} />
+        <Route path="*" element={<PageTransition><NotFound /></PageTransition>} />
+      </Routes>
+    </AnimatePresence>
+  );
+}
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
@@ -133,70 +196,13 @@ createRoot(document.getElementById("root")!).render(
       </ToolbarErrorBoundary>
       <ConvexAuthProvider client={convex}>
         <BrowserRouter>
+          <ScrollRestorer />
           <RouteSyncer />
+          <PageErrorBoundary>
           <Suspense fallback={<RouteLoading />}>
-            <Routes>
-              <Route path="/" element={<Landing />} />
-              <Route
-                path="/auth"
-                element={<AuthPage redirectAfterAuth="/dashboard" />}
-              />
-              <Route
-                path="/dashboard"
-                element={
-                  <RequireAuth>
-                    <Dashboard />
-                  </RequireAuth>
-                }
-              />
-              <Route path="/products" element={<Products />} />
-              <Route path="/products/:slug" element={<ProductDetail />} />
-              <Route path="/cart" element={<Cart />} />
-              <Route
-                path="/wishlist"
-                element={
-                  <RequireAuth>
-                    <Wishlist />
-                  </RequireAuth>
-                }
-              />
-              <Route
-                path="/checkout"
-                element={
-                  <RequireAuth>
-                    <Checkout />
-                  </RequireAuth>
-                }
-              />
-              <Route
-                path="/orders"
-                element={
-                  <RequireAuth>
-                    <Orders />
-                  </RequireAuth>
-                }
-              />
-              <Route
-                path="/orders/:id"
-                element={
-                  <RequireAuth>
-                    <OrderDetail />
-                  </RequireAuth>
-                }
-              />
-              <Route path="/admin" element={<RequireAuth><AdminDashboard /></RequireAuth>} />
-              <Route path="/admin/products" element={<RequireAuth><AdminProducts /></RequireAuth>} />
-              <Route path="/admin/categories" element={<RequireAuth><AdminCategories /></RequireAuth>} />
-              <Route path="/admin/orders" element={<RequireAuth><AdminOrders /></RequireAuth>} />
-              <Route path="/admin/reviews" element={<RequireAuth><AdminReviews /></RequireAuth>} />
-              <Route path="/admin/coupons" element={<RequireAuth><AdminCoupons /></RequireAuth>} />
-              <Route path="/admin/users" element={<RequireAuth><AdminUsers /></RequireAuth>} />
-              <Route path="/admin/reports" element={<RequireAuth><AdminReports /></RequireAuth>} />
-              <Route path="/notifications" element={<RequireAuth><Notifications /></RequireAuth>} />
-              <Route path="/reminders" element={<RequireAuth><Reminders /></RequireAuth>} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+            <AnimatedRoutes />
           </Suspense>
+          </PageErrorBoundary>
         </BrowserRouter>
         <Toaster />
       </ConvexAuthProvider>

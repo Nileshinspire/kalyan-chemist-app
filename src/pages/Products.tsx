@@ -9,13 +9,14 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Search,
   X,
   SlidersHorizontal,
   ChevronDown,
+  PackageOpen,
 } from "lucide-react";
-import type { Id } from "@/convex/_generated/dataModel";
 
 export default function Products() {
   const navigate = useNavigate();
@@ -84,7 +85,12 @@ export default function Products() {
       <main className="flex-1">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8">
           {/* Page header */}
-          <div className="mb-6">
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+            className="mb-6"
+          >
             <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
               {selectedCategoryId && categories
                 ? categories.find((c) => c._id === selectedCategoryId)?.name || "Medicines"
@@ -95,7 +101,7 @@ export default function Products() {
             <p className="mt-1 text-sm text-muted-foreground">
               {filteredProducts.length} product{filteredProducts.length !== 1 ? "s" : ""} available
             </p>
-          </div>
+          </motion.div>
 
           <div className="flex gap-8">
             {/* Desktop sidebar filters */}
@@ -103,7 +109,7 @@ export default function Products() {
               <div className="sticky top-24 space-y-6">
                 {/* Search */}
                 <div>
-                  <h3 className="text-sm font-semibold text-foreground mb-3">
+                  <h3 className="text-sm font-bold text-foreground mb-3">
                     Search
                   </h3>
                   <div className="relative">
@@ -112,13 +118,13 @@ export default function Products() {
                       placeholder="Search…"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-9 h-9"
+                      className="pl-9 h-10 rounded-xl"
                     />
                     {searchQuery && (
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                        className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 rounded-lg"
                         onClick={() => setSearchQuery("")}
                       >
                         <X className="size-3" />
@@ -129,14 +135,14 @@ export default function Products() {
 
                 {/* Categories */}
                 <div>
-                  <h3 className="text-sm font-semibold text-foreground mb-3">
+                  <h3 className="text-sm font-bold text-foreground mb-3">
                     Categories
                   </h3>
                   <div className="space-y-1">
                     <button
-                      className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
+                      className={`w-full text-left px-3 py-2.5 rounded-xl text-sm transition-all duration-200 ${
                         !selectedCategorySlug
-                          ? "bg-primary/10 text-primary font-medium"
+                          ? "bg-primary/10 text-primary font-semibold shadow-sm"
                           : "text-muted-foreground hover:bg-muted hover:text-foreground"
                       }`}
                       onClick={() => setSelectedCategorySlug("")}
@@ -146,9 +152,9 @@ export default function Products() {
                     {categories?.map((cat) => (
                       <button
                         key={cat._id}
-                        className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
+                        className={`w-full text-left px-3 py-2.5 rounded-xl text-sm transition-all duration-200 ${
                           selectedCategorySlug === cat.slug
-                            ? "bg-primary/10 text-primary font-medium"
+                            ? "bg-primary/10 text-primary font-semibold shadow-sm"
                             : "text-muted-foreground hover:bg-muted hover:text-foreground"
                         }`}
                         onClick={() => setSelectedCategorySlug(cat.slug)}
@@ -163,7 +169,7 @@ export default function Products() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="w-full text-sm"
+                    className="w-full text-sm rounded-xl"
                     onClick={clearFilters}
                   >
                     <X className="mr-1.5 size-3" />
@@ -180,7 +186,7 @@ export default function Products() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="text-sm gap-1.5"
+                  className="text-sm gap-1.5 rounded-xl"
                   onClick={() => setShowMobileFilters(!showMobileFilters)}
                 >
                   <SlidersHorizontal className="size-3.5" />
@@ -188,53 +194,63 @@ export default function Products() {
                   <ChevronDown className={`size-3 transition-transform ${showMobileFilters ? "rotate-180" : ""}`} />
                 </Button>
                 {hasActiveFilters && (
-                  <Button variant="ghost" size="sm" className="text-xs" onClick={clearFilters}>
+                  <Button variant="ghost" size="sm" className="text-xs rounded-xl" onClick={clearFilters}>
                     Clear filters
                   </Button>
                 )}
               </div>
 
               {/* Mobile filter panel */}
-              {showMobileFilters && (
-                <div className="lg:hidden mb-6 p-4 rounded-xl border border-border/60 bg-card space-y-4">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search medicines…"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-9 h-9"
-                    />
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    <Badge
-                      variant={!selectedCategorySlug ? "default" : "outline"}
-                      className="cursor-pointer text-xs"
-                      onClick={() => setSelectedCategorySlug("")}
-                    >
-                      All
-                    </Badge>
-                    {categories?.map((cat) => (
-                      <Badge
-                        key={cat._id}
-                        variant={
-                          selectedCategorySlug === cat.slug ? "default" : "outline"
-                        }
-                        className="cursor-pointer text-xs"
-                        onClick={() => setSelectedCategorySlug(cat.slug)}
-                      >
-                        {cat.name}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
+              <AnimatePresence>
+                {showMobileFilters && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.3, ease: "easeInOut" }}
+                    className="lg:hidden mb-6 overflow-hidden"
+                  >
+                    <div className="p-4 rounded-2xl border border-border/60 bg-card space-y-4">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Search medicines…"
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="pl-9 h-10 rounded-xl"
+                        />
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        <Badge
+                          variant={!selectedCategorySlug ? "default" : "outline"}
+                          className="cursor-pointer text-xs rounded-lg"
+                          onClick={() => setSelectedCategorySlug("")}
+                        >
+                          All
+                        </Badge>
+                        {categories?.map((cat) => (
+                          <Badge
+                            key={cat._id}
+                            variant={
+                              selectedCategorySlug === cat.slug ? "default" : "outline"
+                            }
+                            className="cursor-pointer text-xs rounded-lg"
+                            onClick={() => setSelectedCategorySlug(cat.slug)}
+                          >
+                            {cat.name}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               {/* Active filter chips */}
               {hasActiveFilters && (
                 <div className="flex flex-wrap gap-2 mb-4">
                   {searchQuery && (
-                    <Badge variant="secondary" className="gap-1 text-xs">
+                    <Badge variant="secondary" className="gap-1 text-xs rounded-lg">
                       Search: {searchQuery}
                       <Button
                         variant="ghost"
@@ -247,7 +263,7 @@ export default function Products() {
                     </Badge>
                   )}
                   {selectedCategorySlug && categories && (
-                    <Badge variant="secondary" className="gap-1 text-xs">
+                    <Badge variant="secondary" className="gap-1 text-xs rounded-lg">
                       {
                         categories.find((c) => c.slug === selectedCategorySlug)
                           ?.name
@@ -270,39 +286,56 @@ export default function Products() {
                 <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
                   {Array.from({ length: 8 }).map((_, i) => (
                     <div key={i} className="space-y-3">
-                      <Skeleton className="h-40 w-full rounded-xl" />
-                      <Skeleton className="h-4 w-3/4" />
-                      <Skeleton className="h-3 w-1/2" />
-                      <Skeleton className="h-8 w-full" />
+                      <Skeleton className="h-40 w-full rounded-2xl animate-pulse" />
+                      <Skeleton className="h-4 w-3/4 rounded-lg" />
+                      <Skeleton className="h-3 w-1/2 rounded-lg" />
+                      <Skeleton className="h-10 w-full rounded-xl" />
                     </div>
                   ))}
                 </div>
               ) : filteredProducts.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-20 text-center">
-                  <div className="size-16 rounded-full bg-muted flex items-center justify-center mb-4">
-                    <Search className="size-7 text-muted-foreground/50" />
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="flex flex-col items-center justify-center py-20 text-center"
+                >
+                  <div className="size-16 rounded-2xl bg-muted/50 flex items-center justify-center mb-4">
+                    <PackageOpen className="size-7 text-muted-foreground/40" />
                   </div>
                   <h3 className="text-lg font-semibold text-foreground">
                     No products found
                   </h3>
-                  <p className="mt-1 text-sm text-muted-foreground max-w-sm">
+                  <p className="mt-1.5 text-sm text-muted-foreground max-w-sm leading-relaxed">
                     We could not find any medicines matching your search. Try
                     adjusting your filters or search terms.
                   </p>
                   <Button
                     variant="outline"
-                    className="mt-4 text-sm"
+                    className="mt-4 text-sm rounded-xl"
                     onClick={clearFilters}
                   >
                     Clear Filters
                   </Button>
-                </div>
+                </motion.div>
               ) : (
-                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-                  {filteredProducts.map((product) => (
-                    <ProductCard key={product._id} product={product} />
-                  ))}
-                </div>
+                <motion.div
+                  layout
+                  className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4"
+                >
+                  <AnimatePresence>
+                    {filteredProducts.map((product, index) => (
+                      <motion.div
+                        key={product._id}
+                        initial={{ opacity: 0, y: 16 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        transition={{ duration: 0.3, delay: Math.min(index * 0.04, 0.3) }}
+                      >
+                        <ProductCard product={product} />
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+                </motion.div>
               )}
             </div>
           </div>

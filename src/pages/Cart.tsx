@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft,
   Trash2,
@@ -71,16 +72,22 @@ export default function Cart() {
       <div className="min-h-screen flex flex-col bg-background">
         <Navbar />
         <main className="flex-1 flex flex-col items-center justify-center text-center px-4">
-          <div className="size-20 rounded-full bg-muted flex items-center justify-center mb-4">
-            <ShoppingCart className="size-10 text-muted-foreground/40" />
-          </div>
-          <h1 className="text-2xl font-bold text-foreground">Your Cart is Empty</h1>
-          <p className="mt-2 text-sm text-muted-foreground max-w-sm">
-            Sign in to start shopping and manage your cart.
-          </p>
-          <Button className="mt-6 font-semibold gradient-primary text-white" onClick={() => navigate("/auth?returnTo=/cart")}>
-            Sign In
-          </Button>
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="flex flex-col items-center"
+          >
+            <div className="size-20 rounded-2xl bg-gradient-to-br from-primary/[0.08] to-primary/[0.02] flex items-center justify-center mb-4">
+              <ShoppingCart className="size-10 text-primary/25" />
+            </div>
+            <h1 className="text-2xl font-bold text-foreground">Your Cart is Empty</h1>
+            <p className="mt-2 text-sm text-muted-foreground max-w-sm">
+              Sign in to start shopping and manage your cart.
+            </p>
+            <Button className="mt-6 font-semibold gradient-primary text-white rounded-xl" onClick={() => navigate("/auth?returnTo=/cart")}>
+              Sign In
+            </Button>
+          </motion.div>
         </main>
         <Footer />
       </div>
@@ -94,11 +101,15 @@ export default function Cart() {
       <main className="flex-1">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8">
           {/* Header */}
-          <div className="flex items-center justify-between mb-6">
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center justify-between mb-6"
+          >
             <Button
               variant="ghost"
               size="sm"
-              className="gap-1.5 text-muted-foreground hover:text-primary transition-colors"
+              className="gap-1.5 text-muted-foreground hover:text-primary transition-colors rounded-xl"
               onClick={() => navigate(-1)}
             >
               <ArrowLeft className="size-4" />
@@ -107,7 +118,7 @@ export default function Cart() {
             <h1 className="text-2xl font-bold tracking-tight text-foreground">
               Shopping Cart
             </h1>
-          </div>
+          </motion.div>
 
           {cartItems === undefined ? (
             <div className="grid lg:grid-cols-3 gap-8">
@@ -126,18 +137,22 @@ export default function Cart() {
               <Skeleton className="h-64 rounded-2xl" />
             </div>
           ) : cartItems.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-center">
-              <div className="size-20 rounded-full bg-gradient-to-br from-primary/[0.06] to-primary/[0.02] flex items-center justify-center mb-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="flex flex-col items-center justify-center py-20 text-center"
+            >
+              <div className="size-20 rounded-2xl bg-gradient-to-br from-primary/[0.06] to-primary/[0.02] flex items-center justify-center mb-4">
                 <ShoppingCart className="size-9 text-primary/25" />
               </div>
               <h3 className="text-lg font-bold text-foreground">Your cart is empty</h3>
-              <p className="mt-1.5 text-sm text-muted-foreground max-w-sm">
+              <p className="mt-1.5 text-sm text-muted-foreground max-w-sm leading-relaxed">
                 Browse our catalogue of genuine medicines and add items to your cart.
               </p>
-              <Button className="mt-5 font-semibold gradient-primary text-white" onClick={() => navigate("/products")}>
+              <Button className="mt-5 font-semibold gradient-primary text-white rounded-xl" onClick={() => navigate("/products")}>
                 Browse Medicines
               </Button>
-            </div>
+            </motion.div>
           ) : (
             <div className="grid lg:grid-cols-3 gap-8">
               {/* Cart items */}
@@ -146,96 +161,107 @@ export default function Cart() {
                   <span className="font-semibold text-foreground">{itemCount}</span> item{itemCount !== 1 ? "s" : ""} in your cart
                 </p>
 
-                {cartItems.map((item) => {
-                  if (!item.product) return null;
-                  const p = item.product;
-                  const effectivePrice = p.discountPrice && p.discountPrice < p.price ? p.discountPrice : p.price;
-                  const lineTotal = effectivePrice * item.quantity;
+                <AnimatePresence>
+                  {cartItems.map((item, index) => {
+                    if (!item.product) return null;
+                    const p = item.product;
+                    const effectivePrice = p.discountPrice && p.discountPrice < p.price ? p.discountPrice : p.price;
+                    const lineTotal = effectivePrice * item.quantity;
 
-                  return (
-                    <div
-                      key={item._id}
-                      className="flex gap-4 p-4 rounded-2xl border border-border/60 bg-card transition-all duration-200 hover:shadow-card-hover hover:border-primary/15"
-                    >
-                      {/* Image */}
-                      <div
-                        className="flex items-center justify-center h-20 w-20 shrink-0 rounded-xl bg-gradient-to-br from-primary/[0.05] to-primary/[0.01] border border-border/40 cursor-pointer hover:scale-105 transition-transform"
-                        onClick={() => navigate(`/products/${p.slug}`)}
+                    return (
+                      <motion.div
+                        key={item._id}
+                        initial={{ opacity: 0, x: -16 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: 16, height: 0 }}
+                        transition={{ duration: 0.3, delay: index * 0.05 }}
+                        className="flex gap-4 p-4 rounded-2xl border border-border/60 bg-card transition-all duration-200 hover:shadow-card-hover hover:border-primary/15"
                       >
-                        <Pill className="size-8 text-primary/20" />
-                      </div>
-
-                      {/* Details */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            <h3
-                              className="text-sm font-semibold text-foreground truncate cursor-pointer hover:text-primary transition-colors"
-                              onClick={() => navigate(`/products/${p.slug}`)}
-                            >
-                              {p.name}
-                            </h3>
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                              {p.manufacturer} · {p.dosage} · {p.packSize}
-                            </p>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
-                            onClick={() => handleRemove(item._id, p.name)}
-                          >
-                            <Trash2 className="size-4" />
-                          </Button>
+                        {/* Image */}
+                        <div
+                          className="flex items-center justify-center h-20 w-20 shrink-0 rounded-xl bg-gradient-to-br from-primary/[0.05] to-primary/[0.01] border border-border/40 cursor-pointer hover:scale-105 transition-transform"
+                          onClick={() => navigate(`/products/${p.slug}`)}
+                        >
+                          <Pill className="size-8 text-primary/20" />
                         </div>
 
-                        <div className="flex items-end justify-between mt-3">
-                          {/* Quantity controls */}
-                          <div className="flex items-center rounded-xl border border-border/60 bg-muted/30">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 rounded-l-xl"
-                              onClick={() => handleUpdateQuantity(item._id, item.quantity - 1)}
-                              disabled={item.quantity <= 1}
-                            >
-                              <Minus className="size-3" />
-                            </Button>
-                            <span className="min-w-[2rem] text-center text-sm font-bold">
-                              {item.quantity}
-                            </span>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 rounded-r-xl"
-                              onClick={() => handleUpdateQuantity(item._id, item.quantity + 1)}
-                              disabled={item.quantity >= p.stockQuantity}
-                            >
-                              <Plus className="size-3" />
-                            </Button>
-                          </div>
-
-                          {/* Line total */}
-                          <div className="text-right">
-                            <span className="text-sm font-bold text-foreground">
-                              {formatCurrency(lineTotal)}
-                            </span>
-                            {(p.discountPrice ?? 0) < p.price && (
-                              <p className="text-xs text-muted-foreground line-through">
-                                {formatCurrency(p.price * item.quantity)}
+                        {/* Details */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <h3
+                                className="text-sm font-semibold text-foreground truncate cursor-pointer hover:text-primary transition-colors"
+                                onClick={() => navigate(`/products/${p.slug}`)}
+                              >
+                                {p.name}
+                              </h3>
+                              <p className="text-xs text-muted-foreground mt-0.5">
+                                {p.manufacturer} · {p.dosage} · {p.packSize}
                               </p>
-                            )}
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all rounded-xl"
+                              onClick={() => handleRemove(item._id, p.name)}
+                            >
+                              <Trash2 className="size-4" />
+                            </Button>
+                          </div>
+
+                          <div className="flex items-end justify-between mt-3">
+                            {/* Quantity controls */}
+                            <div className="flex items-center rounded-xl border border-border/60 bg-muted/30">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 rounded-l-xl"
+                                onClick={() => handleUpdateQuantity(item._id, item.quantity - 1)}
+                                disabled={item.quantity <= 1}
+                              >
+                                <Minus className="size-3" />
+                              </Button>
+                              <span className="min-w-[2rem] text-center text-sm font-bold">
+                                {item.quantity}
+                              </span>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 rounded-r-xl"
+                                onClick={() => handleUpdateQuantity(item._id, item.quantity + 1)}
+                                disabled={item.quantity >= p.stockQuantity}
+                              >
+                                <Plus className="size-3" />
+                              </Button>
+                            </div>
+
+                            {/* Line total */}
+                            <div className="text-right">
+                              <span className="text-sm font-bold text-foreground">
+                                {formatCurrency(lineTotal)}
+                              </span>
+                              {(p.discountPrice ?? 0) < p.price && (
+                                <p className="text-xs text-muted-foreground line-through">
+                                  {formatCurrency(p.price * item.quantity)}
+                                </p>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </div>
-                  );
-                })}
+                      </motion.div>
+                    );
+                  })}
+                </AnimatePresence>
               </div>
 
               {/* Order summary */}
               <div className="lg:col-span-1">
-                <div className="sticky top-24 rounded-2xl border border-border/60 bg-card p-6 space-y-5 shadow-sm">
+                <motion.div
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                  className="sticky top-24 rounded-2xl border border-border/60 bg-card p-6 space-y-5 shadow-sm"
+                >
                   <h2 className="text-lg font-bold text-foreground">Order Summary</h2>
 
                   <div className="space-y-3 text-sm">
@@ -244,7 +270,7 @@ export default function Cart() {
                       <span className="font-medium text-foreground">{formatCurrency(subtotal + savings)}</span>
                     </div>
                     {savings > 0 && (
-                      <div className="flex items-center justify-between text-green-600 bg-green-50 rounded-lg px-3 py-1.5">
+                      <div className="flex items-center justify-between text-green-600 bg-green-50 rounded-xl px-3 py-2">
                         <span className="flex items-center gap-1"><Tag className="size-3" /> Discount</span>
                         <span className="font-semibold">-{formatCurrency(savings)}</span>
                       </div>
@@ -264,7 +290,7 @@ export default function Cart() {
 
                   <Button
                     size="lg"
-                    className="w-full font-semibold gradient-primary text-white shadow-glow hover:shadow-card-hover transition-all hover:scale-[1.01] active:scale-[0.99]"
+                    className="w-full font-semibold gradient-primary text-white rounded-xl shadow-glow hover:shadow-card-hover transition-all hover:scale-[1.01] active:scale-[0.99]"
                     onClick={() => navigate("/checkout")}
                   >
                     <Zap className="size-4 mr-1.5" />
@@ -286,7 +312,7 @@ export default function Cart() {
                       Free delivery on all orders
                     </div>
                   </div>
-                </div>
+                </motion.div>
               </div>
             </div>
           )}
