@@ -1,9 +1,8 @@
-import '@vly-ai/integrations';
+import "@vly-ai/integrations";
 import { Toaster } from "@/components/ui/sonner";
+import { AuthProvider } from "@/context/AuthContext";
 import { RequireAuth } from "@/components/RequireAuth";
 import { VlyToolbar } from "../vly-toolbar-readonly.tsx";
-import { ConvexAuthProvider } from "@convex-dev/auth/react";
-import { ConvexReactClient } from "convex/react";
 import React, { StrictMode, useEffect, lazy, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Route, Routes, useLocation } from "react-router";
@@ -14,7 +13,9 @@ import "./index.css";
 
 // Lazy load route components for better code splitting
 const Landing = lazy(() => import("./pages/Landing.tsx"));
-const AuthPage = lazy(() => import("./pages/Auth.tsx"));
+const Login = lazy(() => import("./pages/Login.tsx"));
+const Register = lazy(() => import("./pages/Register.tsx"));
+const AdminLogin = lazy(() => import("./pages/AdminLogin.tsx"));
 const Dashboard = lazy(() => import("./pages/Dashboard.tsx"));
 const Products = lazy(() => import("./pages/Products.tsx"));
 const ProductDetail = lazy(() => import("./pages/ProductDetail.tsx"));
@@ -32,8 +33,6 @@ const AdminReviews = lazy(() => import("./pages/admin/AdminReviews"));
 const AdminUsers = lazy(() => import("./pages/admin/AdminUsers"));
 const AdminReports = lazy(() => import("./pages/admin/AdminReports"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
-const Notifications = lazy(() => import("./pages/Notifications.tsx"));
-const Reminders = lazy(() => import("./pages/Reminders.tsx"));
 
 /** Animated loading skeleton for route transitions */
 function RouteLoading() {
@@ -68,8 +67,7 @@ function PageTransition({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** Silent error boundary — if VlyToolbar crashes it renders nothing instead of
- *  crashing the whole app (e.g. hook errors in WebContainer environment). */
+/** Silent error boundary — if VlyToolbar crashes it renders nothing */
 class ToolbarErrorBoundary extends React.Component<
   { children: React.ReactNode },
   { hasError: boolean }
@@ -108,11 +106,23 @@ class RootErrorBoundary extends React.Component<
         <div className="flex min-h-screen items-center justify-center bg-background p-6">
           <div className="max-w-lg text-center">
             <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-2xl bg-destructive/10">
-              <svg className="size-8 text-destructive" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+              <svg
+                className="size-8 text-destructive"
+                fill="none"
+                viewBox="0 0 24 24"
+                strokeWidth={1.5}
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"
+                />
               </svg>
             </div>
-            <h2 className="text-lg font-bold text-foreground">Something went wrong</h2>
+            <h2 className="text-lg font-bold text-foreground">
+              Something went wrong
+            </h2>
             <p className="mt-2 text-sm text-muted-foreground">
               {this.state.message}
             </p>
@@ -130,14 +140,12 @@ class RootErrorBoundary extends React.Component<
   }
 }
 
-const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string);
-
 function RouteSyncer() {
   const location = useLocation();
   useEffect(() => {
     window.parent.postMessage(
       { type: "iframe-route-change", path: location.pathname },
-      "*",
+      "*"
     );
   }, [location.pathname]);
 
@@ -162,27 +170,200 @@ function AnimatedRoutes() {
   return (
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
-        <Route path="/" element={<PageTransition><Landing /></PageTransition>} />
-        <Route path="/auth" element={<PageTransition><AuthPage redirectAfterAuth="/dashboard" /></PageTransition>} />
-        <Route path="/dashboard" element={<PageTransition><RequireAuth><Dashboard /></RequireAuth></PageTransition>} />
-        <Route path="/products" element={<PageTransition><Products /></PageTransition>} />
-        <Route path="/products/:slug" element={<PageTransition><ProductDetail /></PageTransition>} />
-        <Route path="/cart" element={<PageTransition><Cart /></PageTransition>} />
-        <Route path="/wishlist" element={<PageTransition><RequireAuth><Wishlist /></RequireAuth></PageTransition>} />
-        <Route path="/checkout" element={<PageTransition><RequireAuth><Checkout /></RequireAuth></PageTransition>} />
-        <Route path="/orders" element={<PageTransition><RequireAuth><Orders /></RequireAuth></PageTransition>} />
-        <Route path="/orders/:id" element={<PageTransition><RequireAuth><OrderDetail /></RequireAuth></PageTransition>} />
-        <Route path="/admin" element={<PageTransition><RequireAuth><AdminDashboard /></RequireAuth></PageTransition>} />
-        <Route path="/admin/products" element={<PageTransition><RequireAuth><AdminProducts /></RequireAuth></PageTransition>} />
-        <Route path="/admin/categories" element={<PageTransition><RequireAuth><AdminCategories /></RequireAuth></PageTransition>} />
-        <Route path="/admin/orders" element={<PageTransition><RequireAuth><AdminOrders /></RequireAuth></PageTransition>} />
-        <Route path="/admin/reviews" element={<PageTransition><RequireAuth><AdminReviews /></RequireAuth></PageTransition>} />
-        <Route path="/admin/coupons" element={<PageTransition><RequireAuth><AdminCoupons /></RequireAuth></PageTransition>} />
-        <Route path="/admin/users" element={<PageTransition><RequireAuth><AdminUsers /></RequireAuth></PageTransition>} />
-        <Route path="/admin/reports" element={<PageTransition><RequireAuth><AdminReports /></RequireAuth></PageTransition>} />
-        <Route path="/notifications" element={<PageTransition><RequireAuth><Notifications /></RequireAuth></PageTransition>} />
-        <Route path="/reminders" element={<PageTransition><RequireAuth><Reminders /></RequireAuth></PageTransition>} />
-        <Route path="*" element={<PageTransition><NotFound /></PageTransition>} />
+        <Route
+          path="/"
+          element={
+            <PageTransition>
+              <Landing />
+            </PageTransition>
+          }
+        />
+        <Route
+          path="/login"
+          element={
+            <PageTransition>
+              <Login />
+            </PageTransition>
+          }
+        />
+        <Route
+          path="/register"
+          element={
+            <PageTransition>
+              <Register />
+            </PageTransition>
+          }
+        />
+        <Route
+          path="/admin/login"
+          element={
+            <PageTransition>
+              <AdminLogin />
+            </PageTransition>
+          }
+        />
+        <Route
+          path="/dashboard"
+          element={
+            <PageTransition>
+              <RequireAuth>
+                <Dashboard />
+              </RequireAuth>
+            </PageTransition>
+          }
+        />
+        <Route
+          path="/products"
+          element={
+            <PageTransition>
+              <Products />
+            </PageTransition>
+          }
+        />
+        <Route
+          path="/products/:slug"
+          element={
+            <PageTransition>
+              <ProductDetail />
+            </PageTransition>
+          }
+        />
+        <Route
+          path="/cart"
+          element={
+            <PageTransition>
+              <Cart />
+            </PageTransition>
+          }
+        />
+        <Route
+          path="/wishlist"
+          element={
+            <PageTransition>
+              <RequireAuth>
+                <Wishlist />
+              </RequireAuth>
+            </PageTransition>
+          }
+        />
+        <Route
+          path="/checkout"
+          element={
+            <PageTransition>
+              <RequireAuth>
+                <Checkout />
+              </RequireAuth>
+            </PageTransition>
+          }
+        />
+        <Route
+          path="/orders"
+          element={
+            <PageTransition>
+              <RequireAuth>
+                <Orders />
+              </RequireAuth>
+            </PageTransition>
+          }
+        />
+        <Route
+          path="/orders/:id"
+          element={
+            <PageTransition>
+              <RequireAuth>
+                <OrderDetail />
+              </RequireAuth>
+            </PageTransition>
+          }
+        />
+        <Route
+          path="/admin"
+          element={
+            <PageTransition>
+              <RequireAuth adminOnly>
+                <AdminDashboard />
+              </RequireAuth>
+            </PageTransition>
+          }
+        />
+        <Route
+          path="/admin/products"
+          element={
+            <PageTransition>
+              <RequireAuth adminOnly>
+                <AdminProducts />
+              </RequireAuth>
+            </PageTransition>
+          }
+        />
+        <Route
+          path="/admin/categories"
+          element={
+            <PageTransition>
+              <RequireAuth adminOnly>
+                <AdminCategories />
+              </RequireAuth>
+            </PageTransition>
+          }
+        />
+        <Route
+          path="/admin/orders"
+          element={
+            <PageTransition>
+              <RequireAuth adminOnly>
+                <AdminOrders />
+              </RequireAuth>
+            </PageTransition>
+          }
+        />
+        <Route
+          path="/admin/reviews"
+          element={
+            <PageTransition>
+              <RequireAuth adminOnly>
+                <AdminReviews />
+              </RequireAuth>
+            </PageTransition>
+          }
+        />
+        <Route
+          path="/admin/coupons"
+          element={
+            <PageTransition>
+              <RequireAuth adminOnly>
+                <AdminCoupons />
+              </RequireAuth>
+            </PageTransition>
+          }
+        />
+        <Route
+          path="/admin/users"
+          element={
+            <PageTransition>
+              <RequireAuth adminOnly>
+                <AdminUsers />
+              </RequireAuth>
+            </PageTransition>
+          }
+        />
+        <Route
+          path="/admin/reports"
+          element={
+            <PageTransition>
+              <RequireAuth adminOnly>
+                <AdminReports />
+              </RequireAuth>
+            </PageTransition>
+          }
+        />
+        <Route
+          path="*"
+          element={
+            <PageTransition>
+              <NotFound />
+            </PageTransition>
+          }
+        />
       </Routes>
     </AnimatePresence>
   );
@@ -194,18 +375,18 @@ createRoot(document.getElementById("root")!).render(
       <ToolbarErrorBoundary>
         <VlyToolbar />
       </ToolbarErrorBoundary>
-      <ConvexAuthProvider client={convex}>
+      <AuthProvider>
         <BrowserRouter>
           <ScrollRestorer />
           <RouteSyncer />
           <PageErrorBoundary>
-          <Suspense fallback={<RouteLoading />}>
-            <AnimatedRoutes />
-          </Suspense>
+            <Suspense fallback={<RouteLoading />}>
+              <AnimatedRoutes />
+            </Suspense>
           </PageErrorBoundary>
         </BrowserRouter>
         <Toaster />
-      </ConvexAuthProvider>
+      </AuthProvider>
     </RootErrorBoundary>
-  </StrictMode>,
+  </StrictMode>
 );

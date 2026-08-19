@@ -1,10 +1,9 @@
 import { useState, memo } from "react";
 import { useLocation, useNavigate } from "react-router";
-import { useAuth } from "@/hooks/use-auth";
-import { isAdmin } from "@/lib/auth-utils";
+import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   LayoutDashboard,
   Pill,
@@ -18,48 +17,30 @@ import {
   X,
   LogOut,
   ArrowLeft,
-  ShieldCheck,
+  Settings,
 } from "lucide-react";
 
 const NAV_ITEMS = [
   { label: "Dashboard", path: "/admin", icon: LayoutDashboard },
   { label: "Products", path: "/admin/products", icon: Pill },
-  { label: "Categories", path: "/admin/categories", icon: Tag },
   { label: "Orders", path: "/admin/orders", icon: ClipboardList },
-  { label: "Reviews", path: "/admin/reviews", icon: Star },
+  { label: "Customers", path: "/admin/users", icon: Users },
+  { label: "Categories", path: "/admin/categories", icon: Tag },
   { label: "Coupons", path: "/admin/coupons", icon: Ticket },
-  { label: "Users", path: "/admin/users", icon: Users },
+  { label: "Reviews", path: "/admin/reviews", icon: Star },
   { label: "Reports", path: "/admin/reports", icon: BarChart3 },
+  { label: "Settings", path: "/admin", icon: Settings },
 ];
 
-const AdminLayout = memo(function AdminLayout({ children }: { children: React.ReactNode }) {
-  const { user, signOut } = useAuth();
+const AdminLayout = memo(function AdminLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  if (!isAdmin(user)) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="text-center"
-        >
-          <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-2xl bg-destructive/10">
-            <ShieldCheck className="size-8 text-destructive" />
-          </div>
-          <h1 className="text-xl font-bold text-foreground">Access Denied</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            You do not have administrator privileges.
-          </p>
-          <Button className="mt-4" onClick={() => navigate("/")}>
-            Return Home
-          </Button>
-        </motion.div>
-      </div>
-    );
-  }
 
   const isActive = (path: string) =>
     path === "/admin"
@@ -86,7 +67,7 @@ const AdminLayout = memo(function AdminLayout({ children }: { children: React.Re
       <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
         {NAV_ITEMS.map((item) => (
           <button
-            key={item.path}
+            key={item.label}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-200 ${
               isActive(item.path)
                 ? "bg-primary/10 text-primary font-medium shadow-sm"
@@ -119,7 +100,7 @@ const AdminLayout = memo(function AdminLayout({ children }: { children: React.Re
         <button
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-destructive hover:bg-destructive/10 transition-colors"
           onClick={async () => {
-            await signOut();
+            await logout();
             navigate("/");
           }}
         >
@@ -146,7 +127,12 @@ const AdminLayout = memo(function AdminLayout({ children }: { children: React.Re
         </SheetTrigger>
         <SheetContent side="left" className="w-64 p-0 border-border/30">
           <div className="flex items-center justify-end p-2">
-            <Button variant="ghost" size="icon" className="rounded-xl" onClick={() => setSidebarOpen(false)}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="rounded-xl"
+              onClick={() => setSidebarOpen(false)}
+            >
               <X className="size-4" />
             </Button>
           </div>

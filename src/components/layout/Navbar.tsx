@@ -1,11 +1,8 @@
-import { useState, useRef, useEffect, memo } from "react";
+import { useState, useEffect, memo } from "react";
 import { useNavigate, useLocation } from "react-router";
-import { useAuth } from "@/hooks/use-auth";
-import { useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
+import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   Search,
   ShoppingCart,
@@ -26,25 +23,17 @@ import {
   Package,
   ClipboardList,
   Shield,
-  Bell,
-  Clock,
   X,
 } from "lucide-react";
-import { isAdmin } from "@/lib/auth-utils";
 
 const Navbar = memo(function Navbar() {
-  const { isAuthenticated, user, signOut } = useAuth();
+  const { isAuthenticated, isAdmin, user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const searchRef = useRef<HTMLFormElement>(null);
-
-  // Memoize queries to avoid unnecessary re-subscription
-  const cartCount = useQuery(api.cart.getCount);
-  const unreadCount = useQuery(api.notifications.unreadCount);
 
   // Track scroll for navbar background enhancement
   useEffect(() => {
@@ -64,12 +53,11 @@ const Navbar = memo(function Navbar() {
   };
 
   const handleSignOut = async () => {
-    await signOut();
+    await logout();
     navigate("/");
   };
 
   const isActive = (path: string) => location.pathname === path;
-  const notifCount = unreadCount ?? 0;
 
   return (
     <header
@@ -100,11 +88,14 @@ const Navbar = memo(function Navbar() {
 
         {/* Search — desktop */}
         <form
-          ref={searchRef}
           onSubmit={handleSearch}
           className="hidden md:flex flex-1 max-w-md ml-4"
         >
-          <div className={`relative w-full transition-all duration-300 ${searchFocused ? "scale-[1.02]" : ""}`}>
+          <div
+            className={`relative w-full transition-all duration-300 ${
+              searchFocused ? "scale-[1.02]" : ""
+            }`}
+          >
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
             <Input
               placeholder="Search medicines, brands…"
@@ -132,40 +123,7 @@ const Navbar = memo(function Navbar() {
             <Package className="mr-1.5 size-3.5" />
             Medicines
           </Button>
-          {isAuthenticated && (
-            <>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="relative rounded-xl hover:bg-primary/5"
-                onClick={() => navigate("/notifications")}
-              >
-                <Bell className="size-4" />
-                {notifCount > 0 && (
-                  <motion.span
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    className="absolute -top-1 -right-1"
-                  >
-                    <Badge
-                      variant="destructive"
-                      className="h-4 min-w-4 flex items-center justify-center px-1 text-[10px] rounded-full"
-                    >
-                      {notifCount > 9 ? "9+" : notifCount}
-                    </Badge>
-                  </motion.span>
-                )}
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="relative rounded-xl hover:bg-primary/5"
-                onClick={() => navigate("/wishlist")}
-              >
-                <Heart className="size-4" />
-              </Button>
-            </>
-          )}
+
           <Button
             variant="ghost"
             size="icon"
@@ -173,63 +131,51 @@ const Navbar = memo(function Navbar() {
             onClick={() => navigate("/cart")}
           >
             <ShoppingCart className="size-4" />
-            {cartCount !== undefined && cartCount > 0 && (
-              <motion.span
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                className="absolute -top-1 -right-1"
-              >
-                <Badge
-                  variant="destructive"
-                  className="h-4 min-w-4 flex items-center justify-center px-1 text-[10px] rounded-full"
-                >
-                  {cartCount > 99 ? "99+" : cartCount}
-                </Badge>
-              </motion.span>
-            )}
           </Button>
 
           {isAuthenticated ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="ml-1 rounded-xl hover:bg-primary/5">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="ml-1 rounded-xl hover:bg-primary/5"
+                >
                   <User className="size-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-52 rounded-xl border-border/60 shadow-lg">
-                <DropdownMenuItem onClick={() => navigate("/dashboard")} className="rounded-lg cursor-pointer">
+              <DropdownMenuContent
+                align="end"
+                className="w-52 rounded-xl border-border/60 shadow-lg"
+              >
+                <DropdownMenuItem
+                  onClick={() => navigate("/dashboard")}
+                  className="rounded-lg cursor-pointer"
+                >
                   <Home className="mr-2 size-4" />
                   Dashboard
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate("/orders")} className="rounded-lg cursor-pointer">
+                <DropdownMenuItem
+                  onClick={() => navigate("/orders")}
+                  className="rounded-lg cursor-pointer"
+                >
                   <ClipboardList className="mr-2 size-4" />
                   My Orders
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate("/notifications")} className="rounded-lg cursor-pointer">
-                  <Bell className="mr-2 size-4" />
-                  Notifications
-                  {notifCount > 0 && (
-                    <Badge variant="destructive" className="ml-auto h-5 min-w-5 flex items-center justify-center px-1 text-[10px] rounded-full">
-                      {notifCount > 9 ? "9+" : notifCount}
-                    </Badge>
-                  )}
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate("/reminders")} className="rounded-lg cursor-pointer">
-                  <Clock className="mr-2 size-4" />
-                  Reminders
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate("/wishlist")} className="rounded-lg cursor-pointer">
-                  <Heart className="mr-2 size-4" />
-                  Wishlist
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate("/cart")} className="rounded-lg cursor-pointer">
+                <DropdownMenuItem
+                  onClick={() => navigate("/cart")}
+                  className="rounded-lg cursor-pointer"
+                >
                   <ShoppingCart className="mr-2 size-4" />
                   Cart
                 </DropdownMenuItem>
-                {isAdmin(user) && (
+                {isAdmin && (
                   <>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => navigate("/admin")} className="rounded-lg cursor-pointer">
+                    <DropdownMenuItem
+                      onClick={() => navigate("/admin")}
+                      className="rounded-lg cursor-pointer"
+                    >
                       <Shield className="mr-2 size-4" />
                       Admin Panel
                     </DropdownMenuItem>
@@ -250,7 +196,9 @@ const Navbar = memo(function Navbar() {
               size="sm"
               className="text-sm font-semibold ml-1 rounded-xl gradient-primary text-white shadow-glow hover:shadow-card-hover transition-all"
               onClick={() =>
-                navigate(`/auth?returnTo=${encodeURIComponent(location.pathname)}`)
+                navigate(
+                  `/login?returnTo=${encodeURIComponent(location.pathname)}`
+                )
               }
             >
               Sign In
@@ -267,14 +215,6 @@ const Navbar = memo(function Navbar() {
             onClick={() => navigate("/cart")}
           >
             <ShoppingCart className="size-4" />
-            {cartCount !== undefined && cartCount > 0 && (
-              <Badge
-                variant="destructive"
-                className="absolute -top-1.5 -right-1.5 h-4 min-w-4 flex items-center justify-center px-1 text-[10px] rounded-full"
-              >
-                {cartCount > 99 ? "99+" : cartCount}
-              </Badge>
-            )}
           </Button>
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger asChild>
@@ -316,7 +256,10 @@ const Navbar = memo(function Navbar() {
                     <Button
                       variant="ghost"
                       className="justify-start rounded-xl h-10"
-                      onClick={() => { navigate("/"); setMobileOpen(false); }}
+                      onClick={() => {
+                        navigate("/");
+                        setMobileOpen(false);
+                      }}
                     >
                       <Home className="mr-2 size-4" />
                       Home
@@ -324,7 +267,10 @@ const Navbar = memo(function Navbar() {
                     <Button
                       variant="ghost"
                       className="justify-start rounded-xl h-10"
-                      onClick={() => { navigate("/products"); setMobileOpen(false); }}
+                      onClick={() => {
+                        navigate("/products");
+                        setMobileOpen(false);
+                      }}
                     >
                       <Package className="mr-2 size-4" />
                       Browse Medicines
@@ -334,55 +280,35 @@ const Navbar = memo(function Navbar() {
                         <Button
                           variant="ghost"
                           className="justify-start rounded-xl h-10"
-                          onClick={() => { navigate("/orders"); setMobileOpen(false); }}
+                          onClick={() => {
+                            navigate("/orders");
+                            setMobileOpen(false);
+                          }}
                         >
                           <ClipboardList className="mr-2 size-4" />
                           My Orders
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          className="justify-start rounded-xl h-10"
-                          onClick={() => { navigate("/notifications"); setMobileOpen(false); }}
-                        >
-                          <Bell className="mr-2 size-4" />
-                          Notifications
-                          {notifCount > 0 && (
-                            <Badge variant="destructive" className="ml-auto h-5 min-w-5 flex items-center justify-center px-1 text-[10px] rounded-full">
-                              {notifCount}
-                            </Badge>
-                          )}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          className="justify-start rounded-xl h-10"
-                          onClick={() => { navigate("/reminders"); setMobileOpen(false); }}
-                        >
-                          <Clock className="mr-2 size-4" />
-                          Reminders
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          className="justify-start rounded-xl h-10"
-                          onClick={() => { navigate("/wishlist"); setMobileOpen(false); }}
-                        >
-                          <Heart className="mr-2 size-4" />
-                          Wishlist
                         </Button>
                       </>
                     )}
                     <Button
                       variant="ghost"
                       className="justify-start rounded-xl h-10"
-                      onClick={() => { navigate("/cart"); setMobileOpen(false); }}
+                      onClick={() => {
+                        navigate("/cart");
+                        setMobileOpen(false);
+                      }}
                     >
                       <ShoppingCart className="mr-2 size-4" />
                       Cart
                     </Button>
-                    {isAdmin(user) && (
+                    {isAdmin && (
                       <Button
                         variant="ghost"
                         className="justify-start rounded-xl h-10"
-                        onClick={() => { navigate("/admin"); setMobileOpen(false); }}
+                        onClick={() => {
+                          navigate("/admin");
+                          setMobileOpen(false);
+                        }}
                       >
                         <Shield className="mr-2 size-4" />
                         Admin Panel
@@ -392,19 +318,36 @@ const Navbar = memo(function Navbar() {
                 </div>
                 <div className="mt-auto p-4 border-t border-border/40">
                   {isAuthenticated ? (
-                    <Button
-                      variant="outline"
-                      className="w-full rounded-xl h-10"
-                      onClick={() => { handleSignOut(); setMobileOpen(false); }}
-                    >
-                      <LogOut className="mr-2 size-4" />
-                      Sign Out
-                    </Button>
+                    <div className="space-y-2">
+                      <div className="px-3 py-2">
+                        <p className="text-sm font-medium text-foreground">
+                          {user?.name || "User"}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {user?.email}
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        className="w-full rounded-xl h-10"
+                        onClick={() => {
+                          handleSignOut();
+                          setMobileOpen(false);
+                        }}
+                      >
+                        <LogOut className="mr-2 size-4" />
+                        Sign Out
+                      </Button>
+                    </div>
                   ) : (
                     <Button
                       className="w-full font-semibold rounded-xl h-10 gradient-primary text-white"
                       onClick={() => {
-                        navigate(`/auth?returnTo=${encodeURIComponent(location.pathname)}`);
+                        navigate(
+                          `/login?returnTo=${encodeURIComponent(
+                            location.pathname
+                          )}`
+                        );
                         setMobileOpen(false);
                       }}
                     >

@@ -1,23 +1,21 @@
-import { Doc } from "@/convex/_generated/dataModel";
-
 /**
  * Check if the current user has administrator privileges.
  */
-export function isAdmin(user: Doc<"users"> | null | undefined): boolean {
+export function isAdmin(user: { role?: string } | null | undefined): boolean {
   return user?.role === "admin";
 }
 
 /**
  * Check if the current user is a customer (default role).
  */
-export function isCustomer(user: Doc<"users"> | null | undefined): boolean {
+export function isCustomer(user: { role?: string } | null | undefined): boolean {
   return user?.role === "customer" || !user?.role;
 }
 
 /**
  * Return a presentable display name, falling back to a derived value.
  */
-export function getDisplayName(user: Doc<"users"> | null | undefined): string {
+export function getDisplayName(user: { name?: string; email?: string } | null | undefined): string {
   if (!user) return "User";
   return user.name || user.email?.split("@")[0] || "User";
 }
@@ -25,7 +23,7 @@ export function getDisplayName(user: Doc<"users"> | null | undefined): string {
 /**
  * Derive initials from the user's name for avatar placeholders.
  */
-export function getUserInitials(user: Doc<"users"> | null | undefined): string {
+export function getUserInitials(user: { name?: string } | null | undefined): string {
   if (!user?.name) return "U";
   const names = user.name.split(" ");
   if (names.length >= 2) {

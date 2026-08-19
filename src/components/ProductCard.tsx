@@ -1,63 +1,46 @@
 import { memo } from "react";
 import { useNavigate } from "react-router";
-import { useMutation } from "convex/react";
-import { api } from "@/convex/_generated/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Heart, ShoppingCart, Pill, Zap } from "lucide-react";
 import { formatCurrency } from "@/lib/auth-utils";
-import type { Doc } from "@/convex/_generated/dataModel";
 import { useState } from "react";
 import { toast } from "sonner";
 
 interface ProductCardProps {
-  product: Doc<"products">;
+  product: {
+    _id: string;
+    name: string;
+    slug: string;
+    price: number;
+    discountPrice?: number;
+    manufacturer: string;
+    dosage: string;
+    packSize: string;
+    requiresPrescription: boolean;
+    stockQuantity: number;
+    isActive: boolean;
+  };
 }
 
 const ProductCard = memo(function ProductCard({ product }: ProductCardProps) {
   const navigate = useNavigate();
-  const addToCart = useMutation(api.cart.addItem);
-  const toggleWishlist = useMutation(api.wishlist.toggle);
-  const [isAdding, setIsAdding] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 
-  const handleAddToCart = async (e: React.MouseEvent) => {
+  const handleAddToCart = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setIsAdding(true);
-    try {
-      await addToCart({ productId: product._id, quantity: 1 });
-      toast.success("Added to cart", { description: product.name });
-    } catch (error) {
-      toast.error("Could not add to cart", {
-        description: error instanceof Error ? error.message : "Please try again",
-      });
-    }
-    setIsAdding(false);
+    toast.info("Cart will be available in Phase 2");
   };
 
-  const handleBuyNow = async (e: React.MouseEvent) => {
+  const handleBuyNow = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setIsAdding(true);
-    try {
-      await addToCart({ productId: product._id, quantity: 1 });
-      navigate("/checkout");
-    } catch (error) {
-      toast.error("Could not proceed", {
-        description: error instanceof Error ? error.message : "Please try again",
-      });
-    }
-    setIsAdding(false);
+    toast.info("Checkout will be available in Phase 2");
   };
 
-  const handleWishlist = async (e: React.MouseEvent) => {
+  const handleWishlist = (e: React.MouseEvent) => {
     e.stopPropagation();
-    try {
-      await toggleWishlist({ productId: product._id });
-      toast.success("Added to wishlist");
-    } catch {
-      toast.error("Please sign in to save items");
-    }
+    toast.info("Wishlist will be available in Phase 2");
   };
 
   const hasDiscount =
@@ -85,7 +68,7 @@ const ProductCard = memo(function ProductCard({ product }: ProductCardProps) {
         <Heart className="size-4 text-muted-foreground transition-colors group-hover:text-rose-500" />
       </Button>
 
-      {/* Product image placeholder with gradient */}
+      {/* Product image placeholder */}
       <div className="relative flex items-center justify-center bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] h-44 border-b border-border/40 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.08] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
         <Pill
@@ -100,10 +83,12 @@ const ProductCard = memo(function ProductCard({ product }: ProductCardProps) {
             </Badge>
           </div>
         )}
-        {/* Low stock badge */}
         {product.stockQuantity > 0 && product.stockQuantity < 10 && (
           <div className="absolute bottom-3 left-3">
-            <Badge variant="outline" className="text-[10px] font-medium text-amber-600 border-amber-300 bg-amber-50/80 backdrop-blur-sm">
+            <Badge
+              variant="outline"
+              className="text-[10px] font-medium text-amber-600 border-amber-300 bg-amber-50/80 backdrop-blur-sm"
+            >
               Only {product.stockQuantity} left
             </Badge>
           </div>
@@ -112,7 +97,6 @@ const ProductCard = memo(function ProductCard({ product }: ProductCardProps) {
 
       <CardContent className="p-4">
         <div className="space-y-2.5">
-          {/* Badges */}
           <div className="flex flex-wrap gap-1.5">
             {product.requiresPrescription && (
               <Badge variant="secondary" className="text-[10px] font-medium">
@@ -121,7 +105,6 @@ const ProductCard = memo(function ProductCard({ product }: ProductCardProps) {
             )}
           </div>
 
-          {/* Name & manufacturer */}
           <div>
             <h3 className="text-sm font-semibold leading-snug text-foreground line-clamp-2 group-hover:text-primary transition-colors duration-300">
               {product.name}
@@ -131,15 +114,15 @@ const ProductCard = memo(function ProductCard({ product }: ProductCardProps) {
             </p>
           </div>
 
-          {/* Dosage & pack */}
           <p className="text-xs text-muted-foreground">
             {product.dosage} · {product.packSize}
           </p>
 
-          {/* Price */}
           <div className="flex items-baseline gap-1.5">
             <span className="text-lg font-extrabold text-foreground">
-              {formatCurrency(hasDiscount ? product.discountPrice! : product.price)}
+              {formatCurrency(
+                hasDiscount ? product.discountPrice! : product.price
+              )}
             </span>
             {hasDiscount && (
               <span className="text-xs text-muted-foreground line-through">
@@ -148,13 +131,12 @@ const ProductCard = memo(function ProductCard({ product }: ProductCardProps) {
             )}
           </div>
 
-          {/* Action buttons */}
           <div className="flex gap-2">
             <Button
               size="sm"
               className="flex-1 h-9 text-xs font-semibold gap-1 gradient-primary text-white shadow-sm hover:shadow-glow transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
               onClick={handleBuyNow}
-              disabled={isAdding || product.stockQuantity === 0}
+              disabled={product.stockQuantity === 0}
             >
               <Zap className="size-3" />
               {product.stockQuantity === 0 ? "Out of Stock" : "Buy Now"}
@@ -164,7 +146,7 @@ const ProductCard = memo(function ProductCard({ product }: ProductCardProps) {
               variant="secondary"
               className="h-9 text-xs font-semibold gap-1 border border-border/60 hover:border-primary/30 hover:bg-primary/[0.03] transition-all duration-300"
               onClick={handleAddToCart}
-              disabled={isAdding || product.stockQuantity === 0}
+              disabled={product.stockQuantity === 0}
             >
               <ShoppingCart className="size-3" />
               Cart
