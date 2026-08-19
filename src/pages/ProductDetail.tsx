@@ -1,13 +1,120 @@
 import { useParams, useNavigate } from "react-router";
+import { useQuery, useMutation } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { motion } from "framer-motion";
-import { ArrowLeft, Pill } from "lucide-react";
+import {
+  ArrowLeft,
+  ShoppingCart,
+  Zap,
+  Heart,
+  ShieldCheck,
+  Pill,
+  AlertTriangle,
+  Truck,
+  Package,
+  Loader2,
+  Info,
+} from "lucide-react";
+import { formatCurrency } from "@/lib/auth-utils";
+import { useAuth } from "@/context/AuthContext";
+import { toast } from "sonner";
 
 export default function ProductDetail() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
+  const addToCart = useMutation(api.cart.addItem);
+
+  const product = useQuery(
+    api.products.getBySlug,
+    slug ? { slug } : "skip"
+  );
+
+  const relatedProducts = useQuery(
+    api.products.getRelated,
+    product
+      ? { productId: product._id, categoryId: product.categoryId }
+      : "skip"
+  );
+
+  const handleAddToCart = async () => {
+    if (!product) return;
+    if (!isAuthenticated) {
+      toast.error("Please sign in to add items to cart");
+      navigate(`/auth?returnTo=${encodeURIComponent(window.location.pathname)}`);
+      return;
+    }
+    try {
+      await addToCart({ productId: product._id, quantity: 1 });
+      toast.success("Added to cart");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to add to cart");
+    }
+  };
+
+  const handleBuyNow = async () => {
+    await handleAddToCart();
+    navigate("/cart");
+  };
+
+  const handleWishlist = () => {
+    toast.info("Wishlist coming soon");
+  };
+
+  if (product === undefined) {
+    return (
+      <div className="min-h-screen flex flex-col bg-background">
+        <Navbar />
+        <main className="flex-1 flex items-center justify-center">
+          <Loader2 className="size-6 animate-spin text-muted-foreground" />
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (!product) {
+    return (
+      <div className="min-h-screen flex flex-col bg-background">
+        <Navbar />
+        <main className="flex-1 flex flex-col items-center justify-center text-center px-4">
+          <div className="size-20 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
+            <Pill className="size-10 text-primary" />
+          </div>
+          <h1 className="text-2xl font-bold text-foreground">Product Not Found</h1>
+          <p className="mt-2 text-sm text-muted-foreground max-w-sm">
+            The product you're looking for doesn't exist or has been removed.
+          </p>
+          <Button className="mt-6 font-semibold gradient-primary text-white rounded-xl" onClick={() => navigate("/products")}>
+            Browse Medicines
+          </Button>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  const p = product;
+  const cat = product.category;
+  const hasDiscount = p.discountPrice && p.discountPrice < p.price;
+  const discountPct = hasDiscount
+    ? Math.round(((p.price - p.discountPrice!) / p.price) * 100)
+    : 0;
+  const isInStock = p.stockQuantity > 0;
+  const isLowStock = p.stockQuantity > 0 && p.stockQuantity < 10;
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -23,28 +130,273 @@ export default function ProductDetail() {
           Back
         </Button>
 
+        <div className="grid gap-8 lg:grid-cols-[1fr_1.2fr]">
+          {/* Product Image */}
+          <motion.div
+            initial={{ opacity: 0, x: -16 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <div className="rounded-2xl border border-border/60 bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] flex items-center justify-center h-[300px] sm:h-[400px] overflow-hidden relative">
+              <Pill className="size-24 text-primary/15" />
+              {hasDiscount && (
+                <div className="absolute top-4 left-4">
+                  <Badge className="text-sm font-bold bg-gradient-to-r from-green-500 to-emerald-500 text-white border-0 shadow-md">
+                    {discountPct}% OFF
+                  </Badge>
+                </div>
+              )}
+            </div>
+          </motion.div>
+
+          {/* Product Info */}
+          <motion.div
+            initial={{ opacity: 0, x: 16 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="space-y-6"
+          >
+            {/* Badges */}
+            <div className="flex flex-wrap gap-2">
+              {p.prescriptionRequired ? (
+                <Badge variant="destructive" className="gap-1">
+                  <AlertTriangle className="size-3" />
+                  Prescription Required
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="gap-1 text-green-700 border-green-200 bg-green-50/50">
+                  <ShieldCheck className="size-3" />
+                  Over the Counter (OTC)
+                </Badge>
+              )}
+              {cat && (
+                <Badge variant="secondary">{cat.name}</Badge>
+              )}
+
+            </div>
+
+            {/* Name & Manufacturer */}
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{p.name}</h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                by <span className="font-medium text-foreground">{p.manufacturer}</span>
+              </p>
+            </div>
+
+            {/* Price */}
+            <div className="flex items-baseline gap-3">
+              <span className="text-3xl font-extrabold">{formatCurrency(hasDiscount ? p.discountPrice! : p.price)}</span>
+              {hasDiscount && (
+                <>
+                  <span className="text-lg text-muted-foreground line-through">{formatCurrency(p.price)}</span>
+                  <Badge className="bg-green-100 text-green-700 border-green-200 font-bold">
+                    Save {formatCurrency(p.price - p.discountPrice!)}
+                  </Badge>
+                </>
+              )}
+            </div>
+
+            {/* Stock Status */}
+            <div>
+              {isInStock ? (
+                <div className="flex items-center gap-2">
+                  <div className={`size-2 rounded-full ${isLowStock ? "bg-amber-500" : "bg-green-500"}`} />
+                  <span className={`text-sm font-medium ${isLowStock ? "text-amber-600" : "text-green-600"}`}>
+                    {isLowStock ? `Only ${p.stockQuantity} left in stock` : "In Stock"}
+                  </span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <div className="size-2 rounded-full bg-red-500" />
+                  <span className="text-sm font-medium text-red-600">Out of Stock</span>
+                </div>
+              )}
+            </div>
+
+            {/* Prescription Warning */}
+            {p.prescriptionRequired && (
+              <div className="rounded-xl bg-amber-50 border border-amber-200 p-4 flex items-start gap-3">
+                <AlertTriangle className="size-5 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-semibold text-amber-800">Prescription Required</p>
+                  <p className="text-xs text-amber-700 mt-1">
+                    This medicine requires a valid prescription from a registered medical practitioner.
+                    Please upload your prescription during checkout.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex gap-3">
+              <Button
+                size="lg"
+                className="flex-1 h-12 text-sm font-semibold gap-2 gradient-primary text-white shadow-glow hover:shadow-card-hover transition-all hover:scale-[1.02] active:scale-[0.98] rounded-xl"
+                onClick={handleAddToCart}
+                disabled={!isInStock}
+              >
+                <ShoppingCart className="size-4" />
+                {isInStock ? "Add to Cart" : "Out of Stock"}
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                className="h-12 text-sm font-semibold gap-2 rounded-xl"
+                onClick={handleBuyNow}
+                disabled={!isInStock}
+              >
+                <Zap className="size-4" />
+                Buy Now
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                className="h-12 w-12 rounded-xl"
+                onClick={handleWishlist}
+              >
+                <Heart className="size-4" />
+              </Button>
+            </div>
+
+            {/* Trust indicators */}
+            <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
+              <div className="flex items-center gap-1.5">
+                <ShieldCheck className="size-3.5 text-primary" />
+                100% Genuine
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Truck className="size-3.5 text-primary" />
+                Fast Delivery
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Package className="size-3.5 text-primary" />
+                Secure Packaging
+              </div>
+            </div>
+
+            {/* Product Details Table */}
+            <Card className="border-border/60">
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead colSpan={2} className="text-sm font-bold">
+                        Product Details
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+
+                    {p.composition && (
+                      <TableRow>
+                        <TableCell className="font-medium text-muted-foreground">Composition</TableCell>
+                        <TableCell>{p.composition}</TableCell>
+                      </TableRow>
+                    )}
+                    {p.strength && (
+                      <TableRow>
+                        <TableCell className="font-medium text-muted-foreground">Strength</TableCell>
+                        <TableCell>{p.strength}</TableCell>
+                      </TableRow>
+                    )}
+                    {p.form && (
+                      <TableRow>
+                        <TableCell className="font-medium text-muted-foreground">Form</TableCell>
+                        <TableCell className="capitalize">{p.form}</TableCell>
+                      </TableRow>
+                    )}
+                    <TableRow>
+                      <TableCell className="font-medium text-muted-foreground">Pack Size</TableCell>
+                      <TableCell>{p.packSize}</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell className="font-medium text-muted-foreground">Manufacturer</TableCell>
+                      <TableCell>{p.manufacturer}</TableCell>
+                    </TableRow>
+                    {p.sku && (
+                      <TableRow>
+                        <TableCell className="font-medium text-muted-foreground">SKU</TableCell>
+                        <TableCell className="font-mono text-xs">{p.sku}</TableCell>
+                      </TableRow>
+                    )}
+                    {cat && (
+                      <TableRow>
+                        <TableCell className="font-medium text-muted-foreground">Category</TableCell>
+                        <TableCell>{cat.name}</TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </div>
+
+        {/* Description */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col items-center justify-center py-20 text-center"
+          transition={{ delay: 0.2 }}
+          className="mt-12 grid gap-6 lg:grid-cols-2"
         >
-          <div className="size-20 rounded-2xl bg-primary/10 flex items-center justify-center mb-4">
-            <Pill className="size-10 text-primary" />
-          </div>
-          <h1 className="text-2xl font-bold text-foreground">
-            Product Details Coming Soon
-          </h1>
-          <p className="mt-2 text-sm text-muted-foreground max-w-sm">
-            Detailed product pages will be available in Phase 2 when we launch
-            our full medicine catalogue.
-          </p>
-          <Button
-            className="mt-6 font-semibold gradient-primary text-white rounded-xl"
-            onClick={() => navigate("/products")}
-          >
-            Browse Medicines
-          </Button>
+          <Card className="border-border/60">
+            <CardContent className="p-6">
+              <h3 className="text-lg font-bold mb-3">Description</h3>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                {p.description}
+              </p>
+            </CardContent>
+          </Card>
+          {p.storageInformation && (
+            <Card className="border-border/60">
+              <CardContent className="p-6">
+                <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
+                  <Info className="size-4 text-primary" />
+                  Storage Information
+                </h3>
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  {p.storageInformation}
+                </p>
+              </CardContent>
+            </Card>
+          )}
         </motion.div>
+
+        {/* Related Products */}
+        {relatedProducts && relatedProducts.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="mt-12"
+          >
+            <h3 className="text-xl font-bold mb-6">Related Products</h3>
+            <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
+              {relatedProducts.map((rp) => {
+                const hasDisc = rp.discountPrice && rp.discountPrice < rp.price;
+                return (
+                  <div
+                    key={rp._id}
+                    className="group rounded-2xl border border-border/70 bg-card p-4 cursor-pointer transition-all duration-500 hover:shadow-card-hover hover:border-primary/20 hover:-translate-y-1"
+                    onClick={() => navigate(`/products/${rp.slug}`)}
+                  >
+                    <div className="flex items-center justify-center bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] h-28 rounded-xl mb-3">
+                      <Pill className="size-8 text-primary/20" />
+                    </div>
+                    <h4 className="text-sm font-semibold line-clamp-2 group-hover:text-primary transition-colors">{rp.name}</h4>
+                    <p className="text-xs text-muted-foreground mt-0.5">{rp.manufacturer}</p>
+                    <div className="flex items-baseline gap-1.5 mt-2">
+                      <span className="text-base font-extrabold">{formatCurrency(hasDisc ? rp.discountPrice! : rp.price)}</span>
+                      {hasDisc && (
+                        <span className="text-xs text-muted-foreground line-through">{formatCurrency(rp.price)}</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
       </main>
       <Footer />
     </div>

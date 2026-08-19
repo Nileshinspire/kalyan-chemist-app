@@ -21,10 +21,17 @@ import {
   Zap,
   Shield,
   Search,
+  Upload,
+  ShoppingCart,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router";
 import { useRef } from "react";
+import { useQuery, useMutation } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { formatCurrency } from "@/lib/auth-utils";
+import { toast } from "sonner";
 
 const fadeUp: Variants = {
   hidden: { opacity: 0, y: 30 },
@@ -57,14 +64,19 @@ const scaleIn: Variants = {
   },
 };
 
-const categories = [
-  { name: "Pain & Relief", slug: "pain-relief", icon: Pill, description: "Analgesics, anti-inflammatory, and muscle relaxants", color: "from-orange-500/15 to-red-500/15", iconColor: "text-orange-600", hoverBg: "hover:from-orange-500/20 hover:to-red-500/20" },
-  { name: "Heart & Cardio", slug: "heart-cardio", icon: HeartPulse, description: "Cardiac care, blood pressure, and cholesterol management", color: "from-rose-500/15 to-pink-500/15", iconColor: "text-rose-600", hoverBg: "hover:from-rose-500/20 hover:to-pink-500/20" },
-  { name: "Diabetes Care", slug: "diabetes-care", icon: Stethoscope, description: "Insulin, oral hypoglycaemics, and glucose monitoring", color: "from-blue-500/15 to-cyan-500/15", iconColor: "text-blue-600", hoverBg: "hover:from-blue-500/20 hover:to-cyan-500/20" },
-  { name: "Baby & Mother", slug: "baby-mother", icon: Baby, description: "Infant nutrition, prenatal vitamins, and maternal care", color: "from-violet-500/15 to-purple-500/15", iconColor: "text-violet-600", hoverBg: "hover:from-violet-500/20 hover:to-purple-500/20" },
-  { name: "Vitamins & Supplements", slug: "vitamins-supplements", icon: Leaf, description: "Daily wellness, immunity boosters, and nutrition", color: "from-emerald-500/15 to-green-500/15", iconColor: "text-emerald-600", hoverBg: "hover:from-emerald-500/20 hover:to-green-500/20" },
-  { name: "Mind & Neurology", slug: "mind-neurology", icon: Brain, description: "Neurological care, sleep aids, and cognitive health", color: "from-teal-500/15 to-cyan-500/15", iconColor: "text-teal-600", hoverBg: "hover:from-teal-500/20 hover:to-cyan-500/20" },
-];
+// Map category slugs to icons and colors
+const CATEGORY_STYLES: Record<string, { icon: typeof Pill; color: string; hoverBg: string; iconColor: string }> = {
+  "pain-relief": { icon: Pill, color: "from-orange-500/15 to-red-500/15", hoverBg: "hover:from-orange-500/20 hover:to-red-500/20", iconColor: "text-orange-600" },
+  "heart-cardio": { icon: HeartPulse, color: "from-rose-500/15 to-pink-500/15", hoverBg: "hover:from-rose-500/20 hover:to-pink-500/20", iconColor: "text-rose-600" },
+  "diabetes-care": { icon: Stethoscope, color: "from-blue-500/15 to-cyan-500/15", hoverBg: "hover:from-blue-500/20 hover:to-cyan-500/20", iconColor: "text-blue-600" },
+  "baby-mother": { icon: Baby, color: "from-violet-500/15 to-purple-500/15", hoverBg: "hover:from-violet-500/20 hover:to-purple-500/20", iconColor: "text-violet-600" },
+  "vitamins-supplements": { icon: Leaf, color: "from-emerald-500/15 to-green-500/15", hoverBg: "hover:from-emerald-500/20 hover:to-green-500/20", iconColor: "text-emerald-600" },
+  "skin-personal-care": { icon: Sparkles, color: "from-pink-500/15 to-fuchsia-500/15", hoverBg: "hover:from-pink-500/20 hover:to-fuchsia-500/20", iconColor: "text-pink-600" },
+  "antibiotics": { icon: Shield, color: "from-teal-500/15 to-cyan-500/15", hoverBg: "hover:from-teal-500/20 hover:to-cyan-500/20", iconColor: "text-teal-600" },
+  "digestive-health": { icon: Stethoscope, color: "from-amber-500/15 to-yellow-500/15", hoverBg: "hover:from-amber-500/20 hover:to-yellow-500/20", iconColor: "text-amber-600" },
+};
+
+const DEFAULT_STYLE = { icon: Pill, color: "from-primary/15 to-primary/10", hoverBg: "hover:from-primary/20 hover:to-primary/15", iconColor: "text-primary" };
 
 const features = [
   { icon: ShieldCheck, title: "Genuine Medicines", description: "Every product sourced directly from licensed manufacturers and verified distributors." },
@@ -82,19 +94,37 @@ const testimonials = [
 export default function Landing() {
   const navigate = useNavigate();
   const heroRef = useRef(null);
-  const { scrollYProgress } = useScroll({
-    target: heroRef,
-    offset: ["start start", "end start"],
-  });
+  const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] });
   const heroY = useTransform(scrollYProgress, [0, 1], [0, 120]);
   const heroOpacity = useTransform(scrollYProgress, [0, 0.8], [1, 0]);
+
+  const addToCart = useMutation(api.cart.addItem);
+
+  // Real data from Convex
+  const categories = useQuery(api.categories.list);
+  const popularProducts = useQuery(api.publicProducts.popular, { limit: 8 });
+  const featuredProducts = useQuery(api.publicProducts.featured, { limit: 4 });
+
+  const handleAddToCart = async (productId: string) => {
+    try {
+      await addToCart({ productId: productId as any, quantity: 1 });
+      toast.success("Added to cart");
+    } catch (error: any) {
+      if (error.message === "Not authenticated") {
+        toast.error("Please sign in to add items to cart");
+        navigate("/auth");
+      } else {
+        toast.error(error.message || "Failed to add to cart");
+      }
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background text-foreground overflow-hidden">
       {/* ── Navigation ── */}
       <header className="sticky top-0 z-50 glass-strong border-b border-border/40">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => navigate("/")}>
             <div className="flex size-9 items-center justify-center rounded-xl gradient-primary text-white font-bold text-sm tracking-tight shadow-glow">
               KC
             </div>
@@ -106,10 +136,13 @@ export default function Landing() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" className="rounded-xl" onClick={() => navigate("/cart")}>
+              <ShoppingCart className="size-4" />
+            </Button>
             <Button variant="ghost" className="hidden sm:inline-flex text-sm font-medium" onClick={() => navigate("/auth")}>
               Sign In
             </Button>
-            <Button className="text-sm font-semibold px-5 gradient-primary text-white shadow-glow hover:shadow-card-hover transition-all hover:scale-[1.02] active:scale-[0.98]" onClick={() => navigate("/auth")}>
+            <Button className="text-sm font-semibold px-5 gradient-primary text-white shadow-glow hover:shadow-card-hover transition-all hover:scale-[1.02] active:scale-[0.98] rounded-xl" onClick={() => navigate("/auth")}>
               Get Started
             </Button>
           </div>
@@ -118,13 +151,10 @@ export default function Landing() {
 
       {/* ── Hero ── */}
       <section ref={heroRef} className="relative overflow-hidden">
-        {/* Animated background gradient orbs */}
         <div className="absolute inset-0 gradient-primary opacity-[0.03]" />
         <div className="pointer-events-none absolute -right-32 top-0 h-[700px] w-[700px] rounded-full bg-primary/[0.1] blur-[120px] animate-float" />
         <div className="pointer-events-none absolute -left-32 top-40 h-[500px] w-[500px] rounded-full bg-primary/[0.06] blur-[100px] animate-float-delayed" />
         <div className="pointer-events-none absolute right-1/4 bottom-0 h-[400px] w-[400px] rounded-full bg-emerald-500/[0.05] blur-[80px]" />
-
-        {/* Subtle grid pattern */}
         <div className="absolute inset-0 opacity-[0.015]" style={{ backgroundImage: "radial-gradient(circle, oklch(0.42 0.09 170) 1px, transparent 1px)", backgroundSize: "32px 32px" }} />
 
         <motion.div
@@ -140,38 +170,31 @@ export default function Landing() {
               Licensed and Verified Online Pharmacy
               <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
             </motion.div>
-            <motion.h1
-              variants={fadeUpDelay}
-              className="text-4xl font-extrabold leading-[1.08] tracking-tight sm:text-5xl lg:text-7xl"
-            >
-              Your Health,
-              <br className="hidden sm:block" />
-              <span className="text-gradient">Delivered with Care</span>
+            <motion.h1 variants={fadeUpDelay} className="text-4xl font-extrabold leading-[1.08] tracking-tight sm:text-5xl lg:text-7xl">
+              Your Trusted Local Pharmacy,<br className="hidden sm:block" />
+              <span className="text-gradient">Now Online</span>
             </motion.h1>
-            <motion.p
-              variants={fadeUpDelay}
-              className="mt-6 max-w-xl text-lg leading-relaxed text-muted-foreground sm:text-xl"
-            >
+            <motion.p variants={fadeUpDelay} className="mt-6 max-w-xl text-lg leading-relaxed text-muted-foreground sm:text-xl">
               Order genuine medicines, wellness products, and healthcare essentials
               from a pharmacy you can trust. Fast delivery, fair prices, and
               pharmacist-backed guidance — all from one place.
             </motion.p>
             <motion.div variants={fadeUpDelay} className="mt-8 flex flex-wrap gap-3">
               <Button size="lg" className="text-sm font-semibold px-8 h-12 gradient-primary text-white shadow-glow hover:shadow-card-hover transition-all hover:scale-[1.02] active:scale-[0.98] rounded-xl" onClick={() => navigate("/products")}>
-                Browse Medicines
+                Shop Medicines
                 <ArrowRight className="ml-1.5 size-4" />
               </Button>
               <Button
                 size="lg"
                 variant="outline"
-                className="text-sm font-semibold px-8 h-12 border-border/60 hover:border-primary/30 hover:bg-primary/[0.03] transition-all rounded-xl"
+                className="text-sm font-semibold px-8 h-12 border-border/60 hover:border-primary/30 hover:bg-primary/[0.03] transition-all rounded-xl gap-2"
                 onClick={() => navigate("/auth")}
               >
-                Create Account
+                <Upload className="size-4" />
+                Upload Prescription
               </Button>
             </motion.div>
 
-            {/* Trust indicators */}
             <motion.div variants={fadeUpDelay} className="mt-12 flex flex-wrap items-center gap-6 text-xs text-muted-foreground">
               <div className="flex items-center gap-2">
                 <div className="flex -space-x-1">
@@ -225,7 +248,7 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ── Categories ── */}
+      {/* ── Categories (from DB) ── */}
       <motion.section
         initial="hidden"
         whileInView="visible"
@@ -247,32 +270,172 @@ export default function Landing() {
           </p>
         </motion.div>
         <div className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {categories.map((cat) => (
-            <motion.div
-              key={cat.name}
-              variants={scaleIn}
-              className="group relative overflow-hidden rounded-2xl border border-border/70 bg-card p-6 transition-all duration-500 hover:shadow-card-hover hover:border-primary/20 cursor-pointer hover:-translate-y-1"
-              onClick={() => navigate(`/products?category=${cat.slug}`)}
-            >
-              <div className={`absolute inset-0 bg-gradient-to-br ${cat.color} ${cat.hoverBg} opacity-0 group-hover:opacity-100 transition-all duration-500`} />
-              <div className="relative flex items-start gap-4">
-                <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary transition-all duration-500 group-hover:bg-primary group-hover:text-white group-hover:scale-110 group-hover:shadow-glow">
-                  <cat.icon className="size-5" />
+          {(categories ?? []).map((cat) => {
+            const style = CATEGORY_STYLES[cat.slug] ?? DEFAULT_STYLE;
+            return (
+              <motion.div
+                key={cat._id}
+                variants={scaleIn}
+                className="group relative overflow-hidden rounded-2xl border border-border/70 bg-card p-6 transition-all duration-500 hover:shadow-card-hover hover:border-primary/20 cursor-pointer hover:-translate-y-1"
+                onClick={() => navigate(`/products?category=${cat.slug}`)}
+              >
+                <div className={`absolute inset-0 bg-gradient-to-br ${style.color} ${style.hoverBg} opacity-0 group-hover:opacity-100 transition-all duration-500`} />
+                <div className="relative flex items-start gap-4">
+                  <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary transition-all duration-500 group-hover:bg-primary group-hover:text-white group-hover:scale-110 group-hover:shadow-glow">
+                    <style.icon className="size-5" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors duration-300">{cat.name}</h3>
+                      <Badge variant="secondary" className="text-[10px]">{cat.productCount}</Badge>
+                    </div>
+                    <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+                      {cat.description}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors duration-300">{cat.name}</h3>
-                  <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-                    {cat.description}
-                  </p>
+                <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
+                  <ArrowUpRight className="size-4 text-primary/60" />
                 </div>
-              </div>
-              <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
-                <ArrowUpRight className="size-4 text-primary/60" />
-              </div>
-            </motion.div>
-          ))}
+              </motion.div>
+            );
+          })}
         </div>
       </motion.section>
+
+      {/* ── Popular Medicines (from DB) ── */}
+      {popularProducts && popularProducts.length > 0 && (
+        <section className="border-y border-border/50 bg-gradient-to-b from-card/50 to-background">
+          <div className="mx-auto max-w-7xl px-6 py-24">
+            <div className="flex items-end justify-between mb-10">
+              <div>
+                <div className="inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary mb-4">
+                  <Pill className="size-3" />
+                  Most Ordered
+                </div>
+                <h2 className="text-3xl font-bold tracking-tight sm:text-5xl">
+                  Popular Medicines
+                </h2>
+                <p className="mt-3 text-muted-foreground text-lg">
+                  Trusted by thousands of customers across India.
+                </p>
+              </div>
+              <Button variant="outline" className="hidden sm:flex rounded-xl" onClick={() => navigate("/products")}>
+                View All <ArrowRight className="ml-1.5 size-3.5" />
+              </Button>
+            </div>
+            <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+              {popularProducts.map((product) => {
+                const hasDiscount = product.discountPrice && product.discountPrice < product.price;
+                const discountPct = hasDiscount ? Math.round(((product.price - product.discountPrice!) / product.price) * 100) : 0;
+                return (
+                  <motion.div
+                    key={product._id}
+                    initial={{ opacity: 0, y: 16 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    className="group rounded-2xl border border-border/70 bg-card p-4 cursor-pointer transition-all duration-500 hover:shadow-card-hover hover:border-primary/20 hover:-translate-y-1"
+                    onClick={() => navigate(`/products/${product.slug}`)}
+                  >
+                    <div className="relative flex items-center justify-center bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] h-32 rounded-xl mb-3 overflow-hidden">
+                      <Pill className="size-10 text-primary/20 group-hover:text-primary/30 transition-all duration-500" />
+                      {hasDiscount && (
+                        <Badge className="absolute top-2 left-2 text-[10px] font-bold bg-gradient-to-r from-green-500 to-emerald-500 text-white border-0">
+                          {discountPct}% OFF
+                        </Badge>
+                      )}
+                      {product.prescriptionRequired && (
+                        <Badge variant="secondary" className="absolute top-2 right-2 text-[10px] bg-red-50 text-red-700">Rx</Badge>
+                      )}
+                    </div>
+                    <h3 className="text-sm font-semibold line-clamp-2 group-hover:text-primary transition-colors">{product.name}</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">{product.manufacturer}</p>
+                    <div className="flex items-baseline gap-1.5 mt-2">
+                      <span className="text-base font-extrabold">{formatCurrency(hasDiscount ? product.discountPrice! : product.price)}</span>
+                      {hasDiscount && (
+                        <span className="text-xs text-muted-foreground line-through">{formatCurrency(product.price)}</span>
+                      )}
+                    </div>
+                    <Button
+                      size="sm"
+                      className="w-full mt-3 h-8 text-xs font-semibold gradient-primary text-white rounded-lg"
+                      onClick={(e) => { e.stopPropagation(); handleAddToCart(product._id); }}
+                      disabled={product.stockQuantity === 0}
+                    >
+                      <ShoppingCart className="size-3 mr-1" />
+                      {product.stockQuantity === 0 ? "Out of Stock" : "Add to Cart"}
+                    </Button>
+                  </motion.div>
+                );
+              })}
+            </div>
+            <div className="mt-6 text-center sm:hidden">
+              <Button variant="outline" className="rounded-xl" onClick={() => navigate("/products")}>
+                View All Medicines <ArrowRight className="ml-1.5 size-3.5" />
+              </Button>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ── Best Deals / Featured (from DB) ── */}
+      {featuredProducts && featuredProducts.length > 0 && (
+        <section className="mx-auto max-w-7xl px-6 py-24">
+          <div className="mb-10">
+            <div className="inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary mb-4">
+              <Zap className="size-3" />
+              Limited Offers
+            </div>
+            <h2 className="text-3xl font-bold tracking-tight sm:text-5xl">
+              Best Deals Right Now
+            </h2>
+            <p className="mt-3 text-muted-foreground text-lg">
+              Save more on your healthcare essentials with our top discounts.
+            </p>
+          </div>
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {featuredProducts.map((product) => (
+              <motion.div
+                key={product._id}
+                initial={{ opacity: 0, y: 16 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                className="group rounded-2xl border border-border/70 bg-card overflow-hidden cursor-pointer transition-all duration-500 hover:shadow-card-hover hover:border-primary/20 hover:-translate-y-1"
+                onClick={() => navigate(`/products/${product.slug}`)}
+              >
+                <div className="relative flex items-center justify-center bg-gradient-to-br from-green-500/[0.06] to-emerald-500/[0.03] h-40">
+                  <Pill className="size-12 text-primary/20 group-hover:scale-110 transition-all duration-500" />
+                  <div className="absolute top-3 left-3">
+                    <Badge className="text-xs font-bold bg-gradient-to-r from-green-500 to-emerald-500 text-white border-0 shadow-md">
+                      {product.discountPercent}% OFF
+                    </Badge>
+                  </div>
+                  {product.prescriptionRequired && (
+                    <Badge variant="secondary" className="absolute top-3 right-2 text-[10px] bg-red-50 text-red-700">Rx</Badge>
+                  )}
+                </div>
+                <div className="p-4">
+                  <h3 className="text-sm font-semibold line-clamp-2 group-hover:text-primary transition-colors">{product.name}</h3>
+                  <p className="text-xs text-muted-foreground mt-0.5">{product.manufacturer}</p>
+                  <div className="flex items-baseline gap-1.5 mt-2">
+                    <span className="text-lg font-extrabold">{formatCurrency(product.discountPrice!)}</span>
+                    <span className="text-xs text-muted-foreground line-through">{formatCurrency(product.price)}</span>
+                  </div>
+                  <Button
+                    size="sm"
+                    className="w-full mt-3 h-8 text-xs font-semibold gradient-primary text-white rounded-lg"
+                    onClick={(e) => { e.stopPropagation(); handleAddToCart(product._id); }}
+                    disabled={product.stockQuantity === 0}
+                  >
+                    <ShoppingCart className="size-3 mr-1" />
+                    Add to Cart
+                  </Button>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* ── How It Works ── */}
       <section className="border-y border-border/50 bg-gradient-to-b from-card/50 to-background">
@@ -485,9 +648,9 @@ export default function Landing() {
                 {[
                   { label: "Home", to: "/" },
                   { label: "All Medicines", to: "/products" },
+                  { label: "Categories", to: "/categories" },
                   { label: "Shopping Cart", to: "/cart" },
                   { label: "Sign In", to: "/auth" },
-                  { label: "Create Account", to: "/auth" },
                 ].map((link) => (
                   <li key={link.label}>
                     <button
@@ -504,15 +667,8 @@ export default function Landing() {
             <div>
               <h4 className="mb-4 text-sm font-bold text-foreground">Categories</h4>
               <ul className="space-y-2.5 text-sm text-muted-foreground">
-                {[
-                  { name: "Pain & Relief", slug: "pain-relief" },
-                  { name: "Heart & Cardio", slug: "heart-cardio" },
-                  { name: "Diabetes Care", slug: "diabetes-care" },
-                  { name: "Vitamins & Supplements", slug: "vitamins-supplements" },
-                  { name: "Baby & Mother", slug: "baby-mother" },
-                  { name: "Mind & Neurology", slug: "mind-neurology" },
-                ].map((cat) => (
-                  <li key={cat.slug}>
+                {(categories ?? []).slice(0, 6).map((cat) => (
+                  <li key={cat._id}>
                     <button
                       className="flex items-center gap-1 hover:text-primary transition-colors duration-200 group cursor-pointer"
                       onClick={() => navigate(`/products?category=${cat.slug}`)}

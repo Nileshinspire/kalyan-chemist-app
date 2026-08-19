@@ -1,5 +1,7 @@
 import { memo } from "react";
 import { useNavigate } from "react-router";
+import { useMutation } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,40 +18,55 @@ interface ProductCardProps {
     price: number;
     discountPrice?: number;
     manufacturer: string;
-    dosage: string;
+    dosage?: string;
+    strength?: string;
+    form?: string;
     packSize: string;
-    requiresPrescription: boolean;
+    prescriptionRequired: boolean;
     stockQuantity: number;
     isActive: boolean;
+    categoryName?: string;
+    brandName?: string | null;
+    imageUrl?: string;
   };
 }
 
 const ProductCard = memo(function ProductCard({ product }: ProductCardProps) {
   const navigate = useNavigate();
   const [isHovered, setIsHovered] = useState(false);
+  const addToCart = useMutation(api.cart.addItem);
 
-  const handleAddToCart = (e: React.MouseEvent) => {
+  const handleAddToCart = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    toast.info("Cart will be available in Phase 2");
+    try {
+      await addToCart({ productId: product._id as any, quantity: 1 });
+      toast.success(`${product.name} added to cart`);
+    } catch (error: any) {
+      if (error.message === "Not authenticated") {
+        toast.error("Please sign in to add items to cart");
+        navigate("/auth");
+      } else {
+        toast.error(error.message || "Failed to add to cart");
+      }
+    }
   };
 
   const handleBuyNow = (e: React.MouseEvent) => {
     e.stopPropagation();
-    toast.info("Checkout will be available in Phase 2");
+    handleAddToCart(e).then(() => navigate("/cart"));
   };
 
   const handleWishlist = (e: React.MouseEvent) => {
     e.stopPropagation();
-    toast.info("Wishlist will be available in Phase 2");
+    toast.info("Wishlist coming soon");
   };
 
-  const hasDiscount =
-    product.discountPrice && product.discountPrice < product.price;
+  const hasDiscount = product.discountPrice && product.discountPrice < product.price;
   const discountPct = hasDiscount
-    ? Math.round(
-        ((product.price - product.discountPrice!) / product.price) * 100
-      )
+    ? Math.round(((product.price - product.discountPrice!) / product.price) * 100)
     : 0;
+
+  const displayInfo = product.dosage || product.strength || product.form || "";
 
   return (
     <Card
@@ -71,11 +88,15 @@ const ProductCard = memo(function ProductCard({ product }: ProductCardProps) {
       {/* Product image placeholder */}
       <div className="relative flex items-center justify-center bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] h-44 border-b border-border/40 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.08] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-        <Pill
-          className={`size-14 text-primary/20 transition-all duration-500 ${
-            isHovered ? "scale-125 text-primary/35 rotate-6" : ""
-          }`}
-        />
+        {product.imageUrl && product.imageUrl !== "/placeholder-medicine.svg" ? (
+          <img src={product.imageUrl} alt={product.name} className="size-20 object-contain" />
+        ) : (
+          <Pill
+            className={`size-14 text-primary/20 transition-all duration-500 ${
+              isHovered ? "scale-125 text-primary/35 rotate-6" : ""
+            }`}
+          />
+        )}
         {hasDiscount && (
           <div className="absolute top-3 left-3">
             <Badge className="text-[10px] font-bold bg-gradient-to-r from-green-500 to-emerald-500 text-white border-0 shadow-md">
@@ -98,9 +119,19 @@ const ProductCard = memo(function ProductCard({ product }: ProductCardProps) {
       <CardContent className="p-4">
         <div className="space-y-2.5">
           <div className="flex flex-wrap gap-1.5">
-            {product.requiresPrescription && (
-              <Badge variant="secondary" className="text-[10px] font-medium">
+            {product.prescriptionRequired && (
+              <Badge variant="secondary" className="text-[10px] font-medium bg-red-50 text-red-700 border-red-200">
                 Rx Required
+              </Badge>
+            )}
+            {!product.prescriptionRequired && (
+              <Badge variant="outline" className="text-[10px] font-medium text-green-700 border-green-200 bg-green-50/50">
+                OTC
+              </Badge>
+            )}
+            {product.brandName && (
+              <Badge variant="outline" className="text-[10px] font-medium">
+                {product.brandName}
               </Badge>
             )}
           </div>
@@ -109,20 +140,18 @@ const ProductCard = memo(function ProductCard({ product }: ProductCardProps) {
             <h3 className="text-sm font-semibold leading-snug text-foreground line-clamp-2 group-hover:text-primary transition-colors duration-300">
               {product.name}
             </h3>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {product.manufacturer}
-            </p>
+            <p className="mt-0.5 text-xs text-muted-foreground">{product.manufacturer}</p>
           </div>
 
-          <p className="text-xs text-muted-foreground">
-            {product.dosage} · {product.packSize}
-          </p>
+          {displayInfo && (
+            <p className="text-xs text-muted-foreground">
+              {displayInfo}{product.packSize ? ` · ${product.packSize}` : ""}
+            </p>
+          )}
 
           <div className="flex items-baseline gap-1.5">
             <span className="text-lg font-extrabold text-foreground">
-              {formatCurrency(
-                hasDiscount ? product.discountPrice! : product.price
-              )}
+              {formatCurrency(hasDiscount ? product.discountPrice! : product.price)}
             </span>
             {hasDiscount && (
               <span className="text-xs text-muted-foreground line-through">
