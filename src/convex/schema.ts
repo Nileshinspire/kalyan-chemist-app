@@ -44,6 +44,23 @@ export const paymentMethodValidator = v.union(
   v.literal(PAYMENT_METHOD.ONLINE),
 );
 
+// Prescription statuses
+export const PRESCRIPTION_STATUS = {
+  PENDING: "pending",
+  UNDER_REVIEW: "under_review",
+  APPROVED: "approved",
+  REJECTED: "rejected",
+  NEEDS_CLARIFICATION: "needs_clarification",
+} as const;
+
+export const prescriptionStatusValidator = v.union(
+  v.literal(PRESCRIPTION_STATUS.PENDING),
+  v.literal(PRESCRIPTION_STATUS.UNDER_REVIEW),
+  v.literal(PRESCRIPTION_STATUS.APPROVED),
+  v.literal(PRESCRIPTION_STATUS.REJECTED),
+  v.literal(PRESCRIPTION_STATUS.NEEDS_CLARIFICATION),
+);
+
 const schema = defineSchema(
   {
     // Default auth tables (DO NOT MODIFY)
@@ -282,6 +299,35 @@ const schema = defineSchema(
       .index("by_user", ["userId"])
       .index("by_user_active", ["userId", "isActive"])
       .index("by_next_reminder", ["nextReminderAt"]),
+
+    // Customer prescriptions — uploaded documents for Rx medicines
+    prescriptions: defineTable({
+      userId: v.id("users"),
+      patientName: v.string(),
+      doctorName: v.string(),
+      prescriptionDate: v.number(),   // timestamp
+      notes: v.optional(v.string()),
+      // File storage — Convex file storage ID (private)
+      fileId: v.string(),             // Convex storage file ID
+      fileName: v.string(),
+      fileType: v.string(),           // image/jpeg, image/png, application/pdf
+      fileSize: v.number(),           // bytes
+      // Review workflow
+      status: prescriptionStatusValidator,
+      reviewedBy: v.optional(v.id("users")),
+      reviewedAt: v.optional(v.number()),
+      adminNotes: v.optional(v.string()),
+      rejectionReason: v.optional(v.string()),
+      clarificationNote: v.optional(v.string()),
+      // Audit trail — JSON array of status changes
+      auditLog: v.optional(v.string()), // JSON stringified array
+      createdAt: v.number(),
+      updatedAt: v.number(),
+    })
+      .index("by_user", ["userId"])
+      .index("by_status", ["status"])
+      .index("by_user_status", ["userId", "status"])
+      .index("by_createdAt", ["createdAt"]),
   },
   {
     schemaValidation: false,
