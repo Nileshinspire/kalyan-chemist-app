@@ -59,7 +59,7 @@ describe("Wishlist component", () => {
       logout: vi.fn(),
       refreshUser: vi.fn(),
     });
-    mockUseMutation
+    (mockUseMutation as any)
       .mockReturnValueOnce(mockToggle)
       .mockReturnValueOnce(mockMoveToCart)
       .mockReturnValueOnce(mockAddToCart);

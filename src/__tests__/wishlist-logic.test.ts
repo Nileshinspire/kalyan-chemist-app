@@ -151,7 +151,7 @@ describe("Wishlist – integration flow", () => {
     // Not in wishlist → add
     const existing = wishlist.find((w) => w.productId === product._id);
     expect(existing).toBeUndefined();
-    wishlist.push({ productId: product._1, userId: "user_123" });
+    wishlist.push({ productId: product._id, userId: "user_123" });
     // Note: using _id to match
     wishlist = [{ productId: "prod_1", userId: "user_123" }];
 

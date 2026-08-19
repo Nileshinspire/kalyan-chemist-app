@@ -57,7 +57,7 @@ describe("Cart component", () => {
       logout: vi.fn(),
       refreshUser: vi.fn(),
     });
-    mockUseMutation
+    (mockUseMutation as any)
       .mockReturnValueOnce(mockUpdateQuantity)
       .mockReturnValueOnce(mockRemoveItem)
       .mockReturnValueOnce(mockClearCart);
