@@ -183,14 +183,24 @@ const schema = defineSchema(
     // Delivery addresses saved to a user's account
     addresses: defineTable({
       userId: v.id("users"),
-      name: v.string(),
+      fullName: v.string(),
       phone: v.string(),
-      addressLine1: v.string(),
-      addressLine2: v.optional(v.string()),
+      houseFlat: v.string(),
+      building: v.optional(v.string()),
+      street: v.string(),
+      area: v.optional(v.string()),
       city: v.string(),
       state: v.string(),
       pincode: v.string(),
+      landmark: v.optional(v.string()),
+      addressType: v.union(
+        v.literal("home"),
+        v.literal("work"),
+        v.literal("other"),
+      ),
       isDefault: v.boolean(),
+      createdAt: v.number(),
+      updatedAt: v.number(),
     })
       .index("by_user", ["userId"])
       .index("by_user_default", ["userId", "isDefault"]),

@@ -149,14 +149,14 @@ const Navbar = memo(function Navbar() {
                 className="w-52 rounded-xl border-border/60 shadow-lg"
               >
                 <DropdownMenuItem
-                  onClick={() => navigate("/dashboard")}
+                  onClick={() => navigate("/account")}
                   className="rounded-lg cursor-pointer"
                 >
-                  <Home className="mr-2 size-4" />
-                  Dashboard
+                  <User className="mr-2 size-4" />
+                  My Account
                 </DropdownMenuItem>
                 <DropdownMenuItem
-                  onClick={() => navigate("/orders")}
+                  onClick={() => navigate("/account/orders")}
                   className="rounded-lg cursor-pointer"
                 >
                   <ClipboardList className="mr-2 size-4" />
@@ -281,7 +281,18 @@ const Navbar = memo(function Navbar() {
                           variant="ghost"
                           className="justify-start rounded-xl h-10"
                           onClick={() => {
-                            navigate("/orders");
+                            navigate("/account");
+                            setMobileOpen(false);
+                          }}
+                        >
+                          <User className="mr-2 size-4" />
+                          My Account
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          className="justify-start rounded-xl h-10"
+                          onClick={() => {
+                            navigate("/account/orders");
                             setMobileOpen(false);
                           }}
                         >

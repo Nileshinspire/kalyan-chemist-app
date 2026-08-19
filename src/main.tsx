@@ -44,6 +44,14 @@ const AdminReports = lazy(() => import("./pages/admin/AdminReports"));
 const CategoriesPage = lazy(() => import("./pages/Categories.tsx"));
 const BrandsPage = lazy(() => import("./pages/Brands.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
+const AccountLayout = lazy(() => import("./components/account/AccountLayout"));
+const AccountOverview = lazy(() => import("./pages/account/AccountOverview"));
+const AccountProfile = lazy(() => import("./pages/account/AccountProfile"));
+const AccountAddresses = lazy(() => import("./pages/account/AccountAddresses"));
+const AccountOrders = lazy(() => import("./pages/account/AccountOrders"));
+const AccountPrescriptions = lazy(() => import("./pages/account/AccountPrescriptions"));
+const AccountWishlist = lazy(() => import("./pages/Wishlist"));
+const AccountNotifications = lazy(() => import("./pages/account/AccountNotifications"));
 
 /** Animated loading skeleton for route transitions */
 function RouteLoading() {
@@ -311,6 +319,26 @@ function AnimatedRoutes() {
             </PageTransition>
           }
         />
+        <Route
+          path="/account"
+          element={
+            <PageTransition>
+              <RequireAuth>
+                <Suspense fallback={<RouteLoading />}>
+                  <AccountLayout />
+                </Suspense>
+              </RequireAuth>
+            </PageTransition>
+          }
+        >
+          <Route index element={<Suspense fallback={<RouteLoading />}><AccountOverview /></Suspense>} />
+          <Route path="profile" element={<Suspense fallback={<RouteLoading />}><AccountProfile /></Suspense>} />
+          <Route path="addresses" element={<Suspense fallback={<RouteLoading />}><AccountAddresses /></Suspense>} />
+          <Route path="orders" element={<Suspense fallback={<RouteLoading />}><AccountOrders /></Suspense>} />
+          <Route path="prescriptions" element={<Suspense fallback={<RouteLoading />}><AccountPrescriptions /></Suspense>} />
+          <Route path="wishlist" element={<Suspense fallback={<RouteLoading />}><AccountWishlist /></Suspense>} />
+          <Route path="notifications" element={<Suspense fallback={<RouteLoading />}><AccountNotifications /></Suspense>} />
+        </Route>
         <Route
           path="/admin"
           element={
