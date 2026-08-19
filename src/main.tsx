@@ -3,6 +3,8 @@ import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/context/AuthContext";
 import { RequireAuth } from "@/components/RequireAuth";
 import { VlyToolbar } from "../vly-toolbar-readonly.tsx";
+import { ConvexAuthProvider } from "@convex-dev/auth/react";
+import { ConvexReactClient } from "convex/react";
 import React, { StrictMode, useEffect, lazy, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Route, Routes, useLocation } from "react-router";
@@ -11,8 +13,13 @@ import ScrollRestorer from "@/components/ScrollRestorer";
 import { PageErrorBoundary } from "@/components/PageErrorBoundary";
 import "./index.css";
 
+const convex = new ConvexReactClient(
+  import.meta.env.VITE_CONVEX_URL as string
+);
+
 // Lazy load route components for better code splitting
 const Landing = lazy(() => import("./pages/Landing.tsx"));
+const Auth = lazy(() => import("./pages/Auth.tsx"));
 const Login = lazy(() => import("./pages/Login.tsx"));
 const Register = lazy(() => import("./pages/Register.tsx"));
 const AdminLogin = lazy(() => import("./pages/AdminLogin.tsx"));
@@ -175,6 +182,14 @@ function AnimatedRoutes() {
           element={
             <PageTransition>
               <Landing />
+            </PageTransition>
+          }
+        />
+        <Route
+          path="/auth"
+          element={
+            <PageTransition>
+              <Auth />
             </PageTransition>
           }
         />
@@ -375,6 +390,7 @@ createRoot(document.getElementById("root")!).render(
       <ToolbarErrorBoundary>
         <VlyToolbar />
       </ToolbarErrorBoundary>
+      <ConvexAuthProvider client={convex}>
       <AuthProvider>
         <BrowserRouter>
           <ScrollRestorer />
@@ -387,6 +403,7 @@ createRoot(document.getElementById("root")!).render(
         </BrowserRouter>
         <Toaster />
       </AuthProvider>
+      </ConvexAuthProvider>
     </RootErrorBoundary>
   </StrictMode>
 );
