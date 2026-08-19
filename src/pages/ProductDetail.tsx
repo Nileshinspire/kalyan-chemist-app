@@ -70,8 +70,19 @@ export default function ProductDetail() {
     navigate("/cart");
   };
 
-  const handleWishlist = () => {
-    toast.info("Wishlist coming soon");
+  const isWishlisted = useQuery(
+    api.wishlist.isWishlisted,
+    product ? { productId: product._id } : "skip"
+  );
+  const toggleWishlist = useMutation(api.wishlist.toggle);
+
+  const handleWishlist = async () => {
+    if (!product) return;
+    try {
+      await toggleWishlist({ productId: product._id });
+    } catch (error: any) {
+      toast.error(error.message || "Failed to update wishlist");
+    }
   };
 
   if (product === undefined) {
@@ -251,10 +262,10 @@ export default function ProductDetail() {
               <Button
                 size="lg"
                 variant="outline"
-                className="h-12 w-12 rounded-xl"
+                className={`h-12 w-12 rounded-xl ${isWishlisted ? "bg-rose-50 border-rose-200 text-rose-500 hover:bg-rose-100" : ""}`}
                 onClick={handleWishlist}
               >
-                <Heart className="size-4" />
+                <Heart className={`size-4 ${isWishlisted ? "fill-rose-500" : ""}`} />
               </Button>
             </div>
 

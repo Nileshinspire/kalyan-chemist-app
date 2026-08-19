@@ -90,3 +90,64 @@ export const remove = mutation({
     return { success: true };
   },
 });
+
+// ── Move from wishlist to cart ──
+export const moveToCart = mutation({
+  args: { productId: v.id("products") },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
+
+    const product = await ctx.db.get(args.productId);
+    if (!product || !product.isActive) throw new Error("Product not available");
+    if (product.stockQuantity < 1) throw new Error("Out of stock");
+
+    // Remove from wishlist
+    const wishlistItem = await ctx.db
+      .query("wishlist_items")
+      .withIndex("by_user_product", (q) =>
+        q.eq("userId", userId).eq("productId", args.productId)
+      )
+      .first();
+
+    if (wishlistItem) {
+      await ctx.db.delete(wishlistItem._id);
+    }
+
+    // Add to cart (or increment if already exists)
+    const existingCartItem = await ctx.db
+      .query("cart_items")
+      .withIndex("by_user_product", (q) =>
+        q.eq("userId", userId).eq("productId", args.productId)
+      )
+      .first();
+
+    if (existingCartItem) {
+      const newQty = existingCartItem.quantity + 1;
+      if (newQty > product.stockQuantity) throw new Error("Insufficient stock");
+      await ctx.db.patch(existingCartItem._id, { quantity: newQty });
+    } else {
+      await ctx.db.insert("cart_items", {
+        userId,
+        productId: args.productId,
+        quantity: 1,
+      });
+    }
+
+    return { success: true };
+  },
+});
+
+// ── Get wishlist count ──
+export const getCount = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) return 0;
+    const items = await ctx.db
+      .query("wishlist_items")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+    return items.length;
+  },
+});

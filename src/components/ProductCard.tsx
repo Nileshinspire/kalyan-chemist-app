@@ -1,6 +1,6 @@
 import { memo } from "react";
 import { useNavigate } from "react-router";
-import { useMutation } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -35,6 +35,11 @@ const ProductCard = memo(function ProductCard({ product }: ProductCardProps) {
   const navigate = useNavigate();
   const [isHovered, setIsHovered] = useState(false);
   const addToCart = useMutation(api.cart.addItem);
+  const toggleWishlist = useMutation(api.wishlist.toggle);
+  const isWishlisted = useQuery(
+    api.wishlist.isWishlisted,
+    { productId: product._id as any }
+  );
 
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -56,9 +61,17 @@ const ProductCard = memo(function ProductCard({ product }: ProductCardProps) {
     handleAddToCart(e).then(() => navigate("/cart"));
   };
 
-  const handleWishlist = (e: React.MouseEvent) => {
+  const handleWishlist = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    toast.info("Wishlist coming soon");
+    try {
+      await toggleWishlist({ productId: product._id as any });
+    } catch (error: any) {
+      if (error.message === "Not authenticated") {
+        toast.error("Please sign in to use wishlist");
+      } else {
+        toast.error(error.message || "Failed to update wishlist");
+      }
+    }
   };
 
   const hasDiscount = product.discountPrice && product.discountPrice < product.price;
@@ -82,7 +95,7 @@ const ProductCard = memo(function ProductCard({ product }: ProductCardProps) {
         className="absolute top-3 right-3 z-10 h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background hover:scale-110 transition-all duration-300 opacity-0 group-hover:opacity-100"
         onClick={handleWishlist}
       >
-        <Heart className="size-4 text-muted-foreground transition-colors group-hover:text-rose-500" />
+        <Heart className={`size-4 transition-colors ${isWishlisted ? "fill-rose-500 text-rose-500" : "text-muted-foreground group-hover:text-rose-500"}`} />
       </Button>
 
       {/* Product image placeholder */}
