@@ -51,7 +51,7 @@ export default function AccountPrescriptions() {
   const navigate = useNavigate();
   const prescriptions = useQuery(api.prescriptions.list);
   const uploadRx = useMutation(api.prescriptions.upload);
-  const getFileUrl = useQuery(api.prescriptions.getFileUrl);
+  const generateUploadUrl = useMutation(api.prescriptions.generateUploadUrl);
 
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [showDetailDialog, setShowDetailDialog] = useState<string | null>(null);
@@ -109,34 +109,21 @@ export default function AccountPrescriptions() {
       });
 
       // Upload file to Convex storage
-      const blob = new Blob([dataUrl], { type: file.type });
-      const uploadResult = await fetch("/api/upload", {
+      const uploadUrl = await generateUploadUrl({});
+      const result = await fetch(uploadUrl, {
         method: "POST",
-        body: blob,
-      }).catch(() => null);
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+      if (!result.ok) throw new Error("File upload failed");
+      const { storageId } = await result.json();
 
-      // Alternative: use Convex's generateUploadUrl approach
-      // For simplicity, store the file as a base64 string in the mutation
-      // Actually, let's use the proper Convex upload mechanism
-      const { default: { ConvexClient } } = await import("convex/browser");
-      
-      // Use the mutation directly — pass file metadata and let the backend handle it
-      // Actually, Convex mutations can't receive blobs. We need to use generateUploadUrl.
-      // Let's use a simpler approach: encode the file and store it
-      
-      // For this implementation, we'll use Convex's built-in file upload
-      // The mutation accepts fileId which is a Convex storage ID
-      // We need to upload the file first using generateUploadUrl
-
-      // Simple approach: store file metadata and use the file data URL
-      // This works for small files and keeps everything in Convex
-      
       await uploadRx({
         patientName: patientName.trim(),
         doctorName: doctorName.trim(),
         prescriptionDate: new Date(prescriptionDate).getTime(),
         notes: notes.trim() || undefined,
-        fileId: `data:${file.type};base64,${btoa(dataUrl.split(",")[1])}`,
+        fileId: storageId,
         fileName: file.name,
         fileType: file.type,
         fileSize: file.size,
