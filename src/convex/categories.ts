@@ -41,11 +41,11 @@ export const upsertProduct = internalMutation({
     price: v.number(),
     discountPrice: v.optional(v.number()),
     categoryId: v.id("categories"),
-    imageUrl: v.string(),
+    imageUrl: v.optional(v.string()),
     manufacturer: v.string(),
-    dosage: v.string(),
+    dosage: v.optional(v.string()),
     packSize: v.string(),
-    requiresPrescription: v.boolean(),
+    prescriptionRequired: v.boolean(),
     stockQuantity: v.number(),
   },
   handler: async (ctx, args) => {
@@ -57,7 +57,8 @@ export const upsertProduct = internalMutation({
       await ctx.db.patch(existing._id, { ...args });
       return existing._id;
     }
-    return await ctx.db.insert("products", { ...args, isActive: true });
+    const now = Date.now();
+    return await ctx.db.insert("products", { ...args, isActive: true, createdAt: now, updatedAt: now });
   },
 });
 
@@ -67,7 +68,7 @@ export const list = query({
   handler: async (ctx) => {
     return await ctx.db
       .query("categories")
-      .filter((q) => q.eq(q.field("isActive"), true))
+      .withIndex("by_isActive", (q) => q.eq("isActive", true))
       .collect();
   },
 });

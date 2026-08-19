@@ -18,14 +18,18 @@ import {
   LogOut,
   ArrowLeft,
   Settings,
+  Building2,
+  Warehouse,
 } from "lucide-react";
 
 const NAV_ITEMS = [
   { label: "Dashboard", path: "/admin", icon: LayoutDashboard },
   { label: "Products", path: "/admin/products", icon: Pill },
+  { label: "Categories", path: "/admin/categories", icon: Tag },
+  { label: "Brands", path: "/admin/brands", icon: Building2 },
+  { label: "Inventory", path: "/admin/inventory", icon: Warehouse },
   { label: "Orders", path: "/admin/orders", icon: ClipboardList },
   { label: "Customers", path: "/admin/users", icon: Users },
-  { label: "Categories", path: "/admin/categories", icon: Tag },
   { label: "Coupons", path: "/admin/coupons", icon: Ticket },
   { label: "Reviews", path: "/admin/reviews", icon: Star },
   { label: "Reports", path: "/admin/reports", icon: BarChart3 },
@@ -113,12 +117,9 @@ const AdminLayout = memo(function AdminLayout({
 
   return (
     <div className="min-h-screen flex bg-background">
-      {/* Desktop sidebar */}
       <aside className="hidden lg:block w-64 shrink-0 border-r border-border/40 bg-card sticky top-0 h-screen">
         <SidebarContent />
       </aside>
-
-      {/* Mobile sidebar */}
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
         <SheetTrigger asChild className="lg:hidden fixed top-3 left-3 z-50">
           <Button variant="outline" size="icon" className="h-9 w-9 rounded-xl">
@@ -127,20 +128,13 @@ const AdminLayout = memo(function AdminLayout({
         </SheetTrigger>
         <SheetContent side="left" className="w-64 p-0 border-border/30">
           <div className="flex items-center justify-end p-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="rounded-xl"
-              onClick={() => setSidebarOpen(false)}
-            >
+            <Button variant="ghost" size="icon" className="rounded-xl" onClick={() => setSidebarOpen(false)}>
               <X className="size-4" />
             </Button>
           </div>
           <SidebarContent />
         </SheetContent>
       </Sheet>
-
-      {/* Main content */}
       <main className="flex-1 min-w-0">
         <div className="p-6 lg:p-8 max-w-7xl mx-auto">{children}</div>
       </main>

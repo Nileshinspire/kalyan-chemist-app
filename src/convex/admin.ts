@@ -103,20 +103,21 @@ export const upsertProduct = mutation({
     price: v.number(),
     discountPrice: v.optional(v.number()),
     categoryId: v.id("categories"),
-    imageUrl: v.string(),
+    imageUrl: v.optional(v.string()),
     manufacturer: v.string(),
-    dosage: v.string(),
+    dosage: v.optional(v.string()),
     packSize: v.string(),
-    requiresPrescription: v.boolean(),
+    prescriptionRequired: v.boolean(),
     stockQuantity: v.number(),
     isActive: v.boolean(),
   },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
+    const now = Date.now();
 
     if (args.id) {
       const { id: _id, ...patchData } = args;
-      await ctx.db.patch(args.id, patchData);
+      await ctx.db.patch(args.id, { ...patchData, updatedAt: now });
       return { success: true, id: args.id };
     }
 
@@ -131,9 +132,11 @@ export const upsertProduct = mutation({
       manufacturer: args.manufacturer,
       dosage: args.dosage,
       packSize: args.packSize,
-      requiresPrescription: args.requiresPrescription,
+      prescriptionRequired: args.prescriptionRequired,
       stockQuantity: args.stockQuantity,
       isActive: args.isActive,
+      createdAt: now,
+      updatedAt: now,
     });
     return { success: true, id };
   },

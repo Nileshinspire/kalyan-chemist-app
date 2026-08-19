@@ -64,6 +64,20 @@ const schema = defineSchema(
       pincode: v.optional(v.string()),
     }).index("email", ["email"]),
 
+    // ── Brands ──
+    brands: defineTable({
+      name: v.string(),
+      slug: v.string(),
+      description: v.optional(v.string()),
+      logoUrl: v.optional(v.string()),
+      country: v.optional(v.string()),
+      isActive: v.boolean(),
+      sortOrder: v.number(),
+    })
+      .index("by_slug", ["slug"])
+      .index("by_isActive", ["isActive"])
+      .index("by_sortOrder", ["sortOrder"]),
+
     // Medicine categories (e.g. Pain Relief, Diabetes Care)
     categories: defineTable({
       name: v.string(),
@@ -74,28 +88,54 @@ const schema = defineSchema(
       sortOrder: v.number(),
     })
       .index("by_slug", ["slug"])
-      .index("by_sortOrder", ["sortOrder"]),
+      .index("by_sortOrder", ["sortOrder"])
+      .index("by_isActive", ["isActive"]),
 
     // Product catalogue — medicines, supplements, devices
     products: defineTable({
       name: v.string(),
       slug: v.string(),
+      brandId: v.optional(v.id("brands")),
+      composition: v.optional(v.string()),
       description: v.string(),
       price: v.number(),
       discountPrice: v.optional(v.number()),
       categoryId: v.id("categories"),
-      imageUrl: v.string(),
+      imageUrl: v.optional(v.string()),
       manufacturer: v.string(),
-      dosage: v.string(),
+      dosage: v.optional(v.string()),
       packSize: v.string(),
-      requiresPrescription: v.boolean(),
+      strength: v.optional(v.string()),
+      form: v.optional(v.string()), // tablet, capsule, syrup, injection, cream, etc.
+      sku: v.optional(v.string()),
+      prescriptionRequired: v.boolean(),
+      storageInformation: v.optional(v.string()),
       stockQuantity: v.number(),
       isActive: v.boolean(),
+      createdAt: v.number(),
+      updatedAt: v.number(),
     })
       .index("by_slug", ["slug"])
       .index("by_category", ["categoryId"])
+      .index("by_brand", ["brandId"])
       .index("by_isActive", ["isActive"])
-      .index("by_price", ["price"]),
+      .index("by_price", ["price"])
+      .index("by_sku", ["sku"])
+      .index("by_createdAt", ["createdAt"]),
+
+    // ── Inventory adjustment logs ──
+    inventory_logs: defineTable({
+      productId: v.id("products"),
+      previousQuantity: v.number(),
+      newQuantity: v.number(),
+      adjustment: v.number(), // positive = restock, negative = reduction
+      reason: v.string(),
+      adminId: v.id("users"),
+      createdAt: v.number(),
+    })
+      .index("by_product", ["productId"])
+      .index("by_admin", ["adminId"])
+      .index("by_createdAt", ["createdAt"]),
 
     // Per-user shopping cart
     cart_items: defineTable({

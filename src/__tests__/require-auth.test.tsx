@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
-import { type ReactNode } from "react";
+import { type ReactNode, type ComponentType } from "react";
 
 // Mock heavy dependencies to avoid pre-bundling timeout
 vi.mock("lucide-react", () => ({
@@ -23,16 +23,10 @@ vi.mock("@/context/AuthContext", () => ({
 
 import { RequireAuth } from "@/components/RequireAuth";
 
-function wrapper({ children }: { children: ReactNode }) {
-  return (
-    <MemoryRouter initialEntries={["/dashboard"]}>{children}</MemoryRouter>
-  );
-}
-
-function adminWrapper({ children }: { children: ReactNode }) {
-  return (
-    <MemoryRouter initialEntries={["/admin"]}>{children}</MemoryRouter>
-  );
+function createWrapper(initialEntry: string): ComponentType<{ children: ReactNode }> {
+  return function Wrapper({ children }: { children: ReactNode }) {
+    return <MemoryRouter initialEntries={[initialEntry]}>{children}</MemoryRouter>;
+  };
 }
 
 describe("RequireAuth", () => {
@@ -46,7 +40,7 @@ describe("RequireAuth", () => {
       <RequireAuth>
         <div>Protected Content</div>
       </RequireAuth>,
-      { wrapper }
+      { wrapper: createWrapper("/dashboard") }
     );
     expect(screen.queryByText("Protected Content")).not.toBeInTheDocument();
     expect(document.querySelector(".animate-spin")).toBeInTheDocument();
@@ -57,7 +51,7 @@ describe("RequireAuth", () => {
       <RequireAuth>
         <div>Protected Content</div>
       </RequireAuth>,
-      { wrapper }
+      { wrapper: createWrapper("/dashboard") }
     );
     expect(screen.queryByText("Protected Content")).not.toBeInTheDocument();
   });
@@ -67,7 +61,7 @@ describe("RequireAuth", () => {
       <RequireAuth adminOnly>
         <div>Admin Content</div>
       </RequireAuth>,
-      { adminWrapper }
+      { wrapper: createWrapper("/admin") }
     );
     expect(screen.queryByText("Admin Content")).not.toBeInTheDocument();
   });
@@ -78,7 +72,7 @@ describe("RequireAuth", () => {
       <RequireAuth adminOnly>
         <div>Admin Content</div>
       </RequireAuth>,
-      { adminWrapper }
+      { wrapper: createWrapper("/admin") }
     );
     expect(screen.queryByText("Admin Content")).not.toBeInTheDocument();
     expect(screen.getByText("Access Denied")).toBeInTheDocument();
@@ -90,7 +84,7 @@ describe("RequireAuth", () => {
       <RequireAuth>
         <div>Dashboard Content</div>
       </RequireAuth>,
-      { wrapper }
+      { wrapper: createWrapper("/dashboard") }
     );
     expect(screen.getByText("Dashboard Content")).toBeInTheDocument();
   });
@@ -101,7 +95,7 @@ describe("RequireAuth", () => {
       <RequireAuth adminOnly>
         <div>Admin Dashboard</div>
       </RequireAuth>,
-      { adminWrapper }
+      { wrapper: createWrapper("/admin") }
     );
     expect(screen.getByText("Admin Dashboard")).toBeInTheDocument();
   });
