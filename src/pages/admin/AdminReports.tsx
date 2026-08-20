@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import {
   BarChart3,
@@ -17,15 +19,57 @@ import {
   CheckCircle2,
   Clock,
   XCircle,
+  Download,
+  RotateCcw,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/auth-utils";
+import { exportToCsv } from "@/lib/csv-export";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+  LineChart,
+  Line,
+  AreaChart,
+  Area,
+} from "recharts";
+
+const PERIOD_OPTIONS = [
+  { value: "today", label: "Today" },
+  { value: "week", label: "This Week" },
+  { value: "month", label: "This Month" },
+  { value: "year", label: "This Year" },
+  { value: "all", label: "All Time" },
+] as const;
+
+const STATUS_LABELS: Record<string, string> = {
+  pending: "Pending",
+  confirmed: "Confirmed",
+  processing: "Processing",
+  ready_for_dispatch: "Ready for Dispatch",
+  out_for_delivery: "Out for Delivery",
+  delivered: "Delivered",
+  cancelled: "Cancelled",
+  refund_initiated: "Refund Initiated",
+  refunded: "Refunded",
+};
+
+const PIE_COLORS = ["#22c55e", "#eab308", "#ef4444", "#3b82f6", "#a855f7", "#f97316", "#06b6d4", "#ec4899", "#6366f1"];
 
 export default function AdminReports() {
-  const stats = useQuery(api.admin.dashboardStats);
+  const [period, setPeriod] = useState<"today" | "week" | "month" | "year" | "all">("month");
+  const report = useQuery(api.admin.salesReport, { period });
   const products = useQuery(api.admin.listProducts);
-  const orders = useQuery(api.admin.listOrders);
 
-  if (stats === undefined) {
+  if (report === undefined || products === undefined) {
     return (
       <AdminLayout>
         <div className="flex items-center justify-center py-20">
@@ -35,60 +79,97 @@ export default function AdminReports() {
     );
   }
 
-  // Compute additional analytics
-  const deliveredOrders = orders?.filter((o: any) => o.status === "delivered") || [];
-  const avgOrderValue = deliveredOrders.length > 0
-    ? deliveredOrders.reduce((s: number, o: any) => s + o.totalAmount, 0) / deliveredOrders.length
-    : 0;
-
-  const onlinePayments = orders?.filter((o: any) => o.paymentMethod === "online") || [];
-  const codPayments = orders?.filter((o: any) => o.paymentMethod === "cod") || [];
-
-  // Low stock products
   const lowStockProducts = products?.filter((p: any) => p.stockQuantity < 10 && p.isActive) || [];
   const outOfStockProducts = products?.filter((p: any) => p.stockQuantity === 0 && p.isActive) || [];
 
-  // Top selling products
-  const productSales: Record<string, { name: string; count: number; revenue: number }> = {};
-  for (const order of deliveredOrders) {
-    for (const item of order.items || []) {
-      const key = item.productId;
-      if (!productSales[key]) {
-        productSales[key] = { name: item.name, count: 0, revenue: 0 };
-      }
-      productSales[key].count += item.quantity;
-      productSales[key].revenue += item.price * item.quantity;
-    }
-  }
-  const topProducts = Object.values(productSales)
-    .sort((a, b) => b.revenue - a.revenue)
-    .slice(0, 5);
+  const handleExportSalesReport = () => {
+    exportToCsv(
+      [
+        { metric: "Period", value: report.period },
+        { metric: "Total Revenue", value: formatCurrency(report.revenue) },
+        { metric: "Total Orders", value: String(report.totalOrders) },
+        { metric: "Delivered Orders", value: String(report.deliveredOrders) },
+        { metric: "Cancelled Orders", value: String(report.cancelledOrders) },
+        { metric: "Total Refunds", value: formatCurrency(report.totalRefunds) },
+        { metric: "Avg Order Value", value: formatCurrency(report.avgOrderValue) },
+        ...report.topProducts.map((p: any, i: number) => ({
+          metric: `Top Product #${i + 1}`,
+          value: `${p.name} — ${p.count} units — ${formatCurrency(p.revenue)}`,
+        })),
+      ],
+      "sales-report"
+    );
+  };
 
-  // Order status breakdown
-  const statusBreakdown = [
-    { status: "pending", label: "Pending", icon: Clock, color: "text-yellow-600", bg: "bg-yellow-500/10" },
-    { status: "confirmed", label: "Confirmed", icon: CheckCircle2, color: "text-blue-600", bg: "bg-blue-500/10" },
-    { status: "processing", label: "Processing", icon: Package, color: "text-blue-600", bg: "bg-blue-500/10" },
-    { status: "out_for_delivery", label: "Out for Delivery", icon: Truck, color: "text-purple-600", bg: "bg-purple-500/10" },
-    { status: "delivered", label: "Delivered", icon: CheckCircle2, color: "text-green-600", bg: "bg-green-500/10" },
-    { status: "cancelled", label: "Cancelled", icon: XCircle, color: "text-red-600", bg: "bg-red-500/10" },
-  ];
+  const handleExportDailyRevenue = () => {
+    exportToCsv(
+      report.dailyRevenue.map((d: any) => ({
+        date: d.date,
+        revenue: d.revenue,
+        orders: d.orders,
+      })),
+      "daily-revenue"
+    );
+  };
+
+  const handleExportTopProducts = () => {
+    exportToCsv(
+      report.topProducts.map((p: any) => ({
+        name: p.name,
+        category: p.category,
+        unitsSold: p.count,
+        revenue: p.revenue,
+      })),
+      "top-products"
+    );
+  };
+
+  const handleExportTopCategories = () => {
+    exportToCsv(
+      report.topCategories.map((c: any) => ({
+        name: c.name,
+        unitsSold: c.count,
+        revenue: c.revenue,
+      })),
+      "top-categories"
+    );
+  };
+
+  const totalPaymentMethods = report.onlinePayments.count + report.codPayments.count;
+  const onlinePct = totalPaymentMethods > 0 ? (report.onlinePayments.count / totalPaymentMethods) * 100 : 0;
+  const codPct = 100 - onlinePct;
 
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">Reports & Analytics</h1>
-          <p className="text-sm text-muted-foreground">Business insights and performance metrics</p>
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">Reports & Analytics</h1>
+            <p className="text-sm text-muted-foreground">Business insights and performance metrics</p>
+          </div>
+          <div className="flex gap-2 flex-wrap">
+            {PERIOD_OPTIONS.map((opt) => (
+              <Button
+                key={opt.value}
+                variant={period === opt.value ? "default" : "outline"}
+                size="sm"
+                className={`text-xs ${period === opt.value ? "gradient-primary text-white" : ""}`}
+                onClick={() => setPeriod(opt.value)}
+              >
+                {opt.label}
+              </Button>
+            ))}
+          </div>
         </motion.div>
 
         {/* Revenue Overview */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
           {[
-            { icon: IndianRupee, label: "Total Revenue", value: formatCurrency(stats.totalRevenue), color: "text-green-600" },
-            { icon: ShoppingCart, label: "Total Orders", value: stats.totalOrders, color: "text-blue-600" },
-            { icon: TrendingUp, label: "Avg Order Value", value: formatCurrency(avgOrderValue), color: "text-primary" },
-            { icon: Users, label: "Total Customers", value: stats.totalUsers, color: "text-purple-600" },
+            { icon: IndianRupee, label: "Revenue", value: formatCurrency(report.revenue), color: "text-green-600" },
+            { icon: ShoppingCart, label: "Orders", value: report.totalOrders, color: "text-blue-600" },
+            { icon: CheckCircle2, label: "Delivered", value: report.deliveredOrders, color: "text-emerald-600" },
+            { icon: XCircle, label: "Cancelled", value: report.cancelledOrders, color: "text-red-600" },
+            { icon: TrendingUp, label: "Avg Order Value", value: formatCurrency(report.avgOrderValue), color: "text-primary" },
           ].map((s, i) => (
             <motion.div
               key={s.label}
@@ -107,105 +188,150 @@ export default function AdminReports() {
           ))}
         </div>
 
+        {/* Export Buttons */}
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={handleExportSalesReport}>
+              <Download className="size-3.5" /> Export Sales Report
+            </Button>
+            <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={handleExportDailyRevenue}>
+              <Download className="size-3.5" /> Export Daily Revenue
+            </Button>
+            <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={handleExportTopProducts}>
+              <Download className="size-3.5" /> Export Top Products
+            </Button>
+            <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={handleExportTopCategories}>
+              <Download className="size-3.5" /> Export Top Categories
+            </Button>
+          </div>
+        </motion.div>
+
         <div className="grid lg:grid-cols-2 gap-6">
-          {/* Revenue Chart */}
+          {/* Sales Over Time - Area Chart */}
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
             <Card className="border-border/60 rounded-2xl">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-bold flex items-center gap-2">
                   <TrendingUp className="size-4 text-primary" />
-                  Monthly Revenue
+                  Sales Over Time
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
-                {stats.monthlyRevenue.length > 0 ? (
-                  <div className="flex items-end gap-2 h-48">
-                    {stats.monthlyRevenue.map((m, i) => {
-                      const maxRev = Math.max(...stats.monthlyRevenue.map((x) => x.revenue), 1);
-                      const height = (m.revenue / maxRev) * 100;
-                      return (
-                        <div key={i} className="flex-1 flex flex-col items-center gap-1">
-                          <p className="text-[10px] text-muted-foreground font-medium">
-                            {m.revenue > 0 ? formatCurrency(m.revenue) : ""}
-                          </p>
-                          <div
-                            className="w-full rounded-t-md bg-gradient-to-t from-primary/40 to-primary/70 hover:from-primary/50 hover:to-primary/80 transition-colors min-h-[2px]"
-                            style={{ height: `${Math.max(height, 2)}%` }}
-                            title={`${m.month}: ${formatCurrency(m.revenue)}`}
-                          />
-                          <p className="text-[10px] text-muted-foreground">{m.month}</p>
-                        </div>
-                      );
-                    })}
-                  </div>
+                {report.dailyRevenue.some((d: any) => d.revenue > 0) ? (
+                  <ResponsiveContainer width="100%" height={260}>
+                    <AreaChart data={report.dailyRevenue} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                      <XAxis dataKey="date" tick={{ fontSize: 10, fill: "#9ca3af" }} interval="preserveStartEnd" />
+                      <YAxis tick={{ fontSize: 10, fill: "#9ca3af" }} tickFormatter={(v) => `₹${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`} />
+                      <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 12 }} formatter={(value: number) => [formatCurrency(value), "Revenue"]} />
+                      <Area type="monotone" dataKey="revenue" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.1} strokeWidth={2} />
+                    </AreaChart>
+                  </ResponsiveContainer>
                 ) : (
-                  <p className="text-sm text-muted-foreground text-center py-12">No revenue data yet</p>
+                  <p className="text-sm text-muted-foreground text-center py-12">No sales data for this period</p>
                 )}
               </CardContent>
             </Card>
           </motion.div>
 
-          {/* Order Status Breakdown */}
+          {/* Orders Over Time - Bar Chart */}
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
             <Card className="border-border/60 rounded-2xl">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-bold flex items-center gap-2">
-                  <ShoppingCart className="size-4 text-primary" />
-                  Order Status Breakdown
+                  <BarChart3 className="size-4 text-primary" />
+                  Orders Over Time
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
-                <div className="grid grid-cols-2 gap-3">
-                  {statusBreakdown.map((s) => {
-                    const count = stats.statusCounts[s.status] || 0;
-                    return (
-                      <div key={s.status} className="flex items-center gap-3 p-3 rounded-xl bg-muted/30">
-                        <div className={`size-8 rounded-lg ${s.bg} flex items-center justify-center`}>
-                          <s.icon className={`size-4 ${s.color}`} />
-                        </div>
-                        <div>
-                          <p className="text-lg font-bold">{count}</p>
-                          <p className="text-[10px] text-muted-foreground">{s.label}</p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                {report.dailyRevenue.some((d: any) => d.orders > 0) ? (
+                  <ResponsiveContainer width="100%" height={260}>
+                    <BarChart data={report.dailyRevenue} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                      <XAxis dataKey="date" tick={{ fontSize: 10, fill: "#9ca3af" }} interval="preserveStartEnd" />
+                      <YAxis tick={{ fontSize: 10, fill: "#9ca3af" }} />
+                      <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 12 }} />
+                      <Bar dataKey="orders" fill="#3b82f6" radius={[4, 4, 0, 0]} opacity={0.8} name="Orders" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-12">No order data for this period</p>
+                )}
               </CardContent>
             </Card>
           </motion.div>
 
-          {/* Payment Method Split */}
+          {/* Order Status Pie Chart */}
           <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+            <Card className="border-border/60 rounded-2xl">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-bold flex items-center gap-2">
+                  <ShoppingCart className="size-4 text-primary" />
+                  Order Status Distribution
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                {Object.keys(report.statusCounts).length > 0 ? (
+                  <ResponsiveContainer width="100%" height={260}>
+                    <PieChart>
+                      <Pie
+                        data={Object.entries(report.statusCounts).map(([status, count]) => ({
+                          name: STATUS_LABELS[status] || status,
+                          value: count,
+                        }))}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={55}
+                        outerRadius={85}
+                        paddingAngle={3}
+                        dataKey="value"
+                      >
+                        {Object.entries(report.statusCounts).map((_, i) => (
+                          <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 12 }} />
+                      <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11 }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-12">No orders yet</p>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* Payment Methods */}
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
             <Card className="border-border/60 rounded-2xl">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-bold">Payment Methods</CardTitle>
               </CardHeader>
-              <CardContent className="pt-0 space-y-3">
+              <CardContent className="pt-0 space-y-4">
                 <div className="flex items-center justify-between p-3 rounded-xl bg-muted/30">
                   <div>
                     <p className="text-sm font-semibold">Online Payments</p>
-                    <p className="text-xs text-muted-foreground">{onlinePayments.length} orders</p>
+                    <p className="text-xs text-muted-foreground">{report.onlinePayments.count} orders</p>
                   </div>
-                  <p className="text-sm font-bold">{formatCurrency(onlinePayments.reduce((s: number, o: any) => s + o.totalAmount, 0))}</p>
+                  <p className="text-sm font-bold">{formatCurrency(report.onlinePayments.revenue)}</p>
                 </div>
                 <div className="flex items-center justify-between p-3 rounded-xl bg-muted/30">
                   <div>
                     <p className="text-sm font-semibold">Cash on Delivery</p>
-                    <p className="text-xs text-muted-foreground">{codPayments.length} orders</p>
+                    <p className="text-xs text-muted-foreground">{report.codPayments.count} orders</p>
                   </div>
-                  <p className="text-sm font-bold">{formatCurrency(codPayments.reduce((s: number, o: any) => s + o.totalAmount, 0))}</p>
+                  <p className="text-sm font-bold">{formatCurrency(report.codPayments.revenue)}</p>
                 </div>
-                {onlinePayments.length + codPayments.length > 0 && (
+                {totalPaymentMethods > 0 && (
                   <div className="w-full h-3 bg-muted rounded-full overflow-hidden flex">
-                    <div
-                      className="h-full bg-primary/60 transition-all"
-                      style={{ width: `${(onlinePayments.length / (onlinePayments.length + codPayments.length)) * 100}%` }}
-                    />
-                    <div
-                      className="h-full bg-amber-400/60 transition-all"
-                      style={{ width: `${(codPayments.length / (onlinePayments.length + codPayments.length)) * 100}%` }}
-                    />
+                    <div className="h-full bg-primary/60 transition-all" style={{ width: `${onlinePct}%` }} />
+                    <div className="h-full bg-amber-400/60 transition-all" style={{ width: `${codPct}%` }} />
+                  </div>
+                )}
+                {totalPaymentMethods > 0 && (
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>Online: {Math.round(onlinePct)}%</span>
+                    <span>COD: {Math.round(codPct)}%</span>
                   </div>
                 )}
               </CardContent>
@@ -213,22 +339,25 @@ export default function AdminReports() {
           </motion.div>
 
           {/* Top Selling Products */}
-          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
             <Card className="border-border/60 rounded-2xl">
-              <CardHeader className="pb-3">
+              <CardHeader className="pb-3 flex flex-row items-center justify-between">
                 <CardTitle className="text-sm font-bold">Top Selling Products</CardTitle>
+                <Button variant="ghost" size="sm" className="text-xs gap-1" onClick={handleExportTopProducts}>
+                  <Download className="size-3" /> Export
+                </Button>
               </CardHeader>
               <CardContent className="pt-0">
-                {topProducts.length > 0 ? (
+                {report.topProducts.length > 0 ? (
                   <div className="space-y-2">
-                    {topProducts.map((p, i) => (
+                    {report.topProducts.slice(0, 5).map((p: any, i: number) => (
                       <div key={i} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/30 transition-colors">
                         <span className="size-6 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary shrink-0">
                           {i + 1}
                         </span>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium truncate">{p.name}</p>
-                          <p className="text-[10px] text-muted-foreground">{p.count} units sold</p>
+                          <p className="text-[10px] text-muted-foreground">{p.category} — {p.count} units</p>
                         </div>
                         <p className="text-sm font-semibold shrink-0">{formatCurrency(p.revenue)}</p>
                       </div>
@@ -241,8 +370,43 @@ export default function AdminReports() {
             </Card>
           </motion.div>
 
+          {/* Top Categories */}
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}>
+            <Card className="border-border/60 rounded-2xl">
+              <CardHeader className="pb-3 flex flex-row items-center justify-between">
+                <CardTitle className="text-sm font-bold">Top Categories</CardTitle>
+                <Button variant="ghost" size="sm" className="text-xs gap-1" onClick={handleExportTopCategories}>
+                  <Download className="size-3" /> Export
+                </Button>
+              </CardHeader>
+              <CardContent className="pt-0">
+                {report.topCategories.length > 0 ? (
+                  <div className="space-y-2">
+                    {report.topCategories.map((c: any, i: number) => {
+                      const maxRev = Math.max(...report.topCategories.map((x: any) => x.revenue), 1);
+                      const pct = (c.revenue / maxRev) * 100;
+                      return (
+                        <div key={i} className="p-2 rounded-lg hover:bg-muted/30 transition-colors">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm font-medium">{c.name}</span>
+                            <span className="text-xs text-muted-foreground">{c.count} units — {formatCurrency(c.revenue)}</span>
+                          </div>
+                          <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                            <div className="h-full bg-primary/50 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground text-center py-8">No category data yet</p>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+
           {/* Inventory Alerts */}
-          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>
             <Card className="border-border/60 rounded-2xl">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-bold flex items-center gap-2">
@@ -284,6 +448,41 @@ export default function AdminReports() {
                       ))}
                     </div>
                   )}
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* Refunds */}
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.55 }}>
+            <Card className="border-border/60 rounded-2xl">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-bold flex items-center gap-2">
+                  <RotateCcw className="size-4 text-red-500" />
+                  Refunds
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0 space-y-3">
+                <div className="flex items-center justify-between p-3 rounded-xl bg-muted/30">
+                  <div>
+                    <p className="text-sm font-semibold">Total Refunds</p>
+                    <p className="text-xs text-muted-foreground">Refunded payments in this period</p>
+                  </div>
+                  <p className="text-sm font-bold text-red-600">{formatCurrency(report.totalRefunds)}</p>
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-xl bg-muted/30">
+                  <div>
+                    <p className="text-sm font-semibold">Cancelled Orders</p>
+                    <p className="text-xs text-muted-foreground">Orders cancelled in this period</p>
+                  </div>
+                  <p className="text-sm font-bold text-red-600">{report.cancelledOrders}</p>
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-xl bg-muted/30">
+                  <div>
+                    <p className="text-sm font-semibold">Net Revenue</p>
+                    <p className="text-xs text-muted-foreground">After refunds</p>
+                  </div>
+                  <p className="text-sm font-bold text-green-600">{formatCurrency(report.revenue - report.totalRefunds)}</p>
                 </div>
               </CardContent>
             </Card>

@@ -47,7 +47,21 @@ import {
   ArrowUpCircle,
   ArrowDownCircle,
   Settings,
+  Download,
+  TrendingDown,
+  BarChart3,
 } from "lucide-react";
+import { formatCurrency } from "@/lib/auth-utils";
+import { exportToCsv } from "@/lib/csv-export";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 
 export default function AdminInventory() {
   const [search, setSearch] = useState("");
@@ -72,6 +86,8 @@ export default function AdminInventory() {
   const summary = useQuery(api.adminInventory.getLowStockSummary, {
     threshold,
   });
+
+  const invReport = useQuery(api.admin.inventoryReport);
 
   const logs = useQuery(
     api.adminInventory.getLogs,
@@ -119,6 +135,38 @@ export default function AdminInventory() {
     }
   };
 
+  const handleExportInventory = () => {
+    if (!products) return;
+    exportToCsv(
+      products.map((p: any) => ({
+        name: p.name,
+        sku: p.sku || "",
+        category: p.categoryName,
+        stockQuantity: p.stockQuantity,
+        status: p.stockStatus === "out_of_stock" ? "Out of Stock" : p.stockStatus === "low_stock" ? "Low Stock" : "In Stock",
+        price: p.price,
+        stockValue: p.stockQuantity * p.price,
+      })),
+      "inventory"
+    );
+  };
+
+  const handleExportLowStock = () => {
+    if (!products) return;
+    const low = products.filter((p: any) => p.stockStatus !== "in_stock");
+    exportToCsv(
+      low.map((p: any) => ({
+        name: p.name,
+        sku: p.sku || "",
+        category: p.categoryName,
+        stockQuantity: p.stockQuantity,
+        status: p.stockStatus === "out_of_stock" ? "Out of Stock" : "Low Stock",
+        price: p.price,
+      })),
+      "low-stock-products"
+    );
+  };
+
   const isLoading = products === undefined || summary === undefined;
 
   return (
@@ -129,9 +177,14 @@ export default function AdminInventory() {
             <h1 className="text-2xl font-bold tracking-tight">Inventory</h1>
             <p className="text-sm text-muted-foreground">Monitor stock levels and adjust inventory</p>
           </div>
-          <Button variant="outline" onClick={() => { setNewThreshold(threshold); setThresholdDialogOpen(true); }} className="gap-2">
-            <Settings className="size-4" /> Low Stock Threshold ({threshold})
-          </Button>
+          <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" onClick={() => { setNewThreshold(threshold); setThresholdDialogOpen(true); }} className="gap-2 text-xs">
+              <Settings className="size-3.5" /> Threshold ({threshold})
+            </Button>
+            <Button variant="outline" onClick={handleExportInventory} className="gap-2 text-xs">
+              <Download className="size-3.5" /> Export CSV
+            </Button>
+          </div>
         </motion.div>
 
         {/* Summary Cards */}
@@ -190,6 +243,83 @@ export default function AdminInventory() {
           </Card>
         </div>
 
+        {/* Inventory Report Summary */}
+        {invReport && (
+          <div className="grid gap-4 lg:grid-cols-2">
+            {/* Stock by Category Chart */}
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+              <Card className="border-border/60 rounded-2xl">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-bold flex items-center gap-2">
+                    <BarChart3 className="size-4 text-primary" />
+                    Stock Value by Category
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  {invReport.stockByCategory.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={240}>
+                      <BarChart data={invReport.stockByCategory} layout="vertical" margin={{ top: 5, right: 10, left: 80, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" horizontal={false} />
+                        <XAxis type="number" tick={{ fontSize: 10, fill: "#9ca3af" }} tickFormatter={(v) => `₹${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`} />
+                        <YAxis dataKey="name" type="category" tick={{ fontSize: 10, fill: "#9ca3af" }} width={80} />
+                        <Tooltip contentStyle={{ borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 12 }} formatter={(value: number) => [formatCurrency(value), "Stock Value"]} />
+                        <Bar dataKey="totalValue" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} opacity={0.7} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center py-8">No category data</p>
+                  )}
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            {/* Inventory Summary */}
+            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+              <Card className="border-border/60 rounded-2xl">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-bold flex items-center gap-2">
+                    <Warehouse className="size-4 text-primary" />
+                    Inventory Summary
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="pt-0 space-y-3">
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-muted/30">
+                    <span className="text-sm text-muted-foreground">Total Stock Units</span>
+                    <span className="text-sm font-bold">{invReport.totalStock.toLocaleString()}</span>
+                  </div>
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-muted/30">
+                    <span className="text-sm text-muted-foreground">Total Stock Value</span>
+                    <span className="text-sm font-bold">{formatCurrency(invReport.totalValue)}</span>
+                  </div>
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-orange-50 border border-orange-200">
+                    <span className="text-sm text-orange-800 font-medium">Low Stock Items</span>
+                    <span className="text-sm font-bold text-orange-700">{invReport.lowStockCount}</span>
+                  </div>
+                  <div className="flex items-center justify-between p-3 rounded-xl bg-red-50 border border-red-200">
+                    <span className="text-sm text-red-800 font-medium">Out of Stock Items</span>
+                    <span className="text-sm font-bold text-red-700">{invReport.outOfStockCount}</span>
+                  </div>
+                  {invReport.lowStockProducts.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground mb-1">Needs Attention</p>
+                      <div className="space-y-1 max-h-32 overflow-y-auto">
+                        {invReport.lowStockProducts.slice(0, 5).map((p: any) => (
+                          <div key={p._id} className="flex items-center justify-between text-xs p-1.5 rounded bg-muted/30">
+                            <span className="truncate">{p.name}</span>
+                            <Badge className={`text-[10px] ${p.stockQuantity === 0 ? "bg-red-100 text-red-800" : "bg-amber-100 text-amber-800"}`}>
+                              {p.stockQuantity} left
+                            </Badge>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </motion.div>
+          </div>
+        )}
+
         {/* Filters */}
         <div className="flex flex-wrap gap-3">
           <div className="relative flex-1 min-w-[200px]">
@@ -207,6 +337,9 @@ export default function AdminInventory() {
               <SelectItem value="out_of_stock">Out of Stock</SelectItem>
             </SelectContent>
           </Select>
+          <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={handleExportLowStock}>
+            <Download className="size-3.5" /> Export Low Stock
+          </Button>
         </div>
 
         {/* Table */}

@@ -22,8 +22,25 @@ import {
   Truck,
   CheckCircle2,
   XCircle,
+  FileText,
+  PackageX,
+  CalendarDays,
+  Zap,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/auth-utils";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+} from "recharts";
 
 const STATUS_LABELS: Record<string, string> = {
   pending: "Pending",
@@ -35,6 +52,8 @@ const STATUS_LABELS: Record<string, string> = {
   cancelled: "Cancelled",
 };
 
+const PIE_COLORS = ["#eab308", "#3b82f6", "#3b82f6", "#a855f7", "#22c55e", "#ef4444"];
+
 export default function AdminDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -44,15 +63,15 @@ export default function AdminDashboard() {
     ? [
         {
           icon: IndianRupee,
-          label: "Total Revenue",
-          value: formatCurrency(stats.totalRevenue),
+          label: "Today's Sales",
+          value: formatCurrency(stats.todaySales),
           color: "bg-green-500/10 text-green-600",
           link: "/admin/orders",
         },
         {
           icon: ShoppingCart,
-          label: "Total Orders",
-          value: stats.totalOrders,
+          label: "Today's Orders",
+          value: stats.todayOrders,
           color: "bg-blue-500/10 text-blue-600",
           link: "/admin/orders",
         },
@@ -64,11 +83,32 @@ export default function AdminDashboard() {
           link: "/admin/orders",
         },
         {
-          icon: Package,
-          label: "Active Products",
-          value: stats.totalProducts,
-          color: "bg-primary/10 text-primary",
-          link: "/admin/products",
+          icon: FileText,
+          label: "Pending Prescriptions",
+          value: stats.pendingPrescriptions,
+          color: "bg-indigo-500/10 text-indigo-600",
+          link: "/admin/orders",
+        },
+        {
+          icon: CheckCircle2,
+          label: "Delivered",
+          value: stats.deliveredOrders,
+          color: "bg-emerald-500/10 text-emerald-600",
+          link: "/admin/orders",
+        },
+        {
+          icon: XCircle,
+          label: "Cancelled",
+          value: stats.cancelledOrders,
+          color: "bg-red-500/10 text-red-600",
+          link: "/admin/orders",
+        },
+        {
+          icon: Users,
+          label: "Total Customers",
+          value: stats.totalUsers,
+          color: "bg-purple-500/10 text-purple-600",
+          link: "/admin/users",
         },
         {
           icon: AlertTriangle,
@@ -78,11 +118,11 @@ export default function AdminDashboard() {
           link: "/admin/inventory",
         },
         {
-          icon: Users,
-          label: "Total Users",
-          value: stats.totalUsers,
-          color: "bg-purple-500/10 text-purple-600",
-          link: "/admin/users",
+          icon: PackageX,
+          label: "Out of Stock",
+          value: stats.outOfStock,
+          color: "bg-red-500/10 text-red-600",
+          link: "/admin/inventory",
         },
       ]
     : [];
@@ -114,14 +154,14 @@ export default function AdminDashboard() {
             <Loader2 className="size-6 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
+          <div className="grid grid-cols-3 lg:grid-cols-3 xl:grid-cols-5 gap-3">
             {statCards.map((stat, i) => (
               <motion.div
                 key={stat.label}
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{
-                  delay: i * 0.05,
+                  delay: i * 0.04,
                   duration: 0.4,
                   ease: [0.22, 1, 0.36, 1],
                 }}
@@ -154,7 +194,7 @@ export default function AdminDashboard() {
         {/* Charts Row */}
         {stats && (
           <div className="grid lg:grid-cols-2 gap-4">
-            {/* Monthly Revenue */}
+            {/* Monthly Revenue Bar Chart */}
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
@@ -169,35 +209,18 @@ export default function AdminDashboard() {
                 </CardHeader>
                 <CardContent className="pt-0">
                   {stats.monthlyRevenue.length > 0 ? (
-                    <div className="flex items-end gap-2 h-40">
-                      {stats.monthlyRevenue.map((m, i) => {
-                        const maxRev = Math.max(
-                          ...stats.monthlyRevenue.map((x) => x.revenue),
-                          1
-                        );
-                        const height = (m.revenue / maxRev) * 100;
-                        return (
-                          <div
-                            key={i}
-                            className="flex-1 flex flex-col items-center gap-1"
-                          >
-                            <p className="text-[10px] text-muted-foreground font-medium">
-                              {m.revenue > 0
-                                ? formatCurrency(m.revenue)
-                                : ""}
-                            </p>
-                            <div
-                              className="w-full rounded-t-md bg-primary/20 hover:bg-primary/40 transition-colors min-h-[2px]"
-                              style={{ height: `${Math.max(height, 2)}%` }}
-                              title={`${m.month}: ${formatCurrency(m.revenue)}`}
-                            />
-                            <p className="text-[10px] text-muted-foreground">
-                              {m.month}
-                            </p>
-                          </div>
-                        );
-                      })}
-                    </div>
+                    <ResponsiveContainer width="100%" height={220}>
+                      <BarChart data={stats.monthlyRevenue} margin={{ top: 5, right: 5, left: 0, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} />
+                        <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#9ca3af" }} />
+                        <YAxis tick={{ fontSize: 11, fill: "#9ca3af" }} tickFormatter={(v) => `₹${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`} />
+                        <Tooltip
+                          contentStyle={{ borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 12 }}
+                          formatter={(value: number) => [formatCurrency(value), "Revenue"]}
+                        />
+                        <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} opacity={0.8} />
+                      </BarChart>
+                    </ResponsiveContainer>
                   ) : (
                     <p className="text-sm text-muted-foreground text-center py-8">
                       No revenue data yet
@@ -207,7 +230,7 @@ export default function AdminDashboard() {
               </Card>
             </motion.div>
 
-            {/* Order Status Distribution */}
+            {/* Order Status Pie Chart */}
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
@@ -222,32 +245,30 @@ export default function AdminDashboard() {
                 </CardHeader>
                 <CardContent className="pt-0">
                   {Object.keys(stats.statusCounts).length > 0 ? (
-                    <div className="space-y-2.5">
-                      {Object.entries(stats.statusCounts)
-                        .sort(([, a], [, b]) => b - a)
-                        .map(([status, count]) => {
-                          const total = stats.totalOrders || 1;
-                          const pct = Math.round((count / total) * 100);
-                          return (
-                            <div key={status}>
-                              <div className="flex items-center justify-between mb-1">
-                                <span className="text-xs font-medium text-foreground capitalize">
-                                  {STATUS_LABELS[status] || status}
-                                </span>
-                                <span className="text-xs text-muted-foreground">
-                                  {count} ({pct}%)
-                                </span>
-                              </div>
-                              <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                                <div
-                                  className="h-full bg-primary/60 rounded-full transition-all duration-500"
-                                  style={{ width: `${pct}%` }}
-                                />
-                              </div>
-                            </div>
-                          );
-                        })}
-                    </div>
+                    <ResponsiveContainer width="100%" height={220}>
+                      <PieChart>
+                        <Pie
+                          data={Object.entries(stats.statusCounts).map(([status, count]) => ({
+                            name: STATUS_LABELS[status] || status,
+                            value: count,
+                          }))}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={50}
+                          outerRadius={80}
+                          paddingAngle={3}
+                          dataKey="value"
+                        >
+                          {Object.entries(stats.statusCounts).map((_, i) => (
+                            <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip
+                          contentStyle={{ borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 12 }}
+                        />
+                        <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11 }} />
+                      </PieChart>
+                    </ResponsiveContainer>
                   ) : (
                     <p className="text-sm text-muted-foreground text-center py-8">
                       No orders yet
@@ -333,7 +354,7 @@ export default function AdminDashboard() {
           <Card className="border-border/60 rounded-2xl">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-bold flex items-center gap-2">
-                <ShieldCheck className="size-4 text-primary" />
+                <Zap className="size-4 text-primary" />
                 Quick Actions
               </CardTitle>
             </CardHeader>
@@ -363,8 +384,8 @@ export default function AdminDashboard() {
                   },
                   {
                     icon: AlertTriangle,
-                    label: "Low Stock",
-                    desc: "Check inventory alerts",
+                    label: "Inventory",
+                    desc: "Check stock levels",
                     link: "/admin/inventory",
                     color: "bg-orange-500/10 text-orange-600",
                   },

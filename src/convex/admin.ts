@@ -23,14 +23,37 @@ export const dashboardStats = query({
     const allOrders = await ctx.db.query("orders").collect();
     const allProducts = await ctx.db.query("products").collect();
     const allUsers = await ctx.db.query("users").collect();
+    const allPrescriptions = await ctx.db.query("prescriptions").collect();
+
+    // ── Today's boundaries ──
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const todayEnd = todayStart + 24 * 60 * 60 * 1000;
+
+    const todayOrders = allOrders.filter(
+      (o) => o.createdAt >= todayStart && o.createdAt < todayEnd
+    );
+    const todaySales = todayOrders
+      .filter((o) => o.status !== "cancelled")
+      .reduce((sum, o) => sum + o.totalAmount, 0);
 
     const totalRevenue = allOrders
       .filter((o) => o.status !== "cancelled")
       .reduce((sum, o) => sum + o.totalAmount, 0);
 
     const pendingOrders = allOrders.filter((o) => o.status === "pending").length;
+    const deliveredOrders = allOrders.filter((o) => o.status === "delivered").length;
+    const cancelledOrders = allOrders.filter((o) => o.status === "cancelled").length;
+    const pendingPrescriptions = allPrescriptions.filter(
+      (p) => p.status === "pending"
+    ).length;
+
+    const lowStockThreshold = 10;
     const lowStock = allProducts.filter(
-      (p) => p.stockQuantity < 10 && p.isActive
+      (p) => p.stockQuantity > 0 && p.stockQuantity <= lowStockThreshold && p.isActive
+    ).length;
+    const outOfStock = allProducts.filter(
+      (p) => p.stockQuantity === 0 && p.isActive
     ).length;
     const totalProducts = allProducts.filter((p) => p.isActive).length;
 
@@ -40,12 +63,11 @@ export const dashboardStats = query({
       .slice(0, 5);
 
     // Monthly revenue (last 6 months)
-    const now = Date.now();
     const monthlyRevenue: { month: string; revenue: number }[] = [];
     for (let i = 5; i >= 0; i--) {
-      const d = new Date(now - i * 30 * 24 * 60 * 60 * 1000);
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const month = d.toLocaleString("en-IN", { month: "short" });
-      const start = new Date(d.getFullYear(), d.getMonth(), 1).getTime();
+      const start = d.getTime();
       const end = new Date(d.getFullYear(), d.getMonth() + 1, 0).getTime();
       const rev = allOrders
         .filter(
@@ -65,9 +87,15 @@ export const dashboardStats = query({
     return {
       totalRevenue,
       totalOrders: allOrders.length,
+      todaySales,
+      todayOrders: todayOrders.length,
       pendingOrders,
+      deliveredOrders,
+      cancelledOrders,
+      pendingPrescriptions,
       totalProducts,
       lowStock,
+      outOfStock,
       totalUsers: allUsers.length,
       recentOrders,
       monthlyRevenue,
@@ -464,5 +492,332 @@ export const toggleUserRole = mutation({
     await requireAdmin(ctx);
     await ctx.db.patch(args.userId, { role: args.role });
     return { success: true };
+  },
+});
+
+// ══════════════════════════════════════════════════════
+//  SALES REPORT
+// ══════════════════════════════════════════════════════
+
+export const salesReport = query({
+  args: {
+    period: v.union(
+      v.literal("today"),
+      v.literal("week"),
+      v.literal("month"),
+      v.literal("year"),
+      v.literal("all"),
+    ),
+  },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+
+    const allOrders = await ctx.db.query("orders").collect();
+    const allProducts = await ctx.db.query("products").collect();
+    const allCategories = await ctx.db.query("categories").collect();
+
+    const now = Date.now();
+    const today = new Date();
+    const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+    const todayEnd = todayStart + 24 * 60 * 60 * 1000;
+
+    let start = 0;
+    if (args.period === "today") {
+      start = todayStart;
+    } else if (args.period === "week") {
+      start = now - 7 * 24 * 60 * 60 * 1000;
+    } else if (args.period === "month") {
+      start = now - 30 * 24 * 60 * 60 * 1000;
+    } else if (args.period === "year") {
+      start = now - 365 * 24 * 60 * 60 * 1000;
+    }
+    // "all" => start = 0
+
+    const filtered = args.period === "all"
+      ? allOrders
+      : allOrders.filter((o) => o.createdAt >= start);
+
+    const nonCancelled = filtered.filter((o) => o.status !== "cancelled");
+    const cancelled = filtered.filter((o) => o.status === "cancelled");
+    const refunded = filtered.filter((o) => o.paymentStatus === "refunded");
+
+    const revenue = nonCancelled.reduce((s, o) => s + o.totalAmount, 0);
+    const totalRefunds = refunded.reduce((s, o) => s + o.totalAmount, 0);
+    const avgOrderValue = nonCancelled.length > 0 ? revenue / nonCancelled.length : 0;
+
+    // Payment methods
+    const onlinePayments = filtered.filter((o) => o.paymentMethod === "online");
+    const codPayments = filtered.filter((o) => o.paymentMethod === "cod");
+    const onlineRevenue = onlinePayments
+      .filter((o) => o.status !== "cancelled")
+      .reduce((s, o) => s + o.totalAmount, 0);
+    const codRevenue = codPayments
+      .filter((o) => o.status !== "cancelled")
+      .reduce((s, o) => s + o.totalAmount, 0);
+
+    // Top products
+    const prodMap = new Map(allProducts.map((p) => [p._id, p]));
+    const catMap = new Map(allCategories.map((c) => [c._id, c.name]));
+    const productSales: Record<string, { name: string; count: number; revenue: number; category: string }> = {};
+    for (const order of nonCancelled) {
+      for (const item of order.items || []) {
+        const key = item.productId as string;
+        if (!productSales[key]) {
+          const prod = prodMap.get(item.productId as any);
+          productSales[key] = {
+            name: item.name,
+            count: 0,
+            revenue: 0,
+            category: prod ? (catMap.get(prod.categoryId) || "Unknown") : "Unknown",
+          };
+        }
+        productSales[key].count += item.quantity;
+        productSales[key].revenue += item.price * item.quantity;
+      }
+    }
+    const topProducts = Object.values(productSales)
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 10);
+
+    // Top categories
+    const categorySales: Record<string, { name: string; count: number; revenue: number }> = {};
+    for (const p of topProducts) {
+      const cat = p.category;
+      if (!categorySales[cat]) {
+        categorySales[cat] = { name: cat, count: 0, revenue: 0 };
+      }
+      categorySales[cat].count += p.count;
+      categorySales[cat].revenue += p.revenue;
+    }
+    const topCategories = Object.values(categorySales)
+      .sort((a, b) => b.revenue - a.revenue);
+
+    // Status distribution
+    const statusCounts: Record<string, number> = {};
+    for (const o of filtered) {
+      statusCounts[o.status] = (statusCounts[o.status] || 0) + 1;
+    }
+
+    // Daily revenue for chart (last 30 days if period is week/month/year)
+    const dailyRevenue: { date: string; revenue: number; orders: number }[] = [];
+    const chartDays = args.period === "today" ? 1 : args.period === "week" ? 7 : args.period === "month" ? 30 : args.period === "year" ? 12 : 30;
+    if (args.period === "year") {
+      // Monthly buckets
+      for (let i = 11; i >= 0; i--) {
+        const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+        const month = d.toLocaleString("en-IN", { month: "short", year: "2-digit" });
+        const mStart = d.getTime();
+        const mEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0).getTime();
+        const periodOrders = nonCancelled.filter((o) => o.createdAt >= mStart && o.createdAt <= mEnd);
+        dailyRevenue.push({
+          date: month,
+          revenue: periodOrders.reduce((s, o) => s + o.totalAmount, 0),
+          orders: periodOrders.length,
+        });
+      }
+    } else {
+      for (let i = chartDays - 1; i >= 0; i--) {
+        const d = new Date(now - i * 24 * 60 * 60 * 1000);
+        const date = d.toLocaleString("en-IN", { day: "numeric", month: "short" });
+        const dStart = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+        const dEnd = dStart + 24 * 60 * 60 * 1000;
+        const dayOrders = nonCancelled.filter((o) => o.createdAt >= dStart && o.createdAt < dEnd);
+        dailyRevenue.push({
+          date,
+          revenue: dayOrders.reduce((s, o) => s + o.totalAmount, 0),
+          orders: dayOrders.length,
+        });
+      }
+    }
+
+    return {
+      period: args.period,
+      revenue,
+      totalOrders: filtered.length,
+      deliveredOrders: filtered.filter((o) => o.status === "delivered").length,
+      cancelledOrders: cancelled.length,
+      totalRefunds,
+      avgOrderValue,
+      onlinePayments: { count: onlinePayments.length, revenue: onlineRevenue },
+      codPayments: { count: codPayments.length, revenue: codRevenue },
+      topProducts,
+      topCategories,
+      statusCounts,
+      dailyRevenue,
+    };
+  },
+});
+
+// ══════════════════════════════════════════════════════
+//  INVENTORY REPORT
+// ══════════════════════════════════════════════════════
+
+export const inventoryReport = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireAdmin(ctx);
+
+    const products = await ctx.db.query("products").collect();
+    const categories = await ctx.db.query("categories").collect();
+    const logs = await ctx.db.query("inventory_logs").collect();
+
+    const catMap = new Map(categories.map((c) => [c._id, c.name]));
+
+    const active = products.filter((p) => p.isActive);
+    const lowStockThreshold = 10;
+    const lowStock = active.filter((p) => p.stockQuantity > 0 && p.stockQuantity <= lowStockThreshold);
+    const outOfStock = active.filter((p) => p.stockQuantity === 0);
+    const inStock = active.filter((p) => p.stockQuantity > lowStockThreshold);
+    const totalStock = active.reduce((s, p) => s + p.stockQuantity, 0);
+    const totalValue = active.reduce((s, p) => s + p.stockQuantity * p.price, 0);
+
+    // Recent stock movements
+    const recentLogs = [...logs]
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .slice(0, 50);
+
+    const enrichedLogs = await Promise.all(
+      recentLogs.map(async (log) => {
+        const product = await ctx.db.get(log.productId);
+        const admin = await ctx.db.get(log.adminId);
+        return {
+          ...log,
+          productName: product?.name || "Unknown",
+          categoryName: product ? (catMap.get(product.categoryId) || "Unknown") : "Unknown",
+          adminName: admin?.name || "Unknown",
+        };
+      })
+    );
+
+    // Stock by category
+    const catStock: Record<string, { name: string; count: number; totalStock: number; totalValue: number }> = {};
+    for (const p of active) {
+      const cat = catMap.get(p.categoryId) || "Unknown";
+      if (!catStock[cat]) catStock[cat] = { name: cat, count: 0, totalStock: 0, totalValue: 0 };
+      catStock[cat].count++;
+      catStock[cat].totalStock += p.stockQuantity;
+      catStock[cat].totalValue += p.stockQuantity * p.price;
+    }
+
+    return {
+      totalProducts: active.length,
+      totalStock,
+      totalValue,
+      lowStockCount: lowStock.length,
+      outOfStockCount: outOfStock.length,
+      inStockCount: inStock.length,
+      lowStockProducts: lowStock.map((p) => ({
+        _id: p._id,
+        name: p.name,
+        sku: p.sku,
+        stockQuantity: p.stockQuantity,
+        categoryName: catMap.get(p.categoryId) || "Unknown",
+        price: p.price,
+      })),
+      outOfStockProducts: outOfStock.map((p) => ({
+        _id: p._id,
+        name: p.name,
+        sku: p.sku,
+        categoryName: catMap.get(p.categoryId) || "Unknown",
+        price: p.price,
+      })),
+      recentLogs: enrichedLogs,
+      stockByCategory: Object.values(catStock).sort((a, b) => b.totalValue - a.totalValue),
+    };
+  },
+});
+
+// ══════════════════════════════════════════════════════
+//  CSV EXPORT DATA
+// ══════════════════════════════════════════════════════
+
+export const exportOrders = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireAdmin(ctx);
+    const orders = await ctx.db.query("orders").collect();
+    const users = await ctx.db.query("users").collect();
+    const userMap = new Map(users.map((u) => [u._id, u]));
+
+    return orders.sort((a, b) => b.createdAt - a.createdAt).map((o) => {
+      const user = userMap.get(o.userId);
+      return {
+        invoiceNumber: o.invoiceNumber || o._id.slice(-8),
+        customerName: user?.name || "Unknown",
+        customerEmail: user?.email || "",
+        customerPhone: user?.phone || o.phone,
+        status: o.status,
+        paymentMethod: o.paymentMethod,
+        paymentStatus: o.paymentStatus || "pending",
+        subtotal: o.subtotal,
+        discount: o.discount,
+        deliveryFee: o.deliveryFee,
+        tax: o.tax,
+        totalAmount: o.totalAmount,
+        itemCount: o.items.length,
+        shippingAddress: o.shippingAddress,
+        createdAt: new Date(o.createdAt).toISOString(),
+        updatedAt: new Date(o.updatedAt).toISOString(),
+      };
+    });
+  },
+});
+
+export const exportProducts = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireAdmin(ctx);
+    const products = await ctx.db.query("products").collect();
+    const categories = await ctx.db.query("categories").collect();
+    const catMap = new Map(categories.map((c) => [c._id, c.name]));
+
+    return products.sort((a, b) => a.name.localeCompare(b.name)).map((p) => ({
+      name: p.name,
+      sku: p.sku || "",
+      category: catMap.get(p.categoryId) || "Unknown",
+      manufacturer: p.manufacturer,
+      price: p.price,
+      discountPrice: p.discountPrice || "",
+      stockQuantity: p.stockQuantity,
+      packSize: p.packSize,
+      prescriptionRequired: p.prescriptionRequired ? "Yes" : "No",
+      isActive: p.isActive ? "Yes" : "No",
+      createdAt: new Date(p.createdAt).toISOString(),
+    }));
+  },
+});
+
+export const exportInventory = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireAdmin(ctx);
+    const products = await ctx.db.query("products").collect();
+    const categories = await ctx.db.query("categories").collect();
+    const logs = await ctx.db.query("inventory_logs").collect();
+    const catMap = new Map(categories.map((c) => [c._id, c.name]));
+    const logMap = new Map<string, any>();
+    for (const l of logs) {
+      const key = l.productId as string;
+      if (!logMap.has(key) || l.createdAt > logMap.get(key).createdAt) {
+        logMap.set(key, l);
+      }
+    }
+
+    return products
+      .filter((p) => p.isActive)
+      .sort((a, b) => a.stockQuantity - b.stockQuantity)
+      .map((p) => {
+        const lastLog = logMap.get(p._id as string);
+        return {
+          name: p.name,
+          sku: p.sku || "",
+          category: catMap.get(p.categoryId) || "Unknown",
+          stockQuantity: p.stockQuantity,
+          price: p.price,
+          stockValue: p.stockQuantity * p.price,
+          lastAdjusted: lastLog ? new Date(lastLog.createdAt).toISOString() : "Never",
+          lastReason: lastLog?.reason || "",
+        };
+      });
   },
 });
