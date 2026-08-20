@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -183,6 +183,7 @@ export default function AdminOrders() {
     selectedOrder ? { orderId: selectedOrder._id } : "skip"
   );
   const updateStatus = useMutation(api.admin.updateOrderStatus);
+  const sendEmail = useAction(api.emailService.sendOrderStatusEmail);
 
   const filteredOrders = orders?.filter((o: any) => {
     const matchesSearch =
@@ -204,6 +205,16 @@ export default function AdminOrders() {
       // Refresh detail
       if (selectedOrder?._id === orderId) {
         setSelectedOrder({ ...selectedOrder, status: newStatus });
+      }
+      // Send email notification (non-blocking)
+      if (orderDetail?.userEmail) {
+        sendEmail({
+          toEmail: orderDetail.userEmail,
+          toName: orderDetail.userName || "Customer",
+          status: newStatus,
+          invoiceNumber: orderDetail.invoiceNumber || orderId.slice(-6),
+          paymentMethod: orderDetail.paymentMethod || "cod",
+        }).catch(() => {}); // non-blocking
       }
     } catch (error: any) {
       toast.error(error.message || "Failed to update status");

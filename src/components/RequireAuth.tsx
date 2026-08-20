@@ -1,4 +1,5 @@
 import { useAuth } from "@/context/AuthContext";
+import { useBrowserNotifications } from "@/hooks/useBrowserNotifications";
 import { Loader2 } from "lucide-react";
 import type { ReactNode } from "react";
 import { Navigate, useLocation } from "react-router";
@@ -61,6 +62,9 @@ export function RequireAuth({ children, adminOnly = false }: RequireAuthProps) {
       </div>
     );
   }
+
+  // Activate browser push notifications for authenticated users
+  useBrowserNotifications();
 
   return <>{children}</>;
 }
