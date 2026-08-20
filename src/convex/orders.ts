@@ -350,12 +350,60 @@ export const getTracking = query({
       }
     }
 
-    return steps.map((step, i) => ({
-      ...step,
-      completed: currentIdx >= i,
-      current: currentIdx === i,
-      cancelled: order.status === "cancelled",
-      timestamp: historyMap.get(step.status),
-    }));
+    // Look up delivery config for estimated time
+    const pincode = order.shippingAddress.match(/\b(\d{6})\b/)?.[1];
+    let estimatedDeliveryTime: string | undefined;
+    let storePhone: string | undefined;
+    let storeName: string | undefined;
+    let storeAddress: string | undefined;
+    let storeBusinessHours: string | undefined;
+    const configs = await ctx.db.query("delivery_config").collect();
+    const dc = configs[0];
+    if (dc) {
+      storeName = dc.storeName;
+      storeAddress = dc.storeAddress;
+      storePhone = dc.storePhone;
+      storeBusinessHours = dc.businessHours;
+      const pinMatch = pincode ? dc.pincodes.find((p) => p.pincode === pincode && p.isActive) : undefined;
+      estimatedDeliveryTime = pinMatch?.estimatedDeliveryTime ?? dc.estimatedDeliveryTime;
+    }
+
+    // Calculate estimated delivery window based on order creation time + config
+    let estimatedDeliveryWindow: { from: string; to: string } | undefined;
+    if (estimatedDeliveryTime && order.status !== "delivered" && order.status !== "cancelled") {
+      // Parse the estimated time string (e.g. "2-4 hours")
+      const hourMatch = estimatedDeliveryTime.match(/(\d+)\s*-\s*(\d+)\s*hour/i);
+      if (hourMatch) {
+        const minHours = parseInt(hourMatch[1]);
+        const maxHours = parseInt(hourMatch[2]);
+        const fromTime = new Date(order.createdAt + minHours * 60 * 60 * 1000);
+        const toTime = new Date(order.createdAt + maxHours * 60 * 60 * 1000);
+        const fmt = (d: Date) => d.toLocaleString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+        estimatedDeliveryWindow = { from: fmt(fromTime), to: fmt(toTime) };
+      } else {
+        // For non-hour formats like "next day", just show the string
+        estimatedDeliveryWindow = { from: estimatedDeliveryTime, to: estimatedDeliveryTime };
+      }
+    }
+
+    return {
+      steps: steps.map((step, i) => ({
+        ...step,
+        completed: currentIdx >= i,
+        current: currentIdx === i,
+        cancelled: order.status === "cancelled",
+        timestamp: historyMap.get(step.status),
+      })),
+      currentStep: currentIdx,
+      totalSteps: steps.length,
+      progressPercent: order.status === "cancelled" ? 0 : Math.round((currentIdx / (steps.length - 1)) * 100),
+      estimatedDeliveryTime,
+      estimatedDeliveryWindow,
+      storeName,
+      storeAddress,
+      storePhone,
+      storeBusinessHours,
+      orderPlacedAt: order.createdAt,
+    };
   },
 });

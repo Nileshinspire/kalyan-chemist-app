@@ -25,6 +25,11 @@ import {
   Lock,
   Navigation,
   ExternalLink,
+  Clock,
+  Phone,
+  Building2,
+  Truck,
+  CalendarClock,
 } from "lucide-react";
 import { formatCurrency, getStatusColor } from "@/lib/auth-utils";
 import { toast } from "sonner";
@@ -208,14 +213,55 @@ export default function OrderDetail() {
             {/* Left: Tracking + Items */}
             <div className="space-y-6">
               {/* Tracking Timeline */}
-              {tracking && order.status !== "cancelled" && (
+              {tracking && tracking.steps && order.status !== "cancelled" && (
                 <Card className="border-border/60">
                   <CardHeader className="pb-3">
                     <CardTitle className="text-sm font-bold">Order Tracking</CardTitle>
                   </CardHeader>
                   <CardContent className="pt-0">
+                    {/* Progress Bar */}
+                    {tracking.progressPercent !== undefined && (
+                      <div className="mb-5">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <p className="text-xs text-muted-foreground">
+                            {tracking.currentStep >= tracking.totalSteps - 1
+                              ? "Order delivered"
+                              : `Step ${(tracking.currentStep ?? 0) + 1} of ${tracking.totalSteps}`}
+                          </p>
+                          <p className="text-xs font-semibold text-primary">{tracking.progressPercent}%</p>
+                        </div>
+                        <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
+                          <motion.div
+                            className="h-full rounded-full bg-primary"
+                            initial={{ width: 0 }}
+                            animate={{ width: `${tracking.progressPercent}%` }}
+                            transition={{ duration: 0.8, ease: "easeOut" }}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Estimated Delivery */}
+                    {tracking.estimatedDeliveryWindow && (
+                      <div className="mb-5 p-3 rounded-xl bg-primary/[0.04] border border-primary/10">
+                        <div className="flex items-center gap-2">
+                          <CalendarClock className="size-4 text-primary shrink-0" />
+                          <div>
+                            <p className="text-sm font-semibold text-foreground">Estimated Delivery</p>
+                            {tracking.estimatedDeliveryWindow.from === tracking.estimatedDeliveryWindow.to ? (
+                              <p className="text-xs text-muted-foreground">{tracking.estimatedDeliveryWindow.from}</p>
+                            ) : (
+                              <p className="text-xs text-muted-foreground">
+                                {tracking.estimatedDeliveryWindow.from} — {tracking.estimatedDeliveryWindow.to}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     <div className="space-y-0">
-                      {tracking.map((step: any, i: number) => (
+                      {tracking.steps.map((step: any, i: number) => (
                         <div key={step.status} className="flex items-start gap-3">
                           <div className="flex flex-col items-center">
                             {step.completed ? (
@@ -223,7 +269,7 @@ export default function OrderDetail() {
                             ) : (
                               <Circle className="size-5 shrink-0 text-muted-foreground/30" />
                             )}
-                            {i < tracking.length - 1 && (
+                            {i < tracking.steps.length - 1 && (
                               <div className={`w-px h-8 ${step.completed ? "bg-primary/30" : "bg-border"}`} />
                             )}
                           </div>
@@ -259,6 +305,35 @@ export default function OrderDetail() {
                     <div>
                       <p className="text-sm font-semibold text-destructive">Order Cancelled</p>
                       <p className="text-xs text-muted-foreground">This order has been cancelled.{order.paymentMethod === "online" ? " A refund will be processed." : ""}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Store Contact Info */}
+              {tracking && tracking.storeName && (
+                <Card className="border-border/60">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-sm font-bold flex items-center gap-2">
+                      <Building2 className="size-4" /> Store Information
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-0 space-y-2">
+                    <p className="text-sm font-medium">{tracking.storeName}</p>
+                    {tracking.storeAddress && (
+                      <p className="text-xs text-muted-foreground leading-relaxed">{tracking.storeAddress}</p>
+                    )}
+                    <div className="flex flex-wrap gap-3">
+                      {tracking.storePhone && (
+                        <a href={`tel:${tracking.storePhone}`} className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline">
+                          <Phone className="size-3" /> {tracking.storePhone}
+                        </a>
+                      )}
+                      {tracking.storeBusinessHours && (
+                        <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <Clock className="size-3" /> {tracking.storeBusinessHours}
+                        </span>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
