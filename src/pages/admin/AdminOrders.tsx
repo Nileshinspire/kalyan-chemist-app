@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import AdminLayout from "@/components/admin/AdminLayout";
@@ -41,6 +41,118 @@ import {
 } from "lucide-react";
 import { formatCurrency, getStatusColor } from "@/lib/auth-utils";
 import { toast } from "sonner";
+import { geocodeAddress } from "@/lib/geocode";
+
+// ── DeliveryMap: shows a map from stored coords, or geocodes the address text on the fly ──
+function DeliveryMap({
+  latitude,
+  longitude,
+  addressText,
+}: {
+  latitude: number | null;
+  longitude: number | null;
+  addressText: string;
+}) {
+  const [coords, setCoords] = useState<{
+    lat: number;
+    lng: number;
+  } | null>(
+    latitude && longitude ? { lat: latitude, lng: longitude } : null
+  );
+  const [geocoding, setGeocoding] = useState(false);
+  const [geocoded, setGeocoded] = useState(false);
+
+  // Sync when stored coords arrive later (dialog opens with new order)
+  useEffect(() => {
+    if (latitude && longitude) {
+      setCoords({ lat: latitude, lng: longitude });
+      setGeocoded(false);
+    }
+  }, [latitude, longitude]);
+
+  // If no coords, auto-geocode the address text once
+  useEffect(() => {
+    if (coords || geocoding || geocoded || !addressText) return;
+    let cancelled = false;
+    (async () => {
+      setGeocoding(true);
+      const geo = await geocodeAddress(addressText);
+      if (!cancelled && geo) {
+        setCoords({ lat: geo.latitude, lng: geo.longitude });
+      }
+      if (!cancelled) {
+        setGeocoding(false);
+        setGeocoded(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [coords, geocoding, geocoded, addressText]);
+
+  const lat = coords?.lat ?? latitude;
+  const lng = coords?.lng ?? longitude;
+  const hasMap = lat != null && lng != null;
+
+  const gmapUrl = hasMap
+    ? `https://www.google.com/maps?q=${lat},${lng}`
+    : null;
+  const gmapAddrUrl = addressText
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addressText)}`
+    : null;
+  const osmUrl = hasMap
+    ? `https://www.openstreetmap.org/export/embed.html?bbox=${(lng as number) - 0.01}%2C${(lat as number) - 0.01}%2C${(lng as number) + 0.01}%2C${(lat as number) + 0.01}&layer=mapnik&marker=${lat}%2C${lng}`
+    : null;
+
+  // Always show at least the "View Delivery Location on Map" button
+  // (falls back to Google Maps address search when no coords)
+  return (
+    <div className="mt-3 space-y-2">
+      {hasMap ? (
+        <>
+          <div className="relative w-full h-40 rounded-lg overflow-hidden border border-border/60">
+            <iframe
+              src={osmUrl!}
+              className="w-full h-full border-0"
+              loading="lazy"
+              title="Delivery location map"
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-muted-foreground flex items-center gap-1">
+              <Navigation className="size-3 text-primary" />
+              Lat: {lat}, Lng: {lng}
+              {geocoding && <Loader2 className="size-3 animate-spin ml-1" />}
+            </p>
+            <a
+              href={gmapUrl!}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+            >
+              View Delivery Location on Map <ExternalLink className="size-3" />
+            </a>
+          </div>
+        </>
+      ) : (
+        <a
+          href={gmapAddrUrl!}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:underline mt-2"
+        >
+          {geocoding ? (
+            <>
+              <Loader2 className="size-3 animate-spin" /> Finding location on map...
+            </>
+          ) : (
+            <>
+              <MapPin className="size-3" /> View Delivery Location on Map <ExternalLink className="size-3" />
+            </>
+          )}
+        </a>
+      )}
+    </div>
+  );
+}
 
 const STATUS_LABELS: Record<string, string> = {
   pending: "Pending",
@@ -323,46 +435,12 @@ export default function AdminOrders() {
                         <p className="text-xs text-muted-foreground capitalize">{orderDetail.address.addressType} address</p>
                       )}
                     </div>
-                    {/* Map Location */}
-                    {(orderDetail.deliveryLatitude && orderDetail.deliveryLongitude) ||
-                     (orderDetail.address?.latitude && orderDetail.address?.longitude) ? (
-                      <div className="mt-3 space-y-2">
-                        {(() => {
-                          const lat = orderDetail.deliveryLatitude ?? orderDetail.address?.latitude;
-                          const lng = orderDetail.deliveryLongitude ?? orderDetail.address?.longitude;
-                          const gmapUrl = `https://www.google.com/maps?q=${lat},${lng}`;
-                          const osmUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${(lng as number) - 0.01}%2C${(lat as number) - 0.01}%2C${(lng as number) + 0.01}%2C${(lat as number) + 0.01}&layer=mapnik&marker=${lat}%2C${lng}`;
-                          return (
-                            <>
-                              <div className="relative w-full h-40 rounded-lg overflow-hidden border border-border/60">
-                                <iframe
-                                  src={osmUrl}
-                                  className="w-full h-full border-0"
-                                  loading="lazy"
-                                  title="Delivery location map"
-                                />
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                                  <Navigation className="size-3 text-primary" />
-                                  Lat: {lat}, Lng: {lng}
-                                </p>
-                                <a
-                                  href={gmapUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
-                                >
-                                  View on Google Maps <ExternalLink className="size-3" />
-                                </a>
-                              </div>
-                            </>
-                          );
-                        })()}
-                      </div>
-                    ) : (
-                      <p className="text-xs text-muted-foreground italic mt-2">No map location provided</p>
-                    )}
+                    {/* Delivery Map — geocodes address text when coordinates are missing */}
+                    <DeliveryMap
+                      latitude={orderDetail.deliveryLatitude ?? orderDetail.address?.latitude ?? null}
+                      longitude={orderDetail.deliveryLongitude ?? orderDetail.address?.longitude ?? null}
+                      addressText={orderDetail.shippingAddress}
+                    />
                   </div>
                 </div>
 
