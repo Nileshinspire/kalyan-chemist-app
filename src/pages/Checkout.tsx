@@ -1,7 +1,7 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router";
 import { useAuth } from "@/context/AuthContext";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
@@ -29,9 +29,11 @@ import {
   AlertTriangle,
   IndianRupee,
   Check,
+  Lock,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/auth-utils";
 import { toast } from "sonner";
+import type { RazorpayResponse } from "@/types/global";
 
 const STEPS = [
   { id: "address", label: "Address", icon: MapPin },
@@ -64,12 +66,17 @@ export default function Checkout() {
   const [paymentMethod, setPaymentMethod] = useState<"cod" | "online">("cod");
   const [notes, setNotes] = useState("");
   const [placing, setPlacing] = useState(false);
+  const [paymentProcessing, setPaymentProcessing] = useState(false);
 
   const cartItems = useQuery(api.cart.list);
   const addresses = useQuery(api.addresses.list);
   const prescriptions = useQuery(api.prescriptions.list);
   const validateRx = useQuery(api.prescriptionValidation.validateCartPrescription);
   const createOrder = useMutation(api.orders.create);
+  const createRazorpayOrder = useAction(api.razorpayActions.createOrder);
+  const verifyPayment = useAction(api.razorpayActions.verifyPayment);
+  const getRazorpayKeyId = useAction(api.razorpayActions.getKeyId);
+  const markPaymentFailed = useMutation(api.razorpay.markPaymentFailed);
 
   // Calculate totals
   const { subtotal, totalDiscount, deliveryFee, tax, total, totalItems, hasRxItems } = useMemo(() => {
@@ -134,6 +141,103 @@ export default function Checkout() {
     }
   };
 
+  // ── Open Razorpay checkout widget ──
+  const openRazorpayCheckout = useCallback(async (orderId: string, invoiceNumber: string, amount: number) => {
+    setPaymentProcessing(true);
+    try {
+      // 1. Create a Razorpay order on the backend
+      const rpOrder = await createRazorpayOrder({
+        amount,
+        receipt: invoiceNumber,
+      });
+
+      // 2. Build Razorpay options
+      const razorpayKeyId = rpOrder._demo ? "rzp_test_demo" : await getRazorpayKeyId();
+
+      const options: any = {
+        key: razorpayKeyId,
+        amount: rpOrder.amount, // already in paise
+        currency: rpOrder.currency || "INR",
+        name: "Kalyan Chemist",
+        description: `Order ${invoiceNumber}`,
+        order_id: rpOrder.id,
+        handler: async (response: RazorpayResponse) => {
+          // Payment successful — verify server-side
+          try {
+            await verifyPayment({
+              orderId: orderId as any,
+              razorpayOrderId: response.razorpay_order_id,
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpaySignature: response.razorpay_signature,
+            });
+            toast.success("Payment verified! Order confirmed.");
+            setPaymentProcessing(false);
+            navigate(`/orders/${orderId}`);
+          } catch (err: any) {
+            toast.error(err.message || "Payment verification failed. Please contact support.");
+            setPaymentProcessing(false);
+            navigate(`/orders/${orderId}`);
+          }
+        },
+        prefill: {
+          name: user?.name || "",
+          contact: selectedAddress?.phone || "",
+        },
+        notes: {
+          order_id: orderId,
+        },
+        theme: {
+          color: "#059669", // Kalyan Chemist brand green
+        },
+        modal: {
+          confirm_close: true,
+          escape: false,
+          ondismiss: async () => {
+            // User closed/cancelled the Razorpay modal
+            setPaymentProcessing(false);
+            toast.info("Payment was not completed. You can retry from your order.");
+            navigate(`/orders/${orderId}`);
+          },
+        },
+      };
+
+      // 3. Open the Razorpay widget
+      if (typeof window !== "undefined" && window.Razorpay) {
+        const rzp = new window.Razorpay(options);
+        rzp.on("payment.failed", async (response: any) => {
+          // Payment failed — mark on backend so order isn't left in limbo
+          try {
+            await markPaymentFailed({
+              orderId: orderId as any,
+              reason: response?.error?.description || "Payment failed",
+            });
+          } catch {
+            // Non-critical — order stays pending
+          }
+          setPaymentProcessing(false);
+          const desc = response?.error?.description || "Payment failed";
+          toast.error(`${desc}. You can retry from your order.`);
+          navigate(`/orders/${orderId}`);
+        });
+        rzp.open();
+      } else {
+        // Fallback: Razorpay script not loaded
+        // In demo mode, treat as successful
+        if (rpOrder._demo) {
+          toast.success("Demo mode: Payment simulated successfully.");
+          setPaymentProcessing(false);
+          navigate(`/orders/${orderId}`);
+        } else {
+          throw new Error("Razorpay not loaded. Please refresh and try again.");
+        }
+      }
+    } catch (err: any) {
+      setPaymentProcessing(false);
+      toast.error(err.message || "Failed to initiate payment");
+    }
+  }, [createRazorpayOrder, verifyPayment, getRazorpayKeyId, markPaymentFailed, navigate, user, selectedAddress]);
+
+  // ── Place Order ──
   const handlePlaceOrder = async () => {
     if (!selectedAddress || !selectedAddressId) {
       toast.error("Please select a delivery address");
@@ -141,6 +245,7 @@ export default function Checkout() {
     }
     setPlacing(true);
     try {
+      // For online payments, we first create the order, then open Razorpay
       const result = await createOrder({
         shippingAddress: addressToString(selectedAddress),
         addressId: selectedAddressId as any,
@@ -149,14 +254,26 @@ export default function Checkout() {
         notes: notes.trim() || undefined,
         prescriptionId: (selectedPrescriptionId as any) || undefined,
       });
-      toast.success(`Order placed! Invoice: ${result.invoiceNumber}`);
-      navigate(`/orders/${result.orderId}`);
+
+      if (paymentMethod === "online") {
+        // Open Razorpay checkout for this order
+        setPlacing(false);
+        await openRazorpayCheckout(result.orderId, result.invoiceNumber, result.totalAmount);
+      } else {
+        // COD — order placed directly
+        toast.success(`Order placed! Invoice: ${result.invoiceNumber}`);
+        navigate(`/orders/${result.orderId}`);
+      }
     } catch (error: any) {
       toast.error(error.message || "Failed to place order");
     } finally {
-      setPlacing(false);
+      if (paymentMethod === "cod") {
+        setPlacing(false);
+      }
     }
   };
+
+  const isProcessing = placing || paymentProcessing;
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -374,6 +491,16 @@ export default function Checkout() {
                       <p className="mt-1">Please keep exact change ready. Our delivery partner will collect ₹{total.toLocaleString("en-IN")} at the time of delivery.</p>
                     </div>
                   )}
+
+                  {paymentMethod === "online" && (
+                    <div className="rounded-xl bg-green-50 border border-green-200 p-3 text-xs text-green-800">
+                      <div className="flex items-center gap-2 font-semibold">
+                        <Lock className="size-3" /> Secure Payment via Razorpay
+                      </div>
+                      <p className="mt-1">You will be redirected to Razorpay's secure checkout. Supports UPI, Credit/Debit Cards, and Net Banking.</p>
+                      <p className="mt-1">If the payment fails or you cancel, you can retry from your order details page.</p>
+                    </div>
+                  )}
                 </div>
               )}
             </motion.div>
@@ -432,10 +559,13 @@ export default function Checkout() {
                   <Button
                     className="w-full h-11 text-sm font-semibold gradient-primary text-white shadow-glow rounded-xl"
                     onClick={handlePlaceOrder}
-                    disabled={placing}
+                    disabled={isProcessing}
                   >
-                    {placing ? <Loader2 className="size-4 animate-spin mr-2" /> : <CheckCircle2 className="size-4 mr-2" />}
-                    {placing ? "Placing Order..." : `Place Order · ${formatCurrency(total)}`}
+                    {isProcessing ? <Loader2 className="size-4 animate-spin mr-2" /> : <CheckCircle2 className="size-4 mr-2" />}
+                    {paymentProcessing ? "Processing Payment..." :
+                     placing ? "Placing Order..." :
+                     paymentMethod === "online" ? `Pay ${formatCurrency(total)} Securely` :
+                     `Place Order · ${formatCurrency(total)}`}
                   </Button>
                 )}
 
@@ -448,6 +578,12 @@ export default function Checkout() {
                     <Truck className="size-3.5 text-primary shrink-0" />
                     Free delivery on orders above ₹500
                   </div>
+                  {paymentMethod === "online" && (
+                    <div className="flex items-center gap-2">
+                      <Lock className="size-3.5 text-primary shrink-0" />
+                      Razorpay encrypted payment
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>

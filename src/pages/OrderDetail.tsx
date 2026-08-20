@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from "react-router";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
@@ -21,6 +21,8 @@ import {
   Pill,
   RefreshCw,
   X,
+  RotateCcw,
+  Lock,
 } from "lucide-react";
 import { formatCurrency, getStatusColor } from "@/lib/auth-utils";
 import { toast } from "sonner";
@@ -45,6 +47,11 @@ export default function OrderDetail() {
   const tracking = useQuery(api.orders.getTracking, id ? { orderId: id as any } : "skip");
   const cancelOrder = useMutation(api.orders.cancel);
   const reorder = useMutation(api.orders.reorder);
+  const resetForRetry = useMutation(api.razorpay.resetForRetry);
+  const createRazorpayOrder = useAction(api.razorpayActions.createOrder);
+  const verifyPayment = useAction(api.razorpayActions.verifyPayment);
+  const getRazorpayKeyId = useAction(api.razorpayActions.getKeyId);
+  const markPaymentFailed = useMutation(api.razorpay.markPaymentFailed);
 
   const handleCancel = async () => {
     if (!id) return;
@@ -65,6 +72,63 @@ export default function OrderDetail() {
       navigate("/cart");
     } catch (error: any) {
       toast.error(error.message || "Failed to reorder");
+    }
+  };
+
+  const handleRetryPayment = async () => {
+    if (!id) return;
+    try {
+      const resetResult = await resetForRetry({ orderId: id as any });
+      // Create a new Razorpay order
+      const rpOrder = await createRazorpayOrder({
+        amount: resetResult.amount,
+        receipt: resetResult.receipt,
+      });
+
+      const options: any = {
+        key: rpOrder._demo ? "rzp_test_demo" : await getRazorpayKeyId(),
+        amount: rpOrder.amount,
+        currency: rpOrder.currency || "INR",
+        name: "Kalyan Chemist",
+        description: `Order ${resetResult.receipt}`,
+        order_id: rpOrder.id,
+        handler: async (response: any) => {
+          try {
+            await verifyPayment({
+              orderId: id as any,
+              razorpayOrderId: response.razorpay_order_id,
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpaySignature: response.razorpay_signature,
+            });
+            toast.success("Payment verified! Order confirmed.");
+          } catch (err: any) {
+            toast.error(err.message || "Payment verification failed");
+          }
+        },
+        theme: { color: "#059669" },
+        modal: {
+          ondismiss: async () => {
+            toast.info("Payment not completed. You can retry again.");
+          },
+        },
+      };
+
+      if (typeof window !== "undefined" && window.Razorpay) {
+        const rzp = new window.Razorpay(options);
+        rzp.on("payment.failed", async (response: any) => {
+          try {
+            await markPaymentFailed({ orderId: id as any, reason: response?.error?.description });
+          } catch { /* non-critical */ }
+          toast.error(response?.error?.description || "Payment failed. You can retry again.");
+        });
+        rzp.open();
+      } else if (rpOrder._demo) {
+        toast.success("Demo mode: Payment simulated.");
+      } else {
+        throw new Error("Razorpay not loaded. Please refresh.");
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Failed to retry payment");
     }
   };
 
@@ -96,6 +160,7 @@ export default function OrderDetail() {
 
   const canCancel = order.status === "pending" || order.status === "confirmed";
   const canReorder = order.status === "delivered" || order.status === "cancelled";
+  const canRetryPayment = order.paymentMethod === "online" && order.paymentStatus === "failed" && order.status !== "cancelled";
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -115,13 +180,18 @@ export default function OrderDetail() {
                 Placed on {new Date(order.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}
               </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <Badge className={`text-xs capitalize ${getStatusColor(order.status)}`}>
                 {STATUS_LABELS[order.status] || order.status}
               </Badge>
               {canCancel && (
                 <Button variant="outline" size="sm" className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/5" onClick={handleCancel}>
                   <X className="size-3.5" /> Cancel
+                </Button>
+              )}
+              {canRetryPayment && (
+                <Button variant="outline" size="sm" className="gap-1.5 border-amber-300 text-amber-700 hover:bg-amber-50" onClick={handleRetryPayment}>
+                  <RotateCcw className="size-3.5" /> Retry Payment
                 </Button>
               )}
               {canReorder && (
@@ -262,9 +332,33 @@ export default function OrderDetail() {
                     <CreditCard className="size-4" /> Payment
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="pt-0 space-y-1">
+                <CardContent className="pt-0 space-y-2">
                   <p className="text-sm">Method: <span className="font-medium capitalize">{order.paymentMethod === "cod" ? "Cash on Delivery" : "Online Payment"}</span></p>
-                  <p className="text-sm">Status: <span className="font-medium capitalize">{order.paymentStatus || "Pending"}</span></p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm">Status:</p>
+                    <Badge className={`text-[10px] capitalize ${
+                      order.paymentStatus === "paid" ? "bg-green-100 text-green-800" :
+                      order.paymentStatus === "failed" ? "bg-red-100 text-red-800" :
+                      "bg-yellow-100 text-yellow-800"
+                    }`}>{order.paymentStatus || "Pending"}</Badge>
+                  </div>
+                  {order.razorpayPaymentId && (
+                    <div className="rounded-lg bg-muted/50 p-2">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Transaction ID</p>
+                      <p className="text-xs font-mono font-medium break-all">{order.razorpayPaymentId}</p>
+                    </div>
+                  )}
+                  {order.razorpayOrderId && (
+                    <div className="rounded-lg bg-muted/50 p-2">
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Razorpay Order</p>
+                      <p className="text-xs font-mono font-medium break-all">{order.razorpayOrderId}</p>
+                    </div>
+                  )}
+                  {canRetryPayment && (
+                    <Button variant="outline" size="sm" className="w-full gap-1.5 mt-2" onClick={handleRetryPayment}>
+                      <RotateCcw className="size-3.5" /> Retry Payment
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
             </div>

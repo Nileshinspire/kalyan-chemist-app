@@ -40,6 +40,8 @@ export const getById = query({
 });
 
 // ── Create an order from the current user's cart ──
+// For online payments, order is created with paymentStatus: "pending"
+// Payment is confirmed later via razorpay.verifyPayment
 export const create = mutation({
   args: {
     shippingAddress: v.string(),
@@ -138,6 +140,15 @@ export const create = mutation({
     const orderCount = allOrders.length;
     const invoiceNumber = `KC-${String(orderCount + 1).padStart(5, "0")}`;
 
+    // Determine payment status based on method
+    // COD: pending until delivered
+    // Online: pending until payment is verified via razorpay.verifyPayment
+    // If Razorpay details are provided at creation time, verify them
+    let paymentStatus: "pending" | "paid" | "failed" = "pending";
+    if (args.paymentMethod === "cod") {
+      paymentStatus = "pending";
+    }
+
     // Create order
     const now = Date.now();
     const orderId = await ctx.db.insert("orders", {
@@ -153,7 +164,7 @@ export const create = mutation({
       phone: args.phone,
       status: "pending",
       paymentMethod: args.paymentMethod,
-      paymentStatus: args.paymentMethod === "cod" ? "pending" : "paid",
+      paymentStatus,
       razorpayOrderId: args.razorpayOrderId,
       razorpayPaymentId: args.razorpayPaymentId,
       razorpaySignature: args.razorpaySignature,
@@ -270,7 +281,7 @@ export const cancel = mutation({
       userId,
       type: "order_status",
       title: "Order Cancelled",
-      body: `Your order ${order.invoiceNumber || ""} has been cancelled.${order.paymentMethod === "online" ? " Your refund will be processed within 5-7 business days." : ""}`,
+      body: `Your order ${order.invoiceNumber || ""} has been cancelled.${order.paymentMethod === "online" && order.paymentStatus === "paid" ? " A refund will be processed within 5-7 business days." : ""}`,
       read: false,
       link: `/orders/${args.orderId}`,
       createdAt: Date.now(),

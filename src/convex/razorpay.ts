@@ -1,63 +1,136 @@
-import { action } from "./_generated/server";
+import { getAuthUserId } from "@convex-dev/auth/server";
+import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 
-// ── Create a Razorpay order (or simulate in demo mode) ──
-export const createOrder = action({
-  args: {
-    amount: v.number(), // in INR
-    receipt: v.string(),
-  },
-  handler: async (_ctx, args) => {
-    const keyId = process.env.RAZORPAY_KEY_ID;
-    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+/**
+ * Razorpay payment mutations and queries.
+ * Server-side actions (createOrder, verifyPayment) live in razorpayActions.ts
+ * which uses the "use node" runtime for Node.js crypto access.
+ *
+ * Flow:
+ * 1. Client calls razorpayActions.createOrder → backend creates Razorpay order via API
+ * 2. Client opens Razorpay checkout widget with the order ID
+ * 3. On payment success, client calls razorpayActions.verifyPayment with payment details
+ * 4. verifyPayment validates HMAC signature server-side, then calls confirmPayment mutation
+ *
+ * The secret key NEVER leaves the server.
+ */
 
-    // Demo mode: simulate a successful Razorpay order if no keys configured
-    if (!keyId || !keySecret) {
-      console.log("[Razorpay] No keys configured — running in demo mode");
-      return {
-        id: `order_demo_${Date.now()}`,
-        amount: Math.round(args.amount * 100),
-        currency: "INR",
-        receipt: args.receipt,
-        status: "created",
-        _demo: true,
-      };
+// ── Confirm payment after signature verification ──
+// Called internally by verifyPayment action after HMAC check passes
+export const confirmPayment = mutation({
+  args: {
+    orderId: v.id("orders"),
+    razorpayOrderId: v.string(),
+    razorpayPaymentId: v.string(),
+    razorpaySignature: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
+
+    const order = await ctx.db.get(args.orderId);
+    if (!order) throw new Error("Order not found");
+    if (order.userId !== userId) throw new Error("Unauthorized");
+    if (order.paymentMethod !== "online") throw new Error("Not an online payment order");
+
+    // Prevent double-processing
+    if (order.paymentStatus === "paid") {
+      return { success: true, alreadyVerified: true };
     }
 
-    const auth = Buffer.from(`${keyId}:${keySecret}`).toString("base64");
-
-    const response = await fetch("https://api.razorpay.com/v1/orders", {
-      method: "POST",
-      headers: {
-        Authorization: `Basic ${auth}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        amount: Math.round(args.amount * 100), // convert INR to paise
-        currency: "INR",
-        receipt: args.receipt,
-      }),
+    // Mark as paid and confirm the order
+    await ctx.db.patch(args.orderId, {
+      paymentStatus: "paid",
+      razorpayOrderId: args.razorpayOrderId,
+      razorpayPaymentId: args.razorpayPaymentId,
+      razorpaySignature: args.razorpaySignature,
+      status: "confirmed",
+      updatedAt: Date.now(),
     });
 
-    if (!response.ok) {
-      const errorData = await response.text();
-      throw new Error(`Razorpay order creation failed: ${errorData}`);
-    }
+    await ctx.db.insert("notifications", {
+      userId,
+      type: "order_status",
+      title: "Payment Successful ✓",
+      body: `Payment of ₹${order.totalAmount.toLocaleString("en-IN")} received for order ${order.invoiceNumber || ""}. Your order has been confirmed.`,
+      read: false,
+      link: `/orders/${args.orderId}`,
+      createdAt: Date.now(),
+    });
 
-    const order = await response.json();
-    return order;
+    return { success: true };
   },
 });
 
-// ── Get the Razorpay key ID (safe to expose) ──
-export const getKeyId = action({
+// ── Mark payment as failed (called by client after Razorpay error) ──
+export const markPaymentFailed = mutation({
+  args: {
+    orderId: v.id("orders"),
+    reason: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
+
+    const order = await ctx.db.get(args.orderId);
+    if (!order) throw new Error("Order not found");
+    if (order.userId !== userId) throw new Error("Unauthorized");
+
+    // Don't overwrite if already paid
+    if (order.paymentStatus === "paid") {
+      return { success: true };
+    }
+
+    await ctx.db.patch(args.orderId, {
+      paymentStatus: "failed",
+      updatedAt: Date.now(),
+    });
+
+    return { success: true };
+  },
+});
+
+// ── Retry payment: reset a failed order so the customer can try again ──
+export const resetForRetry = mutation({
+  args: {
+    orderId: v.id("orders"),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
+
+    const order = await ctx.db.get(args.orderId);
+    if (!order) throw new Error("Order not found");
+    if (order.userId !== userId) throw new Error("Unauthorized");
+    if (order.paymentMethod !== "online") throw new Error("Not an online payment order");
+    if (order.paymentStatus === "paid") throw new Error("Payment already completed");
+    if (order.status === "cancelled") throw new Error("Order has been cancelled");
+
+    // Reset payment details so customer can try again
+    await ctx.db.patch(args.orderId, {
+      paymentStatus: "pending",
+      razorpayOrderId: undefined,
+      razorpayPaymentId: undefined,
+      razorpaySignature: undefined,
+      updatedAt: Date.now(),
+    });
+
+    // Return order details needed to create a new Razorpay order
+    return {
+      success: true,
+      amount: order.totalAmount,
+      receipt: order.invoiceNumber || args.orderId,
+    };
+  },
+});
+
+// ── Check if Razorpay is configured ──
+export const isConfigured = query({
   args: {},
   handler: async () => {
-    const keyId = process.env.RAZORPAY_KEY_ID;
-    if (!keyId) {
-      // Return demo key for demo mode
-      return "rzp_test_demo";
-    }
-    return keyId;
+    return {
+      configured: !!(process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET),
+    };
   },
 });

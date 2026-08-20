@@ -279,7 +279,26 @@ export default function AdminOrders() {
                   <div>
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Payment</p>
                     <p className="text-sm">Method: <span className="font-medium capitalize">{orderDetail.paymentMethod === "cod" ? "COD" : "Online"}</span></p>
-                    <p className="text-sm">Status: <span className="font-medium capitalize">{orderDetail.paymentStatus || "Pending"}</span></p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm">Status:</p>
+                      <Badge className={`text-[10px] capitalize ${
+                        orderDetail.paymentStatus === "paid" ? "bg-green-100 text-green-800" :
+                        orderDetail.paymentStatus === "failed" ? "bg-red-100 text-red-800" :
+                        "bg-yellow-100 text-yellow-800"
+                      }`}>{orderDetail.paymentStatus || "Pending"}</Badge>
+                    </div>
+                    {orderDetail.razorpayPaymentId && (
+                      <div className="mt-2 rounded-lg bg-muted/50 p-2">
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Transaction ID</p>
+                        <p className="text-xs font-mono font-medium break-all">{orderDetail.razorpayPaymentId}</p>
+                      </div>
+                    )}
+                    {orderDetail.razorpayOrderId && (
+                      <div className="mt-1.5 rounded-lg bg-muted/50 p-2">
+                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Razorpay Order ID</p>
+                        <p className="text-xs font-mono font-medium break-all">{orderDetail.razorpayOrderId}</p>
+                      </div>
+                    )}
                     <p className="text-sm mt-1">Subtotal: <span className="font-medium">{formatCurrency(orderDetail.subtotal)}</span></p>
                     {orderDetail.discount > 0 && <p className="text-sm">Discount: <span className="font-medium text-green-600">-{formatCurrency(orderDetail.discount)}</span></p>}
                     {orderDetail.tax > 0 && <p className="text-sm">GST: <span className="font-medium">{formatCurrency(orderDetail.tax)}</span></p>}
