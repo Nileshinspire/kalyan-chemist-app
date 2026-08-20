@@ -53,6 +53,8 @@ export const create = mutation({
     razorpayOrderId: v.optional(v.string()),
     razorpayPaymentId: v.optional(v.string()),
     razorpaySignature: v.optional(v.string()),
+    deliveryLatitude: v.optional(v.number()),
+    deliveryLongitude: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -162,6 +164,8 @@ export const create = mutation({
       shippingAddress: args.shippingAddress,
       addressId: args.addressId,
       phone: args.phone,
+      deliveryLatitude: args.deliveryLatitude,
+      deliveryLongitude: args.deliveryLongitude,
       status: "pending",
       paymentMethod: args.paymentMethod,
       paymentStatus,

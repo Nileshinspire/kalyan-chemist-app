@@ -33,8 +33,11 @@ import {
   Star,
   Loader2,
   Check,
+  Navigation,
+  ExternalLink,
 } from "lucide-react";
 import { toast } from "sonner";
+import LocationPicker from "@/components/LocationPicker";
 
 const INDIAN_STATES = [
   "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh",
@@ -57,6 +60,8 @@ interface AddressForm {
   pincode: string;
   landmark: string;
   addressType: "home" | "work" | "other";
+  latitude: number | null;
+  longitude: number | null;
   isDefault: boolean;
 }
 
@@ -72,6 +77,8 @@ const EMPTY_FORM: AddressForm = {
   pincode: "",
   landmark: "",
   addressType: "home",
+  latitude: null,
+  longitude: null,
   isDefault: false,
 };
 
@@ -116,6 +123,8 @@ export default function AccountAddresses() {
       pincode: addr.pincode,
       landmark: addr.landmark || "",
       addressType: addr.addressType,
+      latitude: addr.latitude ?? null,
+      longitude: addr.longitude ?? null,
       isDefault: addr.isDefault,
     });
     setDialogOpen(true);
@@ -153,6 +162,8 @@ export default function AccountAddresses() {
         pincode: form.pincode.trim(),
         landmark: form.landmark.trim() || undefined,
         addressType: form.addressType,
+        latitude: form.latitude ?? undefined,
+        longitude: form.longitude ?? undefined,
         isDefault: form.isDefault,
       };
 
@@ -267,6 +278,21 @@ export default function AccountAddresses() {
                       <p>{addr.city}, {addr.state} - {addr.pincode}</p>
                       {addr.landmark && <p>Landmark: {addr.landmark}</p>}
                       <p className="font-medium text-foreground">Phone: {addr.phone}</p>
+                      {addr.latitude && addr.longitude && (
+                        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                          <Navigation className="size-3 text-primary" />
+                          <span>{addr.latitude}, {addr.longitude}</span>
+                          <a
+                            href={`https://www.google.com/maps?q=${addr.latitude},${addr.longitude}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-0.5 text-primary hover:underline"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            View <ExternalLink className="size-2.5" />
+                          </a>
+                        </p>
+                      )}
                     </div>
 
                     <div className="flex gap-2">
@@ -434,6 +460,13 @@ export default function AccountAddresses() {
                 />
               </div>
             </div>
+
+            {/* Location */}
+            <LocationPicker
+              latitude={form.latitude}
+              longitude={form.longitude}
+              onLocationChange={(lat, lng) => setForm({ ...form, latitude: lat, longitude: lng })}
+            />
 
             {/* Address Type */}
             <div className="space-y-1.5">

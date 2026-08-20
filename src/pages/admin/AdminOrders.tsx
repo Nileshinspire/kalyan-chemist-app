@@ -36,6 +36,8 @@ import {
   Package,
   User,
   FileText,
+  Navigation,
+  ExternalLink,
 } from "lucide-react";
 import { formatCurrency, getStatusColor } from "@/lib/auth-utils";
 import { toast } from "sonner";
@@ -309,9 +311,57 @@ export default function AdminOrders() {
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1">
                       <MapPin className="size-3" /> Delivery Address
                     </p>
-                    <p className="text-sm text-muted-foreground leading-relaxed">{orderDetail.shippingAddress}</p>
-                    {orderDetail.address && (
-                      <p className="text-xs text-muted-foreground mt-1">{orderDetail.address.addressType} address</p>
+                    <div className="space-y-1">
+                      {orderDetail.address && (
+                        <>
+                          <p className="text-sm font-medium text-foreground">{orderDetail.address.fullName}</p>
+                          <p className="text-xs text-muted-foreground">Phone: {orderDetail.address.phone}</p>
+                        </>
+                      )}
+                      <p className="text-sm text-muted-foreground leading-relaxed">{orderDetail.shippingAddress}</p>
+                      {orderDetail.address && (
+                        <p className="text-xs text-muted-foreground capitalize">{orderDetail.address.addressType} address</p>
+                      )}
+                    </div>
+                    {/* Map Location */}
+                    {(orderDetail.deliveryLatitude && orderDetail.deliveryLongitude) ||
+                     (orderDetail.address?.latitude && orderDetail.address?.longitude) ? (
+                      <div className="mt-3 space-y-2">
+                        {(() => {
+                          const lat = orderDetail.deliveryLatitude ?? orderDetail.address?.latitude;
+                          const lng = orderDetail.deliveryLongitude ?? orderDetail.address?.longitude;
+                          const gmapUrl = `https://www.google.com/maps?q=${lat},${lng}`;
+                          const osmUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${(lng as number) - 0.01}%2C${(lat as number) - 0.01}%2C${(lng as number) + 0.01}%2C${(lat as number) + 0.01}&layer=mapnik&marker=${lat}%2C${lng}`;
+                          return (
+                            <>
+                              <div className="relative w-full h-40 rounded-lg overflow-hidden border border-border/60">
+                                <iframe
+                                  src={osmUrl}
+                                  className="w-full h-full border-0"
+                                  loading="lazy"
+                                  title="Delivery location map"
+                                />
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                  <Navigation className="size-3 text-primary" />
+                                  Lat: {lat}, Lng: {lng}
+                                </p>
+                                <a
+                                  href={gmapUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                                >
+                                  View on Google Maps <ExternalLink className="size-3" />
+                                </a>
+                              </div>
+                            </>
+                          );
+                        })()}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground italic mt-2">No map location provided</p>
                     )}
                   </div>
                 </div>

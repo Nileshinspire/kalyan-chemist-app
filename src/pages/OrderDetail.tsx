@@ -23,6 +23,8 @@ import {
   X,
   RotateCcw,
   Lock,
+  Navigation,
+  ExternalLink,
 } from "lucide-react";
 import { formatCurrency, getStatusColor } from "@/lib/auth-utils";
 import { toast } from "sonner";
@@ -320,8 +322,50 @@ export default function OrderDetail() {
                     <MapPin className="size-4" /> Delivery Address
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="pt-0">
+                <CardContent className="pt-0 space-y-3">
                   <p className="text-sm text-muted-foreground leading-relaxed">{order.shippingAddress}</p>
+                  {order.address && (
+                    <div className="text-xs text-muted-foreground space-y-0.5">
+                      <p>Contact: {order.address.fullName} · {order.address.phone}</p>
+                    </div>
+                  )}
+                  {((order.deliveryLatitude && order.deliveryLongitude) ||
+                    (order.address?.latitude && order.address?.longitude)) && (
+                    <div className="space-y-2">
+                      {(() => {
+                        const lat = order.deliveryLatitude ?? order.address?.latitude;
+                        const lng = order.deliveryLongitude ?? order.address?.longitude;
+                        const osmUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${(lng as number) - 0.01}%2C${(lat as number) - 0.01}%2C${(lng as number) + 0.01}%2C${(lat as number) + 0.01}&layer=mapnik&marker=${lat}%2C${lng}`;
+                        const gmapUrl = `https://www.google.com/maps?q=${lat},${lng}`;
+                        return (
+                          <>
+                            <div className="relative w-full h-40 rounded-lg overflow-hidden border border-border/60">
+                              <iframe
+                                src={osmUrl}
+                                className="w-full h-full border-0"
+                                loading="lazy"
+                                title="Delivery location map"
+                              />
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                                <Navigation className="size-3 text-primary" />
+                                {lat}, {lng}
+                              </p>
+                              <a
+                                href={gmapUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                              >
+                                View on Google Maps <ExternalLink className="size-3" />
+                              </a>
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 

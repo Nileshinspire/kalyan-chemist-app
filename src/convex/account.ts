@@ -98,6 +98,8 @@ export const addAddress = mutation({
       v.literal("work"),
       v.literal("other"),
     ),
+    latitude: v.optional(v.number()),
+    longitude: v.optional(v.number()),
     isDefault: v.boolean(),
   },
   handler: async (ctx, args) => {
@@ -141,6 +143,8 @@ export const addAddress = mutation({
       pincode: args.pincode.trim(),
       landmark: args.landmark?.trim(),
       addressType: args.addressType,
+      latitude: args.latitude,
+      longitude: args.longitude,
       isDefault: args.isDefault,
       createdAt: now,
       updatedAt: now,
@@ -169,6 +173,8 @@ export const updateAddress = mutation({
       v.literal("work"),
       v.literal("other"),
     ),
+    latitude: v.optional(v.number()),
+    longitude: v.optional(v.number()),
     isDefault: v.boolean(),
   },
   handler: async (ctx, args) => {
@@ -215,6 +221,8 @@ export const updateAddress = mutation({
       pincode: args.pincode.trim(),
       landmark: args.landmark?.trim(),
       addressType: args.addressType,
+      latitude: args.latitude,
+      longitude: args.longitude,
       isDefault: args.isDefault,
       updatedAt: Date.now(),
     });

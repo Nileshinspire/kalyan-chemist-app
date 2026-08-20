@@ -55,6 +55,8 @@ export const create = mutation({
     landmark: v.optional(v.string()),
     addressType: v.union(v.literal("home"), v.literal("work"), v.literal("other")),
     isDefault: v.boolean(),
+    latitude: v.optional(v.number()),
+    longitude: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -86,6 +88,8 @@ export const create = mutation({
       pincode: args.pincode,
       landmark: args.landmark,
       addressType: args.addressType,
+      latitude: args.latitude,
+      longitude: args.longitude,
       isDefault: args.isDefault,
       createdAt: now,
       updatedAt: now,
@@ -111,6 +115,8 @@ export const update = mutation({
     landmark: v.optional(v.string()),
     addressType: v.union(v.literal("home"), v.literal("work"), v.literal("other")),
     isDefault: v.boolean(),
+    latitude: v.optional(v.number()),
+    longitude: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -145,6 +151,8 @@ export const update = mutation({
       pincode: args.pincode,
       landmark: args.landmark,
       addressType: args.addressType,
+      latitude: args.latitude,
+      longitude: args.longitude,
       isDefault: args.isDefault,
       updatedAt: Date.now(),
     });

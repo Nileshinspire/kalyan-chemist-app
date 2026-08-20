@@ -253,6 +253,8 @@ export default function Checkout() {
         paymentMethod,
         notes: notes.trim() || undefined,
         prescriptionId: (selectedPrescriptionId as any) || undefined,
+        deliveryLatitude: selectedAddress.latitude ?? undefined,
+        deliveryLongitude: selectedAddress.longitude ?? undefined,
       });
 
       if (paymentMethod === "online") {

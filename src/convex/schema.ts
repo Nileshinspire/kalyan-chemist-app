@@ -202,6 +202,8 @@ const schema = defineSchema(
       invoiceNumber: v.optional(v.string()),
       prescriptionId: v.optional(v.id("prescriptions")),
       notes: v.optional(v.string()),
+      deliveryLatitude: v.optional(v.number()),
+      deliveryLongitude: v.optional(v.number()),
       createdAt: v.number(),
       updatedAt: v.number(),
     })
@@ -227,6 +229,8 @@ const schema = defineSchema(
         v.literal("work"),
         v.literal("other"),
       ),
+      latitude: v.optional(v.number()),
+      longitude: v.optional(v.number()),
       isDefault: v.boolean(),
       createdAt: v.number(),
       updatedAt: v.number(),
