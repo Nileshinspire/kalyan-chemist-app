@@ -1,1 +1,0 @@
-import{c}from"./index-BQ24Iw8p.js";const e=[["circle",{cx:"12",cy:"12",r:"10",key:"1mglay"}]],i=c("circle",e);const r=[["rect",{width:"20",height:"14",x:"2",y:"5",rx:"2",key:"ynyp8z"}],["line",{x1:"2",x2:"22",y1:"10",y2:"10",key:"1b3vmo"}]],t=c("credit-card",r);export{i as C,t as a};

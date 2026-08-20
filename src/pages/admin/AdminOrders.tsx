@@ -359,6 +359,35 @@ export default function AdminOrders() {
                   </div>
                 </div>
 
+                {/* Status History Timeline */}
+                {orderDetail.statusHistory && orderDetail.statusHistory.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Status History</p>
+                    <div className="space-y-0">
+                      {[...orderDetail.statusHistory].reverse().map((entry: any, i: number) => (
+                        <div key={i} className="flex items-start gap-3">
+                          <div className="flex flex-col items-center">
+                            <div className={`size-2.5 rounded-full mt-1.5 ${i === 0 ? "bg-primary" : "bg-muted-foreground/30"}`} />
+                            {i < (orderDetail.statusHistory?.length ?? 0) - 1 && (
+                              <div className="w-px h-6 bg-border" />
+                            )}
+                          </div>
+                          <div className="pb-3">
+                            <p className="text-sm font-medium capitalize">{entry.status.replace(/_/g, " ")}</p>
+                            <p className="text-[10px] text-muted-foreground">
+                              {new Date(entry.timestamp).toLocaleString("en-IN", {
+                                day: "numeric", month: "short", year: "numeric",
+                                hour: "2-digit", minute: "2-digit",
+                              })}
+                            </p>
+                            {entry.note && <p className="text-xs text-muted-foreground mt-0.5 italic">{entry.note}</p>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Customer */}
                 <div className="flex items-start gap-3 p-3 rounded-xl bg-muted/30">
                   <User className="size-5 text-primary shrink-0 mt-0.5" />

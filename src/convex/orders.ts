@@ -68,6 +68,19 @@ export const create = mutation({
 
     if (cartItems.length === 0) throw new Error("Cart is empty");
 
+    // Validate pincode serviceability
+    const pincode = args.shippingAddress.match(/\b(\d{6})\b/)?.[1];
+    if (pincode) {
+      const configs = await ctx.db.query("delivery_config").collect();
+      const dc = configs[0];
+      if (dc) {
+        const match = dc.pincodes.find((p) => p.pincode === pincode && p.isActive);
+        if (!match) {
+          throw new Error("Sorry, Kalyan Chemist does not currently deliver to this location.");
+        }
+      }
+    }
+
     // Check prescription requirement
     let hasRxItems = false;
     for (const ci of cartItems) {
@@ -131,8 +144,18 @@ export const create = mutation({
       });
     }
 
-    // Delivery fee (free above ₹500)
-    const deliveryFee = subtotal >= 500 ? 0 : 49;
+    // Delivery fee — check delivery config for pincode-specific rules
+    const configs = await ctx.db.query("delivery_config").collect();
+    const dc = configs[0];
+    let deliveryFee = 49; // default
+    if (dc) {
+      const pinMatch = pincode ? dc.pincodes.find((p) => p.pincode === pincode && p.isActive) : undefined;
+      const fee = pinMatch?.deliveryFee ?? dc.defaultDeliveryFee;
+      const threshold = dc.freeDeliveryThreshold;
+      deliveryFee = subtotal >= threshold ? 0 : fee;
+    } else if (subtotal >= 500) {
+      deliveryFee = 0;
+    }
     // GST 12% on medicines
     const tax = Math.round(subtotal * 0.12);
     const totalAmount = subtotal + deliveryFee + tax;
@@ -151,7 +174,7 @@ export const create = mutation({
       paymentStatus = "pending";
     }
 
-    // Create order
+    // Create order with initial status history
     const now = Date.now();
     const orderId = await ctx.db.insert("orders", {
       userId,
@@ -175,6 +198,7 @@ export const create = mutation({
       invoiceNumber,
       prescriptionId: args.prescriptionId,
       notes: args.notes,
+      statusHistory: [{ status: "pending", timestamp: now, note: "Order placed" }],
       createdAt: now,
       updatedAt: now,
     });
@@ -318,11 +342,20 @@ export const getTracking = query({
       ? -1
       : statusOrder.indexOf(order.status);
 
+    // Map statusHistory entries by status for timestamp lookup
+    const historyMap = new Map<string, number>();
+    if (order.statusHistory) {
+      for (const entry of order.statusHistory) {
+        historyMap.set(entry.status, entry.timestamp);
+      }
+    }
+
     return steps.map((step, i) => ({
       ...step,
       completed: currentIdx >= i,
       current: currentIdx === i,
       cancelled: order.status === "cancelled",
+      timestamp: historyMap.get(step.status),
     }));
   },
 });

@@ -285,9 +285,12 @@ export const updateOrderStatus = mutation({
       }
     }
 
+    const now = Date.now();
+    const existingHistory = order.statusHistory || [];
     await ctx.db.patch(args.orderId, {
       status: args.status,
-      updatedAt: Date.now(),
+      statusHistory: [...existingHistory, { status: args.status, timestamp: now }],
+      updatedAt: now,
     });
 
     // Notify the customer of the status change

@@ -204,6 +204,16 @@ const schema = defineSchema(
       notes: v.optional(v.string()),
       deliveryLatitude: v.optional(v.number()),
       deliveryLongitude: v.optional(v.number()),
+      // Audit trail of status changes
+      statusHistory: v.optional(
+        v.array(
+          v.object({
+            status: v.string(),
+            timestamp: v.number(),
+            note: v.optional(v.string()),
+          })
+        )
+      ),
       createdAt: v.number(),
       updatedAt: v.number(),
     })
@@ -344,6 +354,34 @@ const schema = defineSchema(
       .index("by_status", ["status"])
       .index("by_user_status", ["userId", "status"])
       .index("by_createdAt", ["createdAt"]),
+
+    // ── Store / Delivery configuration (singleton) ──
+    delivery_config: defineTable({
+      storeName: v.string(),
+      storeAddress: v.string(),
+      storePhone: v.string(),
+      storeWhatsApp: v.optional(v.string()),
+      businessHours: v.string(),
+      // Default delivery settings
+      defaultDeliveryFee: v.number(),
+      freeDeliveryThreshold: v.number(),
+      minimumOrder: v.number(),
+      estimatedDeliveryTime: v.string(),
+      defaultCodAvailable: v.boolean(),
+      // Per-pincode overrides
+      pincodes: v.array(
+        v.object({
+          pincode: v.string(),
+          area: v.string(),
+          isActive: v.boolean(),
+          deliveryFee: v.optional(v.number()),
+          minimumOrder: v.optional(v.number()),
+          estimatedDeliveryTime: v.optional(v.string()),
+          codAvailable: v.optional(v.boolean()),
+        })
+      ),
+      updatedAt: v.number(),
+    }),
   },
   {
     schemaValidation: false,

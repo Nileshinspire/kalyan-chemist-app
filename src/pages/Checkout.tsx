@@ -34,6 +34,7 @@ import {
 import { formatCurrency } from "@/lib/auth-utils";
 import { geocodeAddress } from "@/lib/geocode";
 import { toast } from "sonner";
+import { CheckCircle2 as CheckCircle, XCircle } from "lucide-react";
 import type { RazorpayResponse } from "@/types/global";
 
 const STEPS = [
@@ -108,6 +109,13 @@ export default function Checkout() {
   }, [cartItems]);
 
   const selectedAddress = addresses?.find((a: any) => a._id === selectedAddressId);
+
+  // Extract pincode from selected address for serviceability check
+  const pincodeFromAddr = selectedAddress?.pincode || "";
+  const pincodeCheck = useQuery(
+    api.deliveryConfig.checkPincode,
+    pincodeFromAddr && pincodeFromAddr.length === 6 ? { pincode: pincodeFromAddr } : "skip"
+  );
 
   // Auto-select default address
   if (addresses && addresses.length > 0 && !selectedAddressId) {
@@ -337,8 +345,7 @@ export default function Checkout() {
               exit={{ opacity: 0, x: -12 }}
               transition={{ duration: 0.2 }}
             >
-              {/* Step 0: Address */}
-              {step === 0 && (
+              {/* Step 0: Address */}                {step === 0 && (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <h2 className="text-lg font-bold">Delivery Address</h2>
@@ -374,6 +381,32 @@ export default function Checkout() {
                         </label>
                       ))}
                     </RadioGroup>
+                  )}
+
+                  {/* Pincode Serviceability Check */}
+                  {selectedAddress && pincodeFromAddr && (
+                    <div className="mt-3">
+                      {pincodeCheck === undefined ? (
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Loader2 className="size-3 animate-spin" /> Checking delivery availability...
+                        </div>
+                      ) : pincodeCheck.available ? (
+                        <div className="flex items-center gap-2 p-3 rounded-xl bg-green-50 border border-green-200">
+                          <CheckCircle className="size-4 text-green-600 shrink-0" />
+                          <div>
+                            <p className="text-sm font-semibold text-green-800">Delivery available to {pincodeFromAddr}</p>
+                            <p className="text-xs text-green-700">
+                              {pincodeCheck.area} · Delivery fee: {pincodeCheck.deliveryFee === 0 ? <span className="text-green-600 font-semibold">Free</span> : `₹${pincodeCheck.deliveryFee}`} · Est. {pincodeCheck.estimatedDeliveryTime}
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 p-3 rounded-xl bg-red-50 border border-red-200">
+                          <XCircle className="size-4 text-red-600 shrink-0" />
+                          <p className="text-sm text-red-700">{pincodeCheck.reason || "Delivery not available to this pincode"}</p>
+                        </div>
+                      )}
+                    </div>
                   )}
                 </div>
               )}
