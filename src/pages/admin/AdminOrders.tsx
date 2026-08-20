@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import AdminLayout from "@/components/admin/AdminLayout";
@@ -44,7 +44,7 @@ import { toast } from "sonner";
 import { geocodeAddress } from "@/lib/geocode";
 
 // ── DeliveryMap: shows a map from stored coords, or geocodes the address text on the fly ──
-function DeliveryMap({
+export function DeliveryMap({
   latitude,
   longitude,
   addressText,
@@ -60,33 +60,33 @@ function DeliveryMap({
     latitude && longitude ? { lat: latitude, lng: longitude } : null
   );
   const [geocoding, setGeocoding] = useState(false);
-  const [geocoded, setGeocoded] = useState(false);
+  const geocodingRef = useRef(false);
 
   // Sync when stored coords arrive later (dialog opens with new order)
   useEffect(() => {
     if (latitude && longitude) {
       setCoords({ lat: latitude, lng: longitude });
-      setGeocoded(false);
     }
   }, [latitude, longitude]);
 
   // If no coords, auto-geocode the address text once
   useEffect(() => {
-    if (coords || geocoding || geocoded || !addressText) return;
+    if (coords || geocodingRef.current || !addressText) return;
+    geocodingRef.current = true;
+    setGeocoding(true);
     let cancelled = false;
-    (async () => {
-      setGeocoding(true);
-      const geo = await geocodeAddress(addressText);
-      if (!cancelled && geo) {
-        setCoords({ lat: geo.latitude, lng: geo.longitude });
+    geocodeAddress(addressText).then((geo) => {
+      if (!cancelled) {
+        if (geo) setCoords({ lat: geo.latitude, lng: geo.longitude });
+        setGeocoding(false);
       }
+    }).catch(() => {
       if (!cancelled) {
         setGeocoding(false);
-        setGeocoded(true);
       }
-    })();
+    });
     return () => { cancelled = true; };
-  }, [coords, geocoding, geocoded, addressText]);
+  }, [coords, addressText]);
 
   const lat = coords?.lat ?? latitude;
   const lng = coords?.lng ?? longitude;
