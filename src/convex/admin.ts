@@ -240,10 +240,14 @@ export const getOrderById = query({
         return { ...item, product };
       })
     );
+    const address = order.addressId ? await ctx.db.get(order.addressId) : null;
     return {
       ...order,
       items: itemsWithProducts,
       userName: user?.name || user?.email || "Unknown",
+      userEmail: user?.email || "",
+      userPhone: user?.phone || "",
+      address,
     };
   },
 });
@@ -255,9 +259,12 @@ export const updateOrderStatus = mutation({
       v.literal("pending"),
       v.literal("confirmed"),
       v.literal("processing"),
-      v.literal("shipped"),
+      v.literal("ready_for_dispatch"),
+      v.literal("out_for_delivery"),
       v.literal("delivered"),
       v.literal("cancelled"),
+      v.literal("refund_initiated"),
+      v.literal("refunded"),
     ),
   },
   handler: async (ctx, args) => {
@@ -287,16 +294,22 @@ export const updateOrderStatus = mutation({
     const statusTitles: Record<string, string> = {
       confirmed: "Order Confirmed ✓",
       processing: "Order Being Prepared",
-      shipped: "Order Shipped 🚚",
+      ready_for_dispatch: "Ready for Dispatch 📦",
+      out_for_delivery: "Out for Delivery 🚚",
       delivered: "Order Delivered ✓",
       cancelled: "Order Cancelled",
+      refund_initiated: "Refund Initiated",
+      refunded: "Refund Completed ✓",
     };
     const statusBodies: Record<string, string> = {
       confirmed: `Your order ${order.invoiceNumber || ""} has been confirmed and is being processed.`,
       processing: `Your order ${order.invoiceNumber || ""} is being packed by our pharmacist.`,
-      shipped: `Your order ${order.invoiceNumber || ""} is on its way to you.`,
+      ready_for_dispatch: `Your order ${order.invoiceNumber || ""} has been packed and is ready for dispatch.`,
+      out_for_delivery: `Your order ${order.invoiceNumber || ""} is on its way to you.`,
       delivered: `Your order ${order.invoiceNumber || ""} has been delivered. We hope you feel better soon!`,
       cancelled: `Your order ${order.invoiceNumber || ""} has been cancelled.${order.paymentMethod === "online" ? " A refund will be initiated." : ""}`,
+      refund_initiated: `Your refund for order ${order.invoiceNumber || ""} has been initiated. It will be processed within 5-7 business days.`,
+      refunded: `Your refund for order ${order.invoiceNumber || ""} has been completed.`,
     };
     if (statusTitles[args.status]) {
       await ctx.db.insert("notifications", {

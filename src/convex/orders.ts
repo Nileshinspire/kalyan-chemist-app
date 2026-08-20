@@ -26,7 +26,6 @@ export const getById = query({
     if (!order) return null;
     if (userId === null || order.userId !== userId) return null;
 
-    // Fetch product details for each line item
     const itemsWithProducts = await Promise.all(
       order.items.map(async (item) => {
         const product = await ctx.db.get(item.productId);
@@ -34,7 +33,9 @@ export const getById = query({
       })
     );
 
-    return { ...order, items: itemsWithProducts };
+    const address = order.addressId ? await ctx.db.get(order.addressId) : null;
+
+    return { ...order, items: itemsWithProducts, address };
   },
 });
 
@@ -44,7 +45,9 @@ export const create = mutation({
     shippingAddress: v.string(),
     phone: v.string(),
     paymentMethod: v.union(v.literal("cod"), v.literal("online")),
+    addressId: v.optional(v.id("addresses")),
     notes: v.optional(v.string()),
+    prescriptionId: v.optional(v.id("prescriptions")),
     razorpayOrderId: v.optional(v.string()),
     razorpayPaymentId: v.optional(v.string()),
     razorpaySignature: v.optional(v.string()),
@@ -61,9 +64,35 @@ export const create = mutation({
 
     if (cartItems.length === 0) throw new Error("Cart is empty");
 
-    // Build order items and compute total
+    // Check prescription requirement
+    let hasRxItems = false;
+    for (const ci of cartItems) {
+      const product = await ctx.db.get(ci.productId);
+      if (product && product.prescriptionRequired) {
+        hasRxItems = true;
+        break;
+      }
+    }
+
+    if (hasRxItems && !args.prescriptionId) {
+      // Validate that user has an approved prescription
+      const approved = await ctx.db
+        .query("prescriptions")
+        .withIndex("by_user_status", (q) =>
+          q.eq("userId", userId).eq("status", "approved")
+        )
+        .first();
+      if (!approved) {
+        throw new Error(
+          "Prescription required for Rx medicines. Please upload an approved prescription."
+        );
+      }
+    }
+
+    // Build order items and compute totals
     const orderItems: { productId: any; name: string; price: number; quantity: number }[] = [];
-    let totalAmount = 0;
+    let subtotal = 0;
+    let discount = 0;
 
     for (const ci of cartItems) {
       const product = await ctx.db.get(ci.productId);
@@ -71,9 +100,12 @@ export const create = mutation({
         throw new Error(`Product "${ci.productId}" is no longer available`);
       }
       if (product.stockQuantity < ci.quantity) {
-        throw new Error(`Insufficient stock for "${product.name}"`);
+        throw new Error(
+          `Insufficient stock for "${product.name}". Available: ${product.stockQuantity}`
+        );
       }
 
+      const originalPrice = product.price;
       const effectivePrice =
         product.discountPrice && product.discountPrice < product.price
           ? product.discountPrice
@@ -86,37 +118,38 @@ export const create = mutation({
         quantity: ci.quantity,
       });
 
-      totalAmount += effectivePrice * ci.quantity;
+      subtotal += effectivePrice * ci.quantity;
+      discount += (originalPrice - effectivePrice) * ci.quantity;
 
-      // Decrement stock
+      // Decrement stock (atomic-style reservation)
       await ctx.db.patch(product._id, {
         stockQuantity: product.stockQuantity - ci.quantity,
       });
     }
+
+    // Delivery fee (free above ₹500)
+    const deliveryFee = subtotal >= 500 ? 0 : 49;
+    // GST 12% on medicines
+    const tax = Math.round(subtotal * 0.12);
+    const totalAmount = subtotal + deliveryFee + tax;
 
     // Generate invoice number
     const allOrders = await ctx.db.query("orders").collect();
     const orderCount = allOrders.length;
     const invoiceNumber = `KC-${String(orderCount + 1).padStart(5, "0")}`;
 
-    // Create order notification
-    await ctx.db.insert("notifications", {
-      userId,
-      type: "order_status",
-      title: "Order Placed Successfully ✓",
-      body: `Your order has been placed. Total: ₹${totalAmount.toLocaleString("en-IN")}. You will receive updates as your order progresses.`,
-      read: false,
-      link: undefined, // Will be set after order creation
-      createdAt: Date.now(),
-    });
-
     // Create order
     const now = Date.now();
     const orderId = await ctx.db.insert("orders", {
       userId,
       items: orderItems,
+      subtotal,
+      discount,
+      deliveryFee,
+      tax,
       totalAmount,
       shippingAddress: args.shippingAddress,
+      addressId: args.addressId,
       phone: args.phone,
       status: "pending",
       paymentMethod: args.paymentMethod,
@@ -125,9 +158,21 @@ export const create = mutation({
       razorpayPaymentId: args.razorpayPaymentId,
       razorpaySignature: args.razorpaySignature,
       invoiceNumber,
+      prescriptionId: args.prescriptionId,
       notes: args.notes,
       createdAt: now,
       updatedAt: now,
+    });
+
+    // Create order notification
+    await ctx.db.insert("notifications", {
+      userId,
+      type: "order_status",
+      title: "Order Placed Successfully ✓",
+      body: `Your order ${invoiceNumber} has been placed. Total: ₹${totalAmount.toLocaleString("en-IN")}. You will receive updates as your order progresses.`,
+      read: false,
+      link: `/orders/${orderId}`,
+      createdAt: now,
     });
 
     // Clear cart
@@ -139,13 +184,9 @@ export const create = mutation({
   },
 });
 
-// ── Confirm payment for an online order ──
-export const confirmPayment = mutation({
-  args: {
-    orderId: v.id("orders"),
-    razorpayPaymentId: v.string(),
-    razorpaySignature: v.string(),
-  },
+// ── Reorder: add eligible products from a previous order to cart ──
+export const reorder = mutation({
+  args: { orderId: v.id("orders") },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) throw new Error("Not authenticated");
@@ -153,30 +194,47 @@ export const confirmPayment = mutation({
     const order = await ctx.db.get(args.orderId);
     if (!order || order.userId !== userId) throw new Error("Order not found");
 
-    if (order.paymentStatus === "paid") {
-      return { success: true, alreadyPaid: true };
+    let added = 0;
+    let skipped = 0;
+
+    for (const item of order.items) {
+      const product = await ctx.db.get(item.productId);
+      if (!product || !product.isActive || product.stockQuantity < item.quantity) {
+        skipped++;
+        continue;
+      }
+
+      // Check if already in cart
+      const existing = await ctx.db
+        .query("cart_items")
+        .withIndex("by_user_product", (q) =>
+          q.eq("userId", userId).eq("productId", item.productId)
+        )
+        .first();
+
+      if (existing) {
+        const newQty = existing.quantity + item.quantity;
+        if (newQty <= product.stockQuantity) {
+          await ctx.db.patch(existing._id, { quantity: newQty });
+          added++;
+        } else {
+          skipped++;
+        }
+      } else {
+        await ctx.db.insert("cart_items", {
+          userId,
+          productId: item.productId,
+          quantity: item.quantity,
+        });
+        added++;
+      }
     }
 
-    await ctx.db.patch(args.orderId, {
-      paymentStatus: "paid",
-      razorpayPaymentId: args.razorpayPaymentId,
-      razorpaySignature: args.razorpaySignature,
-      status: "confirmed",
-      updatedAt: Date.now(),
-    });
+    if (added === 0 && skipped > 0) {
+      throw new Error("No products from this order are currently available");
+    }
 
-    // Notify user of confirmation
-    await ctx.db.insert("notifications", {
-      userId,
-      type: "order_status",
-      title: "Payment Confirmed ✓",
-      body: `Your payment for order ${order.invoiceNumber || ""} has been confirmed. Your order is now being processed.`,
-      read: false,
-      link: `/orders/${args.orderId}`,
-      createdAt: Date.now(),
-    });
-
-    return { success: true };
+    return { success: true, added, skipped };
   },
 });
 
@@ -208,7 +266,6 @@ export const cancel = mutation({
       updatedAt: Date.now(),
     });
 
-    // Notify user of cancellation
     await ctx.db.insert("notifications", {
       userId,
       type: "order_status",
@@ -236,11 +293,12 @@ export const getTracking = query({
       { status: "pending", label: "Order Placed", description: "Your order has been received and is awaiting confirmation." },
       { status: "confirmed", label: "Order Confirmed", description: "Your order has been confirmed by our pharmacy team." },
       { status: "processing", label: "Being Prepared", description: "Your medicines are being packed and verified by our pharmacist." },
-      { status: "shipped", label: "Shipped", description: "Your order is on its way to your delivery address." },
+      { status: "ready_for_dispatch", label: "Ready for Dispatch", description: "Your order has been packed and is ready for dispatch." },
+      { status: "out_for_delivery", label: "Out for Delivery", description: "Your order is on its way to your delivery address." },
       { status: "delivered", label: "Delivered", description: "Your order has been delivered successfully." },
     ];
 
-    const statusOrder = ["pending", "confirmed", "processing", "shipped", "delivered"];
+    const statusOrder = ["pending", "confirmed", "processing", "ready_for_dispatch", "out_for_delivery", "delivered"];
     const currentIdx = order.status === "cancelled"
       ? -1
       : statusOrder.indexOf(order.status);

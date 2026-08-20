@@ -19,18 +19,24 @@ export const ORDER_STATUS = {
   PENDING: "pending",
   CONFIRMED: "confirmed",
   PROCESSING: "processing",
-  SHIPPED: "shipped",
+  READY_FOR_DISPATCH: "ready_for_dispatch",
+  OUT_FOR_DELIVERY: "out_for_delivery",
   DELIVERED: "delivered",
   CANCELLED: "cancelled",
+  REFUND_INITIATED: "refund_initiated",
+  REFUNDED: "refunded",
 } as const;
 
 export const orderStatusValidator = v.union(
   v.literal(ORDER_STATUS.PENDING),
   v.literal(ORDER_STATUS.CONFIRMED),
   v.literal(ORDER_STATUS.PROCESSING),
-  v.literal(ORDER_STATUS.SHIPPED),
+  v.literal(ORDER_STATUS.READY_FOR_DISPATCH),
+  v.literal(ORDER_STATUS.OUT_FOR_DELIVERY),
   v.literal(ORDER_STATUS.DELIVERED),
   v.literal(ORDER_STATUS.CANCELLED),
+  v.literal(ORDER_STATUS.REFUND_INITIATED),
+  v.literal(ORDER_STATUS.REFUNDED),
 );
 
 // Payment methods
@@ -174,8 +180,13 @@ const schema = defineSchema(
           quantity: v.number(),
         })
       ),
+      subtotal: v.number(),
+      discount: v.number(),
+      deliveryFee: v.number(),
+      tax: v.number(),
       totalAmount: v.number(),
       shippingAddress: v.string(),
+      addressId: v.optional(v.id("addresses")),
       phone: v.string(),
       status: orderStatusValidator,
       paymentMethod: paymentMethodValidator,
@@ -189,6 +200,7 @@ const schema = defineSchema(
       razorpayPaymentId: v.optional(v.string()),
       razorpaySignature: v.optional(v.string()),
       invoiceNumber: v.optional(v.string()),
+      prescriptionId: v.optional(v.id("prescriptions")),
       notes: v.optional(v.string()),
       createdAt: v.number(),
       updatedAt: v.number(),
