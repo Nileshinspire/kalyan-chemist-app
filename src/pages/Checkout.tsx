@@ -32,6 +32,7 @@ import {
   Lock,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/auth-utils";
+import { geocodeAddress } from "@/lib/geocode";
 import { toast } from "sonner";
 import type { RazorpayResponse } from "@/types/global";
 
@@ -245,6 +246,17 @@ export default function Checkout() {
     }
     setPlacing(true);
     try {
+      // Auto-geocode the delivery address if no coordinates are stored yet
+      let deliveryLatitude = selectedAddress.latitude ?? undefined;
+      let deliveryLongitude = selectedAddress.longitude ?? undefined;
+      if (!deliveryLatitude || !deliveryLongitude) {
+        const geo = await geocodeAddress(addressToString(selectedAddress));
+        if (geo) {
+          deliveryLatitude = geo.latitude;
+          deliveryLongitude = geo.longitude;
+        }
+      }
+
       // For online payments, we first create the order, then open Razorpay
       const result = await createOrder({
         shippingAddress: addressToString(selectedAddress),
@@ -253,8 +265,8 @@ export default function Checkout() {
         paymentMethod,
         notes: notes.trim() || undefined,
         prescriptionId: (selectedPrescriptionId as any) || undefined,
-        deliveryLatitude: selectedAddress.latitude ?? undefined,
-        deliveryLongitude: selectedAddress.longitude ?? undefined,
+        deliveryLatitude,
+        deliveryLongitude,
       });
 
       if (paymentMethod === "online") {
