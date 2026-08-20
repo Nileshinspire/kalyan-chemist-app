@@ -2,6 +2,7 @@
 
 import { action } from "./_generated/server";
 import { v } from "convex/values";
+import { normalizeIndianPhone } from "../lib/phone";
 
 // ── Twilio client (lazy init) ──
 let twilioClient: any = null;
@@ -59,17 +60,10 @@ export const sendOrderStatusSms = action({
     }
 
     // Normalize phone to E.164 for India (+91...)
-    let toPhone = args.toPhone.trim();
-    if (!toPhone.startsWith("+")) {
-      // Strip leading 0 or 91 prefix
-      const digits = toPhone.replace(/\D/g, "");
-      if (digits.length === 10) {
-        toPhone = `+91${digits}`;
-      } else if (digits.length === 12 && digits.startsWith("91")) {
-        toPhone = `+${digits}`;
-      } else {
-        toPhone = `+91${digits}`;
-      }
+    const toPhone = normalizeIndianPhone(args.toPhone);
+    if (!toPhone) {
+      console.log(`[SMS] Invalid phone number: ${args.toPhone}`);
+      return { sent: false, reason: "invalid_phone" };
     }
 
     const templateFn = ORDER_STATUS_SMS[args.status];
@@ -111,16 +105,9 @@ export const sendGenericSms = action({
       return { sent: false, reason: "no_twilio_config" };
     }
 
-    let toPhone = args.toPhone.trim();
-    if (!toPhone.startsWith("+")) {
-      const digits = toPhone.replace(/\D/g, "");
-      if (digits.length === 10) {
-        toPhone = `+91${digits}`;
-      } else if (digits.length === 12 && digits.startsWith("91")) {
-        toPhone = `+${digits}`;
-      } else {
-        toPhone = `+91${digits}`;
-      }
+    const toPhone = normalizeIndianPhone(args.toPhone);
+    if (!toPhone) {
+      return { sent: false, reason: "invalid_phone" };
     }
 
     try {
