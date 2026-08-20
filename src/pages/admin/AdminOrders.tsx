@@ -184,6 +184,7 @@ export default function AdminOrders() {
   );
   const updateStatus = useMutation(api.admin.updateOrderStatus);
   const sendEmail = useAction(api.emailService.sendOrderStatusEmail);
+  const sendSms = useAction(api.smsService.sendOrderStatusSms);
 
   const filteredOrders = orders?.filter((o: any) => {
     const matchesSearch =
@@ -214,6 +215,14 @@ export default function AdminOrders() {
           status: newStatus,
           invoiceNumber: orderDetail.invoiceNumber || orderId.slice(-6),
           paymentMethod: orderDetail.paymentMethod || "cod",
+        }).catch(() => {}); // non-blocking
+      }
+      // Send SMS notification (non-blocking)
+      if (orderDetail?.userPhone || orderDetail?.phone) {
+        sendSms({
+          toPhone: orderDetail.userPhone || orderDetail.phone,
+          status: newStatus,
+          invoiceNumber: orderDetail.invoiceNumber || orderId.slice(-6),
         }).catch(() => {}); // non-blocking
       }
     } catch (error: any) {

@@ -19,6 +19,7 @@ import {
   Mail,
   Globe,
   Settings,
+  MessageSquare,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
@@ -59,6 +60,12 @@ export default function AccountNotifications() {
     }
     return true;
   });
+  const [smsEnabled, setSmsEnabled] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("kc_sms_notifications") !== "false";
+    }
+    return true;
+  });
 
   // Save preferences to localStorage
   useEffect(() => {
@@ -72,6 +79,17 @@ export default function AccountNotifications() {
       localStorage.setItem("kc_browser_notifications", String(browserEnabled));
     }
   }, [browserEnabled]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("kc_sms_notifications", String(smsEnabled));
+    }
+  }, [smsEnabled]);
+
+  const handleSmsToggle = async (checked: boolean) => {
+    setSmsEnabled(checked);
+    toast.success(checked ? "SMS notifications enabled" : "SMS notifications disabled");
+  };
 
   const handleBrowserToggle = async (checked: boolean) => {
     if (checked && "Notification" in window && Notification.permission !== "granted") {
@@ -162,6 +180,19 @@ export default function AccountNotifications() {
               </div>
             </div>
             <Switch checked={browserEnabled} onCheckedChange={handleBrowserToggle} />
+          </div>
+          <Separator />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="size-9 rounded-xl bg-green-50 flex items-center justify-center">
+                <MessageSquare className="size-4 text-green-600" />
+              </div>
+              <div>
+                <p className="text-sm font-medium">SMS Notifications</p>
+                <p className="text-xs text-muted-foreground">Receive order updates via text message</p>
+              </div>
+            </div>
+            <Switch checked={smsEnabled} onCheckedChange={handleSmsToggle} />
           </div>
         </CardContent>
       </Card>
