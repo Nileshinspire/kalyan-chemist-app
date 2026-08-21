@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { Id } from "@/convex/_generated/dataModel";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -64,6 +65,10 @@ export default function AccountPrescriptions() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const detailRx = prescriptions?.find((rx) => rx._id === showDetailDialog);
+  const fileUrl = useQuery(
+    api.prescriptions.getFileUrl,
+    showDetailDialog ? { prescriptionId: showDetailDialog as Id<"prescriptions"> } : "skip"
+  );
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0];
@@ -365,18 +370,75 @@ export default function AccountPrescriptions() {
                 </DialogHeader>
 
                 <div className="space-y-4">
-                  {/* File Info */}
-                  <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-xl">
-                    {detailRx.fileType === "application/pdf" ? (
-                      <FileText className="size-8 text-primary" />
-                    ) : (
-                      <Image className="size-8 text-primary" />
-                    )}
-                    <div>
-                      <p className="text-sm font-medium text-foreground">{detailRx.fileName}</p>
-                      <p className="text-xs text-muted-foreground">{(detailRx.fileSize / 1024).toFixed(1)} KB</p>
+                  {/* File Preview */}
+                  {fileUrl && (
+                    <div className="border border-border/60 rounded-xl overflow-hidden bg-muted/20">
+                      {detailRx.fileType === "application/pdf" ? (
+                        <div className="p-4">
+                          <div className="flex items-center gap-3 p-4 bg-muted/40 rounded-xl">
+                            <FileText className="size-10 text-primary" />
+                            <div>
+                              <p className="text-sm font-medium text-foreground">{detailRx.fileName}</p>
+                              <p className="text-xs text-muted-foreground">PDF — {(detailRx.fileSize / 1024).toFixed(1)} KB</p>
+                            </div>
+                          </div>
+                          <div className="mt-3 flex gap-2">
+                            <a
+                              href={fileUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary border border-primary/20 rounded-xl hover:bg-primary/5 transition-colors"
+                            >
+                              <Eye className="size-4" />
+                              Open in New Tab
+                            </a>
+                            <a
+                              href={fileUrl}
+                              download={detailRx.fileName}
+                              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-muted-foreground border border-border/60 rounded-xl hover:bg-muted/50 transition-colors"
+                            >
+                              <Upload className="size-4" />
+                              Download
+                            </a>
+                          </div>
+                        </div>
+                      ) : detailRx.fileType.startsWith("image/") ? (
+                        <div className="p-2">
+                          <img
+                            src={fileUrl}
+                            alt={`Prescription for ${detailRx.patientName}`}
+                            className="w-full rounded-lg object-contain max-h-[400px]"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = "none";
+                            }}
+                          />
+                          <div className="flex justify-center gap-2 mt-2 pb-2">
+                            <a
+                              href={fileUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary border border-primary/20 rounded-xl hover:bg-primary/5 transition-colors"
+                            >
+                              <Eye className="size-4" />
+                              Open Full Size
+                            </a>
+                            <a
+                              href={fileUrl}
+                              download={detailRx.fileName}
+                              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-muted-foreground border border-border/60 rounded-xl hover:bg-muted/50 transition-colors"
+                            >
+                              <Upload className="size-4" />
+                              Download
+                            </a>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="p-4 text-center text-sm text-muted-foreground">
+                          Unsupported file type
+                        </div>
+                      )}
                     </div>
-                  </div>
+                  )}
 
                   {/* Details */}
                   <div className="grid grid-cols-2 gap-3 text-sm">

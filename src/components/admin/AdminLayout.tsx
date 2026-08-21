@@ -22,6 +22,7 @@ import {
   Warehouse,
   Truck,
   MessageCircle,
+  FileCheck2,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -31,6 +32,7 @@ const NAV_ITEMS = [
   { label: "Brands", path: "/admin/brands", icon: Building2 },
   { label: "Inventory", path: "/admin/inventory", icon: Warehouse },
   { label: "Orders", path: "/admin/orders", icon: ClipboardList },
+  { label: "Prescriptions", path: "/admin/prescriptions", icon: FileCheck2 },
   { label: "Customers", path: "/admin/users", icon: Users },
   { label: "Coupons", path: "/admin/coupons", icon: Ticket },
   { label: "Reviews", path: "/admin/reviews", icon: Star },
