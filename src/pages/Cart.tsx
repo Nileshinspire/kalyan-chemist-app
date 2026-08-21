@@ -41,6 +41,7 @@ export default function Cart() {
   const removeItem = useMutation(api.cart.removeItem);
   const clearCart = useMutation(api.cart.clear);
   const deliveryConfig = useQuery(api.deliveryConfig.getPublic);
+  const logWhatsApp = useMutation(api.whatsappEnquiries.log);
 
   const handleUpdateQuantity = async (cartItemId: string, newQty: number) => {
     try {
@@ -176,7 +177,15 @@ export default function Cart() {
           ? item.product!.discountPrice!
           : item.product!.price,
       }));
-    openWhatsApp(phone, generateCartMessage({ products, subtotal }));
+    const msg = generateCartMessage({ products, subtotal });
+    openWhatsApp(phone, msg);
+    logWhatsApp({
+      type: "cart",
+      message: msg,
+      summary: `Cart enquiry — ${products.length} item(s), total ₹${subtotal.toLocaleString("en-IN")}`,
+      itemCount: products.length,
+      totalAmount: subtotal,
+    }).catch(() => {});
   };
 
   return (

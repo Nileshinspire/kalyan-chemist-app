@@ -114,6 +114,39 @@ export function generateProductMessage(params: {
 }
 
 /**
+ * Generate a general enquiry message for the homepage
+ */
+export function generateEnquiryMessage(params: {
+  customerName?: string;
+  enquiryType?: string;
+}): string {
+  const lines: string[] = [];
+
+  lines.push("💊 *Kalyan Chemist — Enquiry*");
+  lines.push("");
+
+  if (params.customerName) {
+    lines.push(`👤 Name: ${params.customerName}`);
+  }
+
+  if (params.enquiryType) {
+    lines.push(`📋 Type: ${params.enquiryType}`);
+  }
+
+  lines.push("");
+  lines.push("Hi, I would like to enquire about your services.");
+  lines.push("");
+  lines.push("Please assist me with:");
+  lines.push("• Medicine availability");
+  lines.push("• Pricing information");
+  lines.push("• Delivery options");
+  lines.push("");
+  lines.push("Thank you!");
+
+  return lines.join("\n");
+}
+
+/**
  * Open WhatsApp with a pre-filled message
  * @param phone - Phone number (with or without country code)
  * @param message - Pre-filled message text

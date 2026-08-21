@@ -23,11 +23,13 @@ import {
   Search,
   Upload,
   ShoppingCart,
+  MessageCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router";
 import { useRef } from "react";
+import { openWhatsApp, generateEnquiryMessage } from "@/lib/whatsapp";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { formatCurrency } from "@/lib/auth-utils";
@@ -97,6 +99,9 @@ export default function Landing() {
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] });
   const heroY = useTransform(scrollYProgress, [0, 1], [0, 120]);
   const heroOpacity = useTransform(scrollYProgress, [0, 0.8], [1, 0]);
+
+  const logWhatsApp = useMutation(api.whatsappEnquiries.log);
+  const deliveryConfig = useQuery(api.deliveryConfig.getPublic);
 
   const addToCart = useMutation(api.cart.addItem);
 
@@ -192,6 +197,28 @@ export default function Landing() {
               >
                 <Upload className="size-4" />
                 Upload Prescription
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                className="text-sm font-semibold px-8 h-12 border-green-600/60 text-green-700 hover:border-green-500 hover:bg-green-50 hover:text-green-700 transition-all rounded-xl gap-2"
+                onClick={async () => {
+                  const phone = deliveryConfig?.storeWhatsApp || deliveryConfig?.storePhone || "919876543210";
+                  const message = generateEnquiryMessage({ enquiryType: "General Enquiry" });
+                  try {
+                    await logWhatsApp({
+                      type: "enquiry",
+                      message,
+                      summary: "General enquiry from homepage",
+                    });
+                  } catch {
+                    // Log failure silently — WhatsApp should still open
+                  }
+                  openWhatsApp(phone, message);
+                }}
+              >
+                <MessageCircle className="size-4" />
+                WhatsApp Enquiry
               </Button>
             </motion.div>
 

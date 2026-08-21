@@ -21,6 +21,7 @@ import {
   Building2,
   Warehouse,
   Truck,
+  MessageCircle,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -35,6 +36,7 @@ const NAV_ITEMS = [
   { label: "Reviews", path: "/admin/reviews", icon: Star },
   { label: "Reports", path: "/admin/reports", icon: BarChart3 },
   { label: "Delivery Settings", path: "/admin/delivery", icon: Truck },
+  { label: "WhatsApp Enquiries", path: "/admin/whatsapp", icon: MessageCircle },
 ];
 
 const AdminLayout = memo(function AdminLayout({

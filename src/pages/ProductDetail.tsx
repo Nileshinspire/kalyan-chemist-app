@@ -53,6 +53,7 @@ export default function ProductDetail() {
   );
 
   const deliveryConfig = useQuery(api.deliveryConfig.getPublic);
+  const logWhatsApp = useMutation(api.whatsappEnquiries.log);
 
   const handleAddToCart = async () => {
     if (!product) return;
@@ -105,6 +106,14 @@ export default function ProductDetail() {
       packSize: p.packSize,
     });
     openWhatsApp(phone, msg);
+    logWhatsApp({
+      type: "product",
+      message: msg,
+      summary: `Product enquiry — ${p.name}`,
+      productId: p._id,
+      productName: p.name,
+      totalAmount: hasDiscount ? p.discountPrice! : p.price,
+    }).catch(() => {});
   };
 
   if (product === undefined) {

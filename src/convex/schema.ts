@@ -390,6 +390,29 @@ const schema = defineSchema(
       ),
       updatedAt: v.number(),
     }),
+    // ── WhatsApp Enquiries & Orders Tracking ──
+    whatsapp_enquiries: defineTable({
+      userId: v.optional(v.id("users")),
+      type: v.union(v.literal("enquiry"), v.literal("order"), v.literal("cart"), v.literal("product")),
+      customerName: v.optional(v.string()),
+      customerPhone: v.optional(v.string()),
+      message: v.string(),
+      summary: v.string(),
+      // For product-specific enquiries
+      productId: v.optional(v.id("products")),
+      productName: v.optional(v.string()),
+      // For cart/order enquiries
+      itemCount: v.optional(v.number()),
+      totalAmount: v.optional(v.number()),
+      // Admin tracking
+      viewed: v.boolean(),
+      viewedAt: v.optional(v.number()),
+      adminNotes: v.optional(v.string()),
+      createdAt: v.number(),
+    })
+      .index("by_type", ["type"])
+      .index("by_createdAt", ["createdAt"])
+      .index("by_viewed", ["viewed"]),
   },
   {
     schemaValidation: false,
