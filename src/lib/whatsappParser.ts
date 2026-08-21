@@ -177,10 +177,13 @@ export function detectIntent(message: string): MessageIntent {
   }
 
   // Check for pure positive response (short or exact match)
-  // If the message starts with a positive word, treat it as positive even if it has other words
+  // If the message starts with a positive word and doesn't clearly contain medicine names, treat as positive
   if (isPositiveResponse(cleaned)) {
     const startsWithPositive = POSITIVE_RESPONSES.some((r) => cleaned.startsWith(r));
-    if (!hasMedicineWords(cleaned) || startsWithPositive) {
+    if (startsWithPositive && !containsMedicineName(cleaned)) {
+      return { type: "positive_response" };
+    }
+    if (!hasMedicineWords(cleaned)) {
       return { type: "positive_response" };
     }
   }
@@ -277,10 +280,13 @@ function isDoneResponse(message: string): boolean {
  */
 function looksLikeAddress(message: string): boolean {
   // Skip messages that are clearly medicine requests
-  const medicineVerbs = ["need", "want", "buy", "order", "looking for", "search for"];
+  const medicineVerbs = ["need", "want", "buy", "order", "looking for", "search for", "give", "get", "send", "find", "show", "actually"];
   for (const v of medicineVerbs) {
     if (message.startsWith(v + " ")) return false;
   }
+
+  // Skip messages containing medicine-like word patterns (word followed by dosage number)
+  if (/\b(crocin|dolo|paracetamol|crocin|combiflam|panadol|calpol|ibuprofen|amoxicillin|azithromycin|cetirizine|omeprazole|metformin|atorvastatin|losartan|amlodipine|pantoprazole|cephalexin|doxycycline)\b/.test(message)) return false;
 
   // Contains a 6-digit pincode
   if (/\b\d{6}\b/.test(message)) return true;
@@ -368,6 +374,17 @@ function extractQuantityOnly(message: string): number | null {
 }
 
 // ── Medicine Detection ──
+
+function containsMedicineName(message: string): boolean {
+  // Check if message contains a known medicine brand name
+  const medicineNames = ["crocin", "dolo", "paracetamol", "combiflam", "panadol", "calpol", "ibuprofen", "amoxicillin", "azithromycin", "cetirizine", "omeprazole", "metformin", "atorvastatin", "losartan", "amlodipine", "pantoprazole", "cephalexin", "doxycycline"];
+  for (const name of medicineNames) {
+    if (message.includes(name)) return true;
+  }
+  // Also check for dosage patterns that suggest medicine: word + 3-digit number
+  if (/\b[a-z]{3,}\s+\d{2,3}\b/.test(message)) return true;
+  return false;
+}
 
 function hasMedicineWords(message: string): boolean {
   if (/\d+\s*(mg|ml|g|mcg|iu)/i.test(message)) return true;

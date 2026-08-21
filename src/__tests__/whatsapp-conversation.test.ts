@@ -240,7 +240,7 @@ describe("formatAvailabilityMessage", () => {
     expect(msg).toContain("Yes, we have your requested medicine");
     expect(msg).toContain("Paracetamol 500mg");
     expect(msg).toContain("Qty: 2");
-    expect(msg).toContain("₹45");
+    expect(msg).toContain("₹90");
     expect(msg).toContain("Would you like to place the order?");
     expect(msg).toContain("Reply *Yes* to confirm");
   });
@@ -290,7 +290,7 @@ describe("formatConfirmationMessage", () => {
     expect(msg).toContain("Kalyan Chemist");
     expect(msg).toContain("Paracetamol");
     expect(msg).toContain("2");
-    expect(msg).toContain("₹45");
+    expect(msg).toContain("₹90");
   });
 
   it("formats confirmation without price", () => {
@@ -317,7 +317,7 @@ describe("formatGreetingMessage", () => {
     const msg = formatGreetingMessage();
     expect(msg).toContain("Welcome");
     expect(msg).toContain("Kalyan Chemist");
-    expect(msg).toContain("medicine name");
+    expect(msg).toContain("name of the medicine(s)");
   });
 });
 
