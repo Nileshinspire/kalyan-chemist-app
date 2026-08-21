@@ -30,6 +30,8 @@ import {
   IndianRupee,
   Check,
   Lock,
+  Tag,
+  X,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/auth-utils";
 import { geocodeAddress } from "@/lib/geocode";
@@ -69,6 +71,12 @@ export default function Checkout() {
   const [notes, setNotes] = useState("");
   const [placing, setPlacing] = useState(false);
   const [paymentProcessing, setPaymentProcessing] = useState(false);
+  const [couponCode, setCouponCode] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<{
+    code: string;
+    discount: number;
+    message: string;
+  } | null>(null);
 
   const cartItems = useQuery(api.cart.list);
   const addresses = useQuery(api.addresses.list);
@@ -108,6 +116,11 @@ export default function Checkout() {
     };
   }, [cartItems]);
 
+  // Final total with coupon discount
+  const finalTotal = useMemo(() => {
+    return Math.max(0, total - (appliedCoupon?.discount || 0));
+  }, [total, appliedCoupon]);
+
   const selectedAddress = addresses?.find((a: any) => a._id === selectedAddressId);
 
   // Extract pincode from selected address for serviceability check
@@ -116,6 +129,36 @@ export default function Checkout() {
     api.deliveryConfig.checkPincode,
     pincodeFromAddr && pincodeFromAddr.length === 6 ? { pincode: pincodeFromAddr } : "skip"
   );
+
+  // Coupon validation query (only run when coupon code entered and subtotal known)
+  const couponValidation = useQuery(
+    api.coupons.computeDiscount,
+    couponCode.trim().length >= 3 && subtotal > 0
+      ? { code: couponCode.trim(), subtotal }
+      : "skip"
+  );
+
+  const handleApplyCoupon = () => {
+    if (!couponCode.trim()) {
+      toast.error("Please enter a coupon code");
+      return;
+    }
+    if (couponValidation && couponValidation.valid) {
+      setAppliedCoupon({
+        code: couponValidation.code,
+        discount: couponValidation.discount,
+        message: couponValidation.message,
+      });
+      toast.success(couponValidation.message);
+    } else if (couponValidation && !couponValidation.valid) {
+      toast.error(couponValidation.reason);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponCode("");
+  };
 
   // Auto-select default address
   if (addresses && addresses.length > 0 && !selectedAddressId) {
@@ -273,6 +316,8 @@ export default function Checkout() {
         paymentMethod,
         notes: notes.trim() || undefined,
         prescriptionId: (selectedPrescriptionId as any) || undefined,
+        couponCode: appliedCoupon?.code,
+        couponDiscount: appliedCoupon?.discount,
         deliveryLatitude,
         deliveryLongitude,
       });
@@ -280,7 +325,7 @@ export default function Checkout() {
       if (paymentMethod === "online") {
         // Open Razorpay checkout for this order
         setPlacing(false);
-        await openRazorpayCheckout(result.orderId, result.invoiceNumber, result.totalAmount);
+        await openRazorpayCheckout(result.orderId, result.invoiceNumber, finalTotal);
       } else {
         // COD — order placed directly
         toast.success(`Order placed! Invoice: ${result.invoiceNumber}`);
@@ -535,7 +580,7 @@ export default function Checkout() {
                   {paymentMethod === "cod" && (
                     <div className="rounded-xl bg-blue-50 border border-blue-200 p-3 text-xs text-blue-800">
                       <p className="font-semibold">Payment on delivery</p>
-                      <p className="mt-1">Please keep exact change ready. Our delivery partner will collect ₹{total.toLocaleString("en-IN")} at the time of delivery.</p>
+                      <p className="mt-1">Please keep exact change ready. Our delivery partner will collect ₹{finalTotal.toLocaleString("en-IN")} at the time of delivery.</p>
                     </div>
                   )}
 
@@ -580,10 +625,18 @@ export default function Checkout() {
                       {deliveryFee === 0 ? "Free" : formatCurrency(deliveryFee)}
                     </span>
                   </div>
+                  {appliedCoupon && (
+                    <div className="flex justify-between text-green-600">
+                      <span className="flex items-center gap-1">
+                        <Tag className="size-3" /> {appliedCoupon.code}
+                      </span>
+                      <span className="font-medium">-{formatCurrency(appliedCoupon.discount)}</span>
+                    </div>
+                  )}
                   <Separator className="my-2" />
                   <div className="flex justify-between">
                     <span className="font-bold text-foreground">Total</span>
-                    <span className="font-extrabold text-lg text-foreground">{formatCurrency(total)}</span>
+                    <span className="font-extrabold text-lg text-foreground">{formatCurrency(finalTotal)}</span>
                   </div>
                 </div>
 
@@ -591,6 +644,41 @@ export default function Checkout() {
                   <p className="text-[10px] text-muted-foreground text-center">
                     Add {formatCurrency(500 - subtotal)} more for free delivery
                   </p>
+                )}
+
+                {/* Coupon Code */}
+                {appliedCoupon ? (
+                  <div className="flex items-center justify-between p-2 rounded-lg bg-green-50 border border-green-200">
+                    <div className="flex items-center gap-1.5">
+                      <Tag className="size-3 text-green-600" />
+                      <span className="text-xs font-semibold text-green-800">{appliedCoupon.code}</span>
+                      <span className="text-[10px] text-green-700">applied</span>
+                    </div>
+                    <button onClick={handleRemoveCoupon} className="text-green-600 hover:text-green-800">
+                      <X className="size-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Coupon code"
+                      value={couponCode}
+                      onChange={(e) => {
+                        setCouponCode(e.target.value.toUpperCase());
+                        setAppliedCoupon(null);
+                      }}
+                      className="flex-1 h-9 text-xs uppercase"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-9 text-xs"
+                      onClick={handleApplyCoupon}
+                      disabled={!couponCode.trim()}
+                    >
+                      Apply
+                    </Button>
+                  </div>
                 )}
 
                 {step < 3 ? (
@@ -611,8 +699,8 @@ export default function Checkout() {
                     {isProcessing ? <Loader2 className="size-4 animate-spin mr-2" /> : <CheckCircle2 className="size-4 mr-2" />}
                     {paymentProcessing ? "Processing Payment..." :
                      placing ? "Placing Order..." :
-                     paymentMethod === "online" ? `Pay ${formatCurrency(total)} Securely` :
-                     `Place Order · ${formatCurrency(total)}`}
+                     paymentMethod === "online" ? `Pay ${formatCurrency(finalTotal)} Securely` :
+                     `Place Order · ${formatCurrency(finalTotal)}`}
                   </Button>
                 )}
 

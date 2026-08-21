@@ -27,10 +27,14 @@ import {
   Package,
   Loader2,
   Info,
+  MessageCircle,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/auth-utils";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
+import { generateProductMessage, openWhatsApp } from "@/lib/whatsapp";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 
 export default function ProductDetail() {
   const { slug } = useParams<{ slug: string }>();
@@ -76,6 +80,9 @@ export default function ProductDetail() {
   );
   const toggleWishlist = useMutation(api.wishlist.toggle);
 
+  // Get delivery config for WhatsApp number
+  const deliveryConfig = useQuery(api.deliveryConfig.getPublic);
+
   const handleWishlist = async () => {
     if (!product) return;
     try {
@@ -83,6 +90,21 @@ export default function ProductDetail() {
     } catch (error: any) {
       toast.error(error.message || "Failed to update wishlist");
     }
+  };
+
+  const handleWhatsApp = () => {
+    const phone = deliveryConfig?.storeWhatsApp || deliveryConfig?.storePhone || "";
+    if (!phone) {
+      toast.error("WhatsApp number not configured. Please call us directly.");
+      return;
+    }
+    const msg = generateProductMessage({
+      productName: p.name,
+      price: hasDiscount ? p.discountPrice! : p.price,
+      composition: p.composition,
+      packSize: p.packSize,
+    });
+    openWhatsApp(phone, msg);
   };
 
   if (product === undefined) {
@@ -268,6 +290,17 @@ export default function ProductDetail() {
                 <Heart className={`size-4 ${isWishlisted ? "fill-rose-500" : ""}`} />
               </Button>
             </div>
+
+            {/* WhatsApp Order Button */}
+            <Button
+              size="lg"
+              variant="outline"
+              className="w-full h-11 text-sm font-semibold gap-2 rounded-xl border-green-200 text-green-700 hover:bg-green-50 hover:border-green-300"
+              onClick={handleWhatsApp}
+            >
+              <MessageCircle className="size-4" />
+              Order on WhatsApp
+            </Button>
 
             {/* Trust indicators */}
             <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">

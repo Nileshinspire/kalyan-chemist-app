@@ -53,6 +53,8 @@ export const create = mutation({
     razorpayOrderId: v.optional(v.string()),
     razorpayPaymentId: v.optional(v.string()),
     razorpaySignature: v.optional(v.string()),
+    couponCode: v.optional(v.string()),
+    couponDiscount: v.optional(v.number()),
     deliveryLatitude: v.optional(v.number()),
     deliveryLongitude: v.optional(v.number()),
   },
@@ -156,9 +158,37 @@ export const create = mutation({
     } else if (subtotal >= 500) {
       deliveryFee = 0;
     }
-    // GST 12% on medicines
-    const tax = Math.round(subtotal * 0.12);
-    const totalAmount = subtotal + deliveryFee + tax;
+    // Validate and apply coupon discount (server-side, never trust frontend)
+    let couponDiscountAmount = 0;
+    let appliedCouponCode: string | undefined;
+    if (args.couponCode && args.couponDiscount && args.couponDiscount > 0) {
+      const coupon = await ctx.db
+        .query("coupons")
+        .withIndex("by_code", (q) => q.eq("code", args.couponCode!.toUpperCase()))
+        .first();
+      if (coupon && coupon.isActive && coupon.expiresAt >= Date.now() &&
+          (coupon.usageLimit <= 0 || coupon.usedCount < coupon.usageLimit) &&
+          subtotal >= coupon.minOrder) {
+        if (coupon.discountType === "percentage") {
+          const computed = Math.min(
+            Math.round((subtotal * coupon.discountPercent) / 100),
+            coupon.maxDiscount
+          );
+          // Accept frontend value only if it matches server computation (±1 for rounding)
+          couponDiscountAmount = Math.abs(args.couponDiscount - computed) <= 1 ? computed : computed;
+        } else {
+          couponDiscountAmount = Math.min(coupon.fixedDiscount, subtotal);
+        }
+        appliedCouponCode = coupon.code;
+        // Increment usage count
+        await ctx.db.patch(coupon._id, { usedCount: coupon.usedCount + 1 });
+      }
+    }
+
+    // GST 12% on medicines (after coupon discount)
+    const taxableAmount = subtotal - couponDiscountAmount;
+    const tax = Math.round(taxableAmount * 0.12);
+    const totalAmount = taxableAmount + deliveryFee + tax;
 
     // Generate invoice number
     const allOrders = await ctx.db.query("orders").collect();
@@ -198,6 +228,8 @@ export const create = mutation({
       invoiceNumber,
       prescriptionId: args.prescriptionId,
       notes: args.notes,
+      couponCode: appliedCouponCode,
+      couponDiscount: couponDiscountAmount > 0 ? couponDiscountAmount : undefined,
       statusHistory: [{ status: "pending", timestamp: now, note: "Order placed" }],
       createdAt: now,
       updatedAt: now,

@@ -202,6 +202,8 @@ const schema = defineSchema(
       invoiceNumber: v.optional(v.string()),
       prescriptionId: v.optional(v.id("prescriptions")),
       notes: v.optional(v.string()),
+      couponCode: v.optional(v.string()),
+      couponDiscount: v.optional(v.number()),
       deliveryLatitude: v.optional(v.number()),
       deliveryLongitude: v.optional(v.number()),
       // Audit trail of status changes
@@ -271,7 +273,13 @@ const schema = defineSchema(
     // Discount coupons
     coupons: defineTable({
       code: v.string(),
+      // Discount type: percentage or fixed amount
+      discountType: v.union(v.literal("percentage"), v.literal("fixed")),
+      // For percentage coupons: percentage off (e.g. 10 = 10% off)
       discountPercent: v.number(),
+      // For fixed coupons: fixed amount off in ₹
+      fixedDiscount: v.number(),
+      // Max discount cap (only applies to percentage coupons)
       maxDiscount: v.number(),
       minOrder: v.number(),
       usageLimit: v.number(),

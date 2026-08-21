@@ -411,7 +411,9 @@ export const upsertCoupon = mutation({
   args: {
     id: v.optional(v.id("coupons")),
     code: v.string(),
+    discountType: v.union(v.literal("percentage"), v.literal("fixed")),
     discountPercent: v.number(),
+    fixedDiscount: v.number(),
     maxDiscount: v.number(),
     minOrder: v.number(),
     usageLimit: v.number(),
@@ -424,7 +426,9 @@ export const upsertCoupon = mutation({
     if (args.id) {
       await ctx.db.patch(args.id, {
         code: args.code.toUpperCase(),
+        discountType: args.discountType,
         discountPercent: args.discountPercent,
+        fixedDiscount: args.fixedDiscount,
         maxDiscount: args.maxDiscount,
         minOrder: args.minOrder,
         usageLimit: args.usageLimit,
@@ -436,7 +440,9 @@ export const upsertCoupon = mutation({
 
     const id = await ctx.db.insert("coupons", {
       code: args.code.toUpperCase(),
+      discountType: args.discountType,
       discountPercent: args.discountPercent,
+      fixedDiscount: args.fixedDiscount,
       maxDiscount: args.maxDiscount,
       minOrder: args.minOrder,
       usageLimit: args.usageLimit,

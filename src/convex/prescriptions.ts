@@ -275,6 +275,17 @@ export const approve = mutation({
       updatedAt: now,
     });
 
+    // Notify customer of prescription approval
+    await ctx.db.insert("notifications", {
+      userId: rx.userId,
+      type: "order_status",
+      title: "Prescription Approved ✓",
+      body: `Your prescription for ${rx.patientName} has been approved. You can now order prescription medicines.`,
+      read: false,
+      link: "/account/prescriptions",
+      createdAt: Date.now(),
+    });
+
     return { success: true };
   },
 });
@@ -314,6 +325,17 @@ export const reject = mutation({
       updatedAt: now,
     });
 
+    // Notify customer of prescription rejection
+    await ctx.db.insert("notifications", {
+      userId: rx.userId,
+      type: "order_status",
+      title: "Prescription Rejected",
+      body: `Your prescription for ${rx.patientName} was not approved. Reason: ${args.rejectionReason.trim()}. Please upload a new prescription.`,
+      read: false,
+      link: "/account/prescriptions",
+      createdAt: Date.now(),
+    });
+
     return { success: true };
   },
 });
@@ -351,6 +373,17 @@ export const requestClarification = mutation({
       adminNotes: args.adminNotes?.trim() || undefined,
       auditLog: JSON.stringify(audit),
       updatedAt: now,
+    });
+
+    // Notify customer that clarification is needed
+    await ctx.db.insert("notifications", {
+      userId: rx.userId,
+      type: "order_status",
+      title: "Prescription — Clarification Needed",
+      body: `We need more information about your prescription for ${rx.patientName}. Reason: ${args.clarificationNote.trim()}. Please upload a revised prescription.`,
+      read: false,
+      link: "/account/prescriptions",
+      createdAt: Date.now(),
     });
 
     return { success: true };

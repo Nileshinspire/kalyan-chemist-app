@@ -26,9 +26,11 @@ import {
   Truck,
   Pill,
   Loader2,
+  MessageCircle,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/auth-utils";
 import { toast } from "sonner";
+import { generateCartMessage, openWhatsApp } from "@/lib/whatsapp";
 
 export default function Cart() {
   const navigate = useNavigate();
@@ -38,6 +40,7 @@ export default function Cart() {
   const updateQuantity = useMutation(api.cart.updateQuantity);
   const removeItem = useMutation(api.cart.removeItem);
   const clearCart = useMutation(api.cart.clear);
+  const deliveryConfig = useQuery(api.deliveryConfig.getPublic);
 
   const handleUpdateQuantity = async (cartItemId: string, newQty: number) => {
     try {
@@ -157,6 +160,24 @@ export default function Cart() {
 
   const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
   const hasPrescriptionItems = cartItems.some((item) => item.product?.prescriptionRequired);
+
+  const handleWhatsApp = () => {
+    const phone = deliveryConfig?.storeWhatsApp || deliveryConfig?.storePhone || "";
+    if (!phone) {
+      toast.error("WhatsApp number not configured");
+      return;
+    }
+    const products = cartItems
+      .filter((item) => item.product)
+      .map((item) => ({
+        name: item.product!.name,
+        quantity: item.quantity,
+        price: item.product!.discountPrice && item.product!.discountPrice < item.product!.price
+          ? item.product!.discountPrice!
+          : item.product!.price,
+      }));
+    openWhatsApp(phone, generateCartMessage({ products, subtotal }));
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -318,6 +339,15 @@ export default function Cart() {
                     onClick={() => navigate("/products")}
                   >
                     Continue Shopping
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    className="w-full h-10 text-sm font-semibold gap-2 rounded-xl border-green-200 text-green-700 hover:bg-green-50 hover:border-green-300"
+                    onClick={handleWhatsApp}
+                  >
+                    <MessageCircle className="size-4" />
+                    Order on WhatsApp
                   </Button>
 
                   <div className="flex flex-col gap-2 pt-2 text-xs text-muted-foreground">
