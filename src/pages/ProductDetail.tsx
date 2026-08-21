@@ -28,7 +28,10 @@ import {
   Loader2,
   Info,
   MessageCircle,
+  Minus,
+  Plus,
 } from "lucide-react";
+import { useState } from "react";
 import { formatCurrency } from "@/lib/auth-utils";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
@@ -39,6 +42,7 @@ export default function ProductDetail() {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   const addToCart = useMutation(api.cart.addItem);
+  const [whatsappQty, setWhatsappQty] = useState(1);
 
   const product = useQuery(
     api.products.getBySlug,
@@ -99,26 +103,28 @@ export default function ProductDetail() {
     }
     const p = product;
     const hasDiscount = p.discountPrice && p.discountPrice < p.price;
-    const requestedQty = 1;
-    const isAvailable = p.stockQuantity >= requestedQty;
+    const unitPrice = hasDiscount ? p.discountPrice! : p.price;
+    const isAvailable = p.stockQuantity >= whatsappQty;
     const msg = generateProductMessage({
       productName: p.name,
-      price: hasDiscount ? p.discountPrice! : p.price,
+      price: unitPrice,
       composition: p.composition,
       packSize: p.packSize,
       stockQuantity: p.stockQuantity,
-      requestedQuantity: requestedQty,
+      requestedQuantity: whatsappQty,
+      prescriptionRequired: p.prescriptionRequired,
     });
     openWhatsApp(phone, msg);
     logWhatsApp({
       type: "order",
       message: msg,
-      summary: `WhatsApp Order — ${p.name}${isAvailable ? " (Available)" : " (Unavailable)"}`,
+      summary: `WhatsApp Order — ${p.name} × ${whatsappQty}${isAvailable ? " (Available)" : " (Unavailable)"}`,
       productId: p._id,
       productName: p.name,
-      totalAmount: hasDiscount ? p.discountPrice! : p.price,
-      requestedQuantity: requestedQty,
+      totalAmount: unitPrice * whatsappQty,
+      requestedQuantity: whatsappQty,
       available: isAvailable,
+      prescriptionRequired: p.prescriptionRequired,
     }).catch(() => {});
   };
 
@@ -295,6 +301,34 @@ export default function ProductDetail() {
               </Button>
             </div>
 
+            {/* WhatsApp Quantity Selector */}
+            {isInStock && (
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-medium text-muted-foreground">Qty for WhatsApp:</span>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="size-8 rounded-lg"
+                    onClick={() => setWhatsappQty(Math.max(1, whatsappQty - 1))}
+                    disabled={whatsappQty <= 1}
+                  >
+                    <Minus className="size-3" />
+                  </Button>
+                  <span className="text-sm font-semibold w-8 text-center">{whatsappQty}</span>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="size-8 rounded-lg"
+                    onClick={() => setWhatsappQty(Math.min(p.stockQuantity, whatsappQty + 1))}
+                    disabled={whatsappQty >= p.stockQuantity}
+                  >
+                    <Plus className="size-3" />
+                  </Button>
+                </div>
+              </div>
+            )}
+
             <Button
               size="lg"
               variant="outline"
@@ -302,7 +336,7 @@ export default function ProductDetail() {
               onClick={handleWhatsApp}
             >
               <MessageCircle className="size-4" />
-              Order on WhatsApp
+              Order on WhatsApp{whatsappQty > 1 ? ` (${whatsappQty}×)` : ""}
             </Button>
 
             <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">

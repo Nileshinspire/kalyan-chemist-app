@@ -128,7 +128,44 @@ export const adjustStock = mutation({
       createdAt: Date.now(),
     });
 
-    return { success: true, previousQuantity, newQuantity: args.newQuantity, adjustment };
+    // Stock availability notifications:
+    // When stock goes from 0 to >0, notify customers who were waiting
+    let notifiedCount = 0;
+    if (previousQuantity === 0 && args.newQuantity > 0) {
+      const waiting = await ctx.db
+        .query("availability_notifications")
+        .withIndex("by_product_status")
+        .filter((q) =>
+          q.and(
+            q.eq(q.field("productId"), args.productId),
+            q.eq(q.field("status"), "waiting"),
+          )
+        )
+        .collect();
+
+      for (const notif of waiting) {
+        await ctx.db.patch(notif._id, {
+          status: "notified",
+          notifiedAt: Date.now(),
+        });
+
+        // Create in-app notification
+        if (notif.userId) {
+          await ctx.db.insert("notifications", {
+            userId: notif.userId,
+            type: "order_status",
+            title: "Medicine Available!",
+            body: `Great news! ${notif.productName} is now available in stock. Order now!`,
+            read: false,
+            createdAt: Date.now(),
+          });
+        }
+
+        notifiedCount++;
+      }
+    }
+
+    return { success: true, previousQuantity, newQuantity: args.newQuantity, adjustment, notifiedCount };
   },
 });
 

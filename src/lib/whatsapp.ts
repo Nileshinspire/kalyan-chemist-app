@@ -8,6 +8,7 @@ export interface WhatsAppProduct {
   name: string;
   quantity: number;
   price: number;
+  prescriptionRequired?: boolean;
 }
 
 /**
@@ -57,6 +58,18 @@ export function generateOrderMessage(params: {
     lines.push(`📍 Delivery: ${params.deliveryAddress}`);
   }
 
+  // Check if any items require prescription
+  const rxItems = params.products.filter((p) => p.prescriptionRequired);
+  if (rxItems.length > 0) {
+    lines.push("");
+    lines.push("⚠️ *Prescription Required for:*");
+    for (const item of rxItems) {
+      lines.push(`  • ${item.name}`);
+    }
+    lines.push("");
+    lines.push("Please have a valid prescription from a registered medical practitioner ready.");
+  }
+
   lines.push("");
   lines.push("Please confirm availability and delivery time.");
 
@@ -90,6 +103,18 @@ export function generateCartMessage(params: {
 
   lines.push("");
   lines.push(`*Subtotal: ₹${params.subtotal.toLocaleString("en-IN")}*`);
+  // Check for prescription-required items
+  const rxItems = params.products.filter((p) => p.prescriptionRequired);
+  if (rxItems.length > 0) {
+    lines.push("");
+    lines.push("⚠️ *Prescription Required for:*");
+    for (const item of rxItems) {
+      lines.push(`  • ${item.name}`);
+    }
+    lines.push("");
+    lines.push("Please have a valid prescription ready for verification.");
+  }
+
   lines.push("");
 
   // Availability auto-reply
@@ -115,6 +140,7 @@ export function generateProductMessage(params: {
   packSize?: string;
   stockQuantity?: number;
   requestedQuantity?: number;
+  prescriptionRequired?: boolean;
 }): string {
   const lines: string[] = [];
 
@@ -126,11 +152,17 @@ export function generateProductMessage(params: {
   lines.push(`Price: ₹${params.price.toLocaleString("en-IN")}`);
   lines.push("");
 
+  // Prescription warning
+  if (params.prescriptionRequired) {
+    lines.push("⚠️ *Prescription Required* — Please have a valid prescription from a registered medical practitioner ready.");
+    lines.push("");
+  }
+
   // Availability auto-reply based on live stock
   const qty = params.requestedQuantity ?? 1;
   const stock = params.stockQuantity ?? 0;
   if (stock >= qty) {
-    lines.push("💊 Hi! Your requested medicine and quantity are available at Kalyan Chemist. Our team will assist you shortly.");
+    lines.push(`💊 Hi! Your requested medicine (Qty: ${qty}) is available at Kalyan Chemist. Our team will assist you shortly.`);
   } else {
     lines.push("💊 Hi! Sorry, the requested medicine or quantity is currently unavailable. Please let us know if you'd like an alternative.");
   }

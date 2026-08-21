@@ -407,15 +407,59 @@ const schema = defineSchema(
       // For availability tracking
       requestedQuantity: v.optional(v.number()),
       available: v.optional(v.boolean()),
+      // Prescription handling
+      prescriptionRequired: v.optional(v.boolean()),
       // Admin tracking
       viewed: v.boolean(),
       viewedAt: v.optional(v.number()),
       adminNotes: v.optional(v.string()),
+      // WhatsApp Business API delivery tracking
+      whatsappMessageId: v.optional(v.string()),
+      deliveryStatus: v.optional(v.union(
+        v.literal("pending"),
+        v.literal("sent"),
+        v.literal("delivered"),
+        v.literal("read"),
+        v.literal("failed"),
+      )),
+      deliveryError: v.optional(v.string()),
+      retryCount: v.optional(v.number()),
+      lastRetryAt: v.optional(v.number()),
+      // Order confirmation tracking
+      confirmedByAdmin: v.optional(v.boolean()),
+      confirmedAt: v.optional(v.number()),
       createdAt: v.number(),
     })
       .index("by_type", ["type"])
       .index("by_createdAt", ["createdAt"])
-      .index("by_viewed", ["viewed"]),
+      .index("by_viewed", ["viewed"])
+      .index("by_deliveryStatus", ["deliveryStatus"]),
+
+    // ── Stock Availability Notifications ──
+    // Tracks customers waiting for out-of-stock items
+    availability_notifications: defineTable({
+      userId: v.optional(v.id("users")),
+      productId: v.id("products"),
+      productName: v.string(),
+      customerPhone: v.optional(v.string()),
+      customerName: v.optional(v.string()),
+      // Status
+      status: v.union(
+        v.literal("waiting"),
+        v.literal("notified"),
+        v.literal("expired"),
+      ),
+      notifiedAt: v.optional(v.number()),
+      notificationMethod: v.optional(v.union(
+        v.literal("whatsapp"),
+        v.literal("sms"),
+        v.literal("email"),
+      )),
+      createdAt: v.number(),
+    })
+      .index("by_product", ["productId"])
+      .index("by_status", ["status"])
+      .index("by_product_status", ["productId", "status"]),
   },
   {
     schemaValidation: false,

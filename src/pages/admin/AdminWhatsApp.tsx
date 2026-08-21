@@ -1,4 +1,4 @@
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
@@ -18,14 +18,17 @@ import {
   ShoppingCart,
   Pill,
   Eye,
-  EyeOff,
   Loader2,
   BarChart3,
   TrendingUp,
   Clock,
-  Users,
   CheckCircle,
   StickyNote,
+  Send,
+  RefreshCw,
+  CheckSquare,
+  AlertCircle,
+  Bell,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useState } from "react";
@@ -61,16 +64,34 @@ const TYPE_CONFIG: Record<
   },
 };
 
+const DELIVERY_STATUS_CONFIG: Record<
+  string,
+  { label: string; color: string; bgColor: string }
+> = {
+  pending: { label: "Pending", color: "text-gray-600", bgColor: "bg-gray-100" },
+  sent: { label: "Sent", color: "text-blue-600", bgColor: "bg-blue-100" },
+  delivered: { label: "Delivered", color: "text-green-600", bgColor: "bg-green-100" },
+  read: { label: "Read", color: "text-emerald-600", bgColor: "bg-emerald-100" },
+  failed: { label: "Failed", color: "text-red-600", bgColor: "bg-red-100" },
+};
+
 export default function AdminWhatsApp() {
   const stats = useQuery(api.whatsappEnquiries.stats);
   const enquiries = useQuery(api.whatsappEnquiries.list);
   const markViewed = useMutation(api.whatsappEnquiries.markViewed);
   const markAllViewed = useMutation(api.whatsappEnquiries.markAllViewed);
   const addNotes = useMutation(api.whatsappEnquiries.addNotes);
+  const retryMessage = useMutation(api.whatsappEnquiries.retryMessage);
+  const confirmOrder = useMutation(api.whatsappEnquiries.confirmWhatsAppOrder);
+  const updateDeliveryStatus = useMutation(api.whatsappEnquiries.updateDeliveryStatus);
+  const sendWhatsAppMessage = useAction(api.whatsappService.sendTextMessage);
+  const availStats = useQuery(api.availabilityNotifications.stats);
 
   const [filter, setFilter] = useState<string>("all");
   const [notesId, setNotesId] = useState<string | null>(null);
   const [notesText, setNotesText] = useState("");
+  const [sendingId, setSendingId] = useState<string | null>(null);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
   const handleMarkAllViewed = async () => {
     try {
@@ -98,6 +119,65 @@ export default function AdminWhatsApp() {
       setNotesText("");
     } catch (error: any) {
       toast.error(error.message || "Failed to save notes");
+    }
+  };
+
+  const handleSendWhatsApp = async (enquiry: any) => {
+    const phone = enquiry.customerPhone || "";
+    if (!phone) {
+      toast.error("No phone number available for this enquiry");
+      return;
+    }
+    setSendingId(enquiry._id);
+    try {
+      const result = await sendWhatsAppMessage({
+        toPhone: phone,
+        message: enquiry.message,
+        enquiryId: enquiry._id,
+      });
+      if (result.sent) {
+        await updateDeliveryStatus({
+          enquiryId: enquiry._id as any,
+          deliveryStatus: "sent",
+          whatsappMessageId: result.messageId,
+        });
+        toast.success("WhatsApp message sent!");
+      } else {
+        await updateDeliveryStatus({
+          enquiryId: enquiry._id as any,
+          deliveryStatus: "failed",
+          deliveryError: result.reason || "Unknown error",
+        });
+        toast.error(`Failed: ${result.reason || "Unknown error"}`);
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Failed to send");
+    } finally {
+      setSendingId(null);
+    }
+  };
+
+  const handleRetry = async (enquiryId: string) => {
+    try {
+      await retryMessage({ enquiryId: enquiryId as any });
+      toast.info("Retry queued. Click Send to try again.");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to retry");
+    }
+  };
+
+  const handleConfirmOrder = async (enquiryId: string) => {
+    setConfirmingId(enquiryId);
+    try {
+      await confirmOrder({
+        enquiryId: enquiryId as any,
+        adminNotes: "WhatsApp order confirmed by admin",
+      });
+      toast.success("WhatsApp order confirmed! Customer notified.");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to confirm");
+    } finally {
+      setConfirmingId(null);
     }
   };
 
@@ -150,9 +230,7 @@ export default function AdminWhatsApp() {
                   </div>
                   <div>
                     <p className="text-2xl font-extrabold">{stats.total}</p>
-                    <p className="text-xs text-muted-foreground">
-                      Total
-                    </p>
+                    <p className="text-xs text-muted-foreground">Total</p>
                   </div>
                 </div>
               </CardContent>
@@ -165,12 +243,8 @@ export default function AdminWhatsApp() {
                     <TrendingUp className="size-5" />
                   </div>
                   <div>
-                    <p className="text-2xl font-extrabold">
-                      {stats.orders}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      WhatsApp Orders
-                    </p>
+                    <p className="text-2xl font-extrabold">{stats.orders}</p>
+                    <p className="text-xs text-muted-foreground">WhatsApp Orders</p>
                   </div>
                 </div>
               </CardContent>
@@ -184,9 +258,7 @@ export default function AdminWhatsApp() {
                   </div>
                   <div>
                     <p className="text-2xl font-extrabold">{stats.enquiries}</p>
-                    <p className="text-xs text-muted-foreground">
-                      General Enquiries
-                    </p>
+                    <p className="text-xs text-muted-foreground">General Enquiries</p>
                   </div>
                 </div>
               </CardContent>
@@ -206,6 +278,24 @@ export default function AdminWhatsApp() {
               </CardContent>
             </Card>
           </motion.div>
+        )}
+
+        {/* Availability Notifications Banner */}
+        {availStats && availStats.waiting > 0 && (
+          <Card className="border-amber-200 bg-amber-50/50">
+            <CardContent className="p-4 flex items-center gap-3">
+              <Bell className="size-5 text-amber-600 shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-amber-800">
+                  {availStats.waiting} customer(s) waiting for out-of-stock items
+                </p>
+                <p className="text-xs text-amber-600 mt-0.5">
+                  They will be notified automatically when stock is restocked.
+                  {availStats.notified > 0 && ` ${availStats.notified} already notified.`}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
         )}
 
         {/* Weekly Overview Bar */}
@@ -276,13 +366,14 @@ export default function AdminWhatsApp() {
         ) : filteredEnquiries.length === 0 ? (
           <Card className="border-border/60">
             <CardContent className="p-12 text-center">
-              <MessageCircle className="size-10 text-muted-foreground/40 mx-auto mb-3" />                <p className="text-sm font-medium text-muted-foreground">
-                  No records found
-                </p>
+              <MessageCircle className="size-10 text-muted-foreground/40 mx-auto mb-3" />
+              <p className="text-sm font-medium text-muted-foreground">
+                No records found
+              </p>
               <p className="text-xs text-muted-foreground/70 mt-1">
-            {filter === "all"
-              ? "No WhatsApp enquiries or orders have been recorded yet."
-              : "No enquiries match the selected filter."}
+                {filter === "all"
+                  ? "No WhatsApp enquiries or orders have been recorded yet."
+                  : "No enquiries match the selected filter."}
               </p>
             </CardContent>
           </Card>
@@ -297,6 +388,7 @@ export default function AdminWhatsApp() {
                     <TableHead>Summary</TableHead>
                     <TableHead>Customer</TableHead>
                     <TableHead className="text-right">Amount</TableHead>
+                    <TableHead>Status</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -305,6 +397,9 @@ export default function AdminWhatsApp() {
                   {filteredEnquiries.map((enquiry) => {
                     const config = TYPE_CONFIG[enquiry.type] ?? TYPE_CONFIG.enquiry;
                     const Icon = config.icon;
+                    const deliveryConfig = enquiry.deliveryStatus
+                      ? DELIVERY_STATUS_CONFIG[enquiry.deliveryStatus]
+                      : null;
                     return (
                       <TableRow
                         key={enquiry._id}
@@ -341,20 +436,26 @@ export default function AdminWhatsApp() {
                               {enquiry.requestedQuantity ? ` (Qty: ${enquiry.requestedQuantity})` : ""}
                             </p>
                           )}
+                          {enquiry.prescriptionRequired && (
+                            <p className="text-xs font-medium text-amber-600 mt-0.5">
+                              ⚠️ Rx Required
+                            </p>
+                          )}
+                          {enquiry.deliveryError && (
+                            <p className="text-xs text-red-500 mt-0.5 truncate max-w-[200px]" title={enquiry.deliveryError}>
+                              Error: {enquiry.deliveryError}
+                            </p>
+                          )}
                         </TableCell>
                         <TableCell>
                           <div className="text-sm">
                             {enquiry.customerName ? (
-                              <span className="font-medium">
-                                {enquiry.customerName}
-                              </span>
+                              <span className="font-medium">{enquiry.customerName}</span>
                             ) : (
                               <span className="text-muted-foreground">—</span>
                             )}
                             {enquiry.customerPhone && (
-                              <p className="text-xs text-muted-foreground">
-                                {enquiry.customerPhone}
-                              </p>
+                              <p className="text-xs text-muted-foreground">{enquiry.customerPhone}</p>
                             )}
                           </div>
                         </TableCell>
@@ -364,25 +465,83 @@ export default function AdminWhatsApp() {
                               ₹{enquiry.totalAmount.toLocaleString("en-IN")}
                             </span>
                           ) : (
-                            <span className="text-xs text-muted-foreground">
-                              —
-                            </span>
+                            <span className="text-xs text-muted-foreground">—</span>
                           )}
                           {enquiry.itemCount && (
-                            <p className="text-xs text-muted-foreground">
-                              {enquiry.itemCount} item(s)
-                            </p>
+                            <p className="text-xs text-muted-foreground">{enquiry.itemCount} item(s)</p>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {/* Delivery Status Badge */}
+                          {deliveryConfig ? (
+                            <Badge variant="secondary" className={`text-[10px] ${deliveryConfig.color} ${deliveryConfig.bgColor}`}>
+                              {deliveryConfig.label}
+                            </Badge>
+                          ) : enquiry.confirmedByAdmin ? (
+                            <Badge variant="secondary" className="text-[10px] text-green-700 bg-green-100">
+                              <CheckSquare className="size-2.5 mr-0.5" /> Confirmed
+                            </Badge>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
                           )}
                         </TableCell>
                         <TableCell>
                           <span className="text-xs text-muted-foreground">
-                            {formatDistanceToNow(enquiry.createdAt, {
-                              addSuffix: true,
-                            })}
+                            {formatDistanceToNow(enquiry.createdAt, { addSuffix: true })}
                           </span>
                         </TableCell>
                         <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-1">
+                          <div className="flex items-center justify-end gap-1 flex-wrap">
+                            {/* Send via WhatsApp Business API */}
+                            {enquiry.customerPhone && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="size-7"
+                                title="Send via WhatsApp API"
+                                disabled={sendingId === enquiry._id}
+                                onClick={() => handleSendWhatsApp(enquiry)}
+                              >
+                                {sendingId === enquiry._id ? (
+                                  <Loader2 className="size-3.5 animate-spin" />
+                                ) : (
+                                  <Send className="size-3.5" />
+                                )}
+                              </Button>
+                            )}
+
+                            {/* Retry failed messages */}
+                            {enquiry.deliveryStatus === "failed" && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="size-7 text-amber-600"
+                                title="Retry sending"
+                                onClick={() => handleRetry(enquiry._id)}
+                              >
+                                <RefreshCw className="size-3.5" />
+                              </Button>
+                            )}
+
+                            {/* Confirm WhatsApp Order */}
+                            {enquiry.type === "order" && !enquiry.confirmedByAdmin && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="size-7 text-green-600"
+                                title="Confirm order"
+                                disabled={confirmingId === enquiry._id}
+                                onClick={() => handleConfirmOrder(enquiry._id)}
+                              >
+                                {confirmingId === enquiry._id ? (
+                                  <Loader2 className="size-3.5 animate-spin" />
+                                ) : (
+                                  <CheckSquare className="size-3.5" />
+                                )}
+                              </Button>
+                            )}
+
+                            {/* Mark as viewed */}
                             {!enquiry.viewed && (
                               <Button
                                 variant="ghost"
@@ -394,6 +553,8 @@ export default function AdminWhatsApp() {
                                 <Eye className="size-3.5" />
                               </Button>
                             )}
+
+                            {/* Notes */}
                             <Button
                               variant="ghost"
                               size="icon"
