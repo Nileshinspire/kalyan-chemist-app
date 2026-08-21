@@ -435,6 +435,46 @@ const schema = defineSchema(
       .index("by_viewed", ["viewed"])
       .index("by_deliveryStatus", ["deliveryStatus"]),
 
+    // ── WhatsApp Conversational Flow ──
+    // Tracks per-phone conversation state for the automated order flow
+    whatsapp_conversations: defineTable({
+      phone: v.string(),
+      // Conversation state machine
+      state: v.union(
+        v.literal("new"),              // Initial state, no active conversation
+        v.literal("medicine_requested"), // Customer requested a medicine
+        v.literal("availability_sent"),  // Availability message sent, waiting for response
+        v.literal("awaiting_response"),  // Waiting for yes/no response
+        v.literal("confirmed"),          // Customer confirmed, order created
+        v.literal("declined"),           // Customer declined
+        v.literal("expired"),            // Conversation timed out
+        v.literal("unavailable"),        // Medicine was out of stock
+      ),
+      // Medicine context for current conversation
+      productName: v.optional(v.string()),
+      productId: v.optional(v.id("products")),
+      requestedQuantity: v.optional(v.number()),
+      available: v.optional(v.boolean()),
+      price: v.optional(v.number()),
+      prescriptionRequired: v.optional(v.boolean()),
+      // Customer info
+      customerName: v.optional(v.string()),
+      userId: v.optional(v.id("users")),
+      // Related enquiry ID
+      enquiryId: v.optional(v.id("whatsapp_enquiries")),
+      // Related order ID (set after confirmation)
+      orderId: v.optional(v.id("orders")),
+      // Message history count
+      messageCount: v.number(),
+      // Timestamps
+      lastMessageAt: v.number(),
+      createdAt: v.number(),
+    })
+      .index("by_phone", ["phone"])
+      .index("by_phone_state", ["phone", "state"])
+      .index("by_state", ["state"])
+      .index("by_lastMessage", ["lastMessageAt"]),
+
     // ── Stock Availability Notifications ──
     // Tracks customers waiting for out-of-stock items
     availability_notifications: defineTable({

@@ -27,8 +27,14 @@ import {
   Send,
   RefreshCw,
   CheckSquare,
-  AlertCircle,
   Bell,
+  MessageSquare,
+  ArrowRight,
+  Phone,
+  UserCircle,
+  AlertTriangle,
+  XCircle,
+  Package,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useState } from "react";
@@ -75,6 +81,144 @@ const DELIVERY_STATUS_CONFIG: Record<
   failed: { label: "Failed", color: "text-red-600", bgColor: "bg-red-100" },
 };
 
+const CONVERSATION_STATE_CONFIG: Record<
+  string,
+  { label: string; icon: typeof Pill; color: string; bgColor: string; description: string }
+> = {
+  new: {
+    label: "New Chat",
+    icon: MessageCircle,
+    color: "text-blue-700",
+    bgColor: "bg-blue-100",
+    description: "Customer just started chatting",
+  },
+  medicine_requested: {
+    label: "Medicine Requested",
+    icon: Pill,
+    color: "text-indigo-700",
+    bgColor: "bg-indigo-100",
+    description: "Customer requested a medicine, checking stock...",
+  },
+  availability_sent: {
+    label: "Availability Sent",
+    icon: Package,
+    color: "text-green-700",
+    bgColor: "bg-green-100",
+    description: "Availability confirmed, waiting for customer response",
+  },
+  awaiting_response: {
+    label: "Awaiting Response",
+    icon: Clock,
+    color: "text-amber-700",
+    bgColor: "bg-amber-100",
+    description: "Waiting for customer to confirm or decline",
+  },
+  confirmed: {
+    label: "Order Confirmed",
+    icon: CheckCircle,
+    color: "text-emerald-700",
+    bgColor: "bg-emerald-100",
+    description: "Customer confirmed the order",
+  },
+  declined: {
+    label: "Declined",
+    icon: XCircle,
+    color: "text-gray-600",
+    bgColor: "bg-gray-100",
+    description: "Customer declined the order",
+  },
+  expired: {
+    label: "Expired",
+    icon: Clock,
+    color: "text-gray-500",
+    bgColor: "bg-gray-50",
+    description: "Conversation timed out",
+  },
+  unavailable: {
+    label: "Out of Stock",
+    icon: AlertTriangle,
+    color: "text-red-700",
+    bgColor: "bg-red-100",
+    description: "Requested medicine is out of stock",
+  },
+};
+
+// ── Conversation Row Component ──
+function ConversationRow({ conversation }: { conversation: any }) {
+  const stateConfig =
+    CONVERSATION_STATE_CONFIG[conversation.state] || CONVERSATION_STATE_CONFIG.new;
+  const StateIcon = stateConfig.icon;
+
+  return (
+    <TableRow>
+      <TableCell>
+        <div className="flex items-center gap-2">
+          <UserCircle className="size-4 text-muted-foreground/50" />
+          <div>
+            <p className="text-sm font-medium">
+              {conversation.customerName || "Unknown"}
+            </p>
+          </div>
+        </div>
+      </TableCell>
+      <TableCell>
+        <div className="flex items-center gap-1">
+          <Phone className="size-3 text-muted-foreground/50" />
+          <span className="text-xs font-mono text-muted-foreground">
+            {conversation.phone}
+          </span>
+        </div>
+      </TableCell>
+      <TableCell>
+        <div>
+          <p className="text-sm font-medium max-w-[180px] truncate">
+            {conversation.productName || "—"}
+          </p>
+          {conversation.prescriptionRequired && (
+            <p className="text-[10px] font-medium text-amber-600">⚠️ Rx Required</p>
+          )}
+        </div>
+      </TableCell>
+      <TableCell className="text-center">
+        <span className="text-sm font-semibold">
+          {conversation.requestedQuantity ?? "—"}
+        </span>
+      </TableCell>
+      <TableCell className="text-right">
+        {conversation.price ? (
+          <span className="text-sm font-semibold">
+            ₹{((conversation.price * (conversation.requestedQuantity ?? 1))).toLocaleString("en-IN")}
+          </span>
+        ) : (
+          <span className="text-xs text-muted-foreground">—</span>
+        )}
+      </TableCell>
+      <TableCell>
+        <Badge
+          variant="secondary"
+          className={`gap-1 text-[10px] ${stateConfig.color} ${stateConfig.bgColor}`}
+        >
+          <StateIcon className="size-2.5" />
+          {stateConfig.label}
+        </Badge>
+        <p className="text-[10px] text-muted-foreground mt-0.5 max-w-[160px] truncate">
+          {stateConfig.description}
+        </p>
+      </TableCell>
+      <TableCell className="text-center">
+        <span className="text-xs text-muted-foreground">
+          {conversation.messageCount}
+        </span>
+      </TableCell>
+      <TableCell>
+        <span className="text-xs text-muted-foreground">
+          {formatDistanceToNow(conversation.lastMessageAt, { addSuffix: true })}
+        </span>
+      </TableCell>
+    </TableRow>
+  );
+}
+
 export default function AdminWhatsApp() {
   const stats = useQuery(api.whatsappEnquiries.stats);
   const enquiries = useQuery(api.whatsappEnquiries.list);
@@ -86,12 +230,15 @@ export default function AdminWhatsApp() {
   const updateDeliveryStatus = useMutation(api.whatsappEnquiries.updateDeliveryStatus);
   const sendWhatsAppMessage = useAction(api.whatsappService.sendTextMessage);
   const availStats = useQuery(api.availabilityNotifications.stats);
+  const conversations = useQuery(api.whatsappConversations.listConversations);
+  const convStats = useQuery(api.whatsappConversations.conversationStats);
 
   const [filter, setFilter] = useState<string>("all");
   const [notesId, setNotesId] = useState<string | null>(null);
   const [notesText, setNotesText] = useState("");
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [view, setView] = useState<"enquiries" | "conversations">("enquiries");
 
   const handleMarkAllViewed = async () => {
     try {
@@ -199,10 +346,10 @@ export default function AdminWhatsApp() {
               WhatsApp Enquiries & Orders
             </h1>
             <p className="text-sm text-muted-foreground mt-1">
-              Track customer enquiries and orders received through WhatsApp
+              Track customer enquiries, orders, and conversational flow
             </p>
           </div>
-          {stats && stats.unviewed > 0 && (
+          {view === "enquiries" && stats && stats.unviewed > 0 && (
             <Button
               variant="outline"
               size="sm"
@@ -215,367 +362,511 @@ export default function AdminWhatsApp() {
           )}
         </div>
 
-        {/* Stats Cards */}
-        {stats && (
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="grid gap-4 grid-cols-2 sm:grid-cols-4"
+        {/* View Toggle */}
+        <div className="flex gap-2">
+          <Button
+            variant={view === "enquiries" ? "default" : "outline"}
+            size="sm"
+            className="gap-1.5"
+            onClick={() => setView("enquiries")}
           >
-            <Card className="border-border/60">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex size-10 items-center justify-center rounded-xl bg-green-100 text-green-600">
-                    <MessageCircle className="size-5" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-extrabold">{stats.total}</p>
-                    <p className="text-xs text-muted-foreground">Total</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-border/60">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex size-10 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
-                    <TrendingUp className="size-5" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-extrabold">{stats.orders}</p>
-                    <p className="text-xs text-muted-foreground">WhatsApp Orders</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-border/60">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex size-10 items-center justify-center rounded-xl bg-purple-100 text-purple-600">
-                    <ShoppingCart className="size-5" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-extrabold">{stats.enquiries}</p>
-                    <p className="text-xs text-muted-foreground">General Enquiries</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="border-border/60">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex size-10 items-center justify-center rounded-xl bg-amber-100 text-amber-600">
-                    <Clock className="size-5" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-extrabold">{stats.todayCount}</p>
-                    <p className="text-xs text-muted-foreground">Today</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        )}
-
-        {/* Availability Notifications Banner */}
-        {availStats && availStats.waiting > 0 && (
-          <Card className="border-amber-200 bg-amber-50/50">
-            <CardContent className="p-4 flex items-center gap-3">
-              <Bell className="size-5 text-amber-600 shrink-0" />
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-amber-800">
-                  {availStats.waiting} customer(s) waiting for out-of-stock items
-                </p>
-                <p className="text-xs text-amber-600 mt-0.5">
-                  They will be notified automatically when stock is restocked.
-                  {availStats.notified > 0 && ` ${availStats.notified} already notified.`}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Weekly Overview Bar */}
-        {stats && stats.last7Days && (
-          <Card className="border-border/60">
-            <CardContent className="p-5">
-              <h3 className="text-sm font-bold mb-4 flex items-center gap-2">
-                <BarChart3 className="size-4 text-primary" />
-                Last 7 Days Activity
-              </h3>
-              <div className="flex items-end gap-2 h-24">
-                {stats.last7Days.map((day) => {
-                  const maxCount = Math.max(
-                    ...stats.last7Days.map((d) => d.count),
-                    1
-                  );
-                  const height = (day.count / maxCount) * 100;
-                  return (
-                    <div
-                      key={day.date}
-                      className="flex-1 flex flex-col items-center gap-1"
-                    >
-                      <span className="text-[10px] font-semibold text-muted-foreground">
-                        {day.count}
-                      </span>
-                      <div
-                        className="w-full rounded-t-md bg-primary/80 transition-all"
-                        style={{ height: `${Math.max(height, 4)}%` }}
-                      />
-                      <span className="text-[10px] text-muted-foreground">
-                        {day.date}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Filter Tabs */}
-        <div className="flex flex-wrap gap-2">
-          {[
-            { key: "all", label: "All" },
-            { key: "unread", label: "Unread" },
-            { key: "enquiry", label: "General Enquiries" },
-            { key: "order", label: "WhatsApp Orders" },
-            { key: "cart", label: "Cart Enquiries" },
-            { key: "product", label: "Product Enquiries" },
-          ].map((tab) => (
-            <Button
-              key={tab.key}
-              variant={filter === tab.key ? "default" : "outline"}
-              size="sm"
-              className="text-xs rounded-lg"
-              onClick={() => setFilter(tab.key)}
-            >
-              {tab.label}
-            </Button>
-          ))}
+            <MessageCircle className="size-3.5" />
+            Enquiries & Orders
+          </Button>
+          <Button
+            variant={view === "conversations" ? "default" : "outline"}
+            size="sm"
+            className="gap-1.5"
+            onClick={() => setView("conversations")}
+          >
+            <MessageSquare className="size-3.5" />
+            Conversational Flow
+            {convStats && convStats.active > 0 && (
+              <span className="ml-1 size-5 rounded-full bg-green-500 text-white text-[10px] flex items-center justify-center font-bold">
+                {convStats.active}
+              </span>
+            )}
+          </Button>
         </div>
 
-        {/* Enquiries Table */}
-        {enquiries === undefined ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="size-6 animate-spin text-muted-foreground" />
-          </div>
-        ) : filteredEnquiries.length === 0 ? (
-          <Card className="border-border/60">
-            <CardContent className="p-12 text-center">
-              <MessageCircle className="size-10 text-muted-foreground/40 mx-auto mb-3" />
-              <p className="text-sm font-medium text-muted-foreground">
-                No records found
-              </p>
-              <p className="text-xs text-muted-foreground/70 mt-1">
-                {filter === "all"
-                  ? "No WhatsApp enquiries or orders have been recorded yet."
-                  : "No enquiries match the selected filter."}
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          <Card className="border-border/60">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-12"></TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Summary</TableHead>
-                    <TableHead>Customer</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredEnquiries.map((enquiry) => {
-                    const config = TYPE_CONFIG[enquiry.type] ?? TYPE_CONFIG.enquiry;
-                    const Icon = config.icon;
-                    const deliveryConfig = enquiry.deliveryStatus
-                      ? DELIVERY_STATUS_CONFIG[enquiry.deliveryStatus]
-                      : null;
-                    return (
-                      <TableRow
-                        key={enquiry._id}
-                        className={`${!enquiry.viewed ? "bg-primary/[0.02]" : ""}`}
-                      >
-                        <TableCell>
-                          {!enquiry.viewed ? (
-                            <div className="size-2 rounded-full bg-green-500" />
-                          ) : (
-                            <div className="size-2 rounded-full bg-transparent" />
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant="secondary"
-                            className={`gap-1 text-xs ${config.color} ${config.bgColor}`}
-                          >
-                            <Icon className="size-3" />
-                            {config.label}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <p className="text-sm font-medium max-w-[240px] truncate">
-                            {enquiry.summary}
-                          </p>
-                          {enquiry.productName && (
-                            <p className="text-xs text-muted-foreground">
-                              Product: {enquiry.productName}
-                            </p>
-                          )}
-                          {enquiry.available !== undefined && enquiry.type === "order" && (
-                            <p className={`text-xs font-medium mt-0.5 ${enquiry.available ? "text-green-600" : "text-red-600"}`}>
-                              {enquiry.available ? "✓ Available" : "✗ Unavailable"}
-                              {enquiry.requestedQuantity ? ` (Qty: ${enquiry.requestedQuantity})` : ""}
-                            </p>
-                          )}
-                          {enquiry.prescriptionRequired && (
-                            <p className="text-xs font-medium text-amber-600 mt-0.5">
-                              ⚠️ Rx Required
-                            </p>
-                          )}
-                          {enquiry.deliveryError && (
-                            <p className="text-xs text-red-500 mt-0.5 truncate max-w-[200px]" title={enquiry.deliveryError}>
-                              Error: {enquiry.deliveryError}
-                            </p>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <div className="text-sm">
-                            {enquiry.customerName ? (
-                              <span className="font-medium">{enquiry.customerName}</span>
-                            ) : (
-                              <span className="text-muted-foreground">—</span>
-                            )}
-                            {enquiry.customerPhone && (
-                              <p className="text-xs text-muted-foreground">{enquiry.customerPhone}</p>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {enquiry.totalAmount ? (
-                            <span className="text-sm font-semibold">
-                              ₹{enquiry.totalAmount.toLocaleString("en-IN")}
-                            </span>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">—</span>
-                          )}
-                          {enquiry.itemCount && (
-                            <p className="text-xs text-muted-foreground">{enquiry.itemCount} item(s)</p>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {/* Delivery Status Badge */}
-                          {deliveryConfig ? (
-                            <Badge variant="secondary" className={`text-[10px] ${deliveryConfig.color} ${deliveryConfig.bgColor}`}>
-                              {deliveryConfig.label}
-                            </Badge>
-                          ) : enquiry.confirmedByAdmin ? (
-                            <Badge variant="secondary" className="text-[10px] text-green-700 bg-green-100">
-                              <CheckSquare className="size-2.5 mr-0.5" /> Confirmed
-                            </Badge>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">—</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <span className="text-xs text-muted-foreground">
-                            {formatDistanceToNow(enquiry.createdAt, { addSuffix: true })}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-1 flex-wrap">
-                            {/* Send via WhatsApp Business API */}
-                            {enquiry.customerPhone && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="size-7"
-                                title="Send via WhatsApp API"
-                                disabled={sendingId === enquiry._id}
-                                onClick={() => handleSendWhatsApp(enquiry)}
-                              >
-                                {sendingId === enquiry._id ? (
-                                  <Loader2 className="size-3.5 animate-spin" />
-                                ) : (
-                                  <Send className="size-3.5" />
-                                )}
-                              </Button>
-                            )}
+        {/* ═══════ CONVERSATIONS VIEW ═══════ */}
+        {view === "conversations" && (
+          <>
+            {/* Conversation Stats */}
+            {convStats && (
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6"
+              >
+                <Card className="border-border/60">
+                  <CardContent className="p-3">
+                    <p className="text-lg font-extrabold">{convStats.total}</p>
+                    <p className="text-[10px] text-muted-foreground">Total Chats</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-border/60 bg-green-50/50">
+                  <CardContent className="p-3">
+                    <p className="text-lg font-extrabold text-green-700">{convStats.active}</p>
+                    <p className="text-[10px] text-green-600">Active Now</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-border/60 bg-emerald-50/50">
+                  <CardContent className="p-3">
+                    <p className="text-lg font-extrabold text-emerald-700">{convStats.confirmed}</p>
+                    <p className="text-[10px] text-emerald-600">Confirmed</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-border/60">
+                  <CardContent className="p-3">
+                    <p className="text-lg font-extrabold text-gray-600">{convStats.declined}</p>
+                    <p className="text-[10px] text-muted-foreground">Declined</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-border/60">
+                  <CardContent className="p-3">
+                    <p className="text-lg font-extrabold text-amber-600">{convStats.unavailable}</p>
+                    <p className="text-[10px] text-amber-600">Unavailable</p>
+                  </CardContent>
+                </Card>
+                <Card className="border-border/60">
+                  <CardContent className="p-3">
+                    <p className="text-lg font-extrabold">{convStats.todayCount}</p>
+                    <p className="text-[10px] text-muted-foreground">Today</p>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
 
-                            {/* Retry failed messages */}
-                            {enquiry.deliveryStatus === "failed" && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="size-7 text-amber-600"
-                                title="Retry sending"
-                                onClick={() => handleRetry(enquiry._id)}
-                              >
-                                <RefreshCw className="size-3.5" />
-                              </Button>
-                            )}
+            {/* Flow Explanation */}
+            <Card className="border-border/60 bg-muted/30">
+              <CardContent className="p-4">
+                <p className="text-xs font-semibold text-muted-foreground mb-2">Conversational Flow</p>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+                  <Badge variant="secondary" className="text-[10px] bg-blue-100 text-blue-700">
+                    Customer Messages
+                  </Badge>
+                  <ArrowRight className="size-3" />
+                  <Badge variant="secondary" className="text-[10px] bg-indigo-100 text-indigo-700">
+                    Medicine Requested
+                  </Badge>
+                  <ArrowRight className="size-3" />
+                  <Badge variant="secondary" className="text-[10px] bg-green-100 text-green-700">
+                    Availability Sent
+                  </Badge>
+                  <ArrowRight className="size-3" />
+                  <Badge variant="secondary" className="text-[10px] bg-emerald-100 text-emerald-700">
+                    Confirmed ✓
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
 
-                            {/* Confirm WhatsApp Order */}
-                            {enquiry.type === "order" && !enquiry.confirmedByAdmin && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="size-7 text-green-600"
-                                title="Confirm order"
-                                disabled={confirmingId === enquiry._id}
-                                onClick={() => handleConfirmOrder(enquiry._id)}
-                              >
-                                {confirmingId === enquiry._id ? (
-                                  <Loader2 className="size-3.5 animate-spin" />
-                                ) : (
-                                  <CheckSquare className="size-3.5" />
-                                )}
-                              </Button>
-                            )}
-
-                            {/* Mark as viewed */}
-                            {!enquiry.viewed && (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="size-7"
-                                title="Mark as viewed"
-                                onClick={() => handleMarkViewed(enquiry._id)}
-                              >
-                                <Eye className="size-3.5" />
-                              </Button>
-                            )}
-
-                            {/* Notes */}
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="size-7"
-                              title="Add notes"
-                              onClick={() => {
-                                setNotesId(enquiry._id);
-                                setNotesText(enquiry.adminNotes || "");
-                              }}
-                            >
-                              <StickyNote className="size-3.5" />
-                            </Button>
-                          </div>
-                        </TableCell>
+            {/* Conversations Table */}
+            {conversations === undefined ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="size-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : conversations.length === 0 ? (
+              <Card className="border-border/60">
+                <CardContent className="p-12 text-center">
+                  <MessageSquare className="size-10 text-muted-foreground/40 mx-auto mb-3" />
+                  <p className="text-sm font-medium text-muted-foreground">
+                    No conversations yet
+                  </p>
+                  <p className="text-xs text-muted-foreground/70 mt-1">
+                    Conversations will appear here when customers message via WhatsApp.
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card className="border-border/60">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Customer</TableHead>
+                        <TableHead>Phone</TableHead>
+                        <TableHead>Medicine</TableHead>
+                        <TableHead className="text-center">Qty</TableHead>
+                        <TableHead className="text-right">Amount</TableHead>
+                        <TableHead>Flow Status</TableHead>
+                        <TableHead className="text-center">Msgs</TableHead>
+                        <TableHead>Last Active</TableHead>
                       </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {conversations.map((conv) => (
+                        <ConversationRow key={conv._id} conversation={conv} />
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </Card>
+            )}
+          </>
+        )}
+
+        {/* ═══════ ENQUIRIES VIEW ═══════ */}
+        {view === "enquiries" && (
+          <>
+            {/* Stats Cards */}
+            {stats && (
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="grid gap-4 grid-cols-2 sm:grid-cols-4"
+              >
+                <Card className="border-border/60">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex size-10 items-center justify-center rounded-xl bg-green-100 text-green-600">
+                        <MessageCircle className="size-5" />
+                      </div>
+                      <div>
+                        <p className="text-2xl font-extrabold">{stats.total}</p>
+                        <p className="text-xs text-muted-foreground">Total</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-border/60">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex size-10 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
+                        <TrendingUp className="size-5" />
+                      </div>
+                      <div>
+                        <p className="text-2xl font-extrabold">{stats.orders}</p>
+                        <p className="text-xs text-muted-foreground">WhatsApp Orders</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-border/60">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex size-10 items-center justify-center rounded-xl bg-purple-100 text-purple-600">
+                        <ShoppingCart className="size-5" />
+                      </div>
+                      <div>
+                        <p className="text-2xl font-extrabold">{stats.enquiries}</p>
+                        <p className="text-xs text-muted-foreground">General Enquiries</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="border-border/60">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex size-10 items-center justify-center rounded-xl bg-amber-100 text-amber-600">
+                        <Clock className="size-5" />
+                      </div>
+                      <div>
+                        <p className="text-2xl font-extrabold">{stats.todayCount}</p>
+                        <p className="text-xs text-muted-foreground">Today</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
+
+            {/* Availability Notifications Banner */}
+            {availStats && availStats.waiting > 0 && (
+              <Card className="border-amber-200 bg-amber-50/50">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <Bell className="size-5 text-amber-600 shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-amber-800">
+                      {availStats.waiting} customer(s) waiting for out-of-stock items
+                    </p>
+                    <p className="text-xs text-amber-600 mt-0.5">
+                      They will be notified automatically when stock is restocked.
+                      {availStats.notified > 0 && ` ${availStats.notified} already notified.`}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Weekly Overview Bar */}
+            {stats && stats.last7Days && (
+              <Card className="border-border/60">
+                <CardContent className="p-5">
+                  <h3 className="text-sm font-bold mb-4 flex items-center gap-2">
+                    <BarChart3 className="size-4 text-primary" />
+                    Last 7 Days Activity
+                  </h3>
+                  <div className="flex items-end gap-2 h-24">
+                    {stats.last7Days.map((day) => {
+                      const maxCount = Math.max(
+                        ...stats.last7Days.map((d) => d.count),
+                        1
+                      );
+                      const height = (day.count / maxCount) * 100;
+                      return (
+                        <div
+                          key={day.date}
+                          className="flex-1 flex flex-col items-center gap-1"
+                        >
+                          <span className="text-[10px] font-semibold text-muted-foreground">
+                            {day.count}
+                          </span>
+                          <div
+                            className="w-full rounded-t-md bg-primary/80 transition-all"
+                            style={{ height: `${Math.max(height, 4)}%` }}
+                          />
+                          <span className="text-[10px] text-muted-foreground">
+                            {day.date}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Filter Tabs */}
+            <div className="flex flex-wrap gap-2">
+              {[
+                { key: "all", label: "All" },
+                { key: "unread", label: "Unread" },
+                { key: "enquiry", label: "General Enquiries" },
+                { key: "order", label: "WhatsApp Orders" },
+                { key: "cart", label: "Cart Enquiries" },
+                { key: "product", label: "Product Enquiries" },
+              ].map((tab) => (
+                <Button
+                  key={tab.key}
+                  variant={filter === tab.key ? "default" : "outline"}
+                  size="sm"
+                  className="text-xs rounded-lg"
+                  onClick={() => setFilter(tab.key)}
+                >
+                  {tab.label}
+                </Button>
+              ))}
             </div>
-          </Card>
+
+            {/* Enquiries Table */}
+            {enquiries === undefined ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="size-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : filteredEnquiries.length === 0 ? (
+              <Card className="border-border/60">
+                <CardContent className="p-12 text-center">
+                  <MessageCircle className="size-10 text-muted-foreground/40 mx-auto mb-3" />
+                  <p className="text-sm font-medium text-muted-foreground">
+                    No records found
+                  </p>
+                  <p className="text-xs text-muted-foreground/70 mt-1">
+                    {filter === "all"
+                      ? "No WhatsApp enquiries or orders have been recorded yet."
+                      : "No enquiries match the selected filter."}
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card className="border-border/60">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-12"></TableHead>
+                        <TableHead>Type</TableHead>
+                        <TableHead>Summary</TableHead>
+                        <TableHead>Customer</TableHead>
+                        <TableHead className="text-right">Amount</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredEnquiries.map((enquiry) => {
+                        const config = TYPE_CONFIG[enquiry.type] ?? TYPE_CONFIG.enquiry;
+                        const Icon = config.icon;
+                        const deliveryConfig = enquiry.deliveryStatus
+                          ? DELIVERY_STATUS_CONFIG[enquiry.deliveryStatus]
+                          : null;
+                        return (
+                          <TableRow
+                            key={enquiry._id}
+                            className={`${!enquiry.viewed ? "bg-primary/[0.02]" : ""}`}
+                          >
+                            <TableCell>
+                              {!enquiry.viewed ? (
+                                <div className="size-2 rounded-full bg-green-500" />
+                              ) : (
+                                <div className="size-2 rounded-full bg-transparent" />
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <Badge
+                                variant="secondary"
+                                className={`gap-1 text-xs ${config.color} ${config.bgColor}`}
+                              >
+                                <Icon className="size-3" />
+                                {config.label}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <p className="text-sm font-medium max-w-[240px] truncate">
+                                {enquiry.summary}
+                              </p>
+                              {enquiry.productName && (
+                                <p className="text-xs text-muted-foreground">
+                                  Product: {enquiry.productName}
+                                </p>
+                              )}
+                              {enquiry.available !== undefined && enquiry.type === "order" && (
+                                <p className={`text-xs font-medium mt-0.5 ${enquiry.available ? "text-green-600" : "text-red-600"}`}>
+                                  {enquiry.available ? "✓ Available" : "✗ Unavailable"}
+                                  {enquiry.requestedQuantity ? ` (Qty: ${enquiry.requestedQuantity})` : ""}
+                                </p>
+                              )}
+                              {enquiry.prescriptionRequired && (
+                                <p className="text-xs font-medium text-amber-600 mt-0.5">
+                                  ⚠️ Rx Required
+                                </p>
+                              )}
+                              {enquiry.deliveryError && (
+                                <p className="text-xs text-red-500 mt-0.5 truncate max-w-[200px]" title={enquiry.deliveryError}>
+                                  Error: {enquiry.deliveryError}
+                                </p>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <div className="text-sm">
+                                {enquiry.customerName ? (
+                                  <span className="font-medium">{enquiry.customerName}</span>
+                                ) : (
+                                  <span className="text-muted-foreground">—</span>
+                                )}
+                                {enquiry.customerPhone && (
+                                  <p className="text-xs text-muted-foreground">{enquiry.customerPhone}</p>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {enquiry.totalAmount ? (
+                                <span className="text-sm font-semibold">
+                                  ₹{enquiry.totalAmount.toLocaleString("en-IN")}
+                                </span>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">—</span>
+                              )}
+                              {enquiry.itemCount && (
+                                <p className="text-xs text-muted-foreground">{enquiry.itemCount} item(s)</p>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {deliveryConfig ? (
+                                <Badge variant="secondary" className={`text-[10px] ${deliveryConfig.color} ${deliveryConfig.bgColor}`}>
+                                  {deliveryConfig.label}
+                                </Badge>
+                              ) : enquiry.confirmedByAdmin ? (
+                                <Badge variant="secondary" className="text-[10px] text-green-700 bg-green-100">
+                                  <CheckSquare className="size-2.5 mr-0.5" /> Confirmed
+                                </Badge>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">—</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <span className="text-xs text-muted-foreground">
+                                {formatDistanceToNow(enquiry.createdAt, { addSuffix: true })}
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex items-center justify-end gap-1 flex-wrap">
+                                {enquiry.customerPhone && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="size-7"
+                                    title="Send via WhatsApp API"
+                                    disabled={sendingId === enquiry._id}
+                                    onClick={() => handleSendWhatsApp(enquiry)}
+                                  >
+                                    {sendingId === enquiry._id ? (
+                                      <Loader2 className="size-3.5 animate-spin" />
+                                    ) : (
+                                      <Send className="size-3.5" />
+                                    )}
+                                  </Button>
+                                )}
+
+                                {enquiry.deliveryStatus === "failed" && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="size-7 text-amber-600"
+                                    title="Retry sending"
+                                    onClick={() => handleRetry(enquiry._id)}
+                                  >
+                                    <RefreshCw className="size-3.5" />
+                                  </Button>
+                                )}
+
+                                {enquiry.type === "order" && !enquiry.confirmedByAdmin && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="size-7 text-green-600"
+                                    title="Confirm order"
+                                    disabled={confirmingId === enquiry._id}
+                                    onClick={() => handleConfirmOrder(enquiry._id)}
+                                  >
+                                    {confirmingId === enquiry._id ? (
+                                      <Loader2 className="size-3.5 animate-spin" />
+                                    ) : (
+                                      <CheckSquare className="size-3.5" />
+                                    )}
+                                  </Button>
+                                )}
+
+                                {!enquiry.viewed && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="size-7"
+                                    title="Mark as viewed"
+                                    onClick={() => handleMarkViewed(enquiry._id)}
+                                  >
+                                    <Eye className="size-3.5" />
+                                  </Button>
+                                )}
+
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="size-7"
+                                  title="Add notes"
+                                  onClick={() => {
+                                    setNotesId(enquiry._id);
+                                    setNotesText(enquiry.adminNotes || "");
+                                  }}
+                                >
+                                  <StickyNote className="size-3.5" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              </Card>
+            )}
+          </>
         )}
 
         {/* Notes Dialog */}
