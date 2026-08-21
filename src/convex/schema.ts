@@ -441,14 +441,19 @@ const schema = defineSchema(
       phone: v.string(),
       // Conversation state machine
       state: v.union(
-        v.literal("new"),              // Initial state, no active conversation
-        v.literal("medicine_requested"), // Customer requested a medicine
-        v.literal("availability_sent"),  // Availability message sent, waiting for response
-        v.literal("awaiting_response"),  // Waiting for yes/no response
-        v.literal("confirmed"),          // Customer confirmed, order created
-        v.literal("declined"),           // Customer declined
-        v.literal("expired"),            // Conversation timed out
-        v.literal("unavailable"),        // Medicine was out of stock
+        v.literal("new"),               // Initial state, no active conversation
+        v.literal("medicine_requested"),  // Customer requested a medicine
+        v.literal("availability_sent"),   // Availability message sent, waiting for response
+        v.literal("awaiting_response"),   // Waiting for yes/no response
+        v.literal("awaiting_address"),    // Waiting for delivery address
+        v.literal("address_received"),    // Address received, waiting for quantity or confirmation
+        v.literal("awaiting_quantity"),   // Waiting for quantity input
+        v.literal("order_summary"),       // Order summary sent, waiting for final confirmation
+        v.literal("add_more_medicines"),  // Customer can add more medicines
+        v.literal("confirmed"),           // Customer confirmed, order created
+        v.literal("declined"),            // Customer declined
+        v.literal("expired"),             // Conversation timed out
+        v.literal("unavailable"),         // Medicine was out of stock
       ),
       // Medicine context for current conversation
       productName: v.optional(v.string()),
@@ -457,6 +462,11 @@ const schema = defineSchema(
       available: v.optional(v.boolean()),
       price: v.optional(v.number()),
       prescriptionRequired: v.optional(v.boolean()),
+      // Multiple medicines support (JSON stringified array)
+      medicineList: v.optional(v.string()), // JSON: [{name, productId, qty, price, available, rxRequired}]
+      // Delivery address
+      deliveryAddress: v.optional(v.string()),
+      deliveryAddressFull: v.optional(v.string()), // Full formatted address
       // Customer info
       customerName: v.optional(v.string()),
       userId: v.optional(v.id("users")),

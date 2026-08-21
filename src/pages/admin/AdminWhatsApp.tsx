@@ -35,6 +35,8 @@ import {
   AlertTriangle,
   XCircle,
   Package,
+  MapPin,
+  Plus,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useState } from "react";
@@ -141,6 +143,41 @@ const CONVERSATION_STATE_CONFIG: Record<
     bgColor: "bg-red-100",
     description: "Requested medicine is out of stock",
   },
+  awaiting_address: {
+    label: "Awaiting Address",
+    icon: MapPin,
+    color: "text-cyan-700",
+    bgColor: "bg-cyan-100",
+    description: "Medicine found, waiting for delivery address",
+  },
+  address_received: {
+    label: "Address Received",
+    icon: MapPin,
+    color: "text-blue-700",
+    bgColor: "bg-blue-100",
+    description: "Address received, awaiting quantity",
+  },
+  awaiting_quantity: {
+    label: "Awaiting Quantity",
+    icon: Package,
+    color: "text-violet-700",
+    bgColor: "bg-violet-100",
+    description: "Address received, waiting for quantity",
+  },
+  order_summary: {
+    label: "Order Summary Sent",
+    icon: CheckCircle,
+    color: "text-orange-700",
+    bgColor: "bg-orange-100",
+    description: "Summary sent, waiting for final confirmation",
+  },
+  add_more_medicines: {
+    label: "Adding Medicines",
+    icon: Plus,
+    color: "text-teal-700",
+    bgColor: "bg-teal-100",
+    description: "Customer adding more medicines",
+  },
 };
 
 // ── Conversation Row Component ──
@@ -214,6 +251,17 @@ function ConversationRow({ conversation }: { conversation: any }) {
         <span className="text-xs text-muted-foreground">
           {formatDistanceToNow(conversation.lastMessageAt, { addSuffix: true })}
         </span>
+      </TableCell>
+      <TableCell>
+        {conversation.deliveryAddress ? (
+          <div className="max-w-[180px]">
+            <p className="text-xs text-muted-foreground truncate" title={conversation.deliveryAddressFull || conversation.deliveryAddress}>
+              📍 {conversation.deliveryAddress.length > 30 ? conversation.deliveryAddress.substring(0, 30) + '...' : conversation.deliveryAddress}
+            </p>
+          </div>
+        ) : (
+          <span className="text-xs text-muted-foreground/50">—</span>
+        )}
       </TableCell>
     </TableRow>
   );
@@ -444,15 +492,23 @@ export default function AdminWhatsApp() {
                 <p className="text-xs font-semibold text-muted-foreground mb-2">Conversational Flow</p>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
                   <Badge variant="secondary" className="text-[10px] bg-blue-100 text-blue-700">
-                    Customer Messages
+                    Greeting
                   </Badge>
                   <ArrowRight className="size-3" />
                   <Badge variant="secondary" className="text-[10px] bg-indigo-100 text-indigo-700">
                     Medicine Requested
                   </Badge>
                   <ArrowRight className="size-3" />
-                  <Badge variant="secondary" className="text-[10px] bg-green-100 text-green-700">
-                    Availability Sent
+                  <Badge variant="secondary" className="text-[10px] bg-cyan-100 text-cyan-700">
+                    Address Requested
+                  </Badge>
+                  <ArrowRight className="size-3" />
+                  <Badge variant="secondary" className="text-[10px] bg-violet-100 text-violet-700">
+                    Quantity
+                  </Badge>
+                  <ArrowRight className="size-3" />
+                  <Badge variant="secondary" className="text-[10px] bg-orange-100 text-orange-700">
+                    Summary
                   </Badge>
                   <ArrowRight className="size-3" />
                   <Badge variant="secondary" className="text-[10px] bg-emerald-100 text-emerald-700">
@@ -493,6 +549,7 @@ export default function AdminWhatsApp() {
                         <TableHead>Flow Status</TableHead>
                         <TableHead className="text-center">Msgs</TableHead>
                         <TableHead>Last Active</TableHead>
+                        <TableHead>Delivery Address</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>

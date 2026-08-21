@@ -30,6 +30,7 @@ import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router";
 import { useRef } from "react";
 import { openWhatsApp, generateEnquiryMessage } from "@/lib/whatsapp";
+import WhatsAppFloat from "@/components/WhatsAppFloat";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { formatCurrency } from "@/lib/auth-utils";
@@ -749,6 +750,9 @@ export default function Landing() {
           </div>
         </div>
       </footer>
+
+      {/* Floating WhatsApp Button */}
+      <WhatsAppFloat />
     </div>
   );
 }
