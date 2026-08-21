@@ -65,39 +65,56 @@ export function generateOrderMessage(params: {
 
 /**
  * Generate a safe cart summary message
+ * Includes availability check for each product
  */
 export function generateCartMessage(params: {
-  products: WhatsAppProduct[];
+  products: (WhatsAppProduct & { stockQuantity?: number })[];
   subtotal: number;
   pharmacyPhone?: string;
 }): string {
   const lines: string[] = [];
 
-  lines.push("💊 *Kalyan Chemist — Cart Inquiry*");
+  lines.push("💊 *Kalyan Chemist — Cart Order*");
   lines.push("");
 
   lines.push("🛒 *Items:*");
+  const unavailableItems: string[] = [];
   for (const item of params.products) {
     const itemTotal = item.price * item.quantity;
     lines.push(`• ${item.name} × ${item.quantity} — ₹${itemTotal.toLocaleString("en-IN")}`);
+    // Check stock availability
+    if (item.stockQuantity !== undefined && item.stockQuantity < item.quantity) {
+      unavailableItems.push(item.name);
+    }
   }
 
   lines.push("");
   lines.push(`*Subtotal: ₹${params.subtotal.toLocaleString("en-IN")}*`);
   lines.push("");
-  lines.push("Please confirm availability and share the delivery options.");
+
+  // Availability auto-reply
+  if (unavailableItems.length > 0) {
+    lines.push("💊 Hi! Sorry, some items in your cart may be currently unavailable or have insufficient stock:");
+    lines.push(`  ${unavailableItems.join(", ")}`);
+    lines.push("Our team will confirm availability and assist you shortly.");
+  } else {
+    lines.push("💊 Hi! All items in your cart are available at Kalyan Chemist. Our team will assist you shortly.");
+  }
 
   return lines.join("\n");
 }
 
 /**
  * Generate a single-product inquiry message
+ * Includes availability auto-reply based on current stock
  */
 export function generateProductMessage(params: {
   productName: string;
   price: number;
   composition?: string;
   packSize?: string;
+  stockQuantity?: number;
+  requestedQuantity?: number;
 }): string {
   const lines: string[] = [];
 
@@ -108,7 +125,15 @@ export function generateProductMessage(params: {
   if (params.packSize) lines.push(`Pack Size: ${params.packSize}`);
   lines.push(`Price: ₹${params.price.toLocaleString("en-IN")}`);
   lines.push("");
-  lines.push("Is this product available? Please share details.");
+
+  // Availability auto-reply based on live stock
+  const qty = params.requestedQuantity ?? 1;
+  const stock = params.stockQuantity ?? 0;
+  if (stock >= qty) {
+    lines.push("💊 Hi! Your requested medicine and quantity are available at Kalyan Chemist. Our team will assist you shortly.");
+  } else {
+    lines.push("💊 Hi! Sorry, the requested medicine or quantity is currently unavailable. Please let us know if you'd like an alternative.");
+  }
 
   return lines.join("\n");
 }

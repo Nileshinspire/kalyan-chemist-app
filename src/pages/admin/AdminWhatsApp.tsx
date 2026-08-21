@@ -151,7 +151,7 @@ export default function AdminWhatsApp() {
                   <div>
                     <p className="text-2xl font-extrabold">{stats.total}</p>
                     <p className="text-xs text-muted-foreground">
-                      Total Enquiries
+                      Total
                     </p>
                   </div>
                 </div>
@@ -166,10 +166,10 @@ export default function AdminWhatsApp() {
                   </div>
                   <div>
                     <p className="text-2xl font-extrabold">
-                      {stats.enquiries}
+                      {stats.orders}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      General Enquiries
+                      WhatsApp Orders
                     </p>
                   </div>
                 </div>
@@ -183,9 +183,9 @@ export default function AdminWhatsApp() {
                     <ShoppingCart className="size-5" />
                   </div>
                   <div>
-                    <p className="text-2xl font-extrabold">{stats.orders}</p>
+                    <p className="text-2xl font-extrabold">{stats.enquiries}</p>
                     <p className="text-xs text-muted-foreground">
-                      WhatsApp Orders
+                      General Enquiries
                     </p>
                   </div>
                 </div>
@@ -276,14 +276,13 @@ export default function AdminWhatsApp() {
         ) : filteredEnquiries.length === 0 ? (
           <Card className="border-border/60">
             <CardContent className="p-12 text-center">
-              <MessageCircle className="size-10 text-muted-foreground/40 mx-auto mb-3" />
-              <p className="text-sm font-medium text-muted-foreground">
-                No enquiries found
-              </p>
+              <MessageCircle className="size-10 text-muted-foreground/40 mx-auto mb-3" />                <p className="text-sm font-medium text-muted-foreground">
+                  No records found
+                </p>
               <p className="text-xs text-muted-foreground/70 mt-1">
-                {filter === "all"
-                  ? "No WhatsApp enquiries have been recorded yet."
-                  : "No enquiries match the selected filter."}
+            {filter === "all"
+              ? "No WhatsApp enquiries or orders have been recorded yet."
+              : "No enquiries match the selected filter."}
               </p>
             </CardContent>
           </Card>
@@ -334,6 +333,12 @@ export default function AdminWhatsApp() {
                           {enquiry.productName && (
                             <p className="text-xs text-muted-foreground">
                               Product: {enquiry.productName}
+                            </p>
+                          )}
+                          {enquiry.available !== undefined && enquiry.type === "order" && (
+                            <p className={`text-xs font-medium mt-0.5 ${enquiry.available ? "text-green-600" : "text-red-600"}`}>
+                              {enquiry.available ? "✓ Available" : "✗ Unavailable"}
+                              {enquiry.requestedQuantity ? ` (Qty: ${enquiry.requestedQuantity})` : ""}
                             </p>
                           )}
                         </TableCell>

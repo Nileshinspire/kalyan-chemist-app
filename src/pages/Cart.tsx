@@ -176,13 +176,15 @@ export default function Cart() {
         price: item.product!.discountPrice && item.product!.discountPrice < item.product!.price
           ? item.product!.discountPrice!
           : item.product!.price,
+        stockQuantity: item.product!.stockQuantity,
       }));
+    const unavailableItems = products.filter((p) => p.stockQuantity < p.quantity);
     const msg = generateCartMessage({ products, subtotal });
     openWhatsApp(phone, msg);
     logWhatsApp({
-      type: "cart",
+      type: "order",
       message: msg,
-      summary: `Cart enquiry — ${products.length} item(s), total ₹${subtotal.toLocaleString("en-IN")}`,
+      summary: `WhatsApp Order — ${products.length} item(s), total ₹${subtotal.toLocaleString("en-IN")}${unavailableItems.length > 0 ? ` (${unavailableItems.length} unavailable)` : " (All available)"}`,
       itemCount: products.length,
       totalAmount: subtotal,
     }).catch(() => {});

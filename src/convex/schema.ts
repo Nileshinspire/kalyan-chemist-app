@@ -404,6 +404,9 @@ const schema = defineSchema(
       // For cart/order enquiries
       itemCount: v.optional(v.number()),
       totalAmount: v.optional(v.number()),
+      // For availability tracking
+      requestedQuantity: v.optional(v.number()),
+      available: v.optional(v.boolean()),
       // Admin tracking
       viewed: v.boolean(),
       viewedAt: v.optional(v.number()),

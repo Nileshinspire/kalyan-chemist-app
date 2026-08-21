@@ -18,6 +18,8 @@ export const log = mutation({
     productName: v.optional(v.string()),
     itemCount: v.optional(v.number()),
     totalAmount: v.optional(v.number()),
+    requestedQuantity: v.optional(v.number()),
+    available: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -33,6 +35,8 @@ export const log = mutation({
       productName: args.productName,
       itemCount: args.itemCount,
       totalAmount: args.totalAmount,
+      requestedQuantity: args.requestedQuantity,
+      available: args.available,
       viewed: false,
       createdAt: Date.now(),
     });
@@ -144,6 +148,10 @@ export const stats = query({
     const cartInquiries = all.filter((e) => e.type === "cart").length;
     const productInquiries = all.filter((e) => e.type === "product").length;
 
+    // Availability tracking
+    const availableOrders = all.filter((e) => e.available === true).length;
+    const unavailableOrders = all.filter((e) => e.available === false).length;
+
     // Last 7 days chart data
     const last7Days: { date: string; count: number }[] = [];
     for (let i = 6; i >= 0; i--) {
@@ -165,6 +173,8 @@ export const stats = query({
       orders,
       cartInquiries,
       productInquiries,
+      availableOrders,
+      unavailableOrders,
       last7Days,
     };
   },

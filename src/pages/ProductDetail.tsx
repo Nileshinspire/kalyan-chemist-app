@@ -99,20 +99,26 @@ export default function ProductDetail() {
     }
     const p = product;
     const hasDiscount = p.discountPrice && p.discountPrice < p.price;
+    const requestedQty = 1;
+    const isAvailable = p.stockQuantity >= requestedQty;
     const msg = generateProductMessage({
       productName: p.name,
       price: hasDiscount ? p.discountPrice! : p.price,
       composition: p.composition,
       packSize: p.packSize,
+      stockQuantity: p.stockQuantity,
+      requestedQuantity: requestedQty,
     });
     openWhatsApp(phone, msg);
     logWhatsApp({
-      type: "product",
+      type: "order",
       message: msg,
-      summary: `Product enquiry — ${p.name}`,
+      summary: `WhatsApp Order — ${p.name}${isAvailable ? " (Available)" : " (Unavailable)"}`,
       productId: p._id,
       productName: p.name,
       totalAmount: hasDiscount ? p.discountPrice! : p.price,
+      requestedQuantity: requestedQty,
+      available: isAvailable,
     }).catch(() => {});
   };
 
