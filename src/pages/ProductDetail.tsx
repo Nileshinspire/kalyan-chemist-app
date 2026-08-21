@@ -33,8 +33,6 @@ import { formatCurrency } from "@/lib/auth-utils";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { generateProductMessage, openWhatsApp } from "@/lib/whatsapp";
-import { useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
 
 export default function ProductDetail() {
   const { slug } = useParams<{ slug: string }>();
@@ -53,6 +51,8 @@ export default function ProductDetail() {
       ? { productId: product._id, categoryId: product.categoryId }
       : "skip"
   );
+
+  const deliveryConfig = useQuery(api.deliveryConfig.getPublic);
 
   const handleAddToCart = async () => {
     if (!product) return;
@@ -80,9 +80,6 @@ export default function ProductDetail() {
   );
   const toggleWishlist = useMutation(api.wishlist.toggle);
 
-  // Get delivery config for WhatsApp number
-  const deliveryConfig = useQuery(api.deliveryConfig.getPublic);
-
   const handleWishlist = async () => {
     if (!product) return;
     try {
@@ -93,11 +90,14 @@ export default function ProductDetail() {
   };
 
   const handleWhatsApp = () => {
+    if (!product) return;
     const phone = deliveryConfig?.storeWhatsApp || deliveryConfig?.storePhone || "";
     if (!phone) {
       toast.error("WhatsApp number not configured. Please call us directly.");
       return;
     }
+    const p = product;
+    const hasDiscount = p.discountPrice && p.discountPrice < p.price;
     const msg = generateProductMessage({
       productName: p.name,
       price: hasDiscount ? p.discountPrice! : p.price,
@@ -164,7 +164,6 @@ export default function ProductDetail() {
         </Button>
 
         <div className="grid gap-8 lg:grid-cols-[1fr_1.2fr]">
-          {/* Product Image */}
           <motion.div
             initial={{ opacity: 0, x: -16 }}
             animate={{ opacity: 1, x: 0 }}
@@ -182,14 +181,12 @@ export default function ProductDetail() {
             </div>
           </motion.div>
 
-          {/* Product Info */}
           <motion.div
             initial={{ opacity: 0, x: 16 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
             className="space-y-6"
           >
-            {/* Badges */}
             <div className="flex flex-wrap gap-2">
               {p.prescriptionRequired ? (
                 <Badge variant="destructive" className="gap-1">
@@ -202,13 +199,9 @@ export default function ProductDetail() {
                   Over the Counter (OTC)
                 </Badge>
               )}
-              {cat && (
-                <Badge variant="secondary">{cat.name}</Badge>
-              )}
-
+              {cat && <Badge variant="secondary">{cat.name}</Badge>}
             </div>
 
-            {/* Name & Manufacturer */}
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{p.name}</h1>
               <p className="mt-1 text-sm text-muted-foreground">
@@ -216,7 +209,6 @@ export default function ProductDetail() {
               </p>
             </div>
 
-            {/* Price */}
             <div className="flex items-baseline gap-3">
               <span className="text-3xl font-extrabold">{formatCurrency(hasDiscount ? p.discountPrice! : p.price)}</span>
               {hasDiscount && (
@@ -229,7 +221,6 @@ export default function ProductDetail() {
               )}
             </div>
 
-            {/* Stock Status */}
             <div>
               {isInStock ? (
                 <div className="flex items-center gap-2">
@@ -246,7 +237,6 @@ export default function ProductDetail() {
               )}
             </div>
 
-            {/* Prescription Warning */}
             {p.prescriptionRequired && (
               <div className="rounded-xl bg-amber-50 border border-amber-200 p-4 flex items-start gap-3">
                 <AlertTriangle className="size-5 text-amber-600 shrink-0 mt-0.5" />
@@ -260,7 +250,6 @@ export default function ProductDetail() {
               </div>
             )}
 
-            {/* Actions */}
             <div className="flex gap-3">
               <Button
                 size="lg"
@@ -291,7 +280,6 @@ export default function ProductDetail() {
               </Button>
             </div>
 
-            {/* WhatsApp Order Button */}
             <Button
               size="lg"
               variant="outline"
@@ -302,7 +290,6 @@ export default function ProductDetail() {
               Order on WhatsApp
             </Button>
 
-            {/* Trust indicators */}
             <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
               <div className="flex items-center gap-1.5">
                 <ShieldCheck className="size-3.5 text-primary" />
@@ -318,7 +305,6 @@ export default function ProductDetail() {
               </div>
             </div>
 
-            {/* Product Details Table */}
             <Card className="border-border/60">
               <CardContent className="p-0">
                 <Table>
@@ -330,7 +316,6 @@ export default function ProductDetail() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-
                     {p.composition && (
                       <TableRow>
                         <TableCell className="font-medium text-muted-foreground">Composition</TableCell>
@@ -376,7 +361,6 @@ export default function ProductDetail() {
           </motion.div>
         </div>
 
-        {/* Description */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
@@ -386,9 +370,7 @@ export default function ProductDetail() {
           <Card className="border-border/60">
             <CardContent className="p-6">
               <h3 className="text-lg font-bold mb-3">Description</h3>
-              <p className="text-sm leading-relaxed text-muted-foreground">
-                {p.description}
-              </p>
+              <p className="text-sm leading-relaxed text-muted-foreground">{p.description}</p>
             </CardContent>
           </Card>
           {p.storageInformation && (
@@ -398,15 +380,12 @@ export default function ProductDetail() {
                   <Info className="size-4 text-primary" />
                   Storage Information
                 </h3>
-                <p className="text-sm leading-relaxed text-muted-foreground">
-                  {p.storageInformation}
-                </p>
+                <p className="text-sm leading-relaxed text-muted-foreground">{p.storageInformation}</p>
               </CardContent>
             </Card>
           )}
         </motion.div>
 
-        {/* Related Products */}
         {relatedProducts && relatedProducts.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 16 }}

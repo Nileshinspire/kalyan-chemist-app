@@ -30,7 +30,9 @@ import { toast } from "sonner";
 
 interface CouponForm {
   code: string;
+  discountType: "percentage" | "fixed";
   discountPercent: number;
+  fixedDiscount: number;
   maxDiscount: number;
   minOrder: number;
   usageLimit: number;
@@ -40,7 +42,9 @@ interface CouponForm {
 
 const EMPTY_FORM: CouponForm = {
   code: "",
+  discountType: "percentage",
   discountPercent: 10,
+  fixedDiscount: 0,
   maxDiscount: 200,
   minOrder: 300,
   usageLimit: 100,
@@ -75,7 +79,9 @@ export default function AdminCoupons() {
     setEditingId(coupon._id);
     setForm({
       code: coupon.code,
+      discountType: coupon.discountType || "percentage",
       discountPercent: coupon.discountPercent,
+      fixedDiscount: coupon.fixedDiscount || 0,
       maxDiscount: coupon.maxDiscount,
       minOrder: coupon.minOrder,
       usageLimit: coupon.usageLimit,
@@ -99,7 +105,9 @@ export default function AdminCoupons() {
     try {
       const payload: any = {
         code: form.code.trim(),
+        discountType: form.discountType,
         discountPercent: form.discountPercent,
+        fixedDiscount: form.fixedDiscount,
         maxDiscount: form.maxDiscount,
         minOrder: form.minOrder,
         usageLimit: form.usageLimit,
@@ -188,7 +196,11 @@ export default function AdminCoupons() {
                       <div className="flex-1 min-w-0 grid grid-cols-2 sm:grid-cols-5 gap-2">
                         <div>
                           <p className="text-sm font-bold font-mono">{coupon.code}</p>
-                          <p className="text-xs text-muted-foreground">{coupon.discountPercent}% off</p>
+                          <p className="text-xs text-muted-foreground">
+                            {coupon.discountType === "fixed"
+                              ? `₹${coupon.fixedDiscount} off`
+                              : `${coupon.discountPercent}% off`}
+                          </p>
                         </div>
                         <div>
                           <p className="text-xs text-muted-foreground">Max Discount</p>
@@ -259,17 +271,52 @@ export default function AdminCoupons() {
                 maxLength={20}
               />
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label>Discount %</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  max={100}
-                  value={form.discountPercent}
-                  onChange={(e) => setForm({ ...form, discountPercent: Number(e.target.value) })}
-                />
+            <div className="space-y-1.5">
+              <Label>Discount Type</Label>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant={form.discountType === "percentage" ? "default" : "outline"}
+                  size="sm"
+                  className={`flex-1 ${form.discountType === "percentage" ? "gradient-primary text-white" : ""}`}
+                  onClick={() => setForm({ ...form, discountType: "percentage" })}
+                >
+                  Percentage %
+                </Button>
+                <Button
+                  type="button"
+                  variant={form.discountType === "fixed" ? "default" : "outline"}
+                  size="sm"
+                  className={`flex-1 ${form.discountType === "fixed" ? "gradient-primary text-white" : ""}`}
+                  onClick={() => setForm({ ...form, discountType: "fixed" })}
+                >
+                  Fixed ₹
+                </Button>
               </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {form.discountType === "percentage" ? (
+                <div className="space-y-1.5">
+                  <Label>Discount %</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={100}
+                    value={form.discountPercent}
+                    onChange={(e) => setForm({ ...form, discountPercent: Number(e.target.value) })}
+                  />
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <Label>Fixed Discount (₹)</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={form.fixedDiscount}
+                    onChange={(e) => setForm({ ...form, fixedDiscount: Number(e.target.value) })}
+                  />
+                </div>
+              )}
               <div className="space-y-1.5">
                 <Label>Max Discount (₹)</Label>
                 <Input

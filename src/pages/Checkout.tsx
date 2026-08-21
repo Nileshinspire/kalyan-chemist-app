@@ -145,13 +145,13 @@ export default function Checkout() {
     }
     if (couponValidation && couponValidation.valid) {
       setAppliedCoupon({
-        code: couponValidation.code,
-        discount: couponValidation.discount,
-        message: couponValidation.message,
+        code: couponValidation.code || "",
+        discount: couponValidation.discount || 0,
+        message: couponValidation.message || "Coupon applied",
       });
-      toast.success(couponValidation.message);
+      toast.success(couponValidation.message || "Coupon applied");
     } else if (couponValidation && !couponValidation.valid) {
-      toast.error(couponValidation.reason);
+      toast.error(couponValidation.reason || "Invalid coupon");
     }
   };
 
