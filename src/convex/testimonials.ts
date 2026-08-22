@@ -151,15 +151,13 @@ export const adminList = query({
     if (args.status) {
       results = await ctx.db
         .query("testimonials")
-        .withIndex("by_status", (q: any) => q.eq("status", args.status))
+        .withIndex("by_status", (q: any) => q.eq("status", args.status!))
         .order("desc")
         .collect();
     } else {
-      results = await ctx.db
-        .query("testimonials")
-        .withIndex("by_createdAt", (q: any) => q.gte("createdAt", 0))
-        .order("desc")
-        .collect();
+      // Collect all testimonials (no index filter needed — safer than by_createdAt
+      // with gte which can fail on empty databases)
+      results = await ctx.db.query("testimonials").order("desc").collect();
     }
 
     // Resolve customer names from users table
