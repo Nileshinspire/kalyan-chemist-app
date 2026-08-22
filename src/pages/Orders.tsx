@@ -1,4 +1,5 @@
-import { useNavigate } from "react-router";
+import { useNavigate, useLocation } from "react-router";
+import { useRef, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import Navbar from "@/components/layout/Navbar";
@@ -25,6 +26,44 @@ const STATUS_LABELS: Record<string, string> = {
 
 export default function Orders() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const cameFromRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    // Capture the previous location on mount via history.state
+    const prevState = history.state;
+    if (prevState && typeof prevState === "object" && "idx" in prevState) {
+      // React Router stores index in history.state.idx
+      // If idx > 0, there's real history to go back to
+      // We store the referrer path for intelligent fallback
+    }
+    // Use document.referrer as a signal for where we came from
+    const referrer = document.referrer;
+    if (referrer) {
+      try {
+        const refUrl = new URL(referrer);
+        if (refUrl.origin === window.location.origin) {
+          cameFromRef.current = refUrl.pathname;
+        }
+      } catch {}
+    }
+  }, []);
+
+  const handleBack = () => {
+    // If there's meaningful browser history (more than just this page), go back
+    if (history.length > 2) {
+      window.history.back();
+    } else {
+      // Fallback: navigate to the page we came from, or dashboard
+      const from = cameFromRef.current;
+      if (from && from !== "/orders") {
+        navigate(from);
+      } else {
+        navigate("/dashboard");
+      }
+    }
+  };
+
   const orders = useQuery(api.orders.list);
   const reorder = useMutation(api.orders.reorder);
 
@@ -55,7 +94,7 @@ export default function Orders() {
       <Navbar />
       <main className="flex-1 mx-auto max-w-4xl w-full px-4 sm:px-6 py-8">
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-          <Button variant="ghost" size="sm" className="mb-4 gap-1.5 text-muted-foreground rounded-xl" onClick={() => navigate(-1)}>
+          <Button variant="ghost" size="sm" className="mb-4 gap-1.5 text-muted-foreground rounded-xl" onClick={handleBack}>
             <ArrowLeft className="size-4" /> Back
           </Button>
           <div className="inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary mb-3">
