@@ -192,7 +192,7 @@ export default function AdminOrders() {
       o.invoiceNumber?.toLowerCase().includes(search.toLowerCase()) ||
       o.userName?.toLowerCase().includes(search.toLowerCase()) ||
       o._id.toLowerCase().includes(search.toLowerCase());
-    const matchesStatus = filterStatus === "all" || o.status === filterStatus;
+    const matchesStatus = filterStatus === "all" || o.status === filterStatus || (filterStatus === "processing" && o.status === "confirmed");
     return matchesSearch && matchesStatus;
   });
 
