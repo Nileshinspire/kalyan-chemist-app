@@ -171,16 +171,9 @@ function RouteSyncer() {
     );
   }, [location.pathname]);
 
-  useEffect(() => {
-    function handleMessage(event: MessageEvent) {
-      if (event.data?.type === "navigate") {
-        if (event.data.direction === "back") window.history.back();
-        if (event.data.direction === "forward") window.history.forward();
-      }
-    }
-    window.addEventListener("message", handleMessage);
-    return () => window.removeEventListener("message", handleMessage);
-  }, []);
+  // NOTE: Intentionally removed the "navigate" back/forward postMessage handler.
+  // It caused duplicate browser-history entries in SPA routing, creating navigation
+  // loops where the Back button would return to the same page.
 
   return null;
 }
