@@ -254,14 +254,27 @@ export default function AdminOrders() {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-          {[
-            { label: "Total", value: stats.total, color: "text-foreground" },
-            { label: "Pending", value: stats.pending, color: "text-yellow-600" },
-            { label: "Processing", value: stats.processing, color: "text-blue-600" },
-            { label: "Delivered", value: stats.delivered, color: "text-green-600" },
-            { label: "Revenue", value: formatCurrency(stats.revenue), color: "text-primary" },
-          ].map((stat) => (
-            <div key={stat.label} className="p-3 rounded-xl bg-muted/30 border border-border/40">
+          {([
+            { label: "Total", value: stats.total, color: "text-foreground", status: "all" },
+            { label: "Pending", value: stats.pending, color: "text-yellow-600", status: "pending" },
+            { label: "Processing", value: stats.processing, color: "text-blue-600", status: "processing" },
+            { label: "Delivered", value: stats.delivered, color: "text-green-600", status: "delivered" },
+            { label: "Revenue", value: formatCurrency(stats.revenue), color: "text-primary", status: null },
+          ] as const).map((stat) => (
+            <div
+              key={stat.label}
+              className={`p-3 rounded-xl border transition-all ${
+                stat.status === null
+                  ? "bg-muted/30 border-border/40"
+                  : filterStatus === stat.status
+                    ? "bg-primary/[0.08] border-primary/40 ring-1 ring-primary/20 cursor-pointer"
+                    : "bg-muted/30 border-border/40 hover:bg-muted/50 hover:border-border/60 cursor-pointer"
+              }`
+              }
+              onClick={() => {
+                if (stat.status !== null) setFilterStatus(stat.status);
+              }}
+            >
               <p className={`text-lg font-bold ${stat.color}`}>{stat.value}</p>
               <p className="text-xs text-muted-foreground">{stat.label}</p>
             </div>
