@@ -28,9 +28,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { openWhatsApp, generateEnquiryMessage } from "@/lib/whatsapp";
 import WhatsAppFloat from "@/components/WhatsAppFloat";
+import WriteReview from "@/components/WriteReview";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { formatCurrency } from "@/lib/auth-utils";
@@ -88,11 +89,7 @@ const features = [
   { icon: Pill, title: "Expert Guidance", description: "Our pharmacists are available to answer your questions about dosage and interactions." },
 ];
 
-const testimonials = [
-  { name: "Priya Sharma", location: "Mumbai", rating: 5, quote: "Kalyan Chemist has made managing my family's monthly prescriptions effortless. The medicines always arrive on time and in perfect condition." },
-  { name: "Rajesh Patel", location: "Ahmedabad", rating: 5, quote: "I was sceptical about ordering medicines online, but the quality and service here are unmatched. Highly recommended for anyone with regular medication needs." },
-  { name: "Ananya Gupta", location: "Delhi", rating: 5, quote: "The website is easy to navigate, prices are fair, and the delivery is always prompt. It has become my go-to pharmacy." },
-];
+
 
 export default function Landing() {
   const navigate = useNavigate();
@@ -101,6 +98,8 @@ export default function Landing() {
   const heroY = useTransform(scrollYProgress, [0, 1], [0, 120]);
   const heroOpacity = useTransform(scrollYProgress, [0, 0.8], [1, 0]);
 
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const dbTestimonials = useQuery(api.testimonials.listFeatured, { limit: 6 });
   const logWhatsApp = useMutation(api.whatsappEnquiries.log);
   const deliveryConfig = useQuery(api.deliveryConfig.getPublic);
 
@@ -567,23 +566,33 @@ export default function Landing() {
       {/* ── Testimonials ── */}
       <section className="border-y border-border/50 bg-gradient-to-b from-card/50 to-background">
         <div className="mx-auto max-w-7xl px-6 py-24">
-          <div className="max-w-xl">
-            <div className="inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary mb-4">
-              <Star className="size-3" />
-              Testimonials
+          <div className="flex items-end justify-between">
+            <div className="max-w-xl">
+              <div className="inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary mb-4">
+                <Star className="size-3" />
+                Testimonials
+              </div>
+              <h2 className="text-3xl font-bold tracking-tight sm:text-5xl">
+                What Our Customers Say
+              </h2>
+              <p className="mt-3 text-muted-foreground leading-relaxed text-lg">
+                Trusted by thousands of families across India for their everyday
+                healthcare needs.
+              </p>
             </div>
-            <h2 className="text-3xl font-bold tracking-tight sm:text-5xl">
-              What Our Customers Say
-            </h2>
-            <p className="mt-3 text-muted-foreground leading-relaxed text-lg">
-              Trusted by thousands of families across India for their everyday
-              healthcare needs.
-            </p>
+            <Button
+              variant="outline"
+              className="hidden sm:flex rounded-xl gap-2"
+              onClick={() => setReviewOpen(true)}
+            >
+              <Star className="size-3.5" />
+              Write a Review
+            </Button>
           </div>
           <div className="mt-14 grid gap-5 sm:grid-cols-3">
-            {testimonials.map((t, i) => (
+            {(dbTestimonials && dbTestimonials.length > 0 ? dbTestimonials : []).map((t, i) => (
               <motion.div
-                key={t.name}
+                key={t._id}
                 initial={{ opacity: 0, y: 24 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
@@ -596,16 +605,47 @@ export default function Landing() {
                       <Star key={i} className="size-4 fill-amber-400" />
                     ))}
                   </div>
+                  {t.title && (
+                    <p className="text-sm font-semibold text-foreground mb-1">{t.title}</p>
+                  )}
                   <p className="text-sm leading-relaxed text-muted-foreground">
-                    &ldquo;{t.quote}&rdquo;
+                    &ldquo;{t.message}&rdquo;
                   </p>
                 </div>
                 <div className="mt-6 border-t border-border/60 pt-4">
-                  <p className="text-sm font-semibold text-foreground">{t.name}</p>
-                  <p className="text-xs text-muted-foreground">{t.location}</p>
+                  <p className="text-sm font-semibold text-foreground">{t.displayName}</p>
+                  {t.featured && (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-medium text-primary mt-0.5">
+                      <Star className="size-2.5 fill-primary" /> Featured
+                    </span>
+                  )}
                 </div>
               </motion.div>
             ))}
+            {dbTestimonials && dbTestimonials.length === 0 && (
+              <div className="col-span-full text-center py-12">
+                <Star className="size-10 text-muted-foreground/30 mx-auto mb-3" />
+                <p className="text-sm text-muted-foreground">Be the first to share your experience!</p>
+                <Button
+                  variant="outline"
+                  className="mt-4 rounded-xl gap-2"
+                  onClick={() => setReviewOpen(true)}
+                >
+                  <Star className="size-3.5" />
+                  Write a Review
+                </Button>
+              </div>
+            )}
+          </div>
+          <div className="mt-8 text-center sm:hidden">
+            <Button
+              variant="outline"
+              className="rounded-xl gap-2"
+              onClick={() => setReviewOpen(true)}
+            >
+              <Star className="size-3.5" />
+              Write a Review
+            </Button>
           </div>
         </div>
       </section>
@@ -753,6 +793,7 @@ export default function Landing() {
 
       {/* Floating WhatsApp Button */}
       <WhatsAppFloat />
+      <WriteReview open={reviewOpen} onOpenChange={setReviewOpen} />
     </div>
   );
 }

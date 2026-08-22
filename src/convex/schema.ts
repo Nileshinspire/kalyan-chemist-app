@@ -485,6 +485,31 @@ const schema = defineSchema(
       .index("by_state", ["state"])
       .index("by_lastMessage", ["lastMessageAt"]),
 
+    // ── Customer Testimonials / Store Reviews ──
+    // General store-level reviews (not product-specific)
+    testimonials: defineTable({
+      userId: v.id("users"),
+      displayName: v.string(),
+      rating: v.number(),          // 1–5
+      title: v.string(),
+      message: v.string(),
+      status: v.union(
+        v.literal("pending"),
+        v.literal("approved"),
+        v.literal("rejected"),
+      ),
+      featured: v.boolean(),
+      adminNotes: v.optional(v.string()),
+      reviewedBy: v.optional(v.id("users")),
+      reviewedAt: v.optional(v.number()),
+      createdAt: v.number(),
+      updatedAt: v.number(),
+    })
+      .index("by_status", ["status"])
+      .index("by_featured", ["featured"])
+      .index("by_user", ["userId"])
+      .index("by_createdAt", ["createdAt"]),
+
     // ── Stock Availability Notifications ──
     // Tracks customers waiting for out-of-stock items
     availability_notifications: defineTable({
