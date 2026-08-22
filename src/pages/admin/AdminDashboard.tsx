@@ -87,7 +87,7 @@ export default function AdminDashboard() {
           label: "Pending Prescriptions",
           value: stats.pendingPrescriptions,
           color: "bg-indigo-500/10 text-indigo-600",
-          link: "/admin/orders",
+          link: "/admin/prescriptions",
         },
         {
           icon: CheckCircle2,

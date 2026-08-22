@@ -194,7 +194,7 @@ export default function Landing() {
                 size="lg"
                 variant="outline"
                 className="text-sm font-semibold px-8 h-12 border-border/60 hover:border-primary/30 hover:bg-primary/[0.03] transition-all rounded-xl gap-2"
-                onClick={() => navigate("/auth")}
+                onClick={() => navigate("/account/prescriptions")}
               >
                 <Upload className="size-4" />
                 Upload Prescription

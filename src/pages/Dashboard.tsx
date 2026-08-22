@@ -72,7 +72,7 @@ export default function Dashboard() {
                 title: "My Orders",
                 description:
                   "Track your current and past orders in one place.",
-                action: () => navigate("/products"),
+                action: () => navigate("/orders"),
               },
               ...(isAdmin
                 ? [
