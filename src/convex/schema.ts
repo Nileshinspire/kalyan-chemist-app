@@ -134,6 +134,7 @@ const schema = defineSchema(
       prescriptionRequired: v.boolean(),
       storageInformation: v.optional(v.string()),
       stockQuantity: v.number(),
+      benefits: v.optional(v.string()),
       isActive: v.boolean(),
       createdAt: v.number(),
       updatedAt: v.number(),

@@ -119,6 +119,7 @@ export const create = mutation({
     prescriptionRequired: v.boolean(),
     storageInformation: v.optional(v.string()),
     stockQuantity: v.number(),
+    benefits: v.optional(v.string()),
     isActive: v.boolean(),
   },
   handler: async (ctx, args) => {
@@ -163,6 +164,7 @@ export const update = mutation({
     prescriptionRequired: v.boolean(),
     storageInformation: v.optional(v.string()),
     stockQuantity: v.number(),
+    benefits: v.optional(v.string()),
     isActive: v.boolean(),
   },
   handler: async (ctx, args) => {

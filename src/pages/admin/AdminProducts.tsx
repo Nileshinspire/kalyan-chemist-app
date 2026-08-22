@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
@@ -46,6 +46,8 @@ import {
   ArrowUpDown,
   X,
   Loader2,
+  Image,
+  Wand2,
 } from "lucide-react";
 
 function slugify(text: string) {
@@ -73,6 +75,7 @@ interface ProductForm {
   prescriptionRequired: boolean;
   storageInformation: string;
   stockQuantity: number;
+  benefits: string;
   isActive: boolean;
 }
 
@@ -94,6 +97,7 @@ const EMPTY_FORM: ProductForm = {
   prescriptionRequired: false,
   storageInformation: "",
   stockQuantity: 0,
+  benefits: "",
   isActive: true,
 };
 
@@ -110,7 +114,9 @@ export default function AdminProducts() {
   const [form, setForm] = useState<ProductForm>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [fetchingImage, setFetchingImage] = useState(false);
 
+  const fetchProductImage = useAction(api.productImageSearch.fetchProductImage);
   const categories = useQuery(api.categories.list);
   const brands = useQuery(api.adminBrands.list, { isActive: true });
   const products = useQuery(api.adminProducts.list, {
@@ -152,6 +158,7 @@ export default function AdminProducts() {
       prescriptionRequired: product.prescriptionRequired,
       storageInformation: product.storageInformation || "",
       stockQuantity: product.stockQuantity,
+      benefits: product.benefits || "",
       isActive: product.isActive,
     });
     setDialogOpen(true);
@@ -183,6 +190,7 @@ export default function AdminProducts() {
         prescriptionRequired: form.prescriptionRequired,
         storageInformation: form.storageInformation || undefined,
         stockQuantity: form.stockQuantity,
+        benefits: form.benefits || undefined,
         isActive: form.isActive,
       };
 
@@ -208,6 +216,32 @@ export default function AdminProducts() {
       setDeleteConfirm(null);
     } catch (error: any) {
       toast.error(error.message || "Failed to delete product");
+    }
+  };
+
+  const handleAutoFetchImage = async () => {
+    if (!form.name.trim()) {
+      toast.error("Please enter a product name first");
+      return;
+    }
+    setFetchingImage(true);
+    try {
+      const brand = brands?.find((b) => b._id === form.brandId)?.name;
+      const result = await fetchProductImage({
+        productName: form.name,
+        manufacturer: form.manufacturer || undefined,
+        brand: brand || undefined,
+      });
+      if (result.success && result.imageUrl) {
+        setForm({ ...form, imageUrl: result.imageUrl });
+        toast.success("Product image found!");
+      } else {
+        toast.info(result.reason || "No image found. Please enter URL manually.");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to fetch image");
+    } finally {
+      setFetchingImage(false);
     }
   };
 
@@ -479,8 +513,39 @@ export default function AdminProducts() {
                 <Input type="number" value={form.stockQuantity || ""} onChange={(e) => setForm({ ...form, stockQuantity: parseInt(e.target.value) || 0 })} placeholder="0" />
               </div>
               <div className="sm:col-span-2 space-y-2">
-                <Label>Image URL</Label>
-                <Input value={form.imageUrl || ""} onChange={(e) => setForm({ ...form, imageUrl: e.target.value || undefined })} placeholder="https://..." />
+                <div className="flex items-center justify-between">
+                  <Label>Product Image</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="text-xs gap-1.5 h-7"
+                    onClick={handleAutoFetchImage}
+                    disabled={fetchingImage || !form.name.trim()}
+                  >
+                    {fetchingImage ? (
+                      <Loader2 className="size-3 animate-spin" />
+                    ) : (
+                      <Wand2 className="size-3" />
+                    )}
+                    Auto-fetch Image
+                  </Button>
+                </div>
+                <Input value={form.imageUrl || ""} onChange={(e) => setForm({ ...form, imageUrl: e.target.value || undefined })} placeholder="https://... or click Auto-fetch" />
+                {form.imageUrl && (
+                  <div className="mt-2 flex items-center gap-3">
+                    <div className="size-16 rounded-lg border border-border/60 bg-muted/30 flex items-center justify-center overflow-hidden">
+                      <img src={form.imageUrl} alt="Preview" className="size-full object-contain p-1" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                    </div>
+                    <Button type="button" variant="ghost" size="sm" className="text-xs text-destructive" onClick={() => setForm({ ...form, imageUrl: undefined })}>
+                      <X className="size-3 mr-1" /> Remove
+                    </Button>
+                  </div>
+                )}
+              </div>
+              <div className="sm:col-span-2 space-y-2">
+                <Label>Benefits</Label>
+                <Input value={form.benefits} onChange={(e) => setForm({ ...form, benefits: e.target.value })} placeholder="e.g. Provides fast relief from pain and fever" />
               </div>
               <div className="sm:col-span-2 space-y-2">
                 <Label>Storage Information</Label>

@@ -91,6 +91,29 @@ export const getByCategorySlug = query({
   },
 });
 
+// ── Count how many units of a product were sold in the last 7 days ──
+export const boughtInLast7Days = query({
+  args: { productId: v.id("products") },
+  handler: async (ctx, args) => {
+    const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+
+    const orders = await ctx.db.query("orders").collect();
+
+    let totalSold = 0;
+    for (const order of orders) {
+      if (order.status === "cancelled") continue;
+      if (order.createdAt < sevenDaysAgo) continue;
+      for (const item of order.items) {
+        if (item.productId === args.productId) {
+          totalSold += item.quantity;
+        }
+      }
+    }
+
+    return totalSold;
+  },
+});
+
 // ── Get related products (same category, excluding current) ──
 export const getRelated = query({
   args: {
