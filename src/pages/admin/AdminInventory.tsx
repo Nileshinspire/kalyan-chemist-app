@@ -189,58 +189,38 @@ export default function AdminInventory() {
 
         {/* Summary Cards */}
         <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-          <Card className="border-border/60">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="size-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <Warehouse className="size-5 text-primary" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{summary?.total ?? 0}</p>
-                  <p className="text-xs text-muted-foreground">Total Products</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border-border/60">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="size-10 rounded-xl bg-green-500/10 flex items-center justify-center">
-                  <PackageCheck className="size-5 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{summary?.inStockCount ?? 0}</p>
-                  <p className="text-xs text-muted-foreground">In Stock</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border-border/60">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="size-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
-                  <AlertTriangle className="size-5 text-amber-600" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{summary?.lowStockCount ?? 0}</p>
-                  <p className="text-xs text-muted-foreground">Low Stock</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card className="border-border/60">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className="size-10 rounded-xl bg-red-500/10 flex items-center justify-center">
-                  <PackageX className="size-5 text-red-600" />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{summary?.outOfStockCount ?? 0}</p>
-                  <p className="text-xs text-muted-foreground">Out of Stock</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          {([
+            { label: "Total Products", value: summary?.total ?? 0, filter: "all", bg: "bg-primary/10", icon: Warehouse, iconColor: "text-primary", activeBg: "bg-primary/[0.15]" },
+            { label: "In Stock", value: summary?.inStockCount ?? 0, filter: "in_stock", bg: "bg-green-500/10", icon: PackageCheck, iconColor: "text-green-600", activeBg: "bg-green-500/[0.18]" },
+            { label: "Low Stock", value: summary?.lowStockCount ?? 0, filter: "low_stock", bg: "bg-amber-500/10", icon: AlertTriangle, iconColor: "text-amber-600", activeBg: "bg-amber-500/[0.18]" },
+            { label: "Out of Stock", value: summary?.outOfStockCount ?? 0, filter: "out_of_stock", bg: "bg-red-500/10", icon: PackageX, iconColor: "text-red-600", activeBg: "bg-red-500/[0.18]" },
+          ] as const).map((card) => {
+            const Icon = card.icon;
+            const isActive = filter === card.filter;
+            return (
+              <Card
+                key={card.label}
+                className={`border-border/60 transition-all ${
+                  isActive
+                    ? "ring-2 ring-primary/30 border-primary/40"
+                    : "hover:border-border/80 hover:shadow-sm"
+                } cursor-pointer`}
+                onClick={() => setFilter(card.filter)}
+              >
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <div className={`size-10 rounded-xl flex items-center justify-center transition-colors ${isActive ? card.activeBg : card.bg}`}>
+                      <Icon className={`size-5 ${card.iconColor}`} />
+                    </div>
+                    <div>
+                      <p className="text-2xl font-bold">{card.value}</p>
+                      <p className="text-xs text-muted-foreground">{card.label}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
 
         {/* Inventory Report Summary */}
