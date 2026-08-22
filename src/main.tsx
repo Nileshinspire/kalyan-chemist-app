@@ -331,6 +331,7 @@ function AnimatedRoutes() {
           <Route path="profile" element={<Suspense fallback={<RouteLoading />}><AccountProfile /></Suspense>} />
           <Route path="addresses" element={<Suspense fallback={<RouteLoading />}><AccountAddresses /></Suspense>} />
           <Route path="orders" element={<Suspense fallback={<RouteLoading />}><AccountOrders /></Suspense>} />
+          <Route path="orders/:id" element={<Suspense fallback={<RouteLoading />}><OrderDetail /></Suspense>} />
           <Route path="prescriptions" element={<Suspense fallback={<RouteLoading />}><AccountPrescriptions /></Suspense>} />
           <Route path="wishlist" element={<Suspense fallback={<RouteLoading />}><AccountWishlist /></Suspense>} />
           <Route path="notifications" element={<Suspense fallback={<RouteLoading />}><AccountNotifications /></Suspense>} />

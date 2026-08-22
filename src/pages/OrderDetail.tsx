@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from "react-router";
+import { useParams, useNavigate, useLocation } from "react-router";
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import Navbar from "@/components/layout/Navbar";
@@ -49,6 +49,8 @@ const STATUS_LABELS: Record<string, string> = {
 export default function OrderDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const isAccountContext = location.pathname.startsWith("/account/orders/");
 
   const order = useQuery(api.orders.getById, id ? { orderId: id as any } : "skip");
   const tracking = useQuery(api.orders.getTracking, id ? { orderId: id as any } : "skip");
@@ -173,8 +175,8 @@ export default function OrderDetail() {
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
       <main className="flex-1 mx-auto max-w-4xl w-full px-4 sm:px-6 py-8">
-        <Button variant="ghost" size="sm" className="mb-6 gap-1.5 text-sm text-muted-foreground" onClick={() => navigate("/orders")}>
-          <ArrowLeft className="size-4" /> All Orders
+        <Button variant="ghost" size="sm" className="mb-6 gap-1.5 text-sm text-muted-foreground" onClick={() => navigate(isAccountContext ? "/account/orders" : "/orders")}>
+          <ArrowLeft className="size-4" /> {isAccountContext ? "My Orders" : "All Orders"}
         </Button>
 
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>

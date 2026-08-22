@@ -55,7 +55,7 @@ export default function Orders() {
       <Navbar />
       <main className="flex-1 mx-auto max-w-4xl w-full px-4 sm:px-6 py-8">
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-          <Button variant="ghost" size="sm" className="mb-4 gap-1.5 text-muted-foreground rounded-xl" onClick={() => navigate(-1)}>
+          <Button variant="ghost" size="sm" className="mb-4 gap-1.5 text-muted-foreground rounded-xl" onClick={() => navigate("/dashboard")}>
             <ArrowLeft className="size-4" /> Back
           </Button>
           <div className="inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary mb-3">

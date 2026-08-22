@@ -58,7 +58,7 @@ export default function AccountOrders() {
             <Card
               key={order._id}
               className="border-border/60 cursor-pointer hover:shadow-card-hover transition-all"
-              onClick={() => navigate(`/orders/${order._id}`)}
+              onClick={() => navigate(`/account/orders/${order._id}`)}
             >
               <CardContent className="p-5">
                 <div className="flex items-center justify-between">
