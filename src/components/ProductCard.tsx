@@ -9,6 +9,7 @@ import { Heart, ShoppingCart, Pill, Zap } from "lucide-react";
 import { formatCurrency } from "@/lib/auth-utils";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useAuth } from "@/context/AuthContext";
 
 interface ProductCardProps {
   product: {
@@ -34,6 +35,7 @@ interface ProductCardProps {
 const ProductCard = memo(function ProductCard({ product }: ProductCardProps) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
   const [isHovered, setIsHovered] = useState(false);
   const addToCart = useMutation(api.cart.addItem);
   const toggleWishlist = useMutation(api.wishlist.toggle);
@@ -59,7 +61,12 @@ const ProductCard = memo(function ProductCard({ product }: ProductCardProps) {
 
   const handleBuyNow = (e: React.MouseEvent) => {
     e.stopPropagation();
-    handleAddToCart(e).then(() => navigate("/cart"));
+    if (!user) {
+      toast.error("Please sign in to buy now");
+      navigate("/auth");
+      return;
+    }
+    navigate(`/checkout?buyNow=${product._id}`);
   };
 
   const handleWishlist = async (e: React.MouseEvent) => {
