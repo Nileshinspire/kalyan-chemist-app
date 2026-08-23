@@ -253,6 +253,10 @@ export default function AdminProducts() {
         newForm.benefits = result.benefits;
         updated = true;
       }
+      if (result.description && !form.description) {
+        newForm.description = result.description;
+        updated = true;
+      }
 
       setForm(newForm);
 
@@ -261,6 +265,7 @@ export default function AdminProducts() {
         if (result.imageUrl) fields.push("image");
         if (result.manufacturer && !form.manufacturer) fields.push("manufacturer");
         if (result.benefits && !form.benefits) fields.push("benefits");
+        if (result.description && !form.description) fields.push("description");
         toast.success(`Auto-filled: ${fields.join(", ")}!`);
       } else {
         toast.info("No additional information found. Please fill in manually.");

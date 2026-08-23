@@ -2,73 +2,82 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { action, query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 
-// Known manufacturers for common Indian pharmaceutical brands
-const KNOWN_MANUFACTURERS: Record<string, string> = {
-  "dolo": "Micro Labs Ltd",
-  "crocin": "GlaxoSmithKline Pharmaceuticals Ltd",
-  "combiflam": "Sanofi India Ltd",
-  "pan": "Alkem Laboratories Ltd",
-  "pantop": "Alkem Laboratories Ltd",
-  "omez": "Dr. Reddy's Laboratories Ltd",
-  "rabe": "Dr. Reddy's Laboratories Ltd",
-  "shelcal": "Torrent Pharmaceuticals Ltd",
-  "becosules": "Pfizer Ltd",
-  "azee": "Cipla Ltd",
-  "azithral": "Alembic Pharmaceuticals Ltd",
-  "metformin": "USV Pvt Ltd",
-  "glycomet": "USV Pvt Ltd",
-  "atorva": "Sun Pharmaceutical Industries Ltd",
-  "montair": "Cipla Ltd",
-  "sinarest": "Micro Labs Ltd",
-  "benadryl": "Johnson & Johnson Ltd",
-  "ensure": "Abbott India Ltd",
-  "doxynord": "Mankind Pharma Ltd",
-  "gudcef": "Lupin Ltd",
-  "cefuroxime": "Lupin Ltd",
-  "azeloc": "Dr. Reddy's Laboratories Ltd",
-  "zyrtec": "Johnson & Johnson Ltd",
-  "nasivion": "Meda Pharmaceuticals India",
-  "vicks": "Procter & Gamble Health Ltd",
-  "decolde": "Abbott India Ltd",
+// ════════════════════════════════════════════════════════════════
+// COMPREHENSIVE INDIAN MEDICINES DATABASE
+// ════════════════════════════════════════════════════════════════
+
+interface MedicineInfo {
+  manufacturer: string;
+  composition: string;
+  benefits: string;
+  description: string;
+  form: string;
+}
+
+const MEDICINES_DB: Record<string, MedicineInfo> = {
+  "dolo": { manufacturer: "Micro Labs Ltd", composition: "Paracetamol 650mg", benefits: "Provides effective relief from mild to moderate pain and reduces fever. Safe and well-tolerated when used as directed.", description: "Dolo 650 is a trusted antipyretic and analgesic containing Paracetamol 650mg. One of the most widely prescribed medicines in India for fever and pain relief. Manufactured by Micro Labs Ltd.", form: "tablet" },
+  "crocin": { manufacturer: "GlaxoSmithKline Pharmaceuticals Ltd", composition: "Paracetamol 500mg / 650mg", benefits: "Effective pain reliever and fever reducer. Fast-acting formula suitable for headaches, body aches, and cold-related fever.", description: "Crocin is a trusted paracetamol brand from GSK. It provides fast and effective relief from pain and fever with a proven safety profile.", form: "tablet" },
+  "combiflam": { manufacturer: "Sanofi India Ltd", composition: "Ibuprofen 400mg + Paracetamol 325mg", benefits: "Dual-action formula combining anti-inflammatory and pain-relieving properties. Effective for headaches, dental pain, menstrual cramps.", description: "Combiflam combines Ibuprofen and Paracetamol for dual action pain relief. The anti-inflammatory component addresses the source of pain while paracetamol reduces fever.", form: "tablet" },
+  "azee": { manufacturer: "Cipla Ltd", composition: "Azithromycin 250mg / 500mg", benefits: "Effective macrolide antibiotic for respiratory infections, skin infections. Short course therapy with once-daily dosing.", description: "Azee contains Azithromycin, a macrolide antibiotic from Cipla Ltd. Effective against a wide range of bacterial infections with short-course therapy.", form: "tablet" },
+  "pan": { manufacturer: "Alkem Laboratories Ltd", composition: "Pantoprazole 40mg", benefits: "Proton pump inhibitor for long-lasting relief from GERD, stomach ulcers, and acid-related disorders.", description: "Pan contains Pantoprazole 40mg, a proton pump inhibitor from Alkem. Reduces stomach acid production for sustained relief from acid reflux.", form: "tablet" },
+  "omez": { manufacturer: "Dr. Reddy's Laboratories Ltd", composition: "Omeprazole 20mg", benefits: "Proton pump inhibitor that reduces stomach acid production. Relief from acid reflux, heartburn, and stomach ulcers.", description: "Omez contains Omeprazole 20mg from Dr. Reddy's. Effectively reduces gastric acid secretion for GERD, peptic ulcers, and H. pylori eradication.", form: "capsule" },
+  "shelcal": { manufacturer: "Torrent Pharmaceuticals Ltd", composition: "Calcium Carbonate 500mg + Vitamin D3 250 IU", benefits: "Essential mineral for strong bones and teeth. Helps prevent osteoporosis and supports muscle and nerve function.", description: "Shelcal from Torrent Pharma provides essential calcium with Vitamin D3 for enhanced absorption. Recommended for bone health and osteoporosis prevention.", form: "tablet" },
+  "becosules": { manufacturer: "Pfizer Ltd", composition: "Vitamin B Complex + Vitamin C", benefits: "Complete Vitamin B complex supplement that supports energy metabolism, nerve function, and helps manage B-complex deficiency.", description: "Becosules from Pfizer contains all essential B vitamins plus Vitamin C. Supports energy metabolism and nervous system health.", form: "capsule" },
+  "glycomet": { manufacturer: "USV Pvt Ltd", composition: "Metformin 500mg / 850mg", benefits: "First-line treatment for type 2 diabetes. Helps control blood sugar levels by improving insulin sensitivity.", description: "Glycomet contains Metformin from USV. Reduces hepatic glucose production and improves insulin sensitivity for type 2 diabetes management.", form: "tablet" },
+  "atorva": { manufacturer: "Sun Pharmaceutical Industries Ltd", composition: "Atorvastatin 10mg / 20mg / 40mg", benefits: "Statins help lower cholesterol levels and reduce the risk of heart attacks and strokes.", description: "Atorva from Sun Pharma contains Atorvastatin. Lowers LDL cholesterol and reduces cardiovascular risk significantly.", form: "tablet" },
+  "stamlo": { manufacturer: "Dr. Reddy's Laboratories Ltd", composition: "Amlodipine 5mg / 10mg", benefits: "Calcium channel blocker that relaxes blood vessels to lower blood pressure and reduce chest pain.", description: "Stamlo from Dr. Reddy's contains Amlodipine. Provides 24-hour blood pressure control with once-daily dosing.", form: "tablet" },
+  "cetirizine": { manufacturer: "Cipla Ltd", composition: "Cetirizine 10mg", benefits: "Non-drowsy antihistamine that provides 24-hour relief from allergic rhinitis, urticaria, and other allergy symptoms.", description: "Cetirizine from Cipla is a second-generation antihistamine providing effective 24-hour relief from allergic conditions.", form: "tablet" },
+  "montair": { manufacturer: "Cipla Ltd", composition: "Montelukast 10mg", benefits: "Leukotriene receptor blocker that prevents asthma attacks and relieves seasonal allergy symptoms.", description: "Montair from Cipla contains Montelukast. Blocks leukotriene receptors to prevent airway inflammation.", form: "tablet" },
+  "sinarest": { manufacturer: "Micro Labs Ltd", composition: "Paracetamol + Phenylephrine + Chlorpheniramine", benefits: "Multi-symptom cold and flu relief. Addresses headache, fever, nasal congestion, and runny nose.", description: "Sinarest from Micro Labs provides comprehensive relief from cold and flu symptoms with a triple-action formula.", form: "tablet" },
+  "asthalin": { manufacturer: "Cipla Ltd", composition: "Salbutamol 2mg / 4mg", benefits: "Fast-acting bronchodilator that relieves acute asthma attacks and breathing difficulties.", description: "Asthalin from Cipla contains Salbutamol, a fast-acting bronchodilator for quick relief from asthma symptoms.", form: "tablet" },
+  "rabecee": { manufacturer: "Dr. Reddy's Laboratories Ltd", composition: "Rabeprazole 20mg", benefits: "Fast-acting proton pump inhibitor for acid reflux, peptic ulcers, and H. pylori eradication therapy.", description: "Rabecee from Dr. Reddy's contains Rabeprazole. Potent PPI for GERD, peptic ulcers, and H. pylori eradication.", form: "tablet" },
+  "telma": { manufacturer: "Glenmark Pharmaceuticals Ltd", composition: "Telmisartan 40mg / 80mg", benefits: "Long-acting ARB for blood pressure control with additional cardiovascular protective benefits.", description: "Telma from Glenmark contains Telmisartan. Long-acting ARB providing 24-hour BP control with cardioprotective properties.", form: "tablet" },
+  "losar": { manufacturer: "Torrent Pharmaceuticals Ltd", composition: "Losartan 50mg / 100mg", benefits: "ARB that lowers blood pressure and protects the kidneys in diabetic patients.", description: "Losar from Torrent Pharma contains Losartan. Effectively lowers BP with kidney-protective benefits.", form: "tablet" },
+  "supradyn": { manufacturer: "Bayer Zydus Pharma", composition: "Multivitamin + Multimineral", benefits: "Complete daily nutrition support with essential vitamins and minerals for overall health and wellness.", description: "Supradyn is a comprehensive multivitamin providing all essential nutrients for daily health and immunity.", form: "tablet" },
+  "neurobion": { manufacturer: "Merck Ltd", composition: "Vitamin B1 + B6 + B12", benefits: "Essential for nerve function, red blood cell formation, and DNA synthesis. Supports energy levels and brain health.", description: "Neurobion from Merck contains B vitamins for nerve health and energy metabolism.", form: "tablet" },
+  "revital": { manufacturer: "Sun Pharmaceutical Industries Ltd", composition: "Multivitamin + Ginseng + Minerals", benefits: "Daily multivitamin with Ginseng for energy, immunity, and overall well-being.", description: "Revital from Sun Pharma combines vitamins, minerals, and Ginseng for energy and vitality.", form: "capsule" },
+  "duphaston": { manufacturer: "Abbott India Ltd", composition: "Dydrogesterone 10mg", benefits: "Progesterone hormone supplement for menstrual disorders, threatened miscarriage, and hormone replacement therapy.", description: "Duphaston from Abbott contains Dydrogesterone. Bio-identical progesterone for gynecological conditions.", form: "tablet" },
+  "meftal": { manufacturer: "Blue Cross Laboratories Ltd", composition: "Mefenamic Acid 500mg", benefits: "NSAID effective for menstrual pain, mild to moderate pain, and inflammatory conditions.", description: "Meftal from Blue Cross contains Mefenamic Acid. Particularly effective for menstrual pain relief.", form: "tablet" },
+  "enterogermina": { manufacturer: "Sanofi India Ltd", composition: "Bacillus clausii 2 Billion Spores", benefits: "Probiotic that restores healthy gut bacteria. Effective for diarrhea and antibiotic-associated gut issues.", description: "Enterogermina from Sanofi contains probiotic spores that restore healthy intestinal flora.", form: "sachet" },
+  "benadryl": { manufacturer: "Johnson & Johnson Ltd", composition: "Diphenhydramine 12.5mg", benefits: "Antihistamine for allergic symptoms including runny nose, sneezing, itchy eyes, and dry cough.", description: "Benadryl from J&J is a trusted antihistamine for allergy symptoms and dry cough.", form: "syrup" },
+  "vicks": { manufacturer: "Procter & Gamble Health Ltd", composition: "Dextromethorphan + Menthol + Camphor", benefits: "Effective cough suppressant and throat relief for dry and productive coughs.", description: "Vicks from P&G Health provides cough and cold relief with Dextromethorphan and soothing Menthol.", form: "syrup" },
+  "nasivion": { manufacturer: "Meda Pharmaceuticals India", composition: "Oxymetazoline 0.025% / 0.05%", benefits: "Nasal decongestant spray for rapid relief from nasal congestion due to cold and allergies.", description: "Nasivion from Meda provides quick nasal decongestion via oxymetazoline nasal spray.", form: "nasal drops" },
+  "zifi": { manufacturer: "FDC Ltd", composition: "Cefixime 200mg", benefits: "Third-generation cephalosporin antibiotic for respiratory, urinary, and ENT infections.", description: "Zifi from FDC contains Cefixime. Effective oral treatment for respiratory and UTIs.", form: "tablet" },
+  "taxim": { manufacturer: "Alkem Laboratories Ltd", composition: "Cefixime 200mg", benefits: "Oral cephalosporin antibiotic for respiratory infections, UTI, and typhoid fever.", description: "Taxim from Alkem contains Cefixime with excellent bioavailability for bacterial infections.", form: "tablet" },
 };
 
-// Known benefits for common drug compositions
+// Known manufacturers fallback
+const KNOWN_MANUFACTURERS: Record<string, string> = {
+  "dolo": "Micro Labs Ltd", "crocin": "GlaxoSmithKline Pharmaceuticals Ltd",
+  "combiflam": "Sanofi India Ltd", "pan": "Alkem Laboratories Ltd",
+  "pantop": "Alkem Laboratories Ltd", "omez": "Dr. Reddy's Laboratories Ltd",
+  "rabe": "Dr. Reddy's Laboratories Ltd", "shelcal": "Torrent Pharmaceuticals Ltd",
+  "becosules": "Pfizer Ltd", "azee": "Cipla Ltd",
+  "azithral": "Alembic Pharmaceuticals Ltd", "glycomet": "USV Pvt Ltd",
+  "atorva": "Sun Pharmaceutical Industries Ltd", "montair": "Cipla Ltd",
+  "sinarest": "Micro Labs Ltd", "benadryl": "Johnson & Johnson Ltd",
+  "vicks": "Procter & Gamble Health Ltd", "nasivion": "Meda Pharmaceuticals India",
+};
+
+// Known benefits fallback
 const BENEFITS_DB: Record<string, string> = {
   "paracetamol": "Provides effective relief from mild to moderate pain and reduces fever. Safe and well-tolerated when used as directed.",
-  "acetaminophen": "Provides effective relief from mild to moderate pain and reduces fever. Safe and well-tolerated when used as directed.",
   "ibuprofen": "Reduces pain, inflammation, and fever. Anti-inflammatory action helps with headaches, muscle aches, and joint pain.",
-  "diclofenac": "Powerful anti-inflammatory and pain reliever. Effective for joint pain, back pain, dental pain, and post-surgical pain.",
   "amoxicillin": "Broad-spectrum antibiotic effective against common bacterial infections of the respiratory tract, urinary tract, and skin.",
-  "azithromycin": "Effective macrolide antibiotic for respiratory infections, skin infections. Short course therapy.",
-  "ciprofloxacin": "Fluoroquinolone antibiotic effective against a wide range of bacterial infections including urinary tract infections.",
-  "doxycycline": "Antibiotic for respiratory infections, acne, malaria prophylaxis, and tick-borne diseases.",
-  "levofloxacin": "Advanced antibiotic effective against respiratory infections, urinary tract infections, and complicated skin infections.",
+  "azithromycin": "Effective macrolide antibiotic for respiratory infections. Short course therapy.",
   "metformin": "First-line treatment for type 2 diabetes. Helps control blood sugar levels by improving insulin sensitivity.",
   "atorvastatin": "Helps lower cholesterol levels and reduce the risk of heart attacks and strokes.",
-  "rosuvastatin": "Highly effective statin for lowering LDL cholesterol and triglycerides while raising HDL cholesterol.",
   "amlodipine": "Calcium channel blocker that relaxes blood vessels to lower blood pressure and reduce chest pain.",
   "losartan": "ARB that lowers blood pressure and protects the kidneys in diabetic patients.",
-  "telmisartan": "Long-acting medication for blood pressure control with additional cardiovascular protective benefits.",
   "omeprazole": "Proton pump inhibitor that reduces stomach acid production. Relief from acid reflux and stomach ulcers.",
-  "pantoprazole": "Long-lasting relief from gastroesophageal reflux disease, stomach ulcers, and acid-related disorders.",
-  "rabeprazole": "Fast-acting relief from acid reflux, peptic ulcers, and H. pylori eradication therapy.",
+  "pantoprazole": "Long-lasting relief from GERD, stomach ulcers, and acid-related disorders.",
   "cetirizine": "Non-drowsy antihistamine that provides 24-hour relief from allergic rhinitis and urticaria.",
-  "loratadine": "Non-drowsy antihistamine for relief from sneezing, runny nose, itchy eyes, and allergy symptoms.",
-  "montelukast": "Leukotriene receptor blocker that prevents asthma attacks and relieves seasonal allergy symptoms.",
-  "vitamin d": "Supports bone health, calcium absorption, and immune system function. Prevents vitamin D deficiency.",
-  "vitamin b12": "Essential for nerve function, red blood cell formation, and DNA synthesis. Supports energy levels.",
+  "montelukast": "Leukotriene receptor blocker that prevents asthma attacks and relieves allergy symptoms.",
+  "vitamin d": "Supports bone health, calcium absorption, and immune system function.",
+  "vitamin b12": "Essential for nerve function, red blood cell formation, and DNA synthesis.",
   "calcium": "Essential mineral for strong bones and teeth. Helps prevent osteoporosis.",
-  "iron": "Essential for making hemoglobin and preventing iron-deficiency anemia. Supports energy levels.",
-  "multivitamin": "Complete daily nutrition support with essential vitamins and minerals for overall health and wellness.",
-  "omega": "Essential fatty acids that support heart health, brain function, and reduce inflammation.",
-  "metronidazole": "Effective against anaerobic bacteria and parasites. Used for dental and abdominal infections.",
-  "nimesulide": "Fast-acting pain and inflammation reliever. Effective for acute pain and post-operative discomfort.",
-  "aceclofenac": "Modern NSAID with effective pain relief and anti-inflammatory action.",
-  "cetrizine": "Non-drowsy antihistamine for 24-hour allergy relief.",
-  "salbutamol": "Fast-acting bronchodilator that relieves acute asthma attacks and breathing difficulties.",
-  "budesonide": "Inhaled corticosteroid that reduces airway inflammation and prevents asthma attacks.",
-  "levothyroxine": "Synthetic thyroid hormone for treating hypothyroidism. Helps regulate metabolism and energy.",
-  "loperamide": "Effective anti-diarrheal that slows gut motility to relieve acute and chronic diarrhea.",
+  "iron": "Essential for making hemoglobin and preventing iron-deficiency anemia.",
+  "multivitamin": "Complete daily nutrition support with essential vitamins and minerals.",
 };
 
 /**
@@ -76,24 +85,36 @@ const BENEFITS_DB: Record<string, string> = {
  */
 function inferConsumeType(form: string): string | null {
   const f = form.toLowerCase();
-  if (["tablet", "capsule", "syrup", "suspension", "drops", "inhaler", "powder", "sachet"].includes(f)) {
-    return "For oral use";
-  }
-  if (["cream", "gel", "ointment", "lotion"].includes(f)) {
-    return "For external use only";
-  }
-  if (f === "injection") {
-    return "For injection use only";
-  }
-  if (f === "eye drops" || f === "ear drops" || f === "nasal drops") {
-    return "For ophthalmic/ENT use";
-  }
+  if (["tablet", "capsule", "syrup", "suspension", "drops", "inhaler", "powder", "sachet", "lozenge"].includes(f)) return "For oral use";
+  if (["cream", "gel", "ointment", "lotion"].includes(f)) return "For external use only";
+  if (f === "injection") return "For injection use only";
+  if (f === "nasal drops" || f === "nasal") return "For nasal use";
   return null;
 }
 
-// ══════════════════════════════════════════════════════════
-// Query: list products needing enrichment (for admin UI)
-// ══════════════════════════════════════════════════════════
+/**
+ * Match product name against the medicines database.
+ */
+function matchMedicine(productName: string): MedicineInfo | null {
+  const lower = productName.toLowerCase().trim();
+  if (MEDICINES_DB[lower]) return MEDICINES_DB[lower];
+  const stripped = lower.replace(/\s*\d+\s*(mg|ml|g|mcg|iu|%)?$/i, "").trim();
+  if (MEDICINES_DB[stripped]) return MEDICINES_DB[stripped];
+  let bestMatch: MedicineInfo | null = null;
+  let bestLen = 0;
+  for (const [key, info] of Object.entries(MEDICINES_DB)) {
+    if (lower.includes(key) && key.length > bestLen) {
+      bestMatch = info;
+      bestLen = key.length;
+    }
+  }
+  return bestMatch;
+}
+
+// ════════════════════════════════════════════════════════════════
+// QUERIES
+// ════════════════════════════════════════════════════════════════
+
 export const listMissingInfo = query({
   args: {},
   handler: async (ctx) => {
@@ -103,7 +124,7 @@ export const listMissingInfo = query({
     if (user?.role !== "admin") throw new Error("Not authorized");
 
     const allProducts = await ctx.db.query("products").collect();
-    const missing = allProducts.filter((p) => !p.imageUrl || !p.benefits);
+    const missing = allProducts.filter((p) => !p.imageUrl || !p.benefits || !p.description);
     return {
       total: allProducts.length,
       missingCount: missing.length,
@@ -112,15 +133,21 @@ export const listMissingInfo = query({
         name: p.name,
         hasImage: !!p.imageUrl,
         hasBenefits: !!p.benefits,
+        hasDescription: !!p.description,
         manufacturer: p.manufacturer,
       })),
     };
   },
 });
 
-// ══════════════════════════════════════════════════════════
-// Mutation: enrich a single product using known databases
-// ══════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════
+// MUTATIONS
+// ════════════════════════════════════════════════════════════════
+
+/**
+ * Enrich a single product using the local medicine database.
+ * No paid API required — uses curated Indian medicines data.
+ */
 export const enrichSingleProduct = mutation({
   args: {
     productId: v.id("products"),
@@ -135,53 +162,65 @@ export const enrichSingleProduct = mutation({
     if (!product) throw new Error("Product not found");
 
     const updates: Record<string, any> = {};
-    const lowerName = product.name.toLowerCase();
-    const searchIn = (product.composition || product.name).toLowerCase();
+    const matched = matchMedicine(product.name);
 
-    // Manufacturer: try known DB
-    if (!product.manufacturer) {
-      for (const [key, mfr] of Object.entries(KNOWN_MANUFACTURERS)) {
-        if (lowerName.includes(key)) {
-          updates.manufacturer = mfr;
-          break;
+    if (matched) {
+      // Use comprehensive database match
+      if (!product.manufacturer || product.manufacturer === "Unknown") {
+        updates.manufacturer = matched.manufacturer;
+      }
+      if (!product.benefits) {
+        updates.benefits = matched.benefits;
+      }
+      if (!product.description) {
+        updates.description = matched.description;
+      }
+      if (!product.composition) {
+        updates.composition = matched.composition;
+      }
+    } else {
+      // Fallback: try known DBs
+      const lowerName = product.name.toLowerCase();
+      if (!product.manufacturer || product.manufacturer === "Unknown") {
+        for (const [key, mfr] of Object.entries(KNOWN_MANUFACTURERS)) {
+          if (lowerName.includes(key)) {
+            updates.manufacturer = mfr;
+            break;
+          }
         }
       }
-    }
-
-    // Benefits: try known DB based on composition or product name
-    if (!product.benefits) {
-      for (const [key, benefits] of Object.entries(BENEFITS_DB)) {
-        if (searchIn.includes(key)) {
-          updates.benefits = benefits;
-          break;
+      if (!product.benefits) {
+        const searchIn = (product.composition || product.name).toLowerCase();
+        for (const [key, benefits] of Object.entries(BENEFITS_DB)) {
+          if (searchIn.includes(key)) {
+            updates.benefits = benefits;
+            break;
+          }
+        }
+        // Form-specific fallback
+        if (!updates.benefits && product.form) {
+          const f = product.form.toLowerCase();
+          if (["tablet", "capsule"].includes(f))
+            updates.benefits = "Effective medication in convenient oral dosage form. Take as directed by your healthcare provider for best results.";
+          else if (["syrup", "suspension"].includes(f))
+            updates.benefits = "Easy-to-administer liquid formulation suitable for patients who have difficulty swallowing tablets.";
+          else if (["cream", "gel", "ointment"].includes(f))
+            updates.benefits = "Topical formulation for targeted relief. Apply as directed to affected area for effective local treatment.";
+          else if (f === "drops")
+            updates.benefits = "Precise dosing in liquid drop form for targeted application and easy administration.";
+          else if (f === "injection")
+            updates.benefits = "Fast-acting injectable formulation for rapid therapeutic effect.";
         }
       }
-      // Form-specific fallback
-      if (!updates.benefits && product.form) {
-        const f = product.form.toLowerCase();
-        if (["tablet", "capsule"].includes(f)) {
-          updates.benefits = "Effective medication in convenient oral dosage form. Take as directed by your healthcare provider for best results.";
-        } else if (["syrup", "suspension"].includes(f)) {
-          updates.benefits = "Easy-to-administer liquid formulation suitable for patients who have difficulty swallowing tablets.";
-        } else if (["cream", "gel", "ointment"].includes(f)) {
-          updates.benefits = "Topical formulation for targeted relief. Apply as directed to affected area for effective local treatment.";
-        } else if (f === "drops") {
-          updates.benefits = "Precise dosing in liquid drop form for targeted application and easy administration.";
-        } else if (f === "injection") {
-          updates.benefits = "Fast-acting injectable formulation for rapid therapeutic effect when oral administration is not suitable.";
-        }
+      if (!product.description) {
+        const parts: string[] = [];
+        parts.push(`${product.name} is a ${product.form || "medication"} manufactured by ${product.manufacturer || "a pharmaceutical company"}.`);
+        if (product.composition) parts.push(`It contains ${product.composition}.`);
+        if (product.strength) parts.push(`Available in ${product.strength} strength.`);
+        parts.push(product.prescriptionRequired ? "This is a prescription medicine." : "This is an over-the-counter product.");
+        parts.push("Store in a cool, dry place away from direct sunlight.");
+        updates.description = parts.join(" ");
       }
-    }
-
-    // Description: generate from product data if missing
-    if (!product.description) {
-      const parts: string[] = [];
-      parts.push(`${product.name} is a ${product.form || "medication"} manufactured by ${product.manufacturer || "a pharmaceutical company"}.`);
-      if (product.composition) parts.push(`It contains ${product.composition}.`);
-      if (product.strength) parts.push(`Available in ${product.strength} strength.`);
-      parts.push(product.prescriptionRequired ? "This is a prescription medicine." : "This is an over-the-counter product.");
-      parts.push("Store in a cool, dry place away from direct sunlight.");
-      updates.description = parts.join(" ");
     }
 
     if (Object.keys(updates).length > 0) {
@@ -196,9 +235,9 @@ export const enrichSingleProduct = mutation({
   },
 });
 
-// ══════════════════════════════════════════════════════════
-// Mutation: batch backfill existing products (process N at a time)
-// ══════════════════════════════════════════════════════════
+/**
+ * Batch backfill existing products (process N at a time).
+ */
 export const backfillProducts = mutation({
   args: {
     limit: v.optional(v.number()),
@@ -209,62 +248,50 @@ export const backfillProducts = mutation({
     const user = await ctx.db.get(userId);
     if (user?.role !== "admin") throw new Error("Not authorized");
 
-    const limit = args.limit ?? 10;
+    const limit = args.limit ?? 20;
     const allProducts = await ctx.db.query("products").collect();
-
-    // Filter to products that need enrichment
-    const needsEnrichment = allProducts.filter((p: any) => !p.imageUrl || !p.benefits);
+    const needsEnrichment = allProducts.filter((p: any) => !p.imageUrl || !p.benefits || !p.description);
     const toProcess = needsEnrichment.slice(0, limit);
 
     if (toProcess.length === 0) {
-      return {
-        processed: 0,
-        enriched: 0,
-        total: allProducts.length,
-        message: "All products already have complete information",
-      };
+      return { processed: 0, enriched: 0, total: allProducts.length, message: "All products already have complete information" };
     }
 
     let enriched = 0;
 
     for (const product of toProcess) {
       const updates: Record<string, any> = {};
-      const lowerName = product.name.toLowerCase();
-      const searchIn = (product.composition || product.name).toLowerCase();
+      const matched = matchMedicine(product.name);
 
-      // Manufacturer
-      if (!product.manufacturer) {
-        for (const [key, mfr] of Object.entries(KNOWN_MANUFACTURERS)) {
-          if (lowerName.includes(key)) {
-            updates.manufacturer = mfr;
-            break;
+      if (matched) {
+        if (!product.manufacturer || product.manufacturer === "Unknown") updates.manufacturer = matched.manufacturer;
+        if (!product.benefits) updates.benefits = matched.benefits;
+        if (!product.description) updates.description = matched.description;
+        if (!product.composition) updates.composition = matched.composition;
+      } else {
+        const lowerName = product.name.toLowerCase();
+        if (!product.manufacturer || product.manufacturer === "Unknown") {
+          for (const [key, mfr] of Object.entries(KNOWN_MANUFACTURERS)) {
+            if (lowerName.includes(key)) { updates.manufacturer = mfr; break; }
           }
         }
-      }
-
-      // Benefits
-      if (!product.benefits) {
-        for (const [key, benefits] of Object.entries(BENEFITS_DB)) {
-          if (searchIn.includes(key)) {
-            updates.benefits = benefits;
-            break;
+        if (!product.benefits) {
+          const searchIn = (product.composition || product.name).toLowerCase();
+          for (const [key, benefits] of Object.entries(BENEFITS_DB)) {
+            if (searchIn.includes(key)) { updates.benefits = benefits; break; }
           }
         }
-        if (!updates.benefits && product.form) {
-          const f = product.form.toLowerCase();
-          if (["tablet", "capsule"].includes(f)) {
-            updates.benefits = "Effective medication in convenient oral dosage form. Take as directed by your healthcare provider for best results.";
-          } else if (["cream", "gel", "ointment"].includes(f)) {
-            updates.benefits = "Topical formulation for targeted relief. Apply as directed to affected area.";
-          }
+        if (!product.description) {
+          const parts: string[] = [];
+          parts.push(`${product.name} is a ${product.form || "medication"}.`);
+          if (product.composition) parts.push(`It contains ${product.composition}.`);
+          parts.push("Consult your healthcare provider for proper dosage.");
+          updates.description = parts.join(" ");
         }
       }
 
       if (Object.keys(updates).length > 0) {
-        await ctx.db.patch(product._id, {
-          ...updates,
-          updatedAt: Date.now(),
-        });
+        await ctx.db.patch(product._id, { ...updates, updatedAt: Date.now() });
         enriched++;
       }
     }
@@ -279,8 +306,8 @@ export const backfillProducts = mutation({
 });
 
 /**
- * Enrich a single product with full information via web search.
- * Uses Google Custom Search API for images + web data.
+ * Enrich a product using the free enrichProduct action from productImageSearch.
+ * Returns full product info including image, manufacturer, benefits, description.
  */
 export const enrichProduct = action({
   args: {
@@ -291,102 +318,87 @@ export const enrichProduct = action({
     form: v.optional(v.string()),
   },
   handler: async (_ctx, args) => {
-    const apiKey = process.env.GOOGLE_SEARCH_API_KEY;
-    const engineId = process.env.GOOGLE_SEARCH_ENGINE_ID;
+    // Try local database first (no API needed)
+    const lower = args.productName.toLowerCase().trim();
+    const stripped = lower.replace(/\s*\d+\s*(mg|ml|g|mcg|iu|%)?$/i, "").trim();
+
+    let matched: MedicineInfo | null = null;
+    if (MEDICINES_DB[lower]) matched = MEDICINES_DB[lower];
+    else if (MEDICINES_DB[stripped]) matched = MEDICINES_DB[stripped];
+    else {
+      let bestLen = 0;
+      for (const [key, info] of Object.entries(MEDICINES_DB)) {
+        if (lower.includes(key) && key.length > bestLen) {
+          matched = info;
+          bestLen = key.length;
+        }
+      }
+    }
 
     const result: {
       imageUrl: string | null;
       manufacturer: string | null;
       benefits: string | null;
-    } = {
-      imageUrl: null,
-      manufacturer: null,
-      benefits: null,
-    };
+      description: string | null;
+    } = { imageUrl: null, manufacturer: null, benefits: null, description: null };
 
-    // 1. Image: Google Custom Search
-    if (apiKey && engineId) {
-      const queryParts = [args.productName];
-      if (args.brand) queryParts.push(args.brand);
-      if (args.manufacturer) queryParts.push(args.manufacturer);
-      queryParts.push("medicine india");
-
-      const query = encodeURIComponent(queryParts.join(" "));
-      const url = `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${engineId}&searchType=image&q=${query}&num=5&imgType=photo&safe=active`;
-
-      try {
-        const response = await fetch(url);
-        if (response.ok) {
-          const data = await response.json();
-          const items = data.items;
-          if (items && items.length > 0) {
-            const productNameLower = args.productName.toLowerCase();
-            let bestMatch = items[0];
-            for (const item of items) {
-              const title = (item.title || "").toLowerCase();
-              if (title.includes(productNameLower)) {
-                bestMatch = item;
-                break;
-              }
-            }
-            result.imageUrl = bestMatch.link;
-          }
-        }
-      } catch {
-        // Continue
-      }
-
-      // 2. Web search for manufacturer info
-      const webQuery = encodeURIComponent(`${args.productName} medicine manufacturer India site:1mg.com OR site:pharmeasy.in`);
-      const webUrl = `https://www.googleapis.com/customsearch/v1?key=${apiKey}&cx=${engineId}&q=${webQuery}&num=3`;
-
-      try {
-        const response = await fetch(webUrl);
-        if (response.ok) {
-          const data = await response.json();
-          const items = data.items;
-          if (items) {
-            for (const item of items) {
-              const snippet = (item.snippet || "").toLowerCase();
-              const mfgMatch = snippet.match(/manufactured?\s+(?:by|at)\s+([A-Z][a-zA-Z\s&.]+(?:Ltd|Limited|Pharma|Laboratories))/i);
-              if (mfgMatch && !result.manufacturer) {
-                result.manufacturer = mfgMatch[1].trim();
-              }
-              const usesMatch = snippet.match(/(?:used?|benefits?|treats?|helps?\s+in)\s+(.{20,200}?)(?:\.|$)/i);
-              if (usesMatch && !result.benefits) {
-                result.benefits = usesMatch[1].trim().charAt(0).toUpperCase() + usesMatch[1].trim().slice(1);
-              }
-            }
-          }
-        }
-      } catch {
-        // Continue
-      }
-    }
-
-    // 3. Manufacturer fallback: known database
-    if (!result.manufacturer) {
-      const lowerName = args.productName.toLowerCase();
+    if (matched) {
+      result.manufacturer = matched.manufacturer;
+      result.benefits = matched.benefits;
+      result.description = matched.description;
+    } else {
+      // Fallback to known DBs
       for (const [key, mfr] of Object.entries(KNOWN_MANUFACTURERS)) {
-        if (lowerName.includes(key)) {
-          result.manufacturer = mfr;
-          break;
-        }
+        if (lower.includes(key)) { result.manufacturer = mfr; break; }
       }
-      if (!result.manufacturer && args.manufacturer) {
-        result.manufacturer = args.manufacturer;
+      if (!result.manufacturer && args.manufacturer) result.manufacturer = args.manufacturer;
+
+      const composition = args.composition || args.productName;
+      for (const [key, benefits] of Object.entries(BENEFITS_DB)) {
+        if (composition.toLowerCase().includes(key)) { result.benefits = benefits; break; }
       }
+
+      // Generate description
+      const parts: string[] = [];
+      parts.push(`${args.productName} is a medication${result.manufacturer ? ` manufactured by ${result.manufacturer}` : ""}.`);
+      if (args.composition) parts.push(`It contains ${args.composition}.`);
+      if (args.form) parts.push(`Available as ${args.form}.`);
+      parts.push("Consult your healthcare provider for proper dosage and usage instructions.");
+      result.description = parts.join(" ");
     }
 
-    // 4. Benefits fallback: known database
-    if (!result.benefits) {
-      const searchIn = (args.composition || args.productName).toLowerCase();
-      for (const [key, benefits] of Object.entries(BENEFITS_DB)) {
-        if (searchIn.includes(key)) {
-          result.benefits = benefits;
-          break;
+    // Image: try Wikimedia Commons (free)
+    try {
+      const wikiSearch = encodeURIComponent(`${args.productName} medicine`);
+      const wikiUrl = `https://commons.wikimedia.org/w/api.php?action=query&list=search&srsearch=${wikiSearch}&srnamespace=6&srlimit=3&format=json&origin=*`;
+      const response = await fetch(wikiUrl);
+      if (response.ok) {
+        const data = await response.json();
+        const results = data?.query?.search;
+        if (results && results.length > 0) {
+          const title = results[0].title;
+          const imgUrl = `https://commons.wikimedia.org/w/api.php?action=query&titles=${encodeURIComponent(title)}&prop=imageinfo&iiprop=url&iiurlwidth=400&format=json&origin=*`;
+          const imgResponse = await fetch(imgUrl);
+          if (imgResponse.ok) {
+            const imgData = await imgResponse.json();
+            const pages = imgData?.query?.pages;
+            if (pages) {
+              const page = Object.values(pages)[0] as any;
+              if (page?.imageinfo?.[0]?.thumburl) result.imageUrl = page.imageinfo[0].thumburl;
+              else if (page?.imageinfo?.[0]?.url) result.imageUrl = page.imageinfo[0].url;
+            }
+          }
         }
       }
+    } catch {
+      // Continue without image
+    }
+
+    // Placeholder if no image found
+    if (!result.imageUrl) {
+      const initials = args.productName.split(/\s+/).slice(0, 2).map((w) => w.charAt(0).toUpperCase()).join("");
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200"><rect width="200" height="200" rx="16" fill="%23f0f7ff"/><text x="100" y="85" font-family="system-ui,sans-serif" font-size="42" font-weight="700" fill="%233b82f6" text-anchor="middle">${initials}</text><text x="100" y="120" font-family="system-ui,sans-serif" font-size="12" fill="%2364748b" text-anchor="middle">${encodeURIComponent(args.productName.slice(0, 20))}</text></svg>`;
+      result.imageUrl = `data:image/svg+xml,${svg}`;
     }
 
     return result;
