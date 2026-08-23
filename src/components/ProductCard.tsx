@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useLocation } from "react-router";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Card, CardContent } from "@/components/ui/card";
@@ -33,6 +33,7 @@ interface ProductCardProps {
 
 const ProductCard = memo(function ProductCard({ product }: ProductCardProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [isHovered, setIsHovered] = useState(false);
   const addToCart = useMutation(api.cart.addItem);
   const toggleWishlist = useMutation(api.wishlist.toggle);
@@ -84,7 +85,7 @@ const ProductCard = memo(function ProductCard({ product }: ProductCardProps) {
   return (
     <Card
       className="group relative overflow-hidden border-border/60 bg-card cursor-pointer transition-all duration-500 hover:shadow-card-hover hover:border-primary/20 hover:-translate-y-1"
-      onClick={() => navigate(`/products/${product.slug}`)}
+      onClick={() => navigate(`/products/${product.slug}`, { state: { from: location.pathname + location.search } })}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >

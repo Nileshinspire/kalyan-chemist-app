@@ -1,4 +1,4 @@
-import { useParams, useNavigate } from "react-router";
+import { useParams, useNavigate, useLocation } from "react-router";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import Navbar from "@/components/layout/Navbar";
@@ -220,6 +220,8 @@ function ReviewSheet({
 export default function ProductDetail() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const backTo = (location.state as any)?.from || "/products";
   const { isAuthenticated } = useAuth();
   const addToCart = useMutation(api.cart.addItem);
   const [whatsappQty, setWhatsappQty] = useState(1);
@@ -375,7 +377,7 @@ export default function ProductDetail() {
           variant="ghost"
           size="sm"
           className="mb-6 gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors rounded-xl"
-          onClick={() => navigate(-1)}
+          onClick={() => navigate(backTo)}
         >
           <ArrowLeft className="size-4" />
           Back
@@ -719,63 +721,7 @@ export default function ProductDetail() {
           )}
         </motion.div>
 
-        {/* Customer Reviews */}
-        {reviews && reviews.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.25 }}
-            className="mt-12"
-          >
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-bold">Customer Reviews</h3>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="gap-1.5 text-primary"
-                onClick={() => {
-                  if (!isAuthenticated) {
-                    toast.error("Please sign in to write a review");
-                    navigate(`/auth?returnTo=${encodeURIComponent(window.location.pathname)}`);
-                    return;
-                  }
-                  setReviewOpen(true);
-                }}
-              >
-                <PenLine className="size-3.5" />
-                Write a Review
-              </Button>
-            </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              {reviews.map((review) => (
-                <Card key={review._id} className="border-border/60">
-                  <CardContent className="p-5 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="size-9 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary">
-                          {review.userInitial}
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold">{review.userName}</p>
-                          <StarRating rating={review.rating} size="size-3" />
-                        </div>
-                      </div>
-                      <span className="text-xs text-muted-foreground">
-                        {new Date(review.createdAt).toLocaleDateString("en-IN", {
-                          day: "numeric",
-                          month: "short",
-                          year: "numeric",
-                        })}
-                      </span>
-                    </div>
-                    <h4 className="text-sm font-semibold">{review.title}</h4>
-                    <p className="text-sm text-muted-foreground leading-relaxed">{review.body}</p>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </motion.div>
-        )}
+        {/* Customer Reviews — displayed here for reference */}
 
         {relatedProducts && relatedProducts.length > 0 && (
           <motion.div

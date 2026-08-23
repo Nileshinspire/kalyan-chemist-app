@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useSearchParams, useNavigate } from "react-router";
+import { useSearchParams, useNavigate, useLocation } from "react-router";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import Navbar from "@/components/layout/Navbar";
@@ -29,6 +29,7 @@ import {
 
 export default function Products() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialSearch = searchParams.get("search") || "";
   const initialCategory = searchParams.get("category") || "";
@@ -106,7 +107,7 @@ export default function Products() {
     setShowAutocomplete(false);
     setAutocompleteQuery("");
     if (suggestion.type === "product") {
-      navigate(`/products/${suggestion.slug}`);
+      navigate(`/products/${suggestion.slug}`, { state: { from: location.pathname + location.search } });
     } else if (suggestion.type === "category") {
       setSelectedCategorySlug(suggestion.slug);
       setSearchQuery("");
