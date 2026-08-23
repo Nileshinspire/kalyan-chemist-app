@@ -272,9 +272,14 @@ export default function ProductDetail() {
     }
   };
 
-  const handleBuyNow = async () => {
-    await handleAddToCart();
-    navigate("/cart");
+  const handleBuyNow = () => {
+    if (!product) return;
+    if (!isAuthenticated) {
+      toast.error("Please sign in to buy now");
+      navigate(`/auth?returnTo=${encodeURIComponent(window.location.pathname)}`);
+      return;
+    }
+    navigate(`/checkout?buyNow=${product._id}`);
   };
 
   const isWishlisted = useQuery(

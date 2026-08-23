@@ -439,3 +439,156 @@ export const getTracking = query({
     };
   },
 });
+
+// ── Create a direct order (Buy Now) — bypasses cart entirely ──
+export const createDirectOrder = mutation({
+  args: {
+    productId: v.id("products"),
+    quantity: v.number(),
+    shippingAddress: v.string(),
+    phone: v.string(),
+    paymentMethod: v.union(v.literal("cod"), v.literal("online")),
+    addressId: v.optional(v.id("addresses")),
+    notes: v.optional(v.string()),
+    prescriptionId: v.optional(v.id("prescriptions")),
+    couponCode: v.optional(v.string()),
+    couponDiscount: v.optional(v.number()),
+    deliveryLatitude: v.optional(v.number()),
+    deliveryLongitude: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
+
+    const product = await ctx.db.get(args.productId);
+    if (!product || !product.isActive) throw new Error("Product is no longer available");
+    if (product.stockQuantity < args.quantity) {
+      throw new Error(`Insufficient stock for "${product.name}". Available: ${product.stockQuantity}`);
+    }
+
+    // Validate pincode serviceability
+    const pincode = args.shippingAddress.match(/\b(\d{6})\b/)?.[1];
+    if (pincode) {
+      const configs = await ctx.db.query("delivery_config").collect();
+      const dc = configs[0];
+      if (dc) {
+        const match = dc.pincodes.find((p) => p.pincode === pincode && p.isActive);
+        if (!match) {
+          throw new Error("Sorry, Kalyan Chemist does not currently deliver to this location.");
+        }
+      }
+    }
+
+    // Prescription check
+    if (product.prescriptionRequired && !args.prescriptionId) {
+      const approved = await ctx.db
+        .query("prescriptions")
+        .withIndex("by_user_status", (q) =>
+          q.eq("userId", userId).eq("status", "approved")
+        ).first();
+      if (!approved) {
+        throw new Error("Prescription required for Rx medicines. Please upload an approved prescription.");
+      }
+    }
+
+    const originalPrice = product.price;
+    const effectivePrice = product.discountPrice && product.discountPrice < product.price ? product.discountPrice : product.price;
+
+    const orderItems = [{
+      productId: args.productId,
+      name: product.name,
+      price: effectivePrice,
+      quantity: args.quantity,
+    }];
+
+    let subtotal = effectivePrice * args.quantity;
+    let discount = (originalPrice - effectivePrice) * args.quantity;
+
+    // Decrement stock
+    await ctx.db.patch(product._id, { stockQuantity: product.stockQuantity - args.quantity });
+
+    // Delivery fee
+    const configs = await ctx.db.query("delivery_config").collect();
+    const dc = configs[0];
+    let deliveryFee = 49;
+    if (dc) {
+      const pinMatch = pincode ? dc.pincodes.find((p) => p.pincode === pincode && p.isActive) : undefined;
+      const fee = pinMatch?.deliveryFee ?? dc.defaultDeliveryFee;
+      deliveryFee = subtotal >= dc.freeDeliveryThreshold ? 0 : fee;
+    } else if (subtotal >= 500) {
+      deliveryFee = 0;
+    }
+
+    // Coupon validation
+    let couponDiscountAmount = 0;
+    let appliedCouponCode: string | undefined;
+    if (args.couponCode && args.couponDiscount && args.couponDiscount > 0) {
+      const coupon = await ctx.db
+        .query("coupons")
+        .withIndex("by_code", (q) => q.eq("code", args.couponCode!.toUpperCase()))
+        .first();
+      if (coupon && coupon.isActive && coupon.expiresAt >= Date.now() &&
+          (coupon.usageLimit <= 0 || coupon.usedCount < coupon.usageLimit) &&
+          subtotal >= coupon.minOrder) {
+        if (coupon.discountType === "percentage") {
+          const computed = Math.min(Math.round((subtotal * coupon.discountPercent) / 100), coupon.maxDiscount);
+          couponDiscountAmount = Math.abs(args.couponDiscount - computed) <= 1 ? computed : computed;
+        } else {
+          couponDiscountAmount = Math.min(coupon.fixedDiscount, subtotal);
+        }
+        appliedCouponCode = coupon.code;
+        await ctx.db.patch(coupon._id, { usedCount: coupon.usedCount + 1 });
+      }
+    }
+
+    const taxableAmount = subtotal - couponDiscountAmount;
+    const tax = Math.round(taxableAmount * 0.12);
+    const totalAmount = taxableAmount + deliveryFee + tax;
+
+    const allOrders = await ctx.db.query("orders").collect();
+    const orderCount = allOrders.length;
+    const invoiceNumber = `KC-${String(orderCount + 1).padStart(5, "0")}`;
+
+    let paymentStatus: "pending" | "paid" | "failed" = "pending";
+    const now = Date.now();
+    const orderId = await ctx.db.insert("orders", {
+      userId,
+      items: orderItems,
+      subtotal,
+      discount,
+      deliveryFee,
+      tax,
+      totalAmount,
+      shippingAddress: args.shippingAddress,
+      addressId: args.addressId,
+      phone: args.phone,
+      deliveryLatitude: args.deliveryLatitude,
+      deliveryLongitude: args.deliveryLongitude,
+      status: "pending",
+      paymentMethod: args.paymentMethod,
+      paymentStatus,
+      invoiceNumber,
+      prescriptionId: args.prescriptionId,
+      notes: args.notes,
+      couponCode: appliedCouponCode,
+      couponDiscount: couponDiscountAmount > 0 ? couponDiscountAmount : undefined,
+      statusHistory: [{ status: "pending", timestamp: now, note: "Order placed (Buy Now)" }],
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    // Notification
+    await ctx.db.insert("notifications", {
+      userId,
+      type: "order_status",
+      title: "Order Placed Successfully ✓",
+      body: `Your order ${invoiceNumber} has been placed. Total: ₹${totalAmount.toLocaleString("en-IN")}. You will receive updates as your order progresses.`,
+      read: false,
+      link: `/orders/${orderId}`,
+      createdAt: now,
+    });
+
+    // Do NOT clear cart — this is a direct buy, cart stays untouched
+    return { success: true, orderId, invoiceNumber, totalAmount };
+  },
+});

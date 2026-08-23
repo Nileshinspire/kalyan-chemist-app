@@ -19,6 +19,17 @@ export const list = query({
   },
 });
 
+// ── Get a single product by ID ──
+export const getById = query({
+  args: { productId: v.id("products") },
+  handler: async (ctx, args) => {
+    const product = await ctx.db.get(args.productId);
+    if (!product) return null;
+    const category = await ctx.db.get(product.categoryId);
+    return { ...product, category };
+  },
+});
+
 // ── Get a single product by slug ──
 export const getBySlug = query({
   args: { slug: v.string() },

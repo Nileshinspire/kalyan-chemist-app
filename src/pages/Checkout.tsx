@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import { useAuth } from "@/context/AuthContext";
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -78,11 +78,29 @@ export default function Checkout() {
     message: string;
   } | null>(null);
 
-  const cartItems = useQuery(api.cart.list);
+  const [searchParams] = useSearchParams();
+  const buyNowProductId = searchParams.get("buyNow");
+  const isBuyNow = !!buyNowProductId;
+
+  const buyNowProduct = useQuery(
+    api.products.getById,
+    isBuyNow && buyNowProductId ? { productId: buyNowProductId as any } : "skip"
+  );
+
+  const cartItemsRaw = useQuery(api.cart.list);
+  // In buyNow mode, create a synthetic cart item from the product
+  const cartItems = useMemo(() => {
+    if (isBuyNow && buyNowProduct) {
+      return [{ _id: "buynow" as any, productId: buyNowProduct._id, quantity: 1, product: buyNowProduct }];
+    }
+    return cartItemsRaw;
+  }, [isBuyNow, buyNowProduct, cartItemsRaw]);
+
   const addresses = useQuery(api.addresses.list);
   const prescriptions = useQuery(api.prescriptions.list);
   const validateRx = useQuery(api.prescriptionValidation.validateCartPrescription);
   const createOrder = useMutation(api.orders.create);
+  const createDirectOrder = useMutation(api.orders.createDirectOrder);
   const createRazorpayOrder = useAction(api.razorpayActions.createOrder);
   const verifyPayment = useAction(api.razorpayActions.verifyPayment);
   const getRazorpayKeyId = useAction(api.razorpayActions.getKeyId);
@@ -167,8 +185,8 @@ export default function Checkout() {
     else setSelectedAddressId(addresses[0]._id);
   }
 
-  // Redirect if cart empty
-  if (cartItems && cartItems.length === 0 && step === 0) {
+  // Redirect if cart empty (skip for buyNow mode)
+  if (!isBuyNow && cartItemsRaw && cartItemsRaw.length === 0 && step === 0) {
     return (
       <div className="min-h-screen flex flex-col bg-background">
         <Navbar />
@@ -308,19 +326,37 @@ export default function Checkout() {
         }
       }
 
-      // For online payments, we first create the order, then open Razorpay
-      const result = await createOrder({
-        shippingAddress: addressToString(selectedAddress),
-        addressId: selectedAddressId as any,
-        phone: selectedAddress.phone,
-        paymentMethod,
-        notes: notes.trim() || undefined,
-        prescriptionId: (selectedPrescriptionId as any) || undefined,
-        couponCode: appliedCoupon?.code,
-        couponDiscount: appliedCoupon?.discount,
-        deliveryLatitude,
-        deliveryLongitude,
-      });
+      // Create order — use direct order for Buy Now, cart-based for normal flow
+      let result;
+      if (isBuyNow && buyNowProduct) {
+        result = await createDirectOrder({
+          productId: buyNowProduct._id,
+          quantity: 1,
+          shippingAddress: addressToString(selectedAddress),
+          addressId: selectedAddressId as any,
+          phone: selectedAddress.phone,
+          paymentMethod,
+          notes: notes.trim() || undefined,
+          prescriptionId: (selectedPrescriptionId as any) || undefined,
+          couponCode: appliedCoupon?.code,
+          couponDiscount: appliedCoupon?.discount,
+          deliveryLatitude,
+          deliveryLongitude,
+        });
+      } else {
+        result = await createOrder({
+          shippingAddress: addressToString(selectedAddress),
+          addressId: selectedAddressId as any,
+          phone: selectedAddress.phone,
+          paymentMethod,
+          notes: notes.trim() || undefined,
+          prescriptionId: (selectedPrescriptionId as any) || undefined,
+          couponCode: appliedCoupon?.code,
+          couponDiscount: appliedCoupon?.discount,
+          deliveryLatitude,
+          deliveryLongitude,
+        });
+      }
 
       if (paymentMethod === "online") {
         // Open Razorpay checkout for this order
@@ -346,8 +382,12 @@ export default function Checkout() {
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
       <main className="flex-1 mx-auto max-w-6xl w-full px-4 sm:px-6 py-8">
-        <Button variant="ghost" size="sm" className="mb-4 gap-1.5 text-sm text-muted-foreground rounded-xl" onClick={() => step > 0 ? setStep(step - 1) : navigate("/cart")}>
-          <ArrowLeft className="size-4" /> {step > 0 ? "Back" : "Back to Cart"}
+        <Button variant="ghost" size="sm" className="mb-4 gap-1.5 text-sm text-muted-foreground rounded-xl" onClick={() => {
+          if (step > 0) setStep(step - 1);
+          else if (isBuyNow && buyNowProduct) navigate(`/products/${buyNowProduct.slug}`);
+          else navigate("/cart");
+        }}>
+          <ArrowLeft className="size-4" /> {step > 0 ? "Back" : isBuyNow ? "Back to Product" : "Back to Cart"}
         </Button>
 
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
