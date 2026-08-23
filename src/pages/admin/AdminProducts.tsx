@@ -116,7 +116,10 @@ export default function AdminProducts() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [fetchingImage, setFetchingImage] = useState(false);
 
-  const fetchProductImage = useAction(api.productImageSearch.fetchProductImage);
+  const enrichProductAction = useAction(api.productBackfill.enrichProduct);
+  const enrichSingleProduct = useMutation(api.productBackfill.enrichSingleProduct);
+  const backfillProducts = useMutation(api.productBackfill.backfillProducts);
+  const [backfilling, setBackfilling] = useState(false);
   const categories = useQuery(api.categories.list);
   const brands = useQuery(api.adminBrands.list, { isActive: true });
   const products = useQuery(api.adminProducts.list, {
@@ -227,21 +230,74 @@ export default function AdminProducts() {
     setFetchingImage(true);
     try {
       const brand = brands?.find((b) => b._id === form.brandId)?.name;
-      const result = await fetchProductImage({
+      const result = await enrichProductAction({
         productName: form.name,
         manufacturer: form.manufacturer || undefined,
         brand: brand || undefined,
+        composition: form.description || undefined,
+        form: form.form || undefined,
       });
-      if (result.success && result.imageUrl) {
-        setForm({ ...form, imageUrl: result.imageUrl });
-        toast.success("Product image found!");
+
+      let updated = false;
+      const newForm = { ...form };
+
+      if (result.imageUrl) {
+        newForm.imageUrl = result.imageUrl;
+        updated = true;
+      }
+      if (result.manufacturer && !form.manufacturer) {
+        newForm.manufacturer = result.manufacturer;
+        updated = true;
+      }
+      if (result.benefits && !form.benefits) {
+        newForm.benefits = result.benefits;
+        updated = true;
+      }
+
+      setForm(newForm);
+
+      if (updated) {
+        const fields: string[] = [];
+        if (result.imageUrl) fields.push("image");
+        if (result.manufacturer && !form.manufacturer) fields.push("manufacturer");
+        if (result.benefits && !form.benefits) fields.push("benefits");
+        toast.success(`Auto-filled: ${fields.join(", ")}!`);
       } else {
-        toast.info(result.reason || "No image found. Please enter URL manually.");
+        toast.info("No additional information found. Please fill in manually.");
       }
     } catch (err: any) {
-      toast.error(err.message || "Failed to fetch image");
+      toast.error(err.message || "Failed to auto-fetch product info");
     } finally {
       setFetchingImage(false);
+    }
+  };
+
+  const handleBackfillAll = async () => {
+    setBackfilling(true);
+    try {
+      const result = await backfillProducts({ limit: 20 });
+      if (result.enriched > 0) {
+        toast.success(`Enriched ${result.enriched} products! ${result.remaining} remaining.`);
+      } else {
+        toast.info(result.message || "No products needed enrichment");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Backfill failed");
+    } finally {
+      setBackfilling(false);
+    }
+  };
+
+  const handleEnrichSingle = async (productId: string) => {
+    try {
+      const result = await enrichSingleProduct({ productId: productId as any });
+      if (result.updated.length > 0) {
+        toast.success(`Enriched: ${result.updated.join(", ")}`);
+      } else {
+        toast.info(result.message || "Product already complete");
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Enrichment failed");
     }
   };
 
@@ -264,9 +320,20 @@ export default function AdminProducts() {
             <h1 className="text-2xl font-bold tracking-tight">Products</h1>
             <p className="text-sm text-muted-foreground">Manage your medicine catalogue</p>
           </div>
-          <Button onClick={openCreate} className="gradient-primary text-white shadow-glow">
-            <Plus className="mr-2 size-4" /> Add Product
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={handleBackfillAll}
+              disabled={backfilling}
+              className="gap-2"
+            >
+              {backfilling ? <Loader2 className="size-4 animate-spin" /> : <Wand2 className="size-4" />}
+              Auto-fill Missing Info
+            </Button>
+            <Button onClick={openCreate} className="gradient-primary text-white shadow-glow">
+              <Plus className="mr-2 size-4" /> Add Product
+            </Button>
+          </div>
         </motion.div>
 
         {/* Filters */}
@@ -400,6 +467,17 @@ export default function AdminProducts() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1">
+                            {(!product.imageUrl || !product.benefits) && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="size-8 text-blue-600 hover:text-blue-700"
+                                onClick={() => handleEnrichSingle(product._id)}
+                                title="Auto-fill missing info"
+                              >
+                                <Wand2 className="size-3.5" />
+                              </Button>
+                            )}
                             <Button variant="ghost" size="icon" className="size-8" onClick={() => openEdit(product)}>
                               <Pencil className="size-3.5" />
                             </Button>
@@ -528,7 +606,7 @@ export default function AdminProducts() {
                     ) : (
                       <Wand2 className="size-3" />
                     )}
-                    Auto-fetch Image
+                    Auto-fill Info
                   </Button>
                 </div>
                 <Input value={form.imageUrl || ""} onChange={(e) => setForm({ ...form, imageUrl: e.target.value || undefined })} placeholder="https://... or click Auto-fetch" />

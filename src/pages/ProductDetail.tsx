@@ -654,6 +654,20 @@ export default function ProductDetail() {
                         <TableCell>{cat.name}</TableCell>
                       </TableRow>
                     )}
+                    {p.form && (
+                      <TableRow>
+                        <TableCell className="font-medium text-muted-foreground">Consume Type</TableCell>
+                        <TableCell>{
+                          ["tablet", "capsule", "syrup", "suspension", "drops", "inhaler", "powder", "sachet"].includes((p.form || "").toLowerCase())
+                            ? "For oral use"
+                            : ["cream", "gel", "ointment", "lotion"].includes((p.form || "").toLowerCase())
+                            ? "For external use only"
+                            : p.form === "injection"
+                            ? "For injection use only"
+                            : `For ${p.form} use`
+                        }</TableCell>
+                      </TableRow>
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -678,10 +692,17 @@ export default function ProductDetail() {
             <Card className="border-border/60">
               <CardContent className="p-6">
                 <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
-                  <ShieldCheck className="size-4 text-primary" />
+                  <ShieldCheck className="size-4 text-green-600" />
                   Benefits
                 </h3>
-                <p className="text-sm leading-relaxed text-muted-foreground">{p.benefits}</p>
+                <div className="text-sm leading-relaxed text-muted-foreground">
+                  {p.benefits.split(". ").filter(Boolean).map((sentence, i) => (
+                    <div key={i} className="flex items-start gap-2 mb-1.5">
+                      <span className="size-1.5 rounded-full bg-green-500 mt-2 shrink-0" />
+                      <span>{sentence.trim().replace(/\.$/, "")}.</span>
+                    </div>
+                  ))}
+                </div>
               </CardContent>
             </Card>
           )}
