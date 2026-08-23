@@ -1,3 +1,5 @@
+import { describe, it, expect } from "vitest";
+
 /**
  * Targeted tests for the FREE product enrichment system (no paid APIs).
  *
