@@ -28,6 +28,7 @@ import {
   PlusCircle,
   AlertTriangle,
   IndianRupee,
+  MessageCircle,
   Check,
   Lock,
   Tag,
@@ -36,6 +37,7 @@ import {
 import { formatCurrency } from "@/lib/auth-utils";
 import { geocodeAddress } from "@/lib/geocode";
 import { toast } from "sonner";
+import { openWhatsApp } from "@/lib/whatsapp";
 import { CheckCircle2 as CheckCircle, XCircle } from "lucide-react";
 import type { RazorpayResponse } from "@/types/global";
 
@@ -105,6 +107,7 @@ export default function Checkout() {
   const verifyPayment = useAction(api.razorpayActions.verifyPayment);
   const getRazorpayKeyId = useAction(api.razorpayActions.getKeyId);
   const markPaymentFailed = useMutation(api.razorpay.markPaymentFailed);
+  const deliveryConfig = useQuery(api.deliveryConfig.getPublic);
 
   // Calculate totals
   const { subtotal, totalDiscount, deliveryFee, tax, total, totalItems, hasRxItems } = useMemo(() => {
@@ -377,6 +380,38 @@ export default function Checkout() {
   };
 
   const isProcessing = placing || paymentProcessing;
+
+  const handleWhatsAppOrder = () => {
+    const phone = deliveryConfig?.storeWhatsApp || deliveryConfig?.storePhone || "";
+    if (!phone) {
+      toast.error("WhatsApp number not configured. Please place your order online.");
+      return;
+    }
+    const lines: string[] = [];
+    lines.push("💊 *Kalyan Chemist — Order via WhatsApp*");
+    lines.push("");
+    lines.push("*Items:*");
+    for (const item of cartItems ?? []) {
+      const p = item.product;
+      if (!p) continue;
+      const hasDiscount = p.discountPrice && p.discountPrice < p.price;
+      const unitPrice = hasDiscount ? p.discountPrice! : p.price;
+      lines.push(`• ${p.name} × ${item.quantity} — ₹${(unitPrice * item.quantity).toLocaleString("en-IN")}`);
+    }
+    lines.push("");
+    lines.push(`*Subtotal:* ₹${subtotal.toLocaleString("en-IN")}`);
+    if (totalDiscount > 0) lines.push(`*Discount:* -₹${totalDiscount.toLocaleString("en-IN")}`);
+    lines.push(`*Delivery:* ${deliveryFee === 0 ? "Free" : `₹${deliveryFee.toLocaleString("en-IN")}`}`);
+    lines.push(`*Total:* ₹${finalTotal.toLocaleString("en-IN")}`);
+    lines.push("");
+    if (selectedAddress) {
+      lines.push(`*Delivery Address:*`);
+      lines.push(addressToString(selectedAddress));
+    }
+    lines.push("");
+    lines.push("Please confirm this order.");
+    openWhatsApp(phone, lines.join("\n"));
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -743,6 +778,18 @@ export default function Checkout() {
                      `Place Order · ${formatCurrency(finalTotal)}`}
                   </Button>
                 )}
+
+                {/* Order on WhatsApp */}
+                {deliveryConfig?.storeWhatsApp || deliveryConfig?.storePhone ? (
+                  <Button
+                    variant="outline"
+                    className="w-full h-11 text-sm font-semibold gap-2 rounded-xl border-green-200 text-green-700 hover:bg-green-50 hover:border-green-300 mt-2"
+                    onClick={handleWhatsAppOrder}
+                  >
+                    <MessageCircle className="size-4" />
+                    Order on WhatsApp
+                  </Button>
+                ) : null}
 
                 <div className="flex flex-col gap-2 pt-1 text-xs text-muted-foreground">
                   <div className="flex items-center gap-2">

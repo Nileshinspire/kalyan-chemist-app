@@ -173,6 +173,17 @@ export const enrichSingleProduct = mutation({
       }
     }
 
+    // Description: generate from product data if missing
+    if (!product.description) {
+      const parts: string[] = [];
+      parts.push(`${product.name} is a ${product.form || "medication"} manufactured by ${product.manufacturer || "a pharmaceutical company"}.`);
+      if (product.composition) parts.push(`It contains ${product.composition}.`);
+      if (product.strength) parts.push(`Available in ${product.strength} strength.`);
+      parts.push(product.prescriptionRequired ? "This is a prescription medicine." : "This is an over-the-counter product.");
+      parts.push("Store in a cool, dry place away from direct sunlight.");
+      updates.description = parts.join(" ");
+    }
+
     if (Object.keys(updates).length > 0) {
       await ctx.db.patch(args.productId, {
         ...updates,
