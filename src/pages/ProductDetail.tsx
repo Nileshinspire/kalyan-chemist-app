@@ -687,7 +687,13 @@ export default function ProductDetail() {
           <Card className="border-border/60">
             <CardContent className="p-6">
               <h3 className="text-lg font-bold mb-3">Description</h3>
-              <p className="text-sm leading-relaxed text-muted-foreground">{p.description}</p>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                {p.description || (
+                  <span className="italic text-muted-foreground/60">
+                    {p.name} is a {p.form || "medication"} manufactured by {p.manufacturer}.{p.composition ? ` It contains ${p.composition}.` : ""} {p.prescriptionRequired ? "This is a prescription medicine." : "This is an over-the-counter product."} Store in a cool, dry place away from direct sunlight.
+                  </span>
+                )}
+              </p>
             </CardContent>
           </Card>
           {p.benefits && (
@@ -738,7 +744,7 @@ export default function ProductDetail() {
                   <div
                     key={rp._id}
                     className="group rounded-2xl border border-border/70 bg-card p-4 cursor-pointer transition-all duration-500 hover:shadow-card-hover hover:border-primary/20 hover:-translate-y-1"
-                    onClick={() => navigate(`/products/${rp.slug}`)}
+                    onClick={() => navigate(`/products/${rp.slug}`, { state: { from: backTo } })}
                   >
                     <div className="flex items-center justify-center bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] h-28 rounded-xl mb-3 overflow-hidden">
                       {rp.imageUrl ? (
