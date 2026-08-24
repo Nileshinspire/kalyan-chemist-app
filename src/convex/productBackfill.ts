@@ -433,7 +433,8 @@ export const enrichProduct = action({
       description: string | null;
       consumeType: string | null;
       safetyNote: string | null;
-    } = { imageUrl: null, manufacturer: null, benefits: null, description: null, consumeType: null, safetyNote: null };
+      form: string | null;
+    } = { imageUrl: null, manufacturer: null, benefits: null, description: null, consumeType: null, safetyNote: null, form: null };
 
     if (matched) {
       result.manufacturer = matched.manufacturer;
@@ -443,6 +444,8 @@ export const enrichProduct = action({
       result.consumeType = inferConsumeType(matched.form || args.form || "tablet");
       // Safety note
       result.safetyNote = "Consult your doctor or pharmacist before use.";
+      // Form — return for auto-select in admin form
+      result.form = matched.form || args.form || null;
     } else {
       // Fallback to known DBs
       for (const [key, mfr] of Object.entries(KNOWN_MANUFACTURERS)) {
@@ -466,6 +469,8 @@ export const enrichProduct = action({
       result.consumeType = inferConsumeType(args.form || "tablet");
       // Safety note
       result.safetyNote = "Consult your doctor or pharmacist before use.";
+      // Form — return for auto-select in admin form
+      result.form = args.form || null;
     }
 
     // Image: try Wikimedia Commons (free, no API key)

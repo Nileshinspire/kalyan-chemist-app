@@ -122,7 +122,6 @@ export default function AdminProducts() {
   const [form, setForm] = useState<ProductForm>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
-  const [fetchingImage, setFetchingImage] = useState(false);
   const [autoFilling, setAutoFilling] = useState(false);
 
   const enrichProductAction = useAction(api.productBackfill.enrichProduct);
@@ -238,82 +237,7 @@ export default function AdminProducts() {
     }
   };
 
-  const handleAutoFetchImage = async () => {
-    if (!form.name.trim()) {
-      toast.error("Please enter a product name first");
-      return;
-    }
-    setFetchingImage(true);
-    try {
-      const brand = brands?.find((b) => b._id === form.brandId)?.name;
-      const result = await enrichProductAction({
-        productName: form.name,
-        manufacturer: form.manufacturer || undefined,
-        brand: brand || undefined,
-        composition: form.composition || undefined,
-        form: form.form || undefined,
-      });
-
-      let updated = false;
-      const newForm = { ...form };
-
-      if (result.imageUrl) {
-        newForm.imageUrl = result.imageUrl;
-        updated = true;
-      }
-      if (result.manufacturer && !form.manufacturer) {
-        newForm.manufacturer = result.manufacturer;
-        updated = true;
-      }
-      if (result.benefits && !form.benefits) {
-        newForm.benefits = result.benefits;
-        updated = true;
-      }
-      if (result.description && !form.description) {
-        newForm.description = result.description;
-        updated = true;
-      }
-      if ((result as any).consumeType && !form.consumeType) {
-        newForm.consumeType = (result as any).consumeType;
-        updated = true;
-      }
-      if ((result as any).safetyNote && !form.safetyNote) {
-        newForm.safetyNote = (result as any).safetyNote;
-        updated = true;
-      }
-      if ((result as any).composition && !form.composition) {
-        newForm.composition = (result as any).composition;
-        updated = true;
-      }
-      if ((result as any).expiryDate && !form.expiryDate) {
-        newForm.expiryDate = (result as any).expiryDate;
-        updated = true;
-      }
-
-      setForm(newForm);
-
-      if (updated) {
-        const fields: string[] = [];
-        if (result.imageUrl) fields.push("image");
-        if (result.manufacturer && !form.manufacturer) fields.push("manufacturer");
-        if (result.benefits && !form.benefits) fields.push("benefits");
-        if (result.description && !form.description) fields.push("description");
-        if ((result as any).consumeType && !form.consumeType) fields.push("consume type");
-        if ((result as any).safetyNote && !form.safetyNote) fields.push("safety note");
-        if ((result as any).composition && !form.composition) fields.push("composition");
-        if ((result as any).expiryDate && !form.expiryDate) fields.push("expiry date");
-        toast.success(`Auto-filled: ${fields.join(", ")}!`);
-      } else {
-        toast.info("No additional information found. Please fill in manually.");
-      }
-    } catch (err: any) {
-      toast.error(err.message || "Failed to auto-fetch product info");
-    } finally {
-      setFetchingImage(false);
-    }
-  };
-
-  const handleAutoFillBenefits = async () => {
+  const handleAutoFillAll = async () => {
     if (!form.name.trim()) {
       toast.error("Please enter a product name first");
       return;
@@ -332,18 +256,50 @@ export default function AdminProducts() {
       const newForm = { ...form };
       const filled: string[] = [];
 
-      // Always overwrite these 3 fields with freshly generated values
+      // Image
+      if (result.imageUrl) {
+        newForm.imageUrl = result.imageUrl;
+        filled.push("Image");
+      }
+      // Description
+      if (result.description && !form.description) {
+        newForm.description = result.description;
+        filled.push("Description");
+      }
+      // Benefits — always overwrite with fresh generation
       if (result.benefits) {
         newForm.benefits = result.benefits;
         filled.push("Benefits");
       }
+      // Consume Type — always overwrite
       if ((result as any).consumeType) {
         newForm.consumeType = (result as any).consumeType;
         filled.push("Consume Type");
       }
+      // Safety Note — always overwrite
       if ((result as any).safetyNote) {
         newForm.safetyNote = (result as any).safetyNote;
         filled.push("Safety Note");
+      }
+      // Manufacturer
+      if (result.manufacturer && !form.manufacturer) {
+        newForm.manufacturer = result.manufacturer;
+        filled.push("Manufacturer");
+      }
+      // Composition
+      if ((result as any).composition && !form.composition) {
+        newForm.composition = (result as any).composition;
+        filled.push("Composition");
+      }
+      // Form — auto-select based on product name/composition
+      if ((result as any).form && !form.form) {
+        newForm.form = (result as any).form;
+        filled.push("Form");
+      }
+      // Expiry Date
+      if ((result as any).expiryDate && !form.expiryDate) {
+        newForm.expiryDate = (result as any).expiryDate;
+        filled.push("Expiry Date");
       }
 
       setForm(newForm);
@@ -608,7 +564,7 @@ export default function AdminProducts() {
                     variant="outline"
                     size="sm"
                     className="text-xs gap-1.5 h-7"
-                    onClick={handleAutoFillBenefits}
+                    onClick={handleAutoFillAll}
                     disabled={autoFilling || !form.name.trim()}
                   >
                     {autoFilling ? (
@@ -620,7 +576,7 @@ export default function AdminProducts() {
                   </Button>
                 </div>
                 <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value, slug: slugify(e.target.value) })} placeholder="e.g. Crocin Advance 500mg" />
-                <p className="text-[11px] text-muted-foreground">Enter medicine name, then click Auto Fill to generate Benefits, Consume Type & Safety Note.</p>
+                <p className="text-[11px] text-muted-foreground">Enter medicine name, then click Auto Fill to auto-populate all product information.</p>
               </div>
               <div className="space-y-2">
                 <Label>Slug</Label>
@@ -701,24 +657,7 @@ export default function AdminProducts() {
                 <Input type="number" value={form.stockQuantity || ""} onChange={(e) => setForm({ ...form, stockQuantity: parseInt(e.target.value) || 0 })} placeholder="0" />
               </div>
               <div className="sm:col-span-2 space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label>Product Image</Label>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="text-xs gap-1.5 h-7"
-                    onClick={handleAutoFetchImage}
-                    disabled={fetchingImage || !form.name.trim()}
-                  >
-                    {fetchingImage ? (
-                      <Loader2 className="size-3 animate-spin" />
-                    ) : (
-                      <Wand2 className="size-3" />
-                    )}
-                    Auto-fill Info
-                  </Button>
-                </div>
+                <Label>Product Image</Label>
                 <Input value={form.imageUrl || ""} onChange={(e) => setForm({ ...form, imageUrl: e.target.value || undefined })} placeholder="https://... or click Auto-fetch" />
                 {form.imageUrl && (
                   <div className="mt-2 flex items-center gap-3">
