@@ -367,25 +367,29 @@ export const enrichProduct = action({
       result.description = parts.join(" ");
     }
 
-    // Image: try Wikimedia Commons (free)
+    // Image: try Wikimedia Commons (free, no API key)
     try {
-      const wikiSearch = encodeURIComponent(`${args.productName} medicine`);
-      const wikiUrl = `https://commons.wikimedia.org/w/api.php?action=query&list=search&srsearch=${wikiSearch}&srnamespace=6&srlimit=3&format=json&origin=*`;
-      const response = await fetch(wikiUrl);
+      const searchQuery = encodeURIComponent(`${args.productName} medicine`);
+      const url = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${searchQuery}&gsrnamespace=6&gsrlimit=5&prop=imageinfo&iiprop=url&iiurlwidth=400&format=json&origin=*`;
+      const response = await fetch(url);
       if (response.ok) {
         const data = await response.json();
-        const results = data?.query?.search;
-        if (results && results.length > 0) {
-          const title = results[0].title;
-          const imgUrl = `https://commons.wikimedia.org/w/api.php?action=query&titles=${encodeURIComponent(title)}&prop=imageinfo&iiprop=url&iiurlwidth=400&format=json&origin=*`;
-          const imgResponse = await fetch(imgUrl);
-          if (imgResponse.ok) {
-            const imgData = await imgResponse.json();
-            const pages = imgData?.query?.pages;
-            if (pages) {
-              const page = Object.values(pages)[0] as any;
-              if (page?.imageinfo?.[0]?.thumburl) result.imageUrl = page.imageinfo[0].thumburl;
-              else if (page?.imageinfo?.[0]?.url) result.imageUrl = page.imageinfo[0].url;
+        const pages = data?.query?.pages;
+        if (pages) {
+          for (const page of Object.values(pages) as any[]) {
+            const title = page?.title || "";
+            const lower = title.toLowerCase();
+            // Skip SVG/chemical structure images
+            const badPatterns = ["skeletal", "structure", "chemistry", ".svg", "logo", "icon", "symbol"];
+            if (badPatterns.some(p => lower.includes(p))) continue;
+            if (!lower.match(/\.(jpg|jpeg|png|gif|webp)/)) continue;
+            const ii = page?.imageinfo;
+            if (ii && ii[0]?.thumburl) {
+              const imgUrl = ii[0].thumburl;
+              if (!imgUrl.toLowerCase().endsWith(".svg") && !imgUrl.includes("skeletal")) {
+                result.imageUrl = imgUrl;
+                break;
+              }
             }
           }
         }

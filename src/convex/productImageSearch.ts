@@ -820,19 +820,71 @@ function getKnownBenefits(composition: string, form: string): string | null {
 }
 
 /**
- * Fetch product image from Wikipedia (free, no API key needed).
- * Strategy:
- * 1. Look up composition in WIKI_COMPOSITION_MAP
- * 2. Try pageimages API first
- * 3. Try prop=images API for actual product photos
- * 4. Return null if nothing found
+ * Check if an image URL is a chemical structure SVG or diagram (not a product photo).
  */
-async function fetchWikipediaImage(composition: string, productName: string): Promise<string | null> {
-  // Determine which Wikipedia article to look up
+function isChemicalStructure(url: string): boolean {
+  const lower = url.toLowerCase();
+  // SVG chemical structures from Wikipedia
+  if (lower.endsWith(".svg") || lower.includes("skeletal")) return true;
+  // Known chemical diagram patterns
+  if (lower.includes("structure") && lower.includes("svg")) return true;
+  // Wikimedia thumb URLs ending in SVG
+  if (lower.includes(".svg/") || lower.includes(".svg?")) return true;
+  return false;
+}
+
+/**
+ * Check if a Wikimedia file title looks like a product photo vs a chemical diagram.
+ */
+function isGoodImageTitle(title: string): boolean {
+  const lower = title.toLowerCase();
+  // Skip chemical structure diagrams
+  const badPatterns = [
+    "skeletal", "structure", "chemistry", "molecule", "crystal",
+    "synthesis", "metabolism", "pathway", "mechanism", "reaction",
+    "formula", "diagram", "sketch", "class", "logo", "icon",
+    "commons", "edit", "symbol", "who", ".svg", ".wav",
+    "pd-icon", "oojs", "ambox", "text-", "padlock",
+  ];
+  if (badPatterns.some(p => lower.includes(p))) return false;
+  // Must be an actual image file
+  if (!lower.match(/\.(jpg|jpeg|png|gif|webp)/)) return false;
+  return true;
+}
+
+/**
+ * Fetch product image from free sources.
+ * Strategy (in order):
+ * 1. Wikimedia Commons search with exact product name
+ * 2. Wikipedia page images for composition (reject chemical structures)
+ * 3. Wikimedia Commons search with composition
+ * Returns null if nothing useful found.
+ */
+async function fetchFreeImage(productName: string, composition: string): Promise<string | null> {
+  // ── Strategy 1: Wikimedia Commons search with exact product name ──
+  try {
+    const searchQuery = encodeURIComponent(`${productName} medicine`);
+    const url = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${searchQuery}&gsrnamespace=6&gsrlimit=5&prop=imageinfo&iiprop=url&iiurlwidth=400&format=json&origin=*`;
+    const response = await fetch(url);
+    if (response.ok) {
+      const data = await response.json();
+      const pages = data?.query?.pages;
+      if (pages) {
+        for (const page of Object.values(pages) as any[]) {
+          const title = page?.title || "";
+          if (!isGoodImageTitle(title)) continue;
+          const ii = page?.imageinfo;
+          if (ii && ii[0]?.thumburl && !isChemicalStructure(ii[0].thumburl)) {
+            return ii[0].thumburl;
+          }
+        }
+      }
+    }
+  } catch { /* continue */ }
+
+  // ── Strategy 2: Wikipedia pageimages for composition ──
   const lowerComp = composition.toLowerCase();
   let wikiTitle: string | null = null;
-
-  // Check the composition map
   for (const [key, title] of Object.entries(WIKI_COMPOSITION_MAP)) {
     if (lowerComp.includes(key)) {
       wikiTitle = title;
@@ -840,52 +892,64 @@ async function fetchWikipediaImage(composition: string, productName: string): Pr
     }
   }
 
-  if (!wikiTitle) return null;
-
-  // Strategy 1: Try pageimages API (most reliable for images set in article infobox)
-  try {
-    const url = `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(wikiTitle)}&prop=pageimages&format=json&pithumbsize=500`;
-    const response = await fetch(url);
-    if (response.ok) {
-      const data = await response.json();
-      const pages = data?.query?.pages;
-      if (pages) {
-        const page = Object.values(pages)[0] as any;
-        if (page?.thumbnail?.source) {
-          // Clean URL params
-          return page.thumbnail.source.split("?")[0];
+  if (wikiTitle) {
+    // 2a: Try pageimages API first
+    try {
+      const url = `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(wikiTitle)}&prop=pageimages&format=json&pithumbsize=500`;
+      const response = await fetch(url);
+      if (response.ok) {
+        const data = await response.json();
+        const pages = data?.query?.pages;
+        if (pages) {
+          const page = Object.values(pages)[0] as any;
+          const src = page?.thumbnail?.source?.split("?")[0] || "";
+          if (src && !isChemicalStructure(src)) return src;
         }
       }
-    }
-  } catch {
-    // Continue
+    } catch { /* continue */ }
+
+    // 2b: Try prop=images API (get all images on article page)
+    try {
+      const url = `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(wikiTitle)}&prop=images&format=json&imlimit=20`;
+      const response = await fetch(url);
+      if (response.ok) {
+        const data = await response.json();
+        const pages = data?.query?.pages;
+        if (pages) {
+          const page = Object.values(pages)[0] as any;
+          const images = page?.images || [];
+          for (const img of images) {
+            const title: string = img?.title || "";
+            if (!isGoodImageTitle(title)) continue;
+            const imgUrl = await getWikipediaFileUrl(title);
+            if (imgUrl && !isChemicalStructure(imgUrl)) return imgUrl;
+          }
+        }
+      }
+    } catch { /* continue */ }
   }
 
-  // Strategy 2: Try prop=images API (gets all images on the article page)
-  try {
-    const url = `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(wikiTitle)}&prop=images&format=json&imlimit=20`;
-    const response = await fetch(url);
-    if (response.ok) {
-      const data = await response.json();
-      const pages = data?.query?.pages;
-      if (pages) {
-        const page = Object.values(pages)[0] as any;
-        const images = page?.images || [];
-        // Skip non-image files and icons/logos
-        const skipWords = ["logo", "icon", "commons", "edit", "symbol", "who", "rod", "wav", "svg", "chemistry", "class", "rash"];
-        for (const img of images) {
-          const title: string = img?.title || "";
-          const lower = title.toLowerCase();
-          if (skipWords.some(w => lower.includes(w))) continue;
-          if (!lower.match(/\.(jpg|png|jpeg|gif|webp)$/)) continue;
-          // This is a good image - get its URL
-          const imgUrl = await getWikipediaFileUrl(title);
-          if (imgUrl) return imgUrl;
+  // ── Strategy 3: Wikimedia Commons search with composition ──
+  if (wikiTitle) {
+    try {
+      const searchQuery = encodeURIComponent(`${wikiTitle} drug tablet medicine`);
+      const url = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${searchQuery}&gsrnamespace=6&gsrlimit=5&prop=imageinfo&iiprop=url&iiurlwidth=400&format=json&origin=*`;
+      const response = await fetch(url);
+      if (response.ok) {
+        const data = await response.json();
+        const pages = data?.query?.pages;
+        if (pages) {
+          for (const page of Object.values(pages) as any[]) {
+            const title = page?.title || "";
+            if (!isGoodImageTitle(title)) continue;
+            const ii = page?.imageinfo;
+            if (ii && ii[0]?.thumburl && !isChemicalStructure(ii[0].thumburl)) {
+              return ii[0].thumburl;
+            }
+          }
         }
       }
-    }
-  } catch {
-    // Continue
+    } catch { /* continue */ }
   }
 
   return null;
@@ -953,7 +1017,7 @@ export const fetchProductImage = action({
     brand: v.optional(v.string()),
   },
   handler: async (_ctx, args) => {
-    const imageUrl = await fetchWikipediaImage(args.brand || args.productName, args.productName);
+    const imageUrl = await fetchFreeImage(args.productName, args.brand || args.productName);
     if (imageUrl) {
       return { success: true, imageUrl, reason: null };
     }
@@ -1041,9 +1105,9 @@ export const enrichProduct = action({
       }
     }
 
-    // 6. Image: try Wikipedia free sources
-    const imageSource = matched?.wikiTitle || args.composition || args.productName;
-    const imageUrl = await fetchWikipediaImage(imageSource, args.productName);
+    // 6. Image: try free sources (Commons + Wikipedia)
+    const composition = result.composition || args.composition || args.productName;
+    const imageUrl = await fetchFreeImage(args.productName, composition);
     result.imageUrl = imageUrl || generatePlaceholderImage(args.productName);
 
     return result;

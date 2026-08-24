@@ -61,6 +61,7 @@ interface ProductForm {
   name: string;
   slug: string;
   description: string;
+  composition: string;
   price: number;
   discountPrice: number | undefined;
   categoryId: string;
@@ -83,6 +84,7 @@ const EMPTY_FORM: ProductForm = {
   name: "",
   slug: "",
   description: "",
+  composition: "",
   price: 0,
   discountPrice: undefined,
   categoryId: "",
@@ -147,6 +149,7 @@ export default function AdminProducts() {
       name: product.name,
       slug: product.slug,
       description: product.description,
+      composition: product.composition || "",
       price: product.price,
       discountPrice: product.discountPrice,
       categoryId: product.categoryId,
@@ -179,6 +182,7 @@ export default function AdminProducts() {
         name: form.name,
         slug,
         description: form.description,
+        composition: form.composition || undefined,
         price: form.price,
         discountPrice: form.discountPrice || undefined,
         categoryId: form.categoryId as any,
@@ -257,6 +261,10 @@ export default function AdminProducts() {
         newForm.description = result.description;
         updated = true;
       }
+      if ((result as any).composition && !form.composition) {
+        newForm.composition = (result as any).composition;
+        updated = true;
+      }
 
       setForm(newForm);
 
@@ -266,6 +274,7 @@ export default function AdminProducts() {
         if (result.manufacturer && !form.manufacturer) fields.push("manufacturer");
         if (result.benefits && !form.benefits) fields.push("benefits");
         if (result.description && !form.description) fields.push("description");
+        if ((result as any).composition && !form.composition) fields.push("composition");
         toast.success(`Auto-filled: ${fields.join(", ")}!`);
       } else {
         toast.info("No additional information found. Please fill in manually.");
@@ -528,6 +537,10 @@ export default function AdminProducts() {
               <div className="sm:col-span-2 space-y-2">
                 <Label>Description *</Label>
                 <Input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Product description" />
+              </div>
+              <div className="sm:col-span-2 space-y-2">
+                <Label>Composition</Label>
+                <Input value={form.composition} onChange={(e) => setForm({ ...form, composition: e.target.value })} placeholder="e.g. Paracetamol 500mg + Chlorpheniramine 2mg" />
               </div>
               <div className="space-y-2">
                 <Label>Category *</Label>
