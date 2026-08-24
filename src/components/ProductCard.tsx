@@ -63,10 +63,10 @@ const ProductCard = memo(function ProductCard({ product }: ProductCardProps) {
     e.stopPropagation();
     if (!user) {
       toast.error("Please sign in to buy now");
-      navigate("/auth");
+      navigate(`/auth?returnTo=${encodeURIComponent(`/products/${product.slug}`)}`);
       return;
     }
-    navigate(`/checkout?buyNow=${product._id}`);
+    navigate(`/products/${product.slug}`, { state: { from: location.pathname + location.search } });
   };
 
   const handleWishlist = async (e: React.MouseEvent) => {
