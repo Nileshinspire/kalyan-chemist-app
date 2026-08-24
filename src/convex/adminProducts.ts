@@ -120,6 +120,7 @@ export const create = mutation({
     storageInformation: v.optional(v.string()),
     stockQuantity: v.number(),
     benefits: v.optional(v.string()),
+    expiryDate: v.optional(v.number()),
     isActive: v.boolean(),
   },
   handler: async (ctx, args) => {
@@ -165,6 +166,7 @@ export const update = mutation({
     storageInformation: v.optional(v.string()),
     stockQuantity: v.number(),
     benefits: v.optional(v.string()),
+    expiryDate: v.optional(v.number()),
     isActive: v.boolean(),
   },
   handler: async (ctx, args) => {

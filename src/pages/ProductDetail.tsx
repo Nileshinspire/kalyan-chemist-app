@@ -738,6 +738,14 @@ export default function ProductDetail() {
                       <TableCell className="font-medium text-muted-foreground">Manufacturer</TableCell>
                       <TableCell>{p.manufacturer}</TableCell>
                     </TableRow>
+                    {p.expiryDate && (
+                      <TableRow>
+                        <TableCell className="font-medium text-muted-foreground">Expires On or After</TableCell>
+                        <TableCell className="text-green-700 font-medium">
+                          {new Date(p.expiryDate).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}
+                        </TableCell>
+                      </TableRow>
+                    )}
                     {p.sku && (
                       <TableRow>
                         <TableCell className="font-medium text-muted-foreground">SKU</TableCell>

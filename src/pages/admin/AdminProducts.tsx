@@ -77,6 +77,7 @@ interface ProductForm {
   storageInformation: string;
   stockQuantity: number;
   benefits: string;
+  expiryDate: string;
   isActive: boolean;
 }
 
@@ -100,6 +101,7 @@ const EMPTY_FORM: ProductForm = {
   storageInformation: "",
   stockQuantity: 0,
   benefits: "",
+  expiryDate: "",
   isActive: true,
 };
 
@@ -165,6 +167,7 @@ export default function AdminProducts() {
       storageInformation: product.storageInformation || "",
       stockQuantity: product.stockQuantity,
       benefits: product.benefits || "",
+      expiryDate: product.expiryDate ? new Date(product.expiryDate).toISOString().split('T')[0] : "",
       isActive: product.isActive,
     });
     setDialogOpen(true);
@@ -198,6 +201,7 @@ export default function AdminProducts() {
         storageInformation: form.storageInformation || undefined,
         stockQuantity: form.stockQuantity,
         benefits: form.benefits || undefined,
+        expiryDate: form.expiryDate ? new Date(form.expiryDate).getTime() : undefined,
         isActive: form.isActive,
       };
 
@@ -642,6 +646,11 @@ export default function AdminProducts() {
               <div className="sm:col-span-2 space-y-2">
                 <Label>Benefits</Label>
                 <Input value={form.benefits} onChange={(e) => setForm({ ...form, benefits: e.target.value })} placeholder="e.g. Provides fast relief from pain and fever" />
+              </div>
+              <div className="sm:col-span-2 space-y-2">
+                <Label>Expiry Date</Label>
+                <Input type="date" value={form.expiryDate} onChange={(e) => setForm({ ...form, expiryDate: e.target.value })} placeholder="Actual product/batch expiry date" />
+                <p className="text-[11px] text-muted-foreground">Enter the actual expiry date printed on the product/batch. Leave empty if unavailable.</p>
               </div>
               <div className="sm:col-span-2 space-y-2">
                 <Label>Storage Information</Label>
