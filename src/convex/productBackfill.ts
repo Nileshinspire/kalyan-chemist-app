@@ -431,12 +431,18 @@ export const enrichProduct = action({
       manufacturer: string | null;
       benefits: string | null;
       description: string | null;
-    } = { imageUrl: null, manufacturer: null, benefits: null, description: null };
+      consumeType: string | null;
+      safetyNote: string | null;
+    } = { imageUrl: null, manufacturer: null, benefits: null, description: null, consumeType: null, safetyNote: null };
 
     if (matched) {
       result.manufacturer = matched.manufacturer;
       result.benefits = matched.benefits;
       result.description = matched.description;
+      // Generate consumeType from form
+      result.consumeType = inferConsumeType(matched.form || args.form || "tablet");
+      // Safety note
+      result.safetyNote = "Consult your doctor or pharmacist before use.";
     } else {
       // Fallback to known DBs
       for (const [key, mfr] of Object.entries(KNOWN_MANUFACTURERS)) {
@@ -456,6 +462,10 @@ export const enrichProduct = action({
       if (args.form) parts.push(`Available as ${args.form}.`);
       parts.push("Consult your healthcare provider for proper dosage and usage instructions.");
       result.description = parts.join(" ");
+      // Generate consumeType from form
+      result.consumeType = inferConsumeType(args.form || "tablet");
+      // Safety note
+      result.safetyNote = "Consult your doctor or pharmacist before use.";
     }
 
     // Image: try Wikimedia Commons (free, no API key)
