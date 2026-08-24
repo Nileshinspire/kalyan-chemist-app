@@ -80,6 +80,51 @@ const BENEFITS_DB: Record<string, string> = {
   "multivitamin": "Complete daily nutrition support with essential vitamins and minerals.",
 };
 
+// ════════════════════════════════════════════════════════════════
+// DESCRIPTIONS DATABASE (composition-based description fallback)
+// ════════════════════════════════════════════════════════════════
+
+const DESCRIPTIONS_DB: Record<string, string> = {
+  "paracetamol": "Paracetamol (Acetaminophen) is one of the most widely used over-the-counter medicines for pain relief and fever reduction. It works by blocking pain signals in the brain and regulating body temperature. It is gentle on the stomach and suitable for most adults and children over 12 years when taken as directed.",
+  "ibuprofen": "Ibuprofen is a non-steroidal anti-inflammatory drug (NSAID) that provides effective relief from pain, swelling, and fever. It works by reducing the production of prostaglandins that cause inflammation. Suitable for headaches, dental pain, menstrual cramps, muscle aches, and joint pain.",
+  "amoxicillin": "Amoxicillin is a widely prescribed broad-spectrum penicillin antibiotic used to treat a variety of bacterial infections. It works by inhibiting the growth of bacteria and is effective against infections of the respiratory tract, urinary tract, ear, nose, throat, and skin.",
+  "azithromycin": "Azithromycin is a macrolide antibiotic effective against a wide range of bacterial infections. It works by stopping bacterial growth and is known for its convenient short-course therapy, typically requiring only 3 to 5 days of treatment.",
+  "cetirizine": "Cetirizine is a second-generation antihistamine that provides effective 24-hour relief from allergy symptoms such as sneezing, runny nose, itchy eyes, and skin rashes. It works by blocking histamine receptors and causes minimal drowsiness.",
+  "metformin": "Metformin is the most widely prescribed first-line medication for type 2 diabetes. It works by reducing glucose production in the liver and improving the body response to insulin.",
+  "amlodipine": "Amlodipine is a calcium channel blocker used to treat high blood pressure and angina. It works by relaxing blood vessels, allowing blood to flow more easily, which reduces the workload on the heart.",
+  "omeprazole": "Omeprazole is a proton pump inhibitor that effectively reduces stomach acid production. It provides relief from conditions such as acid reflux (GERD), heartburn, and stomach ulcers.",
+  "pantoprazole": "Pantoprazole is a proton pump inhibitor that provides long-lasting relief from excess stomach acid. It is used to treat GERD, erosive esophagitis, and stomach ulcers.",
+  "atorvastatin": "Atorvastatin is a statin medication that effectively lowers LDL cholesterol and triglycerides while raising HDL cholesterol. It significantly reduces the risk of heart attack and stroke.",
+  "losartan": "Losartan is an angiotensin II receptor blocker used to treat high blood pressure. It works by relaxing blood vessels and also provides kidney-protective benefits.",
+  "telmisartan": "Telmisartan is a long-acting angiotensin II receptor blocker that provides sustained 24-hour blood pressure control with additional cardiovascular protective benefits.",
+  "diclofenac": "Diclofenac is an NSAID that provides effective relief from pain and inflammation. It is available in oral, topical, and injectable forms for various pain conditions.",
+  "ciprofloxacin": "Ciprofloxacin is a fluoroquinolone antibiotic effective against a wide range of bacterial infections including urinary tract and respiratory infections.",
+  "doxycycline": "Doxycycline is a broad-spectrum tetracycline antibiotic effective against respiratory infections, acne, malaria prophylaxis, and tick-borne diseases.",
+  "salbutamol": "Salbutamol is a fast-acting bronchodilator used to relieve acute symptoms of asthma and COPD. It works by relaxing the muscles around the airways.",
+  "montelukast": "Montelukast is a leukotriene receptor antagonist used to prevent asthma attacks and relieve seasonal allergy symptoms.",
+  "vitamin d": "Vitamin D3 is essential for calcium absorption and bone health. It supports the immune system, muscle function, and overall well-being.",
+  "vitamin b12": "Vitamin B12 is essential for nerve function, red blood cell formation, and DNA synthesis.",
+  "calcium": "Calcium is an essential mineral for strong bones and teeth. It also supports muscle function, nerve signaling, and blood clotting.",
+  "iron": "Iron is essential for making hemoglobin, the protein in red blood cells that carries oxygen throughout the body.",
+  "multivitamin": "A comprehensive multivitamin provides essential nutrients needed for daily health and wellness.",
+  "theophylline": "Theophylline is a methylxanthine bronchodilator used for the maintenance treatment of chronic asthma and COPD.",
+  "levothyroxine": "Levothyroxine is a synthetic thyroid hormone used to treat hypothyroidism (underactive thyroid).",
+  "prednisolone": "Prednisolone is a corticosteroid used to treat a wide range of inflammatory and autoimmune conditions.",
+  "clobetasol": "Clobetasol is a potent corticosteroid used to treat severe inflammatory skin conditions such as eczema and psoriasis.",
+  "adapalene": "Adapalene is a retinoid-like compound used for the treatment of acne. It works by promoting skin cell turnover and preventing clogged pores.",
+};
+
+/**
+ * Look up a proper product description from the descriptions database based on composition.
+ */
+function getDescriptionForComposition(composition: string): string | null {
+  const lowerComp = composition.toLowerCase();
+  for (const [key, desc] of Object.entries(DESCRIPTIONS_DB)) {
+    if (lowerComp.includes(key)) return desc;
+  }
+  return null;
+}
+
 /**
  * Infer consume type from product form
  */
@@ -282,11 +327,16 @@ export const backfillProducts = mutation({
           }
         }
         if (!product.description) {
-          const parts: string[] = [];
-          parts.push(`${product.name} is a ${product.form || "medication"}.`);
-          if (product.composition) parts.push(`It contains ${product.composition}.`);
-          parts.push("Consult your healthcare provider for proper dosage.");
-          updates.description = parts.join(" ");
+          const descFromDb = getDescriptionForComposition(product.composition || product.name);
+          if (descFromDb) {
+            updates.description = descFromDb;
+          } else {
+            const parts: string[] = [];
+            parts.push(`${product.name} is a ${product.form || "medication"}.`);
+            if (product.composition) parts.push(`It contains ${product.composition}.`);
+            parts.push("Consult your healthcare provider for proper dosage.");
+            updates.description = parts.join(" ");
+          }
         }
       }
 

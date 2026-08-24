@@ -712,6 +712,68 @@ const BENEFITS_DB: Record<string, string> = {
 };
 
 // ════════════════════════════════════════════════════════════════
+// DESCRIPTIONS DATABASE (composition-based description fallback for unknown products)
+// ════════════════════════════════════════════════════════════════
+
+const DESCRIPTIONS_DB: Record<string, string> = {
+  "paracetamol": "Paracetamol (Acetaminophen) is one of the most widely used over-the-counter medicines for pain relief and fever reduction. It works by blocking pain signals in the brain and regulating body temperature. It is gentle on the stomach and suitable for most adults and children over 12 years when taken as directed.",
+  "ibuprofen": "Ibuprofen is a non-steroidal anti-inflammatory drug (NSAID) that provides effective relief from pain, swelling, and fever. It works by reducing the production of prostaglandins that cause inflammation. Suitable for headaches, dental pain, menstrual cramps, muscle aches, and joint pain.",
+  "amoxicillin": "Amoxicillin is a widely prescribed broad-spectrum penicillin antibiotic used to treat a variety of bacterial infections. It works by inhibiting the growth of bacteria and is effective against infections of the respiratory tract, urinary tract, ear, nose, throat, and skin. Complete the full course as prescribed.",
+  "azithromycin": "Azithromycin is a macrolide antibiotic effective against a wide range of bacterial infections. It works by stopping bacterial growth and is known for its convenient short-course therapy, typically requiring only 3 to 5 days of treatment. Effective for respiratory tract infections, skin infections, and ear infections.",
+  "cetirizine": "Cetirizine is a second-generation antihistamine that provides effective 24-hour relief from allergy symptoms such as sneezing, runny nose, itchy eyes, and skin rashes. It works by blocking histamine receptors and causes minimal drowsiness compared to older antihistamines.",
+  "metformin": "Metformin is the most widely prescribed first-line medication for type 2 diabetes. It works by reducing glucose production in the liver and improving the body's response to insulin. It helps maintain healthy blood sugar levels and may also support weight management.",
+  "amlodipine": "Amlodipine is a calcium channel blocker used to treat high blood pressure (hypertension) and angina (chest pain). It works by relaxing blood vessels, allowing blood to flow more easily, which reduces the workload on the heart. Provides steady 24-hour blood pressure control with once-daily dosing.",
+  "omeprazole": "Omeprazole is a proton pump inhibitor (PPI) that effectively reduces stomach acid production. It provides relief from conditions such as acid reflux (GERD), heartburn, stomach ulcers, and is also used as part of H. pylori eradication therapy. Take before meals for best results.",
+  "pantoprazole": "Pantoprazole is a proton pump inhibitor that provides long-lasting relief from excess stomach acid. It is used to treat GERD, erosive esophagitis, stomach ulcers, and Zollinger-Ellison syndrome. It works by blocking the enzyme responsible for acid secretion in the stomach lining.",
+  "atorvastatin": "Atorvastatin is a statin medication that effectively lowers LDL (bad) cholesterol and triglycerides while raising HDL (good) cholesterol. It works by blocking an enzyme in the liver responsible for cholesterol production. It significantly reduces the risk of heart attack and stroke in at-risk patients.",
+  "losartan": "Losartan is an angiotensin II receptor blocker (ARB) used to treat high blood pressure. It works by relaxing blood vessels, which lowers blood pressure and improves blood flow. It also provides kidney-protective benefits, making it especially useful for patients with diabetes-related high blood pressure.",
+  "telmisartan": "Telmisartan is a long-acting angiotensin II receptor blocker (ARB) that provides sustained 24-hour blood pressure control. It works by blocking the action of angiotensin II, a chemical that narrows blood vessels. It also offers additional cardiovascular protective benefits beyond blood pressure lowering.",
+  "dolo": "Dolo 650 contains Paracetamol 650mg and is one of the most trusted antipyretic and analgesic medicines in India. Manufactured by Micro Labs Ltd, it provides fast and effective relief from fever and mild to moderate pain. It is suitable for adults and children above 12 years when taken as directed.",
+  "crocin": "Crocin is a trusted paracetamol brand from GlaxoSmithKline, available in 500mg and 650mg strengths. It provides fast and effective relief from pain and fever. Widely recommended by doctors across India for its proven efficacy, safety profile, and gentle action on the stomach.",
+  "combiflam": "Combiflam combines Ibuprofen 400mg and Paracetamol 325mg for dual-action pain relief. The anti-inflammatory component addresses the source of pain while paracetamol reduces fever. Manufactured by Sanofi India, it is one of India's most popular over-the-counter pain relievers for headaches, dental pain, and menstrual cramps.",
+  "shelcal": "Shelcal is a calcium and Vitamin D3 supplement from Torrent Pharmaceuticals. It provides essential calcium along with Vitamin D3 for enhanced absorption, supporting bone health, muscle function, and helping prevent osteoporosis. Recommended for patients with calcium and vitamin D deficiency.",
+  "becosules": "Becosules from Pfizer is a comprehensive Vitamin B Complex with Vitamin C. It supports energy metabolism, nerve function, red blood cell formation, and immune health. Widely recommended for fatigue, nutritional deficiencies, mouth ulcers, and general weakness.",
+  "glycomet": "Glycomet contains Metformin from USV Pvt Ltd and is a first-line treatment for type 2 diabetes. It reduces hepatic glucose production and improves insulin sensitivity, helping maintain healthy blood sugar levels. It is the most widely prescribed oral antidiabetic medication worldwide.",
+  "clobetasol": "Clobetasol is a potent corticosteroid used to treat severe inflammatory skin conditions such as eczema, psoriasis, and dermatitis. It works by reducing redness, swelling, and itching. For external use only and should be used as directed by your dermatologist.",
+  "adapalene": "Adapalene is a retinoid-like compound used for the treatment of acne. It works by promoting skin cell turnover and preventing clogged pores. It also has anti-inflammatory properties that help reduce the redness and swelling associated with acne.",
+  "salbutamol": "Salbutamol is a fast-acting bronchodilator used to relieve acute symptoms of asthma and chronic obstructive pulmonary disease (COPD). It works by relaxing the muscles around the airways, allowing them to open and making breathing easier. Effects typically begin within minutes.",
+  "montelukast": "Montelukast is a leukotriene receptor antagonist used to prevent asthma attacks and relieve seasonal allergy symptoms. It works by blocking leukotriene, a chemical in the body that causes airway inflammation and narrowing. It is taken once daily for long-term asthma and allergy management.",
+  "ranitidine": "Ranitidine is an H2 receptor antagonist that reduces stomach acid production. It provides relief from heartburn, acid indigestion, and helps heal peptic ulcers. It works by blocking histamine receptors in the stomach lining, thereby reducing acid secretion.",
+  "rabeprazole": "Rabeprazole is a proton pump inhibitor that provides rapid and effective suppression of stomach acid. It is used to treat GERD, peptic ulcers, and as part of H. pylori eradication therapy. It offers faster onset of action compared to some other PPIs.",
+  "fexofenadine": "Fexofenadine is a non-sedating antihistamine that provides effective relief from seasonal allergic rhinitis and chronic urticaria. It works by blocking histamine receptors without causing drowsiness, making it suitable for use during the day. Available in 120mg and 180mg strengths.",
+  "cefuroxime": "Cefuroxime is a second-generation cephalosporin antibiotic used to treat respiratory tract infections, urinary tract infections, skin infections, and Lyme disease. It works by inhibiting bacterial cell wall synthesis. It offers broad-spectrum coverage against common bacterial pathogens.",
+  "cefixime": "Cefixime is a third-generation oral cephalosporin antibiotic effective against a wide range of bacterial infections. It provides convenient once-daily dosing for respiratory tract infections, urinary tract infections, and ENT infections. It has good stability against beta-lactamase-producing bacteria.",
+  "ceftriaxone": "Ceftriaxone is a potent third-generation injectable cephalosporin antibiotic used for severe bacterial infections including meningitis, septicemia, and complicated intra-abdominal infections. It provides broad-spectrum coverage and once-daily dosing convenience for hospital-based treatment.",
+  "metronidazole": "Metronidazole is an antibiotic and antiprotozoal agent effective against anaerobic bacteria and certain parasites. It is used to treat dental infections, abdominal infections, surgical prophylaxis, and certain parasitic infections including amoebiasis and giardiasis.",
+  "glimepiride": "Glimepiride is a sulfonylurea antidiabetic that stimulates insulin secretion from pancreatic beta cells. It is used as an adjunct to diet and exercise for glycemic control in type 2 diabetes. It provides effective postprandial blood sugar management.",
+  "gliclazide": "Gliclazide is a sulfonylurea antidiabetic that stimulates the pancreas to release more insulin. It helps control blood sugar levels in type 2 diabetes, particularly after meals. It also has beneficial effects on blood flow and may reduce the risk of diabetic complications.",
+  "teneligliptin": "Teneligliptin is a DPP-4 inhibitor that helps regulate blood sugar by enhancing incretin-mediated insulin secretion. It provides effective glycemic control in type 2 diabetes with once-daily dosing. It has a long duration of action and is well-tolerated with a low risk of hypoglycemia.",
+  "rosuvastatin": "Rosuvastatin is a highly effective statin that lowers LDL cholesterol and triglycerides while raising HDL cholesterol. It provides potent cardiovascular risk reduction and is available in low-dose strengths that offer significant cholesterol-lowering with minimal side effects.",
+  "levothyroxine": "Levothyroxine is a synthetic thyroid hormone used to treat hypothyroidism (underactive thyroid). It works by replacing the thyroid hormone that the thyroid gland is not producing enough of, helping to regulate metabolism, energy levels, and body weight.",
+  "prednisolone": "Prednisolone is a corticosteroid used to treat a wide range of inflammatory and autoimmune conditions. It works by suppressing the immune system and reducing inflammation. It is used for allergic conditions, asthma, arthritis, and various skin and eye conditions.",
+  "diclofenac": "Diclofenac is a non-steroidal anti-inflammatory drug (NSAID) that provides effective relief from pain and inflammation. It is available in oral, topical, and injectable forms and is widely used for arthritis, joint pain, back pain, dental pain, and post-surgical pain relief.",
+  "naproxen": "Naproxen is a long-acting NSAID that provides sustained relief from pain and inflammation. It is particularly effective for arthritis, menstrual cramps, musculoskeletal conditions, and gout. Its longer duration of action means fewer doses per day compared to other NSAIDs.",
+  "nimesulide": "Nimesulide is a fast-acting NSAID that provides quick relief from pain and inflammation. It is particularly effective for acute pain conditions such as dental pain, post-operative pain, and menstrual cramps. It has a rapid onset of action compared to many other NSAIDs.",
+  "aceclofenac": "Aceclofenac is a modern NSAID with effective pain-relieving and anti-inflammatory properties. It has a favorable gastrointestinal safety profile compared to older NSAIDs. It is widely used for osteoarthritis, rheumatoid arthritis, ankylosing spondylitis, and musculoskeletal pain.",
+  "mefenamic acid": "Mefenamic acid is an NSAID particularly effective for menstrual pain (dysmenorrhea). It also provides relief from mild to moderate pain and inflammatory conditions. It works by reducing prostaglandin production, thereby reducing pain and inflammation.",
+  "ciprofloxacin": "Ciprofloxacin is a fluoroquinolone antibiotic effective against a wide range of bacterial infections. It is commonly used for urinary tract infections, respiratory infections, and gastrointestinal infections. It works by inhibiting bacterial DNA replication.",
+  "doxycycline": "Doxycycline is a broad-spectrum tetracycline antibiotic effective against respiratory infections, acne, malaria prophylaxis, and tick-borne diseases. It is also used for sexually transmitted infections and periodontal disease. Take with plenty of water and avoid prolonged sun exposure.",
+  "levofloxacin": "Levofloxacin is an advanced fluoroquinolone antibiotic effective against respiratory infections, urinary tract infections, and complicated skin infections. It provides enhanced gram-positive coverage compared to earlier fluoroquinolones and is available in once-daily dosing.",
+  "cephalexin": "Cephalexin is a first-generation cephalosporin antibiotic effective against common bacterial infections of the skin, bone, urinary tract, and respiratory tract. It works by inhibiting bacterial cell wall synthesis and is well-tolerated with convenient oral dosing.",
+  "phenylephrine": "Phenylephrine is a nasal decongestant that provides temporary relief from sinus pressure and nasal congestion due to colds, flu, allergies, or sinusitis. It works by shrinking swollen blood vessels in the nasal passages, allowing easier breathing.",
+  "loratadine": "Loratadine is a non-drowsy antihistamine that provides 24-hour relief from symptoms of allergic rhinitis and chronic urticaria. It effectively relieves sneezing, runny nose, itchy eyes, and skin rashes without causing significant drowsiness.",
+  "levocetirizine": "Levocetirizine is the active enantiomer of cetirizine, providing potent antihistamine action for chronic allergic conditions. It provides effective relief from allergic rhinitis and chronic urticaria with minimal sedation. It is effective at lower doses compared to cetirizine.",
+  "budesonide": "Budesonide is an inhaled corticosteroid used for the long-term management of asthma. It works by reducing airway inflammation and preventing asthma attacks with regular use. It is also available in nasal spray form for allergic rhinitis.",
+  "theophylline": "Theophylline is a methylxanthine bronchodilator used for the maintenance treatment of chronic asthma and COPD. It works by relaxing the smooth muscles of the airways, helping to keep them open and improve breathing. Regular monitoring of blood levels is recommended.",
+  "diphenhydramine": "Diphenhydramine is a first-generation antihistamine used for allergic symptoms including runny nose, sneezing, itchy eyes, and dry cough. It also has mild sedative properties and is used as a sleep aid. Available in syrup form for children and adults.",
+  "vitamin d": "Vitamin D3 is essential for calcium absorption and bone health. It supports the immune system, muscle function, and overall well-being. Supplementation is particularly important for individuals with limited sun exposure or those at risk of vitamin D deficiency.",
+  "vitamin b12": "Vitamin B12 is essential for nerve function, red blood cell formation, and DNA synthesis. Deficiency can cause fatigue, weakness, and neurological symptoms. Supplementation is important for vegetarians, vegans, elderly individuals, and those with absorption issues.",
+  "calcium": "Calcium is an essential mineral for strong bones and teeth. It also supports muscle function, nerve signaling, and blood clotting. Adequate calcium intake helps prevent osteoporosis and fractures, especially in women and older adults.",
+  "iron": "Iron is essential for making hemoglobin, the protein in red blood cells that carries oxygen throughout the body. Iron supplementation is important for preventing and treating iron-deficiency anemia, which can cause fatigue, weakness, and reduced immunity.",
+  "multivitamin": "A comprehensive multivitamin and multimineral supplement provides essential nutrients needed for daily health and wellness. It supports immunity, energy production, and overall body function. Suitable for adults seeking to fill nutritional gaps in their diet.",
+};
+
+// ════════════════════════════════════════════════════════════════
 // WIKIPEDIA IMAGE LOOKUP
 // Maps composition names → Wikipedia article titles for image fetching
 // ════════════════════════════════════════════════════════════════
@@ -821,6 +883,17 @@ function getKnownBenefits(composition: string, form: string): string | null {
   return null;
 }
 
+
+/**
+ * Look up a proper product description from the descriptions database based on composition.
+ */
+function getDescriptionForComposition(composition: string): string | null {
+  const lowerComp = composition.toLowerCase();
+  for (const [key, desc] of Object.entries(DESCRIPTIONS_DB)) {
+    if (lowerComp.includes(key)) return desc;
+  }
+  return null;
+}
 /**
  * Check if an image URL is a chemical structure SVG or diagram (not a product photo).
  */
@@ -1093,13 +1166,18 @@ export const enrichProduct = action({
       const benefits = getKnownBenefits(composition, args.form || "tablet");
       if (benefits) result.benefits = benefits;
 
-      // 4. Generate description from available info
-      const parts: string[] = [];
-      parts.push(`${args.productName} is a medication${args.manufacturer ? ` manufactured by ${args.manufacturer}` : ""}.`);
-      if (args.composition) parts.push(`It contains ${args.composition}.`);
-      if (args.form) parts.push(`Available as ${args.form}.`);
-      parts.push("Consult your healthcare provider for proper dosage and usage instructions.");
-      result.description = parts.join(" ");
+      // 4. Description: try composition-based descriptions DB first, then generate
+      const descFromDb = getDescriptionForComposition(args.composition || args.productName);
+      if (descFromDb) {
+        result.description = descFromDb;
+      } else {
+        const parts: string[] = [];
+        parts.push(`${args.productName} is a medication${result.manufacturer ? ` manufactured by ${result.manufacturer}` : ""}.`);
+        if (args.composition) parts.push(`It contains ${args.composition}.`);
+        if (args.form) parts.push(`Available as ${args.form}.`);
+        parts.push("Consult your healthcare provider for proper dosage and usage instructions.");
+        result.description = parts.join(" ");
+      }
 
       // 5. Consume type from form
       const form = (args.form || "").toLowerCase();
