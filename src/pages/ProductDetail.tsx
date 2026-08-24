@@ -829,6 +829,17 @@ export default function ProductDetail() {
               </CardContent>
             </Card>
           )}
+          {p.safetyNote && (
+            <Card className="border-border/60">
+              <CardContent className="p-6">
+                <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
+                  <ShieldCheck className="size-4 text-amber-500" />
+                  Safety Note
+                </h3>
+                <p className="text-sm leading-relaxed text-muted-foreground">{p.safetyNote}</p>
+              </CardContent>
+            </Card>
+          )}
         </motion.div>
 
         {/* Customer Reviews — displayed here for reference */}

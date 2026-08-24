@@ -78,6 +78,7 @@ interface ProductForm {
   stockQuantity: number;
   benefits: string;
   consumeType: string;
+  safetyNote: string;
   expiryDate: string;
   isActive: boolean;
 }
@@ -103,6 +104,7 @@ const EMPTY_FORM: ProductForm = {
   stockQuantity: 0,
   benefits: "",
   consumeType: "",
+  safetyNote: "",
   expiryDate: "",
   isActive: true,
 };
@@ -170,6 +172,7 @@ export default function AdminProducts() {
       stockQuantity: product.stockQuantity,
       benefits: product.benefits || "",
       consumeType: product.consumeType || "",
+      safetyNote: product.safetyNote || "",
       expiryDate: product.expiryDate ? new Date(product.expiryDate).toISOString().split('T')[0] : "",
       isActive: product.isActive,
     });
@@ -203,10 +206,10 @@ export default function AdminProducts() {
         prescriptionRequired: form.prescriptionRequired,
         storageInformation: form.storageInformation || undefined,
         stockQuantity: form.stockQuantity,
-        benefits: form.benefits || undefined,
-        consumeType: form.consumeType || undefined,
-        expiryDate: form.expiryDate ? new Date(form.expiryDate).getTime() : undefined,
-        isActive: form.isActive,
+        benefits: form.benefits || undefined,      consumeType: form.consumeType || undefined,
+      safetyNote: form.safetyNote || undefined,
+      expiryDate: form.expiryDate ? new Date(form.expiryDate).getTime() : undefined,
+      isActive: form.isActive,
       };
 
       if (editingProduct) {
@@ -273,6 +276,10 @@ export default function AdminProducts() {
         newForm.consumeType = (result as any).consumeType;
         updated = true;
       }
+      if ((result as any).safetyNote && !form.safetyNote) {
+        newForm.safetyNote = (result as any).safetyNote;
+        updated = true;
+      }
       if ((result as any).composition && !form.composition) {
         newForm.composition = (result as any).composition;
         updated = true;
@@ -291,6 +298,7 @@ export default function AdminProducts() {
         if (result.benefits && !form.benefits) fields.push("benefits");
         if (result.description && !form.description) fields.push("description");
         if ((result as any).consumeType && !form.consumeType) fields.push("consume type");
+        if ((result as any).safetyNote && !form.safetyNote) fields.push("safety note");
         if ((result as any).composition && !form.composition) fields.push("composition");
         if ((result as any).expiryDate && !form.expiryDate) fields.push("expiry date");
         toast.success(`Auto-filled: ${fields.join(", ")}!`);
@@ -665,6 +673,11 @@ export default function AdminProducts() {
                 <Label>Consumption Type</Label>
                 <Input value={form.consumeType} onChange={(e) => setForm({ ...form, consumeType: e.target.value })} placeholder="e.g. For oral use, For external use only" />
                 <p className="text-[11px] text-muted-foreground">Auto-filled based on product form type (tablet, cream, etc.)</p>
+              </div>
+              <div className="sm:col-span-2 space-y-2">
+                <Label>Safety Note</Label>
+                <Input value={form.safetyNote} onChange={(e) => setForm({ ...form, safetyNote: e.target.value })} placeholder="e.g. Consult your doctor or pharmacist before use" />
+                <p className="text-[11px] text-muted-foreground">Auto-filled with standard safety information.</p>
               </div>
               <div className="sm:col-span-2 space-y-2">
                 <Label>Expiry Date</Label>

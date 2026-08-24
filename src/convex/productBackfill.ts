@@ -154,10 +154,18 @@ function getDescriptionForComposition(composition: string): string | null {
  */
 function inferConsumeType(form: string): string | null {
   const f = form.toLowerCase();
-  if (["tablet", "capsule", "syrup", "suspension", "drops", "inhaler", "powder", "sachet", "lozenge"].includes(f)) return "For oral use";
-  if (["cream", "gel", "ointment", "lotion"].includes(f)) return "For external use only";
-  if (f === "injection") return "For injection use only";
-  if (f === "nasal drops" || f === "nasal") return "For nasal use";
+  if (["tablet", "capsule", "lozenge"].includes(f))
+    return `${f.charAt(0).toUpperCase() + f.slice(1)} — taken orally with water.`;
+  if (["syrup", "suspension"].includes(f))
+    return `${f.charAt(0).toUpperCase() + f.slice(1)} — taken orally using the provided measuring device.`;
+  if (f === "drops") return "Oral drops — taken orally or as directed by the physician.";
+  if (f === "inhaler") return "Inhaler — used by inhaling the medication through the mouth.";
+  if (["powder", "sachet"].includes(f)) return "Powder/Sachet — dissolved in water and taken orally.";
+  if (["cream", "gel", "ointment", "lotion"].includes(f))
+    return `${f.charAt(0).toUpperCase() + f.slice(1)} — applied externally to the affected area.`;
+  if (f === "injection") return "Injection — administered by a healthcare professional.";
+  if (f === "nasal drops" || f === "nasal") return "Nasal drops — administered through the nose as directed.";
+  if (f) return `${f.charAt(0).toUpperCase() + f.slice(1)} — use as directed by your physician.`;
   return null;
 }
 
@@ -247,6 +255,10 @@ export const enrichSingleProduct = mutation({
       if (!product.composition) {
         updates.composition = matched.composition;
       }
+      // Safety note — standard for all products
+      if (!product.safetyNote) {
+        updates.safetyNote = "Consult your doctor or pharmacist before use.";
+      }
     } else {
       // Fallback: try known DBs
       const lowerName = product.name.toLowerCase();
@@ -290,6 +302,11 @@ export const enrichSingleProduct = mutation({
         parts.push("Store in a cool, dry place away from direct sunlight.");
         updates.description = parts.join(" ");
       }
+    }
+
+    // Always set safety note if missing
+    if (!product.safetyNote) {
+      updates.safetyNote = "Consult your doctor or pharmacist before use.";
     }
 
     if (Object.keys(updates).length > 0) {

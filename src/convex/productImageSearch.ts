@@ -1132,6 +1132,7 @@ export const enrichProduct = action({
       benefits: string | null;
       description: string | null;
       consumeType: string | null;
+      safetyNote: string | null;
       composition: string | null;
       expiryDate: string | null;
     } = {
@@ -1140,6 +1141,7 @@ export const enrichProduct = action({
       benefits: null,
       description: null,
       consumeType: null,
+      safetyNote: null,
       composition: null,
       expiryDate: null,
     };
@@ -1155,17 +1157,30 @@ export const enrichProduct = action({
       // Only use if the medicine DB has an actual date. Never calculate from entry date.
       result.expiryDate = matched.expiryDate || null;
 
-      // Consume type from form
+      // Consume type — descriptive per form
       const form = (matched.form || args.form || "").toLowerCase();
-      if (["tablet", "capsule", "syrup", "suspension", "drops", "inhaler", "powder", "sachet", "lozenge"].includes(form)) {
-        result.consumeType = "For oral use";
+      if (["tablet", "capsule", "lozenge"].includes(form)) {
+        result.consumeType = `${form.charAt(0).toUpperCase() + form.slice(1)} — taken orally with water.`;
+      } else if (["syrup", "suspension"].includes(form)) {
+        result.consumeType = `${form.charAt(0).toUpperCase() + form.slice(1)} — taken orally using the provided measuring device.`;
+      } else if (["drops"].includes(form)) {
+        result.consumeType = "Oral drops — taken orally or as directed by the physician.";
+      } else if (["inhaler"].includes(form)) {
+        result.consumeType = "Inhaler — used by inhaling the medication through the mouth.";
+      } else if (["powder", "sachet"].includes(form)) {
+        result.consumeType = "Powder/Sachet — dissolved in water and taken orally.";
       } else if (["cream", "gel", "ointment", "lotion"].includes(form)) {
-        result.consumeType = "For external use only";
+        result.consumeType = `${form.charAt(0).toUpperCase() + form.slice(1)} — applied externally to the affected area.`;
       } else if (form === "injection") {
-        result.consumeType = "For injection use only";
+        result.consumeType = "Injection — administered by a healthcare professional.";
       } else if (form === "nasal drops" || form === "nasal") {
-        result.consumeType = "For nasal use";
+        result.consumeType = "Nasal drops — administered through the nose as directed.";
+      } else if (form) {
+        result.consumeType = `${form.charAt(0).toUpperCase() + form.slice(1)} — use as directed by your physician.`;
       }
+
+      // Safety note — standard for all products
+      result.safetyNote = "Consult your doctor or pharmacist before use.";
     } else {
       // 2. Fallback: try known manufacturer DB
       const mfg = getKnownManufacturer(args.productName);
@@ -1190,15 +1205,30 @@ export const enrichProduct = action({
         result.description = parts.join(" ");
       }
 
-      // 5. Consume type from form
+      // 5. Consume type — descriptive per form
       const form = (args.form || "").toLowerCase();
-      if (["tablet", "capsule", "syrup", "suspension", "drops", "inhaler", "powder", "sachet"].includes(form)) {
-        result.consumeType = "For oral use";
+      if (["tablet", "capsule", "lozenge"].includes(form)) {
+        result.consumeType = `${form.charAt(0).toUpperCase() + form.slice(1)} — taken orally with water.`;
+      } else if (["syrup", "suspension"].includes(form)) {
+        result.consumeType = `${form.charAt(0).toUpperCase() + form.slice(1)} — taken orally using the provided measuring device.`;
+      } else if (["drops"].includes(form)) {
+        result.consumeType = "Oral drops — taken orally or as directed by the physician.";
+      } else if (["inhaler"].includes(form)) {
+        result.consumeType = "Inhaler — used by inhaling the medication through the mouth.";
+      } else if (["powder", "sachet"].includes(form)) {
+        result.consumeType = "Powder/Sachet — dissolved in water and taken orally.";
       } else if (["cream", "gel", "ointment", "lotion"].includes(form)) {
-        result.consumeType = "For external use only";
+        result.consumeType = `${form.charAt(0).toUpperCase() + form.slice(1)} — applied externally to the affected area.`;
       } else if (form === "injection") {
-        result.consumeType = "For injection use only";
+        result.consumeType = "Injection — administered by a healthcare professional.";
+      } else if (form === "nasal drops" || form === "nasal") {
+        result.consumeType = "Nasal drops — administered through the nose as directed.";
+      } else if (form) {
+        result.consumeType = `${form.charAt(0).toUpperCase() + form.slice(1)} — use as directed by your physician.`;
       }
+
+      // 6. Safety note — standard for all products
+      result.safetyNote = "Consult your doctor or pharmacist before use.";
     }
 
     // 6. Image: try free sources (Commons + Wikipedia)
