@@ -44,6 +44,13 @@ import {
   PenLine,
 } from "lucide-react";
 import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { formatCurrency } from "@/lib/auth-utils";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
@@ -226,6 +233,7 @@ export default function ProductDetail() {
   const addToCart = useMutation(api.cart.addItem);
   const [whatsappQty, setWhatsappQty] = useState(1);
   const [reviewOpen, setReviewOpen] = useState(false);
+  const [purchasersOpen, setPurchasersOpen] = useState(false);
 
   const product = useQuery(
     api.products.getBySlug,
@@ -235,6 +243,11 @@ export default function ProductDetail() {
   const boughtCount = useQuery(
     api.products.boughtInLast7Days,
     product ? { productId: product._id } : "skip"
+  );
+
+  const recentPurchasers = useQuery(
+    api.products.getRecentPurchasers,
+    purchasersOpen && product ? { productId: product._id } : "skip"
   );
 
   const relatedProducts = useQuery(
@@ -388,19 +401,95 @@ export default function ProductDetail() {
           Back
         </Button>
 
-        {/* Bought recently indicator */}
+        {/* Bought recently indicator — clickable */}
         {totalSold > 0 && (
           <motion.div
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-4 flex items-center gap-2 text-sm text-primary font-medium"
+            className="mb-4"
           >
-            <TrendingUp className="size-4" />
-            <span>
-              <strong className="text-foreground">{totalSold.toLocaleString("en-IN")}</strong> people bought this in the last 7 days
-            </span>
+            <button
+              type="button"
+              onClick={() => setPurchasersOpen(true)}
+              className="flex items-center gap-2 text-sm text-primary font-medium hover:text-primary/80 transition-colors cursor-pointer group"
+            >
+              <TrendingUp className="size-4" />
+              <span>
+                <strong className="text-foreground group-hover:text-primary transition-colors">{totalSold.toLocaleString("en-IN")}</strong> people bought this in the last 7 days
+              </span>
+              <span className="text-xs text-muted-foreground group-hover:text-primary/60">(view)</span>
+            </button>
           </motion.div>
         )}
+
+        {/* Recent Purchasers Dialog */}
+        <Dialog open={purchasersOpen} onOpenChange={setPurchasersOpen}>
+          <DialogContent className="sm:max-w-lg max-h-[85vh] flex flex-col">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <TrendingUp className="size-4 text-primary" />
+                Recent Purchasers
+              </DialogTitle>
+              <DialogDescription>
+                Customers who purchased this product in the last 7 days
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex-1 overflow-y-auto -mx-6 px-6 pb-2">
+              {recentPurchasers === undefined ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="size-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : recentPurchasers.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <TrendingUp className="size-10 text-muted-foreground/20 mb-3" />
+                  <p className="text-sm text-muted-foreground">No recent purchases yet</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {recentPurchasers.map((p, idx) => (
+                    <div
+                      key={`${p.customerName}-${idx}`}
+                      className="rounded-xl border border-border/60 bg-muted/20 p-4 space-y-2"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-2">
+                          <div className="size-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
+                            {p.customerName.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-foreground">{p.customerName}</p>
+                            <p className="text-xs text-muted-foreground">
+                              Purchased: {new Date(p.purchaseDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                            </p>
+                          </div>
+                        </div>
+                        <span className="text-xs font-medium bg-primary/10 text-primary rounded-full px-2 py-0.5">
+                          Qty: {p.quantity}
+                        </span>
+                      </div>
+                      {p.review && (
+                        <div className="mt-2 pt-2 border-t border-border/40 space-y-1">
+                          <div className="flex items-center gap-2">
+                            <StarRating rating={p.review.rating} size="size-3.5" />
+                            <span className="text-xs text-muted-foreground">
+                              Reviewed: {new Date(p.review.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                            </span>
+                          </div>
+                          {p.review.title && (
+                            <p className="text-xs font-medium text-foreground">{p.review.title}</p>
+                          )}
+                          {p.review.body && (
+                            <p className="text-xs text-muted-foreground leading-relaxed">&ldquo;{p.review.body}&rdquo;</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
 
         <div className="grid gap-8 lg:grid-cols-[1fr_1.2fr]">
           {/* Product Image */}

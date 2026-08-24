@@ -1,5 +1,6 @@
 import { query } from "./_generated/server";
 import { v } from "convex/values";
+import { getAuthUserId } from "@convex-dev/auth/server";
 
 // ── List active products (with optional category filter) ──
 export const list = query({
@@ -140,5 +141,104 @@ export const getRelated = query({
     return products
       .filter((p) => p._id !== args.productId && p.isActive)
       .slice(0, 4);
+  },
+});
+
+// ── Get recent purchasers of a product (last 7 days) with optional reviews ──
+export const getRecentPurchasers = query({
+  args: { productId: v.id("products") },
+  handler: async (ctx, args) => {
+    const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+
+    // Find all recent non-cancelled orders containing this product
+    const orders = await ctx.db
+      .query("orders")
+      .collect();
+
+    const purchaserMap = new Map<
+      string,
+      { userId: string; quantity: number; purchaseDate: number }
+    >();
+
+    for (const order of orders) {
+      if (order.status === "cancelled") continue;
+      if (order.createdAt < sevenDaysAgo) continue;
+      for (const item of order.items) {
+        if (item.productId === args.productId) {
+          const key = order.userId;
+          const existing = purchaserMap.get(key);
+          if (existing) {
+            existing.quantity += item.quantity;
+            // Keep the most recent purchase date
+            if (order.createdAt > existing.purchaseDate) {
+              existing.purchaseDate = order.createdAt;
+            }
+          } else {
+            purchaserMap.set(key, {
+              userId: order.userId,
+              quantity: item.quantity,
+              purchaseDate: order.createdAt,
+            });
+          }
+        }
+      }
+    }
+
+    // Build result with user names and reviews
+    const results: Array<{
+      customerName: string;
+      purchaseDate: number;
+      quantity: number;
+      review: {
+        rating: number;
+        title: string;
+        body: string;
+        createdAt: number;
+      } | null;
+    }> = [];
+
+    for (const entry of purchaserMap.values()) {
+      const user = await ctx.db.get(entry.userId as any);
+      const customerName = (user && "name" in user ? (user as any).name : undefined) || "Customer";
+
+      // Look for a review by this user for this product
+      let review: {
+        rating: number;
+        title: string;
+        body: string;
+        createdAt: number;
+      } | null = null;
+      try {
+        const reviews = await ctx.db
+          .query("reviews")
+          .withIndex("by_user_product", (q) =>
+            q.eq("userId", entry.userId as any).eq("productId", args.productId)
+          )
+          .collect();
+        if (reviews.length > 0) {
+          const r = reviews[0];
+          review = {
+            rating: r.rating,
+            title: r.title,
+            body: r.body,
+            createdAt: r.createdAt,
+          };
+        }
+      } catch {
+        // No review found
+      }
+
+      results.push({
+        customerName,
+        purchaseDate: entry.purchaseDate,
+        quantity: entry.quantity,
+        review,
+      });
+    }
+
+    // Sort by purchase date (most recent first)
+    results.sort((a, b) => b.purchaseDate - a.purchaseDate);
+
+    return results;
   },
 });
