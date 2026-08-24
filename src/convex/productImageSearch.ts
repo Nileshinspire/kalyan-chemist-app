@@ -15,6 +15,8 @@ interface MedicineInfo {
   form: string;
   /** Wikipedia article title for composition image lookup */
   wikiTitle?: string;
+  /** Batch-specific expiry date as ISO string (YYYY-MM-DD). null = not available from free sources, admin must enter manually. */
+  expiryDate?: string | null;
 }
 
 const MEDICINES_DB: Record<string, MedicineInfo> = {
@@ -1029,7 +1031,7 @@ export const fetchProductImage = action({
 
 /**
  * Full product enrichment using local database + free Wikipedia image sources.
- * Returns: imageUrl, manufacturer, benefits, description, consumeType, composition.
+ * Returns: imageUrl, manufacturer, benefits, description, consumeType, composition, expiryDate.
  */
 export const enrichProduct = action({
   args: {
@@ -1047,6 +1049,7 @@ export const enrichProduct = action({
       description: string | null;
       consumeType: string | null;
       composition: string | null;
+      expiryDate: string | null;
     } = {
       imageUrl: null,
       manufacturer: null,
@@ -1054,6 +1057,7 @@ export const enrichProduct = action({
       description: null,
       consumeType: null,
       composition: null,
+      expiryDate: null,
     };
 
     // 1. Try comprehensive local database match
@@ -1063,6 +1067,9 @@ export const enrichProduct = action({
       result.benefits = matched.benefits;
       result.description = matched.description;
       result.composition = matched.composition;
+      // Expiry date: batch-specific dates are not available from free APIs.
+      // Only use if the medicine DB has an actual date. Never calculate from entry date.
+      result.expiryDate = matched.expiryDate || null;
 
       // Consume type from form
       const form = (matched.form || args.form || "").toLowerCase();

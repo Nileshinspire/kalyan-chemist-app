@@ -269,6 +269,10 @@ export default function AdminProducts() {
         newForm.composition = (result as any).composition;
         updated = true;
       }
+      if ((result as any).expiryDate && !form.expiryDate) {
+        newForm.expiryDate = (result as any).expiryDate;
+        updated = true;
+      }
 
       setForm(newForm);
 
@@ -279,6 +283,7 @@ export default function AdminProducts() {
         if (result.benefits && !form.benefits) fields.push("benefits");
         if (result.description && !form.description) fields.push("description");
         if ((result as any).composition && !form.composition) fields.push("composition");
+        if ((result as any).expiryDate && !form.expiryDate) fields.push("expiry date");
         toast.success(`Auto-filled: ${fields.join(", ")}!`);
       } else {
         toast.info("No additional information found. Please fill in manually.");
