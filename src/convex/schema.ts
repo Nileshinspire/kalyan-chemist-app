@@ -135,6 +135,7 @@ const schema = defineSchema(
       storageInformation: v.optional(v.string()),
       stockQuantity: v.number(),
       benefits: v.optional(v.string()),
+      consumeType: v.optional(v.string()),
       expiryDate: v.optional(v.number()),
       isActive: v.boolean(),
       createdAt: v.number(),

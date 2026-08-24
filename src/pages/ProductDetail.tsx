@@ -758,17 +758,19 @@ export default function ProductDetail() {
                         <TableCell>{cat.name}</TableCell>
                       </TableRow>
                     )}
-                    {p.form && (
+                    {(p.consumeType || p.form) && (
                       <TableRow>
                         <TableCell className="font-medium text-muted-foreground">Consume Type</TableCell>
                         <TableCell>{
-                          ["tablet", "capsule", "syrup", "suspension", "drops", "inhaler", "powder", "sachet"].includes((p.form || "").toLowerCase())
-                            ? "For oral use"
-                            : ["cream", "gel", "ointment", "lotion"].includes((p.form || "").toLowerCase())
-                            ? "For external use only"
-                            : p.form === "injection"
-                            ? "For injection use only"
-                            : `For ${p.form} use`
+                          p.consumeType || (
+                            ["tablet", "capsule", "syrup", "suspension", "drops", "inhaler", "powder", "sachet"].includes((p.form || "").toLowerCase())
+                              ? "For oral use"
+                              : ["cream", "gel", "ointment", "lotion"].includes((p.form || "").toLowerCase())
+                              ? "For external use only"
+                              : p.form === "injection"
+                              ? "For injection use only"
+                              : `For ${p.form} use`
+                          )
                         }</TableCell>
                       </TableRow>
                     )}
