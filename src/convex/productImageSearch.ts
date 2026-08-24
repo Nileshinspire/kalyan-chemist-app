@@ -653,62 +653,65 @@ const KNOWN_MANUFACTURERS: Record<string, string> = {
 // ════════════════════════════════════════════════════════════════
 
 const BENEFITS_DB: Record<string, string> = {
-  "paracetamol": "Provides effective relief from mild to moderate pain and reduces fever. Safe and well-tolerated when used as directed.",
-  "acetaminophen": "Provides effective relief from mild to moderate pain and reduces fever. Safe and well-tolerated when used as directed.",
-  "ibuprofen": "Reduces pain, inflammation, and fever. Anti-inflammatory action helps with headaches, muscle aches, and joint pain.",
-  "diclofenac": "Powerful anti-inflammatory and pain reliever. Effective for joint pain, back pain, dental pain, and post-surgical pain.",
-  "naproxen": "Long-lasting relief from pain and inflammation. Particularly effective for arthritis, menstrual cramps, and musculoskeletal conditions.",
-  "nimesulide": "Fast-acting pain and inflammation reliever. Effective for acute pain, dental pain, and post-operative discomfort.",
-  "aceclofenac": "Modern NSAID with effective pain relief and anti-inflammatory action. Lower gastrointestinal side effects compared to older NSAIDs.",
-  "mefenamic acid": "NSAID effective for menstrual pain, mild to moderate pain, and inflammatory conditions.",
-  "amoxicillin": "Broad-spectrum antibiotic effective against common bacterial infections of the respiratory tract, urinary tract, and skin.",
-  "azithromycin": "Effective macrolide antibiotic for respiratory infections, skin infections, and sexually transmitted diseases. Short course therapy.",
-  "ciprofloxacin": "Fluoroquinolone antibiotic effective against a wide range of bacterial infections including urinary tract and respiratory infections.",
-  "doxycycline": "Tetracycline antibiotic for respiratory infections, acne, malaria prophylaxis, and tick-borne diseases.",
-  "levofloxacin": "Advanced fluoroquinolone antibiotic effective against respiratory infections, urinary tract infections, and complicated skin infections.",
-  "cephalexin": "First-generation cephalosporin antibiotic effective against common skin, bone, and urinary tract infections.",
-  "cefuroxime": "Second-generation cephalosporin antibiotic effective against respiratory infections, urinary tract infections, and Lyme disease.",
-  "cefixime": "Third-generation cephalosporin antibiotic effective against respiratory, urinary, and ENT infections.",
-  "ceftriaxone": "Third-generation injectable cephalosporin for severe bacterial infections including meningitis and septicemia.",
-  "metronidazole": "Effective against anaerobic bacteria and parasites. Used for dental infections, abdominal infections, and certain parasitic infections.",
-  "metformin": "First-line treatment for type 2 diabetes. Helps control blood sugar levels by improving insulin sensitivity. Supports healthy weight management.",
-  "glimepiride": "Stimulates insulin release from the pancreas to help control blood sugar levels in type 2 diabetes.",
-  "gliclazide": "Sulfonylurea that stimulates insulin secretion to control blood sugar in type 2 diabetes.",
-  "teneligliptin": "DPP-4 inhibitor that helps regulate blood sugar by increasing insulin production after meals.",
-  "sitagliptin": "DPP-4 inhibitor that helps regulate blood sugar levels by increasing insulin production after meals.",
-  "voglibose": "Alpha-glucosidase inhibitor that helps prevent blood sugar spikes after meals by slowing carbohydrate digestion.",
-  "atorvastatin": "Statins help lower cholesterol levels and reduce the risk of heart attacks and strokes by blocking cholesterol production in the liver.",
-  "rosuvastatin": "Highly effective statin for lowering LDL cholesterol and triglycerides while raising HDL cholesterol.",
-  "amlodipine": "Calcium channel blocker that relaxes blood vessels to lower blood pressure and reduce chest pain (angina).",
-  "losartan": "ARB (angiotensin receptor blocker) that lowers blood pressure and protects the kidneys in diabetic patients.",
-  "telmisartan": "Long-acting ARB for blood pressure control with additional cardiovascular protective benefits.",
-  "metoprolol": "Beta-blocker that reduces heart rate and blood pressure. Also used for heart failure and chest pain management.",
-  "omeprazole": "Proton pump inhibitor that reduces stomach acid production. Provides relief from acid reflux, heartburn, and stomach ulcers.",
-  "pantoprazole": "Proton pump inhibitor for long-lasting relief from gastroesophageal reflux disease (GERD), stomach ulcers, and acid-related disorders.",
-  "rabeprazole": "Fast-acting proton pump inhibitor for acid reflux, peptic ulcers, and H. pylori eradication therapy.",
-  "ranitidine": "H2 blocker that reduces stomach acid production for relief from heartburn and acid indigestion.",
-  "esomeprazole": "S-isomer of omeprazole with enhanced acid suppression for GERD, erosive esophagitis, and duodenal ulcers.",
-  "cetirizine": "Non-drowsy antihistamine that provides 24-hour relief from allergic rhinitis, urticaria, and other allergy symptoms.",
-  "loratadine": "Non-drowsy antihistamine for relief from sneezing, runny nose, itchy eyes, and other allergy symptoms.",
-  "fexofenadine": "Second-generation antihistamine that provides effective allergy relief without causing drowsiness.",
-  "levocetirizine": "Active enantiomer of cetirizine for potent, non-drowsy relief from chronic allergic conditions.",
-  "montelukast": "Leukotriene receptor blocker that prevents asthma attacks and relieves seasonal allergy symptoms.",
-  "diphenhydramine": "Antihistamine for allergic symptoms including runny nose, sneezing, itchy eyes, and dry cough.",
-  "phenylephrine": "Nasal decongestant that relieves sinus pressure and stuffy nose due to colds and allergies.",
-  "pseudoephedrine": "Effective decongestant for sinus and nasal congestion associated with colds, flu, and allergies.",
-  "salbutamol": "Fast-acting bronchodilator that relieves acute asthma attacks and breathing difficulties.",
-  "budesonide": "Inhaled corticosteroid that reduces airway inflammation and prevents asthma attacks with regular use.",
-  "levothyroxine": "Synthetic thyroid hormone for treating hypothyroidism. Helps regulate metabolism, energy, and body weight.",
-  "vitamin d": "Supports bone health, calcium absorption, and immune system function. Essential for preventing vitamin D deficiency.",
-  "vitamin b12": "Essential for nerve function, red blood cell formation, and DNA synthesis. Supports energy levels and brain health.",
-  "calcium": "Essential mineral for strong bones and teeth. Helps prevent osteoporosis and supports muscle and nerve function.",
-  "iron": "Essential for making hemoglobin and preventing iron-deficiency anemia. Supports energy levels and oxygen transport.",
-  "multivitamin": "Complete daily nutrition support with essential vitamins and minerals for overall health and wellness.",
-  "omega": "Essential fatty acids that support heart health, brain function, and reduce inflammation.",
-  "theophylline": "Bronchodilator used for chronic asthma and COPD. Opens airways to improve breathing.",
-  "dextromethorphan": "Effective cough suppressant for dry cough relief.",
-  "oxybutynin": "Overactive bladder treatment that reduces urinary frequency and urgency.",
-  "dydrogesterone": "Bio-identical progesterone for gynecological conditions including menstrual irregularities.",
+  "paracetamol": "Provides fast and effective relief from mild to moderate pain including headaches, body aches, and toothache. Reduces fever safely and is gentle on the stomach when used as directed.",
+  "acetaminophen": "Provides fast and effective relief from mild to moderate pain including headaches, body aches, and toothache. Reduces fever safely and is gentle on the stomach when used as directed.",
+  "ibuprofen": "Dual action pain reliever and anti-inflammatory that reduces pain, swelling, and fever. Effective for headaches, dental pain, menstrual cramps, muscle aches, and joint pain.",
+  "diclofenac": "Potent anti-inflammatory and pain reliever effective for arthritis, joint pain, back pain, sprains, dental pain, and post-surgical pain. Reduces both pain and swelling.",
+  "naproxen": "Long-lasting pain and inflammation relief lasting up to 12 hours. Particularly effective for arthritis, gout, menstrual cramps, and musculoskeletal conditions.",
+  "nimesulide": "Fast-acting pain and inflammation reliever with rapid onset of action. Effective for acute pain, dental pain, post-operative discomfort, and menstrual cramps.",
+  "aceclofenac": "Modern NSAID providing effective pain relief and anti-inflammatory action with a better gastrointestinal safety profile than older NSAIDs. Suitable for arthritis and joint pain.",
+  "mefenamic acid": "Particularly effective for menstrual pain (dysmenorrhea) and provides anti-inflammatory relief from mild to moderate pain. Also reduces heavy menstrual bleeding.",
+  "amoxicillin": "Broad-spectrum antibiotic effective against common bacterial infections of the respiratory tract, urinary tract, ear, throat, and skin. Well-tolerated with convenient dosing.",
+  "azithromycin": "Convenient short-course antibiotic requiring only 3 to 5 days of treatment. Effective for respiratory infections, skin infections, ear infections, and throat infections.",
+  "ciprofloxacin": "Powerful fluoroquinolone antibiotic effective against a wide range of bacterial infections including urinary tract infections, respiratory infections, and gastrointestinal infections.",
+  "doxycycline": "Versatile tetracycline antibiotic effective for respiratory infections, acne, skin infections, malaria prophylaxis, and tick-borne diseases. Also used for STDs.",
+  "levofloxacin": "Advanced fluoroquinolone with enhanced gram-positive coverage. Effective for respiratory infections, urinary tract infections, complicated skin infections, and community-acquired pneumonia.",
+  "cephalexin": "First-generation cephalosporin antibiotic effective against common skin, bone, urinary tract, and respiratory tract infections. Convenient oral dosing.",
+  "cefuroxime": "Second-generation cephalosporin with broad-spectrum coverage effective against respiratory infections, urinary tract infections, skin infections, and Lyme disease.",
+  "cefixime": "Third-generation oral cephalosporin with convenient once-daily dosing. Effective for respiratory tract infections, urinary tract infections, and ENT infections.",
+  "ceftriaxone": "Potent injectable cephalosporin for severe hospital-acquired infections including meningitis, septicemia, and complicated intra-abdominal infections.",
+  "metronidazole": "Effective against anaerobic bacteria and parasites. Used for dental infections, abdominal infections, surgical prophylaxis, and parasitic infections including amoebiasis.",
+  "metformin": "First-line treatment for type 2 diabetes that reduces liver glucose production and improves insulin sensitivity. Helps control blood sugar and supports healthy weight management.",
+  "glimepiride": "Stimulates insulin release from the pancreas to help control blood sugar levels. Effective for postprandial glucose management in type 2 diabetes.",
+  "gliclazide": "Sulfonylurea that stimulates pancreatic insulin secretion to control blood sugar. Also has beneficial effects on blood flow and may reduce diabetic complications.",
+  "teneligliptin": "DPP-4 inhibitor with long duration of action providing once-daily blood sugar control. Low risk of hypoglycemia and well-tolerated in type 2 diabetes.",
+  "sitagliptin": "DPP-4 inhibitor that increases insulin production after meals to help regulate blood sugar. Well-tolerated with low risk of hypoglycemia.",
+  "voglibose": "Alpha-glucosidase inhibitor that prevents blood sugar spikes after meals by slowing carbohydrate digestion. Effective for postprandial hyperglycemia.",
+  "atorvastatin": "Lowers LDL cholesterol and triglycerides while raising HDL cholesterol. Significantly reduces the risk of heart attack, stroke, and cardiovascular events.",
+  "rosuvastatin": "Highly potent statin providing significant cholesterol reduction at low doses. Effectively lowers LDL and raises HDL with minimal side effects.",
+  "amlodipine": "Calcium channel blocker providing smooth, gradual blood pressure reduction with 24-hour control. Also effective for angina (chest pain) relief.",
+  "losartan": "Lowers blood pressure by blocking angiotensin II receptors. Provides additional kidney-protective benefits, especially useful for patients with diabetes.",
+  "telmisartan": "Long-acting ARB providing sustained 24-hour blood pressure control with additional cardiovascular protective and metabolic benefits.",
+  "metoprolol": "Cardioselective beta-blocker that reduces heart rate and blood pressure. Also used for heart failure, angina, and after heart attack recovery.",
+  "omeprazole": "Provides lasting relief from acid reflux, heartburn, and stomach ulcers. Also used in H. pylori eradication therapy for stomach ulcers.",
+  "pantoprazole": "Long-acting proton pump inhibitor providing sustained acid suppression for GERD, erosive esophagitis, and stomach ulcers. Well-tolerated for long-term use.",
+  "rabeprazole": "Fast-acting proton pump inhibitor with rapid acid suppression. Effective for GERD, peptic ulcers, and H. pylori eradication therapy.",
+  "ranitidine": "H2 blocker that reduces stomach acid production for relief from heartburn, acid indigestion, and peptic ulcers.",
+  "esomeprazole": "Enhanced proton pump inhibitor with superior acid suppression. Effective for GERD, erosive esophagitis, and healing duodenal ulcers.",
+  "cetirizine": "Non-drowsy antihistamine providing 24-hour relief from allergic rhinitis, sneezing, runny nose, itchy eyes, and chronic urticaria (skin rashes).",
+  "loratadine": "Non-drowsy antihistamine providing 24-hour relief from sneezing, runny nose, itchy eyes, and other allergy symptoms without causing drowsiness.",
+  "fexofenadine": "Non-sedating antihistamine providing effective relief from seasonal allergies and chronic urticaria without causing drowsiness. Suitable for daytime use.",
+  "levocetirizine": "Potent non-drowsy antihistamine effective at lower doses for chronic allergic rhinitis and chronic urticaria with minimal sedation.",
+  "montelukast": "Prevents asthma attacks and relieves seasonal allergy symptoms by blocking leukotriene airway inflammation. Taken once daily for long-term management.",
+  "diphenhydramine": "First-generation antihistamine providing relief from allergic symptoms, runny nose, sneezing, itchy eyes, dry cough, and mild sleep aid.",
+  "phenylephrine": "Nasal decongestant that shrinks swollen nasal passages to relieve sinus pressure and stuffy nose due to colds and allergies.",
+  "pseudoephedrine": "Effective oral decongestant for relieving sinus and nasal congestion associated with colds, flu, and allergies.",
+  "salbutamol": "Fast-acting bronchodilator providing quick relief from acute asthma attacks and breathing difficulties within minutes of use.",
+  "budesonide": "Inhaled corticosteroid that reduces airway inflammation to prevent asthma attacks with regular use. Also available as nasal spray for allergic rhinitis.",
+  "levothyroxine": "Replaces thyroid hormone to treat hypothyroidism. Helps regulate metabolism, energy levels, body weight, and overall thyroid function.",
+  "vitamin d": "Essential for calcium absorption, bone health, and immune system function. Helps prevent vitamin D deficiency and supports muscle function.",
+  "vitamin b12": "Essential for nerve function, red blood cell formation, energy production, and brain health. Important for vegetarians, vegans, and the elderly.",
+  "calcium": "Essential mineral for strong bones and teeth. Supports muscle function, nerve signaling, and helps prevent osteoporosis and fractures.",
+  "iron": "Essential for making hemoglobin to carry oxygen in the blood. Prevents and treats iron-deficiency anemia, reducing fatigue and weakness.",
+  "multivitamin": "Complete daily nutrition with essential vitamins and minerals. Supports immunity, energy production, and fills nutritional gaps in the diet.",
+  "omega": "Essential fatty acids (EPA and DHA) that support heart health, brain function, eye health, and help reduce inflammation.",
+  "theophylline": "Bronchodilator that opens airways for easier breathing. Used for long-term management of chronic asthma and COPD.",
+  "dextromethorphan": "Effective cough suppressant that reduces the urge to cough. Suitable for dry, irritating coughs associated with colds and flu.",
+  "oxybutynin": "Relaxes bladder muscles to reduce urinary frequency, urgency, and incontinence associated with overactive bladder.",
+  "dydrogesterone": "Bio-identical progesterone used for menstrual irregularities, threatened miscarriage, premenstrual syndrome, and hormone replacement therapy.",
+  "prednisolone": "Corticosteroid that reduces inflammation and suppresses the immune system. Effective for allergic conditions, asthma, arthritis, and autoimmune disorders.",
+  "clobetasol": "Potent topical corticosteroid for severe inflammatory skin conditions including eczema, psoriasis, and dermatitis. Reduces redness, swelling, and itching.",
+  "adapalene": "Retinoid-like compound for acne treatment. Unclogs pores, prevents new acne formation, and reduces inflammation and redness associated with acne.",
 };
 
 // ════════════════════════════════════════════════════════════════
@@ -868,18 +871,26 @@ function getKnownBenefits(composition: string, form: string): string | null {
   for (const [key, benefits] of Object.entries(BENEFITS_DB)) {
     if (lowerComp.includes(key)) return benefits;
   }
-  // Form-specific fallback
+  // Form-specific fallback — more specific and informative
   const f = form.toLowerCase();
   if (["tablet", "capsule"].includes(f))
-    return "Effective medication in convenient oral dosage form. Take as directed by your healthcare provider for best results.";
+    return "Convenient oral dosage form for easy administration. Take as prescribed by your healthcare provider with water, preferably after meals unless directed otherwise.";
   if (["syrup", "suspension"].includes(f))
-    return "Easy-to-administer liquid formulation suitable for patients who have difficulty swallowing tablets.";
-  if (["cream", "gel", "ointment"].includes(f))
-    return "Topical formulation for targeted relief. Apply as directed to affected area for effective local treatment.";
+    return "Easy-to-administer liquid formulation, ideal for children and adults who have difficulty swallowing tablets. Shake well before use and measure the dose accurately.";
+  if (["cream", "gel", "ointment", "lotion"].includes(f))
+    return "Topical formulation for targeted relief directly at the site of pain or inflammation. Apply a thin layer to the affected area as directed. For external use only.";
   if (f === "drops")
-    return "Precise dosing in liquid drop form for targeted application and easy administration.";
+    return "Precise liquid drop formulation for targeted application. Easy to administer with accurate dosing for effective local treatment.";
   if (f === "injection")
-    return "Fast-acting injectable formulation for rapid therapeutic effect when oral administration is not suitable.";
+    return "Fast-acting injectable formulation for rapid therapeutic effect when oral administration is not suitable. Administered by a healthcare professional.";
+  if (f === "inhaler")
+    return "Inhaled medication that delivers medicine directly to the lungs for fast and targeted relief of respiratory conditions. Breathe in slowly and deeply for best results.";
+  if (f === "nasal drops" || f === "nasal")
+    return "Nasal formulation for direct application to the nasal passages. Provides targeted relief from nasal congestion, sinus pressure, and related symptoms.";
+  if (f === "powder" || f === "sachet")
+    return "Dissolvable powder or sachet formulation for easy mixing with water. Suitable for patients who prefer not to swallow tablets.";
+  if (f === "lozenge")
+    return "Slow-dissolving lozenge that releases medicine gradually in the mouth and throat for targeted local relief.";
   return null;
 }
 
