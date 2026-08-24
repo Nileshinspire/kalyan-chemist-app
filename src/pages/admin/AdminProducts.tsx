@@ -123,6 +123,7 @@ export default function AdminProducts() {
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [fetchingImage, setFetchingImage] = useState(false);
+  const [autoFilling, setAutoFilling] = useState(false);
 
   const enrichProductAction = useAction(api.productBackfill.enrichProduct);
   const enrichSingleProduct = useMutation(api.productBackfill.enrichSingleProduct);
@@ -309,6 +310,53 @@ export default function AdminProducts() {
       toast.error(err.message || "Failed to auto-fetch product info");
     } finally {
       setFetchingImage(false);
+    }
+  };
+
+  const handleAutoFillBenefits = async () => {
+    if (!form.name.trim()) {
+      toast.error("Please enter a product name first");
+      return;
+    }
+    setAutoFilling(true);
+    try {
+      const brand = brands?.find((b) => b._id === form.brandId)?.name;
+      const result = await enrichProductAction({
+        productName: form.name,
+        manufacturer: form.manufacturer || undefined,
+        brand: brand || undefined,
+        composition: form.composition || undefined,
+        form: form.form || undefined,
+      });
+
+      const newForm = { ...form };
+      const filled: string[] = [];
+
+      // Always overwrite these 3 fields with freshly generated values
+      if (result.benefits) {
+        newForm.benefits = result.benefits;
+        filled.push("Benefits");
+      }
+      if ((result as any).consumeType) {
+        newForm.consumeType = (result as any).consumeType;
+        filled.push("Consume Type");
+      }
+      if ((result as any).safetyNote) {
+        newForm.safetyNote = (result as any).safetyNote;
+        filled.push("Safety Note");
+      }
+
+      setForm(newForm);
+
+      if (filled.length > 0) {
+        toast.success(`Auto-filled: ${filled.join(", ")} for "${form.name}"`);
+      } else {
+        toast.info(`Could not find reliable information for "${form.name}". Please fill in manually.`);
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Failed to auto-fill product information");
+    } finally {
+      setAutoFilling(false);
     }
   };
 
@@ -553,8 +601,26 @@ export default function AdminProducts() {
             </DialogHeader>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-4">
               <div className="space-y-2">
-                <Label>Name *</Label>
+                <div className="flex items-center justify-between">
+                  <Label>Name *</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="text-xs gap-1.5 h-7"
+                    onClick={handleAutoFillBenefits}
+                    disabled={autoFilling || !form.name.trim()}
+                  >
+                    {autoFilling ? (
+                      <Loader2 className="size-3 animate-spin" />
+                    ) : (
+                      <Wand2 className="size-3" />
+                    )}
+                    Auto Fill
+                  </Button>
+                </div>
                 <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value, slug: slugify(e.target.value) })} placeholder="e.g. Crocin Advance 500mg" />
+                <p className="text-[11px] text-muted-foreground">Enter medicine name, then click Auto Fill to generate Benefits, Consume Type & Safety Note.</p>
               </div>
               <div className="space-y-2">
                 <Label>Slug</Label>
