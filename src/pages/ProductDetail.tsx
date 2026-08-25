@@ -868,7 +868,7 @@ export default function ProductDetail() {
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
-          className="mt-10 border-b border-border/60"
+          className="mt-10 border-b border-border/60 shadow-[0_1px_3px_-1px_rgba(0,0,0,0.05)]"
         >
           {/* Row 1: tabs + trust indicators */}
           <div className="flex flex-wrap items-center gap-x-4 lg:gap-x-6 gap-y-1">
@@ -889,13 +889,16 @@ export default function ProductDetail() {
                     setActiveTab(tab.id);
                     document.getElementById(tab.id)?.scrollIntoView({ behavior: "smooth", block: "start" });
                   }}
-                  className={`py-3 text-xs sm:text-sm font-semibold tracking-wide uppercase transition-colors border-b-2 -mb-px ${
+                  className={`relative py-3 px-1 text-xs sm:text-sm font-semibold tracking-wide uppercase transition-all duration-300 border-b-2 -mb-px rounded-t-lg hover:scale-[1.02] active:scale-[0.98] ${
                     activeTab === tab.id
-                      ? "border-primary text-primary"
-                      : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                      ? "border-primary text-primary bg-primary/[0.04]"
+                      : "border-transparent text-muted-foreground hover:text-foreground hover:border-border/50 hover:bg-muted/30"
                   }`}
                 >
                   {tab.label}
+                  {activeTab === tab.id && (
+                    <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-4/5 h-[2px] rounded-full bg-primary animate-[pulse_2s_ease-in-out_infinite]" />
+                  )}
                 </button>
               ))}
             </div>
@@ -937,13 +940,16 @@ export default function ProductDetail() {
                   setActiveTab(tab.id);
                   document.getElementById(tab.id)?.scrollIntoView({ behavior: "smooth", block: "start" });
                 }}
-                className={`py-3 text-xs sm:text-sm font-semibold tracking-wide uppercase transition-colors border-b-2 -mb-px ${
+                className={`relative py-3 px-1 text-xs sm:text-sm font-semibold tracking-wide uppercase transition-all duration-300 border-b-2 -mb-px rounded-t-lg hover:scale-[1.02] active:scale-[0.98] ${
                   activeTab === tab.id
-                    ? "border-primary text-primary"
-                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                    ? "border-primary text-primary bg-primary/[0.04]"
+                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border/50 hover:bg-muted/30"
                 }`}
               >
                 {tab.label}
+                {activeTab === tab.id && (
+                  <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-4/5 h-[2px] rounded-full bg-primary animate-[pulse_2s_ease-in-out_infinite]" />
+                )}
               </button>
             ))}
           </div>
@@ -969,9 +975,9 @@ export default function ProductDetail() {
         </motion.div>
 
         {/* ── Product Information ── */}
-        <motion.div id="product-info" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="mt-8 scroll-mt-24">
-          <h3 className="text-lg font-bold mb-4">Product Information</h3>
-          <Card className="border-border/60">
+        <motion.div id="product-info" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: "easeOut" }} className="mt-8 scroll-mt-24">
+          <h3 className="text-lg font-bold mb-4 pl-3 border-l-3 border-primary">Product Information</h3>
+          <Card className="border-border/60 transition-all duration-300 hover:shadow-md hover:border-primary/15">
             <CardContent className="p-6 space-y-4">
               <p className="text-sm leading-relaxed text-muted-foreground">
                 {p.description || (
@@ -984,19 +990,19 @@ export default function ProductDetail() {
                 )}
               </p>
               <div className="grid sm:grid-cols-2 gap-3">
-                <div className="p-3 rounded-xl bg-primary/[0.03]">
+                <div className="p-3 rounded-xl bg-primary/[0.03] transition-all duration-300 hover:bg-primary/[0.06] hover:shadow-sm">
                   <p className="text-xs font-semibold text-primary mb-1">Therapeutic Category</p>
                   <p className="text-sm text-muted-foreground">{cat?.name || "General medicine"}</p>
                 </div>
-                <div className="p-3 rounded-xl bg-primary/[0.03]">
+                <div className="p-3 rounded-xl bg-primary/[0.03] transition-all duration-300 hover:bg-primary/[0.06] hover:shadow-sm">
                   <p className="text-xs font-semibold text-primary mb-1">Primary Use</p>
                   <p className="text-sm text-muted-foreground">{p.benefits ? p.benefits.split(". ")[0]?.trim().replace(/\.$/, "") || "Therapeutic use" : "Please refer to the composition and consult your healthcare provider for specific therapeutic applications."}</p>
                 </div>
-                <div className="p-3 rounded-xl bg-primary/[0.03]">
+                <div className="p-3 rounded-xl bg-primary/[0.03] transition-all duration-300 hover:bg-primary/[0.06] hover:shadow-sm">
                   <p className="text-xs font-semibold text-primary mb-1">Dosage Form</p>
                   <p className="text-sm text-muted-foreground capitalize">{p.form ? `${p.form} (${p.consumeType || "as directed"})` : p.consumeType || "As directed by physician"}</p>
                 </div>
-                <div className="p-3 rounded-xl bg-primary/[0.03]">
+                <div className="p-3 rounded-xl bg-primary/[0.03] transition-all duration-300 hover:bg-primary/[0.06] hover:shadow-sm">
                   <p className="text-xs font-semibold text-primary mb-1">Availability</p>
                   <p className="text-sm text-muted-foreground">Available at Kalyan Chemist — online ordering with fast home delivery across serviceable areas.</p>
                 </div>
@@ -1009,9 +1015,9 @@ export default function ProductDetail() {
         </motion.div>
 
         {/* ── Medical Benefits ── */}
-        <motion.div id="medical-benefits" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="mt-8 scroll-mt-24">
-          <h3 className="text-lg font-bold mb-4">Medical Benefits</h3>
-          <Card className="border-border/60">
+        <motion.div id="medical-benefits" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: "easeOut" }} className="mt-8 scroll-mt-24">
+          <h3 className="text-lg font-bold mb-4 pl-3 border-l-3 border-primary">Medical Benefits</h3>
+          <Card className="border-border/60 transition-all duration-300 hover:shadow-md hover:border-primary/15">
             <CardContent className="p-6 space-y-4">
               {p.benefits ? (
                 <>
@@ -1020,7 +1026,7 @@ export default function ProductDetail() {
                   </p>
                   <div className="space-y-3">
                     {p.benefits.split(". ").filter(Boolean).map((sentence, i) => (
-                      <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-green-50/50 border border-green-100/60">
+                      <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-green-50/50 border border-green-100/60 transition-all duration-300 hover:bg-green-50 hover:shadow-sm">
                         <div className="size-6 rounded-full bg-green-100 flex items-center justify-center shrink-0 mt-0.5">
                           <span className="text-xs font-bold text-green-600">{i + 1}</span>
                         </div>
@@ -1038,9 +1044,9 @@ export default function ProductDetail() {
         </motion.div>
 
         {/* ── Key Ingredients ── */}
-        <motion.div id="key-ingredients" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="mt-8 scroll-mt-24">
-          <h3 className="text-lg font-bold mb-4">Key Ingredients</h3>
-          <Card className="border-border/60">
+        <motion.div id="key-ingredients" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: "easeOut" }} className="mt-8 scroll-mt-24">
+          <h3 className="text-lg font-bold mb-4 pl-3 border-l-3 border-primary">Key Ingredients</h3>
+          <Card className="border-border/60 transition-all duration-300 hover:shadow-md hover:border-primary/15">
             <CardContent className="p-6 space-y-4">
               {p.composition ? (
                 <>
@@ -1049,7 +1055,7 @@ export default function ProductDetail() {
                   </p>
                   <div className="space-y-3">
                     {p.composition.split("+").map((comp, i) => (
-                      <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-primary/[0.03] border border-primary/10">
+                      <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-primary/[0.03] border border-primary/10 transition-all duration-300 hover:bg-primary/[0.06] hover:shadow-sm">
                         <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                           <Pill className="size-4 text-primary" />
                         </div>
@@ -1071,28 +1077,28 @@ export default function ProductDetail() {
         </motion.div>
 
         {/* ── Directions for Use ── */}
-        <motion.div id="directions-for-use" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="mt-8 scroll-mt-24">
-          <h3 className="text-lg font-bold mb-4">Directions for Use</h3>
-          <Card className="border-border/60">
+        <motion.div id="directions-for-use" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: "easeOut" }} className="mt-8 scroll-mt-24">
+          <h3 className="text-lg font-bold mb-4 pl-3 border-l-3 border-primary">Directions for Use</h3>
+          <Card className="border-border/60 transition-all duration-300 hover:shadow-md hover:border-primary/15">
             <CardContent className="p-6 space-y-4">
               <p className="text-sm leading-relaxed text-muted-foreground">
                 {p.consumeType || (p.form ? `${p.name} is a ${p.form} formulation designed for therapeutic use.` : `${p.name} is a therapeutic product.`)}
                 {' '}Follow the dosage schedule recommended by your physician or as indicated on the product label.
               </p>
               <div className="grid sm:grid-cols-2 gap-3">
-                <div className="p-3 rounded-xl bg-blue-50/50 border border-blue-100/60">
+                <div className="p-3 rounded-xl bg-blue-50/50 border border-blue-100/60 transition-all duration-300 hover:bg-blue-50 hover:shadow-sm">
                   <p className="text-xs font-semibold text-blue-700 mb-1">How to Take</p>
                   <p className="text-sm text-blue-900/80">{p.form === "syrup" || p.form === "suspension" ? `Measure the dose using the provided measuring cup or syringe. Do not use a household spoon.` : p.form === "cream" || p.form === "gel" || p.form === "ointment" ? `Apply a thin, even layer to the affected area. Gently massage until absorbed. Wash hands before and after application.` : p.form === "drops" ? `Instill the recommended number of drops into the affected area as directed.` : `Swallow the ${p.form || "tablet"} with a glass of water. Take after a meal or as directed by your physician.`}</p>
                 </div>
-                <div className="p-3 rounded-xl bg-blue-50/50 border border-blue-100/60">
+                <div className="p-3 rounded-xl bg-blue-50/50 border border-blue-100/60 transition-all duration-300 hover:bg-blue-50 hover:shadow-sm">
                   <p className="text-xs font-semibold text-blue-700 mb-1">Timing</p>
                   <p className="text-sm text-blue-900/80">Take at regular intervals as prescribed. If you miss a dose, take it as soon as you remember unless it is almost time for the next dose. Do not double the dose to make up for a missed one.</p>
                 </div>
-                <div className="p-3 rounded-xl bg-blue-50/50 border border-blue-100/60">
+                <div className="p-3 rounded-xl bg-blue-50/50 border border-blue-100/60 transition-all duration-300 hover:bg-blue-50 hover:shadow-sm">
                   <p className="text-xs font-semibold text-blue-700 mb-1">Duration</p>
                   <p className="text-sm text-blue-900/80">Complete the full course of treatment as advised by your physician, even if symptoms improve early. Stopping a prescription medication prematurely may reduce its effectiveness.</p>
                 </div>
-                <div className="p-3 rounded-xl bg-blue-50/50 border border-blue-100/60">
+                <div className="p-3 rounded-xl bg-blue-50/50 border border-blue-100/60 transition-all duration-300 hover:bg-blue-50 hover:shadow-sm">
                   <p className="text-xs font-semibold text-blue-700 mb-1">Important</p>
                   <p className="text-sm text-blue-900/80">{p.prescriptionRequired ? `Do not self-medicate. This product requires a valid prescription and should only be used under medical supervision.` : `While this product is available without a prescription, it is recommended to consult your healthcare provider before starting any new medication.`}</p>
                 </div>
@@ -1103,30 +1109,30 @@ export default function ProductDetail() {
         </motion.div>
 
         {/* ── Safety ── */}
-        <motion.div id="safety" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="mt-8 scroll-mt-24">
-          <h3 className="text-lg font-bold mb-4">Safety</h3>
-          <Card className="border-border/60">
+        <motion.div id="safety" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: "easeOut" }} className="mt-8 scroll-mt-24">
+          <h3 className="text-lg font-bold mb-4 pl-3 border-l-3 border-primary">Safety</h3>
+          <Card className="border-border/60 transition-all duration-300 hover:shadow-md hover:border-primary/15">
             <CardContent className="p-6 space-y-4">
               {p.safetyNote && (
-                <div className="p-3 rounded-xl bg-amber-50 border border-amber-200">
+                <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 transition-all duration-300 hover:bg-amber-100/50 hover:shadow-sm">
                   <p className="text-xs font-semibold text-amber-700 mb-1">Manufacturer Safety Note</p>
                   <p className="text-sm text-amber-900/80 leading-relaxed">{p.safetyNote}</p>
                 </div>
               )}
               <div className="grid sm:grid-cols-2 gap-3">
-                <div className="p-3 rounded-xl bg-red-50/50 border border-red-100/60">
+                <div className="p-3 rounded-xl bg-red-50/50 border border-red-100/60 transition-all duration-300 hover:bg-red-50 hover:shadow-sm">
                   <p className="text-xs font-semibold text-red-700 mb-1">Storage</p>
                   <p className="text-sm text-red-900/80">{p.storageInformation || `Store below 30°C in a dry place, away from direct sunlight and moisture. Keep out of reach of children.`}</p>
                 </div>
-                <div className="p-3 rounded-xl bg-red-50/50 border border-red-100/60">
+                <div className="p-3 rounded-xl bg-red-50/50 border border-red-100/60 transition-all duration-300 hover:bg-red-50 hover:shadow-sm">
                   <p className="text-xs font-semibold text-red-700 mb-1">Expiry Warning</p>
                   <p className="text-sm text-red-900/80">Do not use after the expiry date printed on the packaging. Expired medications may lose their effectiveness and can pose health risks. Discard safely.</p>
                 </div>
-                <div className="p-3 rounded-xl bg-red-50/50 border border-red-100/60">
+                <div className="p-3 rounded-xl bg-red-50/50 border border-red-100/60 transition-all duration-300 hover:bg-red-50 hover:shadow-sm">
                   <p className="text-xs font-semibold text-red-700 mb-1">Allergic Reactions</p>
                   <p className="text-sm text-red-900/80">Before taking {p.name}, check the ingredient list for any known allergies. If you develop rashes, swelling, difficulty breathing, or any unusual symptoms, stop using immediately and seek emergency medical help.</p>
                 </div>
-                <div className="p-3 rounded-xl bg-red-50/50 border border-red-100/60">
+                <div className="p-3 rounded-xl bg-red-50/50 border border-red-100/60 transition-all duration-300 hover:bg-red-50 hover:shadow-sm">
                   <p className="text-xs font-semibold text-red-700 mb-1">Special Precautions</p>
                   <p className="text-sm text-red-900/80">{p.prescriptionRequired ? `This is a prescription medication. Do not share it with others or use it without medical supervision. Inform your physician of all medications you are currently taking to avoid potential interactions.` : `While this is an over-the-counter product, it is not a substitute for professional medical advice. Consult your doctor if symptoms persist beyond the recommended duration.`}</p>
                 </div>
@@ -1137,35 +1143,35 @@ export default function ProductDetail() {
         </motion.div>
 
         {/* ── Information ── */}
-        <motion.div id="information" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="mt-8 scroll-mt-24">
-          <h3 className="text-lg font-bold mb-4">Information</h3>
-          <Card className="border-border/60">
+        <motion.div id="information" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: "easeOut" }} className="mt-8 scroll-mt-24">
+          <h3 className="text-lg font-bold mb-4 pl-3 border-l-3 border-primary">Information</h3>
+          <Card className="border-border/60 transition-all duration-300 hover:shadow-md hover:border-primary/15">
             <CardContent className="p-6 space-y-4">
               <p className="text-sm leading-relaxed text-muted-foreground">
                 Below you will find additional ordering, delivery, and availability details for {p.name}. This information is separate from the product specifications shown above.
               </p>
               <div className="grid sm:grid-cols-2 gap-3">
-                <div className="p-3 rounded-xl bg-primary/[0.03]">
+                <div className="p-3 rounded-xl bg-primary/[0.03] transition-all duration-300 hover:bg-primary/[0.06] hover:shadow-sm">
                   <p className="text-xs font-semibold text-primary mb-1">Ordering</p>
                   <p className="text-sm text-muted-foreground">Order online from Kalyan Chemist for reliable home delivery. You can also place orders via WhatsApp for a quick and convenient experience.</p>
                 </div>
-                <div className="p-3 rounded-xl bg-primary/[0.03]">
+                <div className="p-3 rounded-xl bg-primary/[0.03] transition-all duration-300 hover:bg-primary/[0.06] hover:shadow-sm">
                   <p className="text-xs font-semibold text-primary mb-1">Delivery</p>
                   <p className="text-sm text-muted-foreground">Available for delivery in all serviceable areas. Check your pincode at checkout to confirm delivery availability and estimated delivery time.</p>
                 </div>
-                <div className="p-3 rounded-xl bg-primary/[0.03]">
+                <div className="p-3 rounded-xl bg-primary/[0.03] transition-all duration-300 hover:bg-primary/[0.06] hover:shadow-sm">
                   <p className="text-xs font-semibold text-primary mb-1">Payment Options</p>
                   <p className="text-sm text-muted-foreground">Pay securely online via UPI, credit/debit cards, net banking, or choose Cash on Delivery (COD) where available.</p>
                 </div>
-                <div className="p-3 rounded-xl bg-primary/[0.03]">
+                <div className="p-3 rounded-xl bg-primary/[0.03] transition-all duration-300 hover:bg-primary/[0.06] hover:shadow-sm">
                   <p className="text-xs font-semibold text-primary mb-1">Customer Support</p>
                   <p className="text-sm text-muted-foreground">Questions about this product? Reach out to our pharmacy team via WhatsApp or phone. Our experts are happy to help.</p>
                 </div>
-                <div className="p-3 rounded-xl bg-primary/[0.03]">
+                <div className="p-3 rounded-xl bg-primary/[0.03] transition-all duration-300 hover:bg-primary/[0.06] hover:shadow-sm">
                   <p className="text-xs font-semibold text-primary mb-1">Authenticity</p>
                   <p className="text-sm text-muted-foreground">All products are sourced directly from {p.manufacturer || "the manufacturer"} or authorized distributors. Kalyan Chemist guarantees 100% authenticity.</p>
                 </div>
-                <div className="p-3 rounded-xl bg-primary/[0.03]">
+                <div className="p-3 rounded-xl bg-primary/[0.03] transition-all duration-300 hover:bg-primary/[0.06] hover:shadow-sm">
                   <p className="text-xs font-semibold text-primary mb-1">Returns</p>
                   <p className="text-sm text-muted-foreground">{p.prescriptionRequired ? `Prescription medications are non-returnable once delivered. Please verify the product upon delivery.` : `Products in sealed, unopened condition may be eligible for return as per our return policy.`}</p>
                 </div>
@@ -1175,21 +1181,21 @@ export default function ProductDetail() {
         </motion.div>
 
         {/* ── FAQs ── */}
-        <motion.div id="faqs" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="mt-8 scroll-mt-24">
-          <h3 className="text-lg font-bold mb-4">Frequently Asked Questions</h3>
+        <motion.div id="faqs" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: "easeOut" }} className="mt-8 scroll-mt-24">
+          <h3 className="text-lg font-bold mb-4 pl-3 border-l-3 border-primary">Frequently Asked Questions</h3>
           <div className="space-y-3">
-            <Card className="border-border/60"><CardContent className="p-5 space-y-1"><p className="text-sm font-semibold">Is {p.name} genuine at Kalyan Chemist?</p><p className="text-sm text-muted-foreground">Absolutely. Every unit of {p.name} is sourced directly from {p.manufacturer} or their authorized distributors. We maintain strict supply chain integrity, and each product goes through quality checks before dispatch.</p></CardContent></Card>
-            <Card className="border-border/60"><CardContent className="p-5 space-y-1"><p className="text-sm font-semibold">{p.prescriptionRequired ? `Do I need a prescription for ${p.name}?` : `Can I buy ${p.name} without a prescription?`}</p><p className="text-sm text-muted-foreground">{p.prescriptionRequired ? `Yes, ${p.name} is a prescription-only medicine (Rx). A valid prescription from a registered medical practitioner is mandatory for purchase. You can upload your prescription during checkout, and our pharmacist will verify it before processing your order.` : `${p.name} is available as an over-the-counter (OTC) product and can be purchased directly without a prescription. However, we recommend consulting your physician for personalised dosage guidance.`}</p></CardContent></Card>
-            <Card className="border-border/60"><CardContent className="p-5 space-y-1"><p className="text-sm font-semibold">How long does delivery take for {p.name}?</p><p className="text-sm text-muted-foreground">Delivery times depend on your location. Orders within Kalyan Chemist's serviceable areas are typically delivered within the estimated timeframe shown at checkout. Same-day dispatch is available for orders placed before the cut-off time.</p></CardContent></Card>
-            <Card className="border-border/60"><CardContent className="p-5 space-y-1"><p className="text-sm font-semibold">What if {p.name} is out of stock?</p><p className="text-sm text-muted-foreground">If {p.name} is temporarily unavailable, you can place an enquiry via WhatsApp and we will notify you as soon as it is restocked. Our pharmacy team can also suggest suitable alternatives where appropriate.</p></CardContent></Card>
-            <Card className="border-border/60"><CardContent className="p-5 space-y-1"><p className="text-sm font-semibold">Can I track my order for {p.name}?</p><p className="text-sm text-muted-foreground">Yes. Once your order is confirmed, you will receive real-time order status updates through your Kalyan Chemist account. You can also reach out via WhatsApp for order assistance.</p></CardContent></Card>
-            <Card className="border-border/60"><CardContent className="p-5 space-y-1"><p className="text-sm font-semibold">{p.prescriptionRequired ? `Can I share the prescription after placing the order?` : `Is there a limit on how many units I can order?`}</p><p className="text-sm text-muted-foreground">{p.prescriptionRequired ? `Yes. You can upload a valid prescription during checkout or share it via WhatsApp. Our pharmacist will verify the prescription before your order is dispatched. Orders without a verified prescription will not be processed.` : `There is no strict limit for personal use. However, bulk orders may require additional verification. Contact our team via WhatsApp for large quantity orders.`}</p></CardContent></Card>
+            <Card className="border-border/60 transition-all duration-300 hover:shadow-sm hover:border-primary/15 cursor-pointer"><CardContent className="p-5 space-y-1"><p className="text-sm font-semibold">Is {p.name} genuine at Kalyan Chemist?</p><p className="text-sm text-muted-foreground">Absolutely. Every unit of {p.name} is sourced directly from {p.manufacturer} or their authorized distributors. We maintain strict supply chain integrity, and each product goes through quality checks before dispatch.</p></CardContent></Card>
+            <Card className="border-border/60 transition-all duration-300 hover:shadow-sm hover:border-primary/15 cursor-pointer"><CardContent className="p-5 space-y-1"><p className="text-sm font-semibold">{p.prescriptionRequired ? `Do I need a prescription for ${p.name}?` : `Can I buy ${p.name} without a prescription?`}</p><p className="text-sm text-muted-foreground">{p.prescriptionRequired ? `Yes, ${p.name} is a prescription-only medicine (Rx). A valid prescription from a registered medical practitioner is mandatory for purchase. You can upload your prescription during checkout, and our pharmacist will verify it before processing your order.` : `${p.name} is available as an over-the-counter (OTC) product and can be purchased directly without a prescription. However, we recommend consulting your physician for personalised dosage guidance.`}</p></CardContent></Card>
+            <Card className="border-border/60 transition-all duration-300 hover:shadow-sm hover:border-primary/15 cursor-pointer"><CardContent className="p-5 space-y-1"><p className="text-sm font-semibold">How long does delivery take for {p.name}?</p><p className="text-sm text-muted-foreground">Delivery times depend on your location. Orders within Kalyan Chemist's serviceable areas are typically delivered within the estimated timeframe shown at checkout. Same-day dispatch is available for orders placed before the cut-off time.</p></CardContent></Card>
+            <Card className="border-border/60 transition-all duration-300 hover:shadow-sm hover:border-primary/15 cursor-pointer"><CardContent className="p-5 space-y-1"><p className="text-sm font-semibold">What if {p.name} is out of stock?</p><p className="text-sm text-muted-foreground">If {p.name} is temporarily unavailable, you can place an enquiry via WhatsApp and we will notify you as soon as it is restocked. Our pharmacy team can also suggest suitable alternatives where appropriate.</p></CardContent></Card>
+            <Card className="border-border/60 transition-all duration-300 hover:shadow-sm hover:border-primary/15 cursor-pointer"><CardContent className="p-5 space-y-1"><p className="text-sm font-semibold">Can I track my order for {p.name}?</p><p className="text-sm text-muted-foreground">Yes. Once your order is confirmed, you will receive real-time order status updates through your Kalyan Chemist account. You can also reach out via WhatsApp for order assistance.</p></CardContent></Card>
+            <Card className="border-border/60 transition-all duration-300 hover:shadow-sm hover:border-primary/15 cursor-pointer"><CardContent className="p-5 space-y-1"><p className="text-sm font-semibold">{p.prescriptionRequired ? `Can I share the prescription after placing the order?` : `Is there a limit on how many units I can order?`}</p><p className="text-sm text-muted-foreground">{p.prescriptionRequired ? `Yes. You can upload a valid prescription during checkout or share it via WhatsApp. Our pharmacist will verify the prescription before your order is dispatched. Orders without a verified prescription will not be processed.` : `There is no strict limit for personal use. However, bulk orders may require additional verification. Contact our team via WhatsApp for large quantity orders.`}</p></CardContent></Card>
           </div>
         </motion.div>
 
         {/* ── Customers Also Bought ── */}
-        <motion.div id="customers-also-bought" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="mt-8 scroll-mt-24">
-          <h3 className="text-lg font-bold mb-4">Customers Also Bought</h3>
+        <motion.div id="customers-also-bought" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: "easeOut" }} className="mt-8 scroll-mt-24">
+          <h3 className="text-lg font-bold mb-4 pl-3 border-l-3 border-primary">Customers Also Bought</h3>
           {relatedProducts && relatedProducts.length > 0 ? (
             <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
               {relatedProducts.map((rp) => {
@@ -1225,8 +1231,8 @@ export default function ProductDetail() {
         </motion.div>
 
         {/* ── Other Links ── */}
-        <motion.div id="other-links" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="mt-8 mb-8 scroll-mt-24">
-          <h3 className="text-lg font-bold mb-4">Other Links</h3>
+        <motion.div id="other-links" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: "easeOut" }} className="mt-8 mb-8 scroll-mt-24">
+          <h3 className="text-lg font-bold mb-4 pl-3 border-l-3 border-primary">Other Links</h3>
           <Card className="border-border/60">
             <CardContent className="p-6">
               <div className="flex flex-wrap gap-3">
