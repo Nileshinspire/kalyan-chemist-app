@@ -59,6 +59,56 @@ const KNOWN_MANUFACTURERS: Record<string, string> = {
   "vicks": "Procter & Gamble Health Ltd", "nasivion": "Meda Pharmaceuticals India",
 };
 
+
+// Storage information database — composition/form-based storage guidance
+const STORAGE_DB: Record<string, string> = {
+  "paracetamol": "Store below 25°C in a dry place. Keep away from moisture and direct sunlight.",
+  "ibuprofen": "Store in a cool, dry place below 30°C. Protect from moisture.",
+  "metformin": "Store below 30°C in a dry place. Keep away from moisture.",
+  "amlodipine": "Store below 25°C in a dry place. Protect from light and moisture.",
+  "atorvastatin": "Store at room temperature (15–25°C) in a dry place. Keep away from direct sunlight.",
+  "pantoprazole": "Store below 25°C in a dry place. Protect from moisture and light.",
+  "omeprazole": "Store below 25°C in a dry place. Protect from moisture and light.",
+  "cetirizine": "Store below 25°C in a dry place. Keep away from moisture.",
+  "azithromycin": "Store below 25°C in a dry place. Protect from moisture.",
+  "calcium": "Store below 30°C in a dry place. Keep away from moisture and direct sunlight.",
+  "vitamin d": "Store below 30°C in a dry place. Protect from light and moisture.",
+  "levothyroxine": "Store at room temperature (15–25°C) in a dry place. Protect from light.",
+  "losartan": "Store below 30°C in a dry place. Keep away from moisture.",
+  "telmisartan": "Store below 25°C in a dry place. Protect from moisture.",
+  "montelukast": "Store below 25°C in a dry place. Protect from moisture.",
+  "salbutamol": "Store below 30°C in a dry place. Keep inhaler away from open flame.",
+  "ciprofloxacin": "Store below 25°C in a dark place. Protect from light and moisture.",
+  "doxycycline": "Store below 25°C in a dark, dry place. Protect from light.",
+  "rosuvastatin": "Store below 25°C in a dry place. Protect from moisture.",
+  "cefuroxime": "Store below 25°C in a dry place. Keep away from moisture.",
+  "cefixime": "Store below 25°C in a dry place. Protect from moisture.",
+  "metronidazole": "Store below 25°C in a dry place. Protect from moisture.",
+  "cream": "Store below 30°C. Do not freeze. Keep away from direct sunlight.",
+  "gel": "Store below 30°C. Do not freeze. Keep away from direct sunlight.",
+  "ointment": "Store below 30°C. Do not freeze.",
+  "syrup": "Store below 30°C. Keep away from direct sunlight. Do not freeze. Once opened, use within 30 days.",
+  "suspension": "Store below 30°C. Keep away from direct sunlight. Do not freeze. Shake well before use.",
+  "drops": "Store below 25°C. Protect from light. Do not freeze.",
+  "injection": "Store below 25°C. Protect from light. Do not freeze. Keep out of reach of children.",
+  "inhaler": "Store below 30°C away from open flame. Do not puncture or incinerate.",
+  "sachet": "Store below 30°C in a dry place. Keep away from moisture.",
+};
+
+function getStorageInfo(composition: string, form: string): string | null {
+  const lowerComp = composition.toLowerCase();
+  // Try composition-based match first
+  for (const [key, info] of Object.entries(STORAGE_DB)) {
+    if (lowerComp.includes(key)) return info;
+  }
+  // Fallback to form-based storage
+  const f = form.toLowerCase();
+  for (const [key, info] of Object.entries(STORAGE_DB)) {
+    if (f === key) return info;
+  }
+  return null;
+}
+
 // Known benefits fallback
 const BENEFITS_DB: Record<string, string> = {
   "paracetamol": "Provides fast and effective relief from mild to moderate pain including headaches, body aches, and toothache. Reduces fever safely and is gentle on the stomach when used as directed.",
@@ -434,7 +484,10 @@ export const enrichProduct = action({
       consumeType: string | null;
       safetyNote: string | null;
       form: string | null;
-    } = { imageUrl: null, manufacturer: null, benefits: null, description: null, consumeType: null, safetyNote: null, form: null };
+      storageInformation: string | null;
+      composition: string | null;
+      expiryDate: string | null;
+    } = { imageUrl: null, manufacturer: null, benefits: null, description: null, consumeType: null, safetyNote: null, form: null, storageInformation: null, composition: null, expiryDate: null };
 
     if (matched) {
       result.manufacturer = matched.manufacturer;
@@ -446,6 +499,12 @@ export const enrichProduct = action({
       result.safetyNote = "Consult your doctor or pharmacist before use.";
       // Form — return for auto-select in admin form
       result.form = matched.form || args.form || null;
+      // Composition — return matched composition
+      result.composition = matched.composition || null;
+      // Expiry Date — use if available in DB, never calculate
+      result.expiryDate = (matched as any).expiryDate || null;
+      // Storage Information — based on composition and form
+      result.storageInformation = getStorageInfo(matched.composition || "", matched.form || args.form || "tablet");
     } else {
       // Fallback to known DBs
       for (const [key, mfr] of Object.entries(KNOWN_MANUFACTURERS)) {
@@ -471,6 +530,12 @@ export const enrichProduct = action({
       result.safetyNote = "Consult your doctor or pharmacist before use.";
       // Form — return for auto-select in admin form
       result.form = args.form || null;
+      // Composition — use args if provided
+      result.composition = args.composition || null;
+      // Expiry Date — leave null for unknown medicines
+      result.expiryDate = null;
+      // Storage Information — based on composition and form
+      result.storageInformation = getStorageInfo(args.composition || args.productName, args.form || "tablet");
     }
 
     // Image: try Wikimedia Commons (free, no API key)

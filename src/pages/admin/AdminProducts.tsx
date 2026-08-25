@@ -301,6 +301,11 @@ export default function AdminProducts() {
         newForm.expiryDate = (result as any).expiryDate;
         filled.push("Expiry Date");
       }
+      // Storage Information — always overwrite with product-specific storage
+      if ((result as any).storageInformation && !form.storageInformation) {
+        newForm.storageInformation = (result as any).storageInformation;
+        filled.push("Storage Information");
+      }
 
       setForm(newForm);
 
