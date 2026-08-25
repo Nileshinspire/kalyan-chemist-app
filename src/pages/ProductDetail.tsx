@@ -901,7 +901,7 @@ export default function ProductDetail() {
             </div>
 
             {/* Trust indicators */}
-            <div className="hidden lg:flex items-center gap-6 ml-auto pb-2">
+            <div className="hidden lg:flex items-center gap-6 ml-8 pb-2">
               <div className="flex flex-col items-center text-center gap-1">
                 <Shield className="size-5 text-slate-700" strokeWidth={1.5} />
                 <span className="text-xs font-semibold text-foreground">100% Genuine</span>
