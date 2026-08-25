@@ -28,10 +28,25 @@ export const emailOtp = Email({
           headers: {
             "x-api-key": "fb_email_2crN1hqIArZP2bEfvjp5Qik4",
           },
+          timeout: 15000, // 15s timeout — prevents hung connections
         },
       );
-    } catch (error) {
-      throw new Error(JSON.stringify(error));
+    } catch (error: any) {
+      // Provide clear, actionable error messages instead of raw JSON
+      if (error?.code === "ECONNABORTED" || error?.message?.includes("timeout")) {
+        throw new Error("Email service timed out. Please try again in a moment.");
+      }
+      if (error?.code === "ECONNREFUSED" || error?.code === "ENOTFOUND") {
+        throw new Error("Email service is temporarily unavailable. Please try again.");
+      }
+      const status = error?.response?.status;
+      if (status === 429) {
+        throw new Error("Too many requests. Please wait a moment and try again.");
+      }
+      if (status && status >= 500) {
+        throw new Error("Email service error. Please try again.");
+      }
+      throw new Error("Failed to send verification code. Please try again.");
     }
   },
 });
