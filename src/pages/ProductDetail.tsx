@@ -42,8 +42,13 @@ import {
   Star,
   TrendingUp,
   PenLine,
+  Share2,
+  Link2,
+  Mail,
+  Copy,
+  ExternalLink,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
@@ -229,11 +234,14 @@ export default function ProductDetail() {
   const navigate = useNavigate();
   const location = useLocation();
   const backTo = (location.state as any)?.from || "/products";
+  const shareUrl = typeof window !== "undefined" ? window.location.href : "";
   const { isAuthenticated } = useAuth();
   const addToCart = useMutation(api.cart.addItem);
   const [whatsappQty, setWhatsappQty] = useState(1);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [purchasersOpen, setPurchasersOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const product = useQuery(
     api.products.getBySlug,
@@ -294,6 +302,27 @@ export default function ProductDetail() {
     }
     navigate(`/checkout?buyNow=${product._id}`);
   };
+
+  const handleCopyLink = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      toast.success("Link copied to clipboard!");
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error("Failed to copy link");
+    }
+  }, [shareUrl]);
+
+  const handleNativeShare = useCallback(() => {
+    if (navigator.share) {
+      navigator.share({
+        title: product?.name || "Product",
+        text: `Check out ${product?.name} on Kalyan Chemist`,
+        url: shareUrl,
+      }).catch(() => {});
+    }
+  }, [product?.name, shareUrl]);
 
   const isWishlisted = useQuery(
     api.wishlist.isWishlisted,
@@ -570,11 +599,22 @@ export default function ProductDetail() {
               {cat && <Badge variant="secondary">{cat.name}</Badge>}
             </div>
 
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{p.name}</h1>
-              <p className="mt-1 text-sm text-muted-foreground">
-                by <span className="font-medium text-foreground">{p.manufacturer}</span>
-              </p>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{p.name}</h1>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  by <span className="font-medium text-foreground">{p.manufacturer}</span>
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="icon"
+                className="shrink-0 size-10 rounded-full border-border/60 hover:border-primary/40 hover:bg-primary/5 transition-all"
+                onClick={() => setShareOpen(true)}
+                title="Share this product"
+              >
+                <Share2 className="size-4" />
+              </Button>
             </div>
 
             <div className="flex items-baseline gap-3">
@@ -883,6 +923,108 @@ export default function ProductDetail() {
           </motion.div>
         )}
       </main>
+
+      {/* Share Dialog */}
+      <Dialog open={shareOpen} onOpenChange={setShareOpen}>
+        <DialogContent className="sm:max-w-sm rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-base">Share this product</DialogTitle>
+            <DialogDescription className="text-xs">Let others know about {p.name}</DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-4 gap-3 py-2">
+            {/* WhatsApp */}
+            <button
+              className="flex flex-col items-center gap-1.5 p-3 rounded-xl hover:bg-green-50 transition-colors"
+              onClick={() => {
+                const text = encodeURIComponent(`Check out ${p.name} on Kalyan Chemist\n${shareUrl}`);
+                window.open(`https://wa.me/?text=${text}`, "_blank");
+              }}
+            >
+              <div className="size-11 rounded-full bg-green-500 flex items-center justify-center">
+                <MessageCircle className="size-5 text-white" />
+              </div>
+              <span className="text-[11px] font-medium text-muted-foreground">WhatsApp</span>
+            </button>
+
+            {/* Facebook */}
+            <button
+              className="flex flex-col items-center gap-1.5 p-3 rounded-xl hover:bg-blue-50 transition-colors"
+              onClick={() => {
+                window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`, "_blank", "noopener,noreferrer");
+              }}
+            >
+              <div className="size-11 rounded-full bg-[#1877F2] flex items-center justify-center">
+                <svg className="size-5 text-white" viewBox="0 0 24 24" fill="currentColor"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+              </div>
+              <span className="text-[11px] font-medium text-muted-foreground">Facebook</span>
+            </button>
+
+            {/* Instagram */}
+            <button
+              className="flex flex-col items-center gap-1.5 p-3 rounded-xl hover:bg-pink-50 transition-colors"
+              onClick={handleCopyLink}
+            >
+              <div className="size-11 rounded-full bg-gradient-to-br from-[#FFDC80] via-[#E1306C] to-[#833AB4] flex items-center justify-center">
+                <svg className="size-5 text-white" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 100 12.324 6.162 6.162 0 000-12.324zM12 16a4 4 0 110-8 4 4 0 010 8zm6.406-11.845a1.44 1.44 0 100 2.881 1.44 1.44 0 000-2.881z"/></svg>
+              </div>
+              <span className="text-[11px] font-medium text-muted-foreground">Instagram</span>
+            </button>
+
+            {/* X / Twitter */}
+            <button
+              className="flex flex-col items-center gap-1.5 p-3 rounded-xl hover:bg-gray-50 transition-colors"
+              onClick={() => {
+                const text = encodeURIComponent(`Check out ${p.name} on Kalyan Chemist`);
+                window.open(`https://twitter.com/intent/tweet?text=${text}&url=${encodeURIComponent(shareUrl)}`, "_blank", "noopener,noreferrer");
+              }}
+            >
+              <div className="size-11 rounded-full bg-black flex items-center justify-center">
+                <svg className="size-4 text-white" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+              </div>
+              <span className="text-[11px] font-medium text-muted-foreground">X</span>
+            </button>
+
+            {/* Email */}
+            <button
+              className="flex flex-col items-center gap-1.5 p-3 rounded-xl hover:bg-amber-50 transition-colors"
+              onClick={() => {
+                const subject = encodeURIComponent(`Check out ${p.name}`);
+                const body = encodeURIComponent(`I found this product on Kalyan Chemist and thought you might be interested:\n\n${p.name} — ${formatCurrency(hasDiscount ? p.discountPrice! : p.price)}\n\n${shareUrl}`);
+                window.open(`mailto:?subject=${subject}&body=${body}`);
+              }}
+            >
+              <div className="size-11 rounded-full bg-amber-500 flex items-center justify-center">
+                <Mail className="size-5 text-white" />
+              </div>
+              <span className="text-[11px] font-medium text-muted-foreground">Email</span>
+            </button>
+
+            {/* Copy Link */}
+            <button
+              className="flex flex-col items-center gap-1.5 p-3 rounded-xl hover:bg-primary/5 transition-colors"
+              onClick={handleCopyLink}
+            >
+              <div className="size-11 rounded-full bg-primary flex items-center justify-center">
+                {copied ? <Copy className="size-5 text-white" /> : <Link2 className="size-5 text-white" />}
+              </div>
+              <span className="text-[11px] font-medium text-muted-foreground">{copied ? "Copied!" : "Copy Link"}</span>
+            </button>
+
+            {/* Native Share */}
+            {typeof navigator !== "undefined" && typeof navigator.share === "function" && (
+              <button
+                className="flex flex-col items-center gap-1.5 p-3 rounded-xl hover:bg-purple-50 transition-colors"
+                onClick={handleNativeShare}
+              >
+                <div className="size-11 rounded-full bg-purple-600 flex items-center justify-center">
+                  <ExternalLink className="size-5 text-white" />
+                </div>
+                <span className="text-[11px] font-medium text-muted-foreground">More</span>
+              </button>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Review Sheet */}
       <ReviewSheet open={reviewOpen} onOpenChange={setReviewOpen} product={product} />
