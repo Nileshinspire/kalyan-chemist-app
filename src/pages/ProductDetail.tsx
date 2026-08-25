@@ -242,6 +242,7 @@ export default function ProductDetail() {
   const [purchasersOpen, setPurchasersOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(0);
 
   const product = useQuery(
     api.products.getBySlug,
@@ -415,6 +416,10 @@ export default function ProductDetail() {
   const isInStock = p.stockQuantity > 0;
   const isLowStock = p.stockQuantity > 0 && p.stockQuantity < 10;
   const totalSold = boughtCount ?? 0;
+  const allImages: string[] = [
+    ...(p.imageUrl ? [p.imageUrl] : []),
+    ...((p as any).additionalImages || []).filter((img: string) => img && img !== p.imageUrl),
+  ];
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -521,32 +526,62 @@ export default function ProductDetail() {
         </Dialog>
 
         <div className="grid gap-8 lg:grid-cols-[1fr_1.2fr]">
-          {/* Product Image */}
+          {/* Product Image Gallery */}
           <motion.div
             initial={{ opacity: 0, x: -16 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <div className="rounded-2xl border border-border/60 bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] flex items-center justify-center h-[300px] sm:h-[400px] overflow-hidden relative">
-              {p.imageUrl ? (
-                <img
-                  src={p.imageUrl}
-                  alt={p.name}
-                  className="max-h-full max-w-full object-contain p-6"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = "none";
-                  }}
-                />
-              ) : (
-                <Pill className="size-24 text-primary/15" />
-              )}
-              {hasDiscount && (
-                <div className="absolute top-4 left-4">
-                  <Badge className="text-sm font-bold bg-gradient-to-r from-green-500 to-emerald-500 text-white border-0 shadow-md">
-                    {discountPct}% OFF
-                  </Badge>
+            <div className="flex gap-3 items-start">
+              {/* Thumbnails — vertical on desktop, horizontal on mobile */}
+              {allImages.length > 1 && (
+                <div className="flex lg:flex-col gap-2 overflow-x-auto lg:overflow-x-visible shrink-0">
+                  {allImages.map((img, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setSelectedImage(idx)}
+                      className={`size-16 sm:size-18 lg:size-20 rounded-xl border-2 overflow-hidden shrink-0 transition-all duration-200 bg-gradient-to-br from-primary/[0.03] to-primary/[0.01] flex items-center justify-center cursor-pointer ${
+                        selectedImage === idx
+                          ? "border-primary shadow-md ring-1 ring-primary/20"
+                          : "border-border/50 hover:border-primary/40 opacity-70 hover:opacity-100"
+                      }`}
+                    >
+                      <img
+                        src={img}
+                        alt={`${p.name} view ${idx + 1}`}
+                        className="size-full object-contain p-1"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = "none";
+                        }}
+                      />
+                    </button>
+                  ))}
                 </div>
               )}
+
+              {/* Main image */}
+              <div className="flex-1 rounded-2xl border border-border/60 bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] flex items-center justify-center h-[300px] sm:h-[400px] overflow-hidden relative">
+                {allImages.length > 0 ? (
+                  <img
+                    src={allImages[selectedImage] || allImages[0]}
+                    alt={p.name}
+                    className="max-h-full max-w-full object-contain p-6 transition-opacity duration-300"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = "none";
+                    }}
+                  />
+                ) : (
+                  <Pill className="size-24 text-primary/15" />
+                )}
+                {hasDiscount && (
+                  <div className="absolute top-4 left-4">
+                    <Badge className="text-sm font-bold bg-gradient-to-r from-green-500 to-emerald-500 text-white border-0 shadow-md">
+                      {discountPct}% OFF
+                    </Badge>
+                  </div>
+                )}
+              </div>
             </div>
           </motion.div>
 

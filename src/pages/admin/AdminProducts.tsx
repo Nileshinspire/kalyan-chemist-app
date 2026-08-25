@@ -80,6 +80,7 @@ interface ProductForm {
   consumeType: string;
   safetyNote: string;
   expiryDate: string;
+  additionalImages: string[];
   isActive: boolean;
 }
 
@@ -106,6 +107,7 @@ const EMPTY_FORM: ProductForm = {
   consumeType: "",
   safetyNote: "",
   expiryDate: "",
+  additionalImages: [],
   isActive: true,
 };
 
@@ -174,6 +176,7 @@ export default function AdminProducts() {
       consumeType: product.consumeType || "",
       safetyNote: product.safetyNote || "",
       expiryDate: product.expiryDate ? new Date(product.expiryDate).toISOString().split('T')[0] : "",
+      additionalImages: product.additionalImages || [],
       isActive: product.isActive,
     });
     setDialogOpen(true);
@@ -197,6 +200,7 @@ export default function AdminProducts() {
         categoryId: form.categoryId as any,
         brandId: (form.brandId || undefined) as any,
         imageUrl: form.imageUrl || undefined,
+        additionalImages: form.additionalImages.length > 0 ? form.additionalImages : undefined,
         manufacturer: form.manufacturer,
         dosage: form.dosage || undefined,
         packSize: form.packSize,
@@ -673,6 +677,23 @@ export default function AdminProducts() {
                       <X className="size-3 mr-1" /> Remove
                     </Button>
                   </div>
+                )}
+              </div>
+              <div className="sm:col-span-2 space-y-2">
+                <Label>Additional Product Images (Gallery)</Label>
+                <p className="text-[11px] text-muted-foreground">Enter image URLs for additional product views/angles. These appear as selectable thumbnails on the product page.</p>
+                {form.additionalImages.map((img, idx) => (
+                  <div key={idx} className="flex items-center gap-2">
+                    <Input value={img} onChange={(e) => { const imgs = [...form.additionalImages]; imgs[idx] = e.target.value; setForm({ ...form, additionalImages: imgs }); }} placeholder="https://... additional image URL" className="flex-1" />
+                    <Button type="button" variant="ghost" size="icon" className="size-8 text-destructive shrink-0" onClick={() => { const imgs = form.additionalImages.filter((_, i) => i !== idx); setForm({ ...form, additionalImages: imgs }); }}>
+                      <X className="size-3" />
+                    </Button>
+                  </div>
+                ))}
+                {form.additionalImages.length < 4 && (
+                  <Button type="button" variant="outline" size="sm" className="text-xs gap-1" onClick={() => setForm({ ...form, additionalImages: [...form.additionalImages, ""] })}>
+                    <Plus className="size-3" /> Add Image URL
+                  </Button>
                 )}
               </div>
               <div className="sm:col-span-2 space-y-2">

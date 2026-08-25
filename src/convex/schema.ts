@@ -125,6 +125,7 @@ const schema = defineSchema(
       discountPrice: v.optional(v.number()),
       categoryId: v.id("categories"),
       imageUrl: v.optional(v.string()),
+      additionalImages: v.optional(v.array(v.string())),
       manufacturer: v.string(),
       dosage: v.optional(v.string()),
       packSize: v.string(),
