@@ -765,18 +765,21 @@ export default function ProductDetail() {
               Order on WhatsApp{whatsappQty > 1 ? ` (${whatsappQty}×)` : ""}
             </Button>
 
-            <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
-              <div className="flex items-center gap-1.5">
-                <Truck className="size-3.5 text-slate-700" strokeWidth={1.5} />
-                <span className="font-medium">Fast Delivery</span>
+            <div className="flex flex-wrap gap-6 pt-1">
+              <div className="flex flex-col items-center text-center gap-1">
+                <Truck className="size-7 text-slate-700" strokeWidth={1.5} />
+                <span className="text-sm font-semibold text-foreground">Fast Delivery</span>
+                <span className="text-[11px] text-muted-foreground">Same day dispatch</span>
               </div>
-              <div className="flex items-center gap-1.5">
-                <Package className="size-3.5 text-slate-700" strokeWidth={1.5} />
-                <span className="font-medium">Secure Packaging</span>
+              <div className="flex flex-col items-center text-center gap-1">
+                <Package className="size-7 text-slate-700" strokeWidth={1.5} />
+                <span className="text-sm font-semibold text-foreground">Secure Packaging</span>
+                <span className="text-[11px] text-muted-foreground">Sealed & protected</span>
               </div>
-              <div className="flex items-center gap-1.5">
-                <ShieldCheck className="size-3.5 text-slate-700" strokeWidth={1.5} />
-                <span className="font-medium">Trusted Pharmacy</span>
+              <div className="flex flex-col items-center text-center gap-1">
+                <ShieldCheck className="size-7 text-slate-700" strokeWidth={1.5} />
+                <span className="text-sm font-semibold text-foreground">Trusted Pharmacy</span>
+                <span className="text-[11px] text-muted-foreground">Licensed & verified</span>
               </div>
             </div>
 
@@ -898,18 +901,21 @@ export default function ProductDetail() {
             </div>
 
             {/* Trust indicators */}
-            <div className="hidden lg:flex items-center gap-4 ml-auto pb-2">
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Shield className="size-4 text-slate-700" strokeWidth={1.5} />
-                <span className="font-medium">100% Genuine Products</span>
+            <div className="hidden lg:flex items-center gap-6 ml-auto pb-2">
+              <div className="flex flex-col items-center text-center gap-1">
+                <Shield className="size-5 text-slate-700" strokeWidth={1.5} />
+                <span className="text-xs font-semibold text-foreground">100% Genuine</span>
+                <span className="text-[10px] text-muted-foreground">Products</span>
               </div>
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Calendar className="size-4 text-slate-700" strokeWidth={1.5} />
-                <span className="font-medium">Expiry After {p.expiryDate ? new Date(p.expiryDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—"}</span>
+              <div className="flex flex-col items-center text-center gap-1">
+                <Calendar className="size-5 text-slate-700" strokeWidth={1.5} />
+                <span className="text-xs font-semibold text-foreground">Expiry After</span>
+                <span className="text-[10px] text-muted-foreground">{p.expiryDate ? new Date(p.expiryDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—"}</span>
               </div>
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <CreditCard className="size-4 text-slate-700" strokeWidth={1.5} />
-                <span className="font-medium">Safe & Secure Payments</span>
+              <div className="flex flex-col items-center text-center gap-1">
+                <CreditCard className="size-5 text-slate-700" strokeWidth={1.5} />
+                <span className="text-xs font-semibold text-foreground">Safe & Secure</span>
+                <span className="text-[10px] text-muted-foreground">Payments</span>
               </div>
             </div>
           </div>
@@ -943,18 +949,21 @@ export default function ProductDetail() {
           </div>
 
           {/* Mobile trust indicators */}
-          <div className="flex lg:hidden flex-wrap items-center gap-3 pb-3 pt-1">
-            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-              <Shield className="size-3.5 text-slate-700" strokeWidth={1.5} />
-              <span className="font-medium">100% Genuine</span>
+          <div className="flex lg:hidden flex-wrap items-center gap-4 pb-3 pt-2 justify-center">
+            <div className="flex flex-col items-center text-center gap-0.5">
+              <Shield className="size-4 text-slate-700" strokeWidth={1.5} />
+              <span className="text-[10px] font-semibold text-foreground">100% Genuine</span>
+              <span className="text-[9px] text-muted-foreground">Products</span>
             </div>
-            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-              <Calendar className="size-3.5 text-slate-700" strokeWidth={1.5} />
-              <span className="font-medium">Expiry {p.expiryDate ? new Date(p.expiryDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—"}</span>
+            <div className="flex flex-col items-center text-center gap-0.5">
+              <Calendar className="size-4 text-slate-700" strokeWidth={1.5} />
+              <span className="text-[10px] font-semibold text-foreground">Expiry After</span>
+              <span className="text-[9px] text-muted-foreground">{p.expiryDate ? new Date(p.expiryDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—"}</span>
             </div>
-            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-              <CreditCard className="size-3.5 text-slate-700" strokeWidth={1.5} />
-              <span className="font-medium">Secure Payments</span>
+            <div className="flex flex-col items-center text-center gap-0.5">
+              <CreditCard className="size-4 text-slate-700" strokeWidth={1.5} />
+              <span className="text-[10px] font-semibold text-foreground">Safe & Secure</span>
+              <span className="text-[9px] text-muted-foreground">Payments</span>
             </div>
           </div>
         </motion.div>
@@ -963,7 +972,7 @@ export default function ProductDetail() {
         <motion.div id="product-info" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="mt-8 scroll-mt-24">
           <h3 className="text-lg font-bold mb-4">Product Information</h3>
           <Card className="border-border/60">
-            <CardContent className="p-6">
+            <CardContent className="p-6 space-y-4">
               <p className="text-sm leading-relaxed text-muted-foreground">
                 {p.description || (
                   <>
@@ -971,13 +980,29 @@ export default function ProductDetail() {
                     {p.composition ? <> It contains <strong>{p.composition}</strong> as its active {p.composition.split("+").length > 1 ? "ingredients" : "ingredient"}.</> : ""}
                     {p.strength ? <> The strength of this product is {p.strength}.</> : ""}
                     <> It comes in a {p.packSize} pack and is available at Kalyan Chemist.</>
-                    {p.prescriptionRequired
-                      ? <> This is a prescription medicine and should be used under the guidance of a registered medical practitioner.</>
-                      : <> This is an over-the-counter product that can be purchased without a prescription.</>
-                    }
-                    <> For best results, store in a cool, dry place away from direct sunlight and follow the recommended dosage.</>
                   </>
                 )}
+              </p>
+              <div className="grid sm:grid-cols-2 gap-3">
+                <div className="p-3 rounded-xl bg-primary/[0.03]">
+                  <p className="text-xs font-semibold text-primary mb-1">Therapeutic Category</p>
+                  <p className="text-sm text-muted-foreground">{cat?.name || "General medicine"}</p>
+                </div>
+                <div className="p-3 rounded-xl bg-primary/[0.03]">
+                  <p className="text-xs font-semibold text-primary mb-1">Primary Use</p>
+                  <p className="text-sm text-muted-foreground">{p.benefits ? p.benefits.split(". ")[0]?.trim().replace(/\.$/, "") || "Therapeutic use" : "Please refer to the composition and consult your healthcare provider for specific therapeutic applications."}</p>
+                </div>
+                <div className="p-3 rounded-xl bg-primary/[0.03]">
+                  <p className="text-xs font-semibold text-primary mb-1">Dosage Form</p>
+                  <p className="text-sm text-muted-foreground capitalize">{p.form ? `${p.form} (${p.consumeType || "as directed"})` : p.consumeType || "As directed by physician"}</p>
+                </div>
+                <div className="p-3 rounded-xl bg-primary/[0.03]">
+                  <p className="text-xs font-semibold text-primary mb-1">Availability</p>
+                  <p className="text-sm text-muted-foreground">Available at Kalyan Chemist — online ordering with fast home delivery across serviceable areas.</p>
+                </div>
+              </div>
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                This product is intended for {p.prescriptionRequired ? "prescription-based use" : "general consumer use"} and should be taken as recommended. Always check the packaging for detailed instructions specific to your batch. For further guidance on suitability or usage duration, consult your physician or pharmacist.
               </p>
             </CardContent>
           </Card>
@@ -987,20 +1012,26 @@ export default function ProductDetail() {
         <motion.div id="medical-benefits" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="mt-8 scroll-mt-24">
           <h3 className="text-lg font-bold mb-4">Medical Benefits</h3>
           <Card className="border-border/60">
-            <CardContent className="p-6">
+            <CardContent className="p-6 space-y-4">
               {p.benefits ? (
-                <div className="space-y-3">
-                  {p.benefits.split(". ").filter(Boolean).map((sentence, i) => (
-                    <div key={i} className="flex items-start gap-3">
-                      <div className="size-6 rounded-full bg-green-50 flex items-center justify-center shrink-0 mt-0.5">
-                        <span className="text-xs font-bold text-green-600">{i + 1}</span>
+                <>
+                  <p className="text-sm leading-relaxed text-muted-foreground">
+                    {p.name} is formulated to provide targeted therapeutic relief. The active {p.composition?.split("+").length === 1 ? "ingredient" : "ingredients"}{p.composition ? ` (${p.composition})` : ""} work together to deliver effective and reliable results for the intended therapeutic use.
+                  </p>
+                  <div className="space-y-3">
+                    {p.benefits.split(". ").filter(Boolean).map((sentence, i) => (
+                      <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-green-50/50 border border-green-100/60">
+                        <div className="size-6 rounded-full bg-green-100 flex items-center justify-center shrink-0 mt-0.5">
+                          <span className="text-xs font-bold text-green-600">{i + 1}</span>
+                        </div>
+                        <p className="text-sm leading-relaxed text-green-900/80">{sentence.trim().replace(/\.$/, "")}.</p>
                       </div>
-                      <p className="text-sm leading-relaxed text-muted-foreground">{sentence.trim().replace(/\.$/, "")}.</p>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground italic pt-1">Disclaimer: Benefits described are based on the known pharmacological properties of the active ingredients. Results may vary. Always follow your physician's advice for the best therapeutic outcome.</p>
+                </>
               ) : (
-                <p className="text-sm text-muted-foreground italic">No specific medical benefits listed for this product.</p>
+                <p className="text-sm text-muted-foreground italic">Detailed medical benefits are not available for this product. Please consult your healthcare provider for information about its therapeutic use.</p>
               )}
             </CardContent>
           </Card>
@@ -1010,24 +1041,30 @@ export default function ProductDetail() {
         <motion.div id="key-ingredients" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="mt-8 scroll-mt-24">
           <h3 className="text-lg font-bold mb-4">Key Ingredients</h3>
           <Card className="border-border/60">
-            <CardContent className="p-6">
+            <CardContent className="p-6 space-y-4">
               {p.composition ? (
-                <div>
-                  <p className="text-sm leading-relaxed text-muted-foreground mb-3">
-                    {p.name} contains the following active {p.composition.split("+").length > 1 ? "ingredients" : "ingredient"}:
+                <>
+                  <p className="text-sm leading-relaxed text-muted-foreground">
+                    The therapeutic action of {p.name} is driven by the following active {p.composition.split("+").length > 1 ? "ingredients" : "ingredient"}. Each component is carefully selected for its proven efficacy in the intended therapeutic area.
                   </p>
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     {p.composition.split("+").map((comp, i) => (
-                      <div key={i} className="flex items-center gap-2 p-2 rounded-lg bg-primary/[0.03]">
-                        <Pill className="size-3.5 text-primary shrink-0" />
-                        <span className="text-sm font-medium text-foreground">{comp.trim()}</span>
+                      <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-primary/[0.03] border border-primary/10">
+                        <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                          <Pill className="size-4 text-primary" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-foreground">{comp.trim()}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">Active component contributing to the therapeutic effect of this product.</p>
+                        </div>
                       </div>
                     ))}
                   </div>
-                  {p.strength && <p className="text-xs text-muted-foreground mt-3">Strength: {p.strength}</p>}
-                </div>
+                  {p.strength && <p className="text-xs text-muted-foreground">Each unit contains a strength of {p.strength}, as specified by the manufacturer.</p>}
+                  <p className="text-xs text-muted-foreground italic">Inactive ingredients may include excipients, binders, and coating agents as specified on the product packaging. Please refer to the label for a complete list.</p>
+                </>
               ) : (
-                <p className="text-sm text-muted-foreground italic">Ingredient information not available for this product.</p>
+                <p className="text-sm text-muted-foreground italic">Detailed ingredient information is not available for this product. Please check the product packaging or consult your pharmacist.</p>
               )}
             </CardContent>
           </Card>
@@ -1037,15 +1074,30 @@ export default function ProductDetail() {
         <motion.div id="directions-for-use" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="mt-8 scroll-mt-24">
           <h3 className="text-lg font-bold mb-4">Directions for Use</h3>
           <Card className="border-border/60">
-            <CardContent className="p-6">
+            <CardContent className="p-6 space-y-4">
               <p className="text-sm leading-relaxed text-muted-foreground">
-                {p.consumeType || (
-                  p.form ? `${p.name} is a ${p.form} formulation.` : `${p.name} is a medication.`
-                )}
-                {' '}Use as directed by your physician or pharmacist. Follow the dosage instructions on the packaging or as prescribed.
-                {p.prescriptionRequired ? " This medicine requires a valid prescription from a registered medical practitioner — do not self-medicate." : ""}
-                {' '}If you have any questions about usage, please consult your healthcare provider.
+                {p.consumeType || (p.form ? `${p.name} is a ${p.form} formulation designed for therapeutic use.` : `${p.name} is a therapeutic product.`)}
+                {' '}Follow the dosage schedule recommended by your physician or as indicated on the product label.
               </p>
+              <div className="grid sm:grid-cols-2 gap-3">
+                <div className="p-3 rounded-xl bg-blue-50/50 border border-blue-100/60">
+                  <p className="text-xs font-semibold text-blue-700 mb-1">How to Take</p>
+                  <p className="text-sm text-blue-900/80">{p.form === "syrup" || p.form === "suspension" ? `Measure the dose using the provided measuring cup or syringe. Do not use a household spoon.` : p.form === "cream" || p.form === "gel" || p.form === "ointment" ? `Apply a thin, even layer to the affected area. Gently massage until absorbed. Wash hands before and after application.` : p.form === "drops" ? `Instill the recommended number of drops into the affected area as directed.` : `Swallow the ${p.form || "tablet"} with a glass of water. Take after a meal or as directed by your physician.`}</p>
+                </div>
+                <div className="p-3 rounded-xl bg-blue-50/50 border border-blue-100/60">
+                  <p className="text-xs font-semibold text-blue-700 mb-1">Timing</p>
+                  <p className="text-sm text-blue-900/80">Take at regular intervals as prescribed. If you miss a dose, take it as soon as you remember unless it is almost time for the next dose. Do not double the dose to make up for a missed one.</p>
+                </div>
+                <div className="p-3 rounded-xl bg-blue-50/50 border border-blue-100/60">
+                  <p className="text-xs font-semibold text-blue-700 mb-1">Duration</p>
+                  <p className="text-sm text-blue-900/80">Complete the full course of treatment as advised by your physician, even if symptoms improve early. Stopping a prescription medication prematurely may reduce its effectiveness.</p>
+                </div>
+                <div className="p-3 rounded-xl bg-blue-50/50 border border-blue-100/60">
+                  <p className="text-xs font-semibold text-blue-700 mb-1">Important</p>
+                  <p className="text-sm text-blue-900/80">{p.prescriptionRequired ? `Do not self-medicate. This product requires a valid prescription and should only be used under medical supervision.` : `While this product is available without a prescription, it is recommended to consult your healthcare provider before starting any new medication.`}</p>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground italic">These directions are general guidelines. Always follow the specific instructions provided by your physician or on the product label.</p>
             </CardContent>
           </Card>
         </motion.div>
@@ -1054,12 +1106,32 @@ export default function ProductDetail() {
         <motion.div id="safety" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="mt-8 scroll-mt-24">
           <h3 className="text-lg font-bold mb-4">Safety</h3>
           <Card className="border-border/60">
-            <CardContent className="p-6 space-y-3">
-              {p.safetyNote && <p className="text-sm leading-relaxed text-muted-foreground">{p.safetyNote}</p>}
-              <p className="text-sm text-muted-foreground">Keep out of reach of children. Store below 30°C in a dry place, away from direct sunlight and moisture.</p>
-              <p className="text-sm text-muted-foreground">Do not use after the expiry date printed on the packaging. Discard any unused or expired product safely.</p>
-              {p.prescriptionRequired && <p className="text-sm text-amber-600 font-medium">Prescription required — consult your doctor before use. Do not exceed the recommended dose.</p>}
-              <p className="text-sm text-muted-foreground">If you experience any adverse reactions, discontinue use immediately and seek medical attention.</p>
+            <CardContent className="p-6 space-y-4">
+              {p.safetyNote && (
+                <div className="p-3 rounded-xl bg-amber-50 border border-amber-200">
+                  <p className="text-xs font-semibold text-amber-700 mb-1">Manufacturer Safety Note</p>
+                  <p className="text-sm text-amber-900/80 leading-relaxed">{p.safetyNote}</p>
+                </div>
+              )}
+              <div className="grid sm:grid-cols-2 gap-3">
+                <div className="p-3 rounded-xl bg-red-50/50 border border-red-100/60">
+                  <p className="text-xs font-semibold text-red-700 mb-1">Storage</p>
+                  <p className="text-sm text-red-900/80">{p.storageInformation || `Store below 30°C in a dry place, away from direct sunlight and moisture. Keep out of reach of children.`}</p>
+                </div>
+                <div className="p-3 rounded-xl bg-red-50/50 border border-red-100/60">
+                  <p className="text-xs font-semibold text-red-700 mb-1">Expiry Warning</p>
+                  <p className="text-sm text-red-900/80">Do not use after the expiry date printed on the packaging. Expired medications may lose their effectiveness and can pose health risks. Discard safely.</p>
+                </div>
+                <div className="p-3 rounded-xl bg-red-50/50 border border-red-100/60">
+                  <p className="text-xs font-semibold text-red-700 mb-1">Allergic Reactions</p>
+                  <p className="text-sm text-red-900/80">Before taking {p.name}, check the ingredient list for any known allergies. If you develop rashes, swelling, difficulty breathing, or any unusual symptoms, stop using immediately and seek emergency medical help.</p>
+                </div>
+                <div className="p-3 rounded-xl bg-red-50/50 border border-red-100/60">
+                  <p className="text-xs font-semibold text-red-700 mb-1">Special Precautions</p>
+                  <p className="text-sm text-red-900/80">{p.prescriptionRequired ? `This is a prescription medication. Do not share it with others or use it without medical supervision. Inform your physician of all medications you are currently taking to avoid potential interactions.` : `While this is an over-the-counter product, it is not a substitute for professional medical advice. Consult your doctor if symptoms persist beyond the recommended duration.`}</p>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground italic">Always read the product leaflet/packaging for comprehensive safety information specific to your batch. Report any adverse events to your healthcare provider.</p>
             </CardContent>
           </Card>
         </motion.div>
@@ -1068,16 +1140,35 @@ export default function ProductDetail() {
         <motion.div id="information" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="mt-8 scroll-mt-24">
           <h3 className="text-lg font-bold mb-4">Information</h3>
           <Card className="border-border/60">
-            <CardContent className="p-6">
-              <div className="grid sm:grid-cols-2 gap-4">
-                {p.storageInformation && (
-                  <div className="p-3 rounded-xl bg-muted/30"><p className="text-xs font-semibold text-primary mb-1">Storage</p><p className="text-sm text-muted-foreground">{p.storageInformation}</p></div>
-                )}
-                <div className="p-3 rounded-xl bg-muted/30"><p className="text-xs font-semibold text-primary mb-1">Category</p><p className="text-sm text-muted-foreground">{cat?.name || "General"}</p></div>
-                <div className="p-3 rounded-xl bg-muted/30"><p className="text-xs font-semibold text-primary mb-1">Pack Size</p><p className="text-sm text-muted-foreground">{p.packSize}</p></div>
-                {p.form && <div className="p-3 rounded-xl bg-muted/30"><p className="text-xs font-semibold text-primary mb-1">Form</p><p className="text-sm text-muted-foreground capitalize">{p.form}</p></div>}
-                <div className="p-3 rounded-xl bg-muted/30"><p className="text-xs font-semibold text-primary mb-1">Available at</p><p className="text-sm text-muted-foreground">Kalyan Chemist — Online & Offline</p></div>
-                {p.expiryDate && <div className="p-3 rounded-xl bg-muted/30"><p className="text-xs font-semibold text-primary mb-1">Expiry</p><p className="text-sm text-green-700 font-medium">On or after {new Date(p.expiryDate).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}</p></div>}
+            <CardContent className="p-6 space-y-4">
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                Below you will find additional ordering, delivery, and availability details for {p.name}. This information is separate from the product specifications shown above.
+              </p>
+              <div className="grid sm:grid-cols-2 gap-3">
+                <div className="p-3 rounded-xl bg-primary/[0.03]">
+                  <p className="text-xs font-semibold text-primary mb-1">Ordering</p>
+                  <p className="text-sm text-muted-foreground">Order online from Kalyan Chemist for reliable home delivery. You can also place orders via WhatsApp for a quick and convenient experience.</p>
+                </div>
+                <div className="p-3 rounded-xl bg-primary/[0.03]">
+                  <p className="text-xs font-semibold text-primary mb-1">Delivery</p>
+                  <p className="text-sm text-muted-foreground">Available for delivery in all serviceable areas. Check your pincode at checkout to confirm delivery availability and estimated delivery time.</p>
+                </div>
+                <div className="p-3 rounded-xl bg-primary/[0.03]">
+                  <p className="text-xs font-semibold text-primary mb-1">Payment Options</p>
+                  <p className="text-sm text-muted-foreground">Pay securely online via UPI, credit/debit cards, net banking, or choose Cash on Delivery (COD) where available.</p>
+                </div>
+                <div className="p-3 rounded-xl bg-primary/[0.03]">
+                  <p className="text-xs font-semibold text-primary mb-1">Customer Support</p>
+                  <p className="text-sm text-muted-foreground">Questions about this product? Reach out to our pharmacy team via WhatsApp or phone. Our experts are happy to help.</p>
+                </div>
+                <div className="p-3 rounded-xl bg-primary/[0.03]">
+                  <p className="text-xs font-semibold text-primary mb-1">Authenticity</p>
+                  <p className="text-sm text-muted-foreground">All products are sourced directly from {p.manufacturer || "the manufacturer"} or authorized distributors. Kalyan Chemist guarantees 100% authenticity.</p>
+                </div>
+                <div className="p-3 rounded-xl bg-primary/[0.03]">
+                  <p className="text-xs font-semibold text-primary mb-1">Returns</p>
+                  <p className="text-sm text-muted-foreground">{p.prescriptionRequired ? `Prescription medications are non-returnable once delivered. Please verify the product upon delivery.` : `Products in sealed, unopened condition may be eligible for return as per our return policy.`}</p>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -1087,10 +1178,12 @@ export default function ProductDetail() {
         <motion.div id="faqs" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="mt-8 scroll-mt-24">
           <h3 className="text-lg font-bold mb-4">Frequently Asked Questions</h3>
           <div className="space-y-3">
-            <Card className="border-border/60"><CardContent className="p-5"><p className="text-sm font-semibold mb-1">Is {p.name} genuine?</p><p className="text-sm text-muted-foreground">Yes, {p.name} at Kalyan Chemist is 100% genuine and sourced directly from {p.manufacturer} or authorized distributors.</p></CardContent></Card>
-            <Card className="border-border/60"><CardContent className="p-5"><p className="text-sm font-semibold mb-1">Do I need a prescription for {p.name}?</p><p className="text-sm text-muted-foreground">{p.prescriptionRequired ? `Yes, ${p.name} is a prescription medicine. A valid prescription from a registered medical practitioner is required to purchase this product.` : `No, ${p.name} is an over-the-counter product and can be purchased without a prescription.`}</p></CardContent></Card>
-            <Card className="border-border/60"><CardContent className="p-5"><p className="text-sm font-semibold mb-1">How should I store {p.name}?</p><p className="text-sm text-muted-foreground">{p.storageInformation || `Store ${p.name} in a cool, dry place below 30°C, away from direct sunlight and moisture. Keep out of reach of children.`}</p></CardContent></Card>
-            <Card className="border-border/60"><CardContent className="p-5"><p className="text-sm font-semibold mb-1">Can I return {p.name}?</p><p className="text-sm text-muted-foreground">{p.prescriptionRequired ? `Prescription medicines like ${p.name} cannot be returned once delivered. Please check the product upon delivery.` : `Please check our return policy for ${p.name}. Products must be unopened and in original packaging.`}</p></CardContent></Card>
+            <Card className="border-border/60"><CardContent className="p-5 space-y-1"><p className="text-sm font-semibold">Is {p.name} genuine at Kalyan Chemist?</p><p className="text-sm text-muted-foreground">Absolutely. Every unit of {p.name} is sourced directly from {p.manufacturer} or their authorized distributors. We maintain strict supply chain integrity, and each product goes through quality checks before dispatch.</p></CardContent></Card>
+            <Card className="border-border/60"><CardContent className="p-5 space-y-1"><p className="text-sm font-semibold">{p.prescriptionRequired ? `Do I need a prescription for ${p.name}?` : `Can I buy ${p.name} without a prescription?`}</p><p className="text-sm text-muted-foreground">{p.prescriptionRequired ? `Yes, ${p.name} is a prescription-only medicine (Rx). A valid prescription from a registered medical practitioner is mandatory for purchase. You can upload your prescription during checkout, and our pharmacist will verify it before processing your order.` : `${p.name} is available as an over-the-counter (OTC) product and can be purchased directly without a prescription. However, we recommend consulting your physician for personalised dosage guidance.`}</p></CardContent></Card>
+            <Card className="border-border/60"><CardContent className="p-5 space-y-1"><p className="text-sm font-semibold">How long does delivery take for {p.name}?</p><p className="text-sm text-muted-foreground">Delivery times depend on your location. Orders within Kalyan Chemist's serviceable areas are typically delivered within the estimated timeframe shown at checkout. Same-day dispatch is available for orders placed before the cut-off time.</p></CardContent></Card>
+            <Card className="border-border/60"><CardContent className="p-5 space-y-1"><p className="text-sm font-semibold">What if {p.name} is out of stock?</p><p className="text-sm text-muted-foreground">If {p.name} is temporarily unavailable, you can place an enquiry via WhatsApp and we will notify you as soon as it is restocked. Our pharmacy team can also suggest suitable alternatives where appropriate.</p></CardContent></Card>
+            <Card className="border-border/60"><CardContent className="p-5 space-y-1"><p className="text-sm font-semibold">Can I track my order for {p.name}?</p><p className="text-sm text-muted-foreground">Yes. Once your order is confirmed, you will receive real-time order status updates through your Kalyan Chemist account. You can also reach out via WhatsApp for order assistance.</p></CardContent></Card>
+            <Card className="border-border/60"><CardContent className="p-5 space-y-1"><p className="text-sm font-semibold">{p.prescriptionRequired ? `Can I share the prescription after placing the order?` : `Is there a limit on how many units I can order?`}</p><p className="text-sm text-muted-foreground">{p.prescriptionRequired ? `Yes. You can upload a valid prescription during checkout or share it via WhatsApp. Our pharmacist will verify the prescription before your order is dispatched. Orders without a verified prescription will not be processed.` : `There is no strict limit for personal use. However, bulk orders may require additional verification. Contact our team via WhatsApp for large quantity orders.`}</p></CardContent></Card>
           </div>
         </motion.div>
 
