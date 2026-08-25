@@ -47,6 +47,9 @@ import {
   Mail,
   Copy,
   ExternalLink,
+  Shield,
+  CreditCard,
+  Clock,
 } from "lucide-react";
 import { useState, useCallback } from "react";
 import {
@@ -864,14 +867,57 @@ export default function ProductDetail() {
           transition={{ delay: 0.15 }}
           className="mt-10 border-b border-border/60"
         >
-          <div className="flex flex-wrap gap-x-6 gap-y-1">
+          {/* Row 1: tabs + trust indicators */}
+          <div className="flex flex-wrap items-center gap-x-4 lg:gap-x-6 gap-y-1">
+            <div className="flex flex-wrap gap-x-4 lg:gap-x-6">
+              {(
+                [
+                  { id: "product-info", label: "Product Information" },
+                  { id: "medical-benefits", label: "Medical Benefits" },
+                  { id: "key-ingredients", label: "Key Ingredients" },
+                  { id: "directions-for-use", label: "Directions for Use" },
+                  { id: "safety", label: "Safety" },
+                ] as const
+              ).map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => {
+                    setActiveTab(tab.id);
+                    document.getElementById(tab.id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }}
+                  className={`py-3 text-xs sm:text-sm font-semibold tracking-wide uppercase transition-colors border-b-2 -mb-px ${
+                    activeTab === tab.id
+                      ? "border-primary text-primary"
+                      : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Trust indicators */}
+            <div className="hidden lg:flex items-center gap-4 ml-auto pb-2">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Shield className="size-4 text-green-600" />
+                <span className="font-medium">100% Genuine Products</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Clock className="size-4 text-blue-600" />
+                <span className="font-medium">Expiry After {p.expiryDate ? new Date(p.expiryDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—"}</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <CreditCard className="size-4 text-purple-600" />
+                <span className="font-medium">Safe & Secure Payments</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Row 2: remaining tabs */}
+          <div className="flex flex-wrap gap-x-4 lg:gap-x-6 gap-y-1">
             {(
               [
-                { id: "product-info", label: "Product Information" },
-                { id: "medical-benefits", label: "Medical Benefits" },
-                { id: "key-ingredients", label: "Key Ingredients" },
-                { id: "directions-for-use", label: "Directions for Use" },
-                { id: "safety", label: "Safety" },
                 { id: "information", label: "Information" },
                 { id: "faqs", label: "FAQs" },
                 { id: "customers-also-bought", label: "Customers Also Bought" },
@@ -895,35 +941,42 @@ export default function ProductDetail() {
               </button>
             ))}
           </div>
+
+          {/* Mobile trust indicators */}
+          <div className="flex lg:hidden flex-wrap items-center gap-3 pb-3 pt-1">
+            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              <Shield className="size-3.5 text-green-600" />
+              <span>100% Genuine</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              <Clock className="size-3.5 text-blue-600" />
+              <span>Expiry {p.expiryDate ? new Date(p.expiryDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—"}</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              <CreditCard className="size-3.5 text-purple-600" />
+              <span>Secure Payments</span>
+            </div>
+          </div>
         </motion.div>
 
         {/* ── Product Information ── */}
         <motion.div id="product-info" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="mt-8 scroll-mt-24">
           <h3 className="text-lg font-bold mb-4">Product Information</h3>
           <Card className="border-border/60">
-            <CardContent className="p-0">
-              <Table>
-                <TableBody>
-                  <TableRow><TableCell className="font-medium text-muted-foreground">Product Name</TableCell><TableCell>{p.name}</TableCell></TableRow>
-                  <TableRow><TableCell className="font-medium text-muted-foreground">Manufacturer</TableCell><TableCell>{p.manufacturer}</TableCell></TableRow>
-                  {p.composition && <TableRow><TableCell className="font-medium text-muted-foreground">Composition</TableCell><TableCell>{p.composition}</TableCell></TableRow>}
-                  {p.form && <TableRow><TableCell className="font-medium text-muted-foreground">Form</TableCell><TableCell className="capitalize">{p.form}</TableCell></TableRow>}
-                  {p.strength && <TableRow><TableCell className="font-medium text-muted-foreground">Strength</TableCell><TableCell>{p.strength}</TableCell></TableRow>}
-                  <TableRow><TableCell className="font-medium text-muted-foreground">Pack Size</TableCell><TableCell>{p.packSize}</TableCell></TableRow>
-                  <TableRow><TableCell className="font-medium text-muted-foreground">Price</TableCell><TableCell>{formatCurrency(hasDiscount ? p.discountPrice! : p.price)}</TableCell></TableRow>
-                  {p.expiryDate && <TableRow><TableCell className="font-medium text-muted-foreground">Expires On or After</TableCell><TableCell className="text-green-700 font-medium">{new Date(p.expiryDate).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}</TableCell></TableRow>}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-          <Card className="border-border/60 mt-4">
             <CardContent className="p-6">
-              <h4 className="font-bold mb-2">Description</h4>
               <p className="text-sm leading-relaxed text-muted-foreground">
                 {p.description || (
-                  <span className="italic text-muted-foreground/60">
-                    {p.name} is a {p.form || "medication"} manufactured by {p.manufacturer}.{p.composition ? ` It contains ${p.composition}.` : ""} {p.prescriptionRequired ? "This is a prescription medicine." : "This is an over-the-counter product."} Store in a cool, dry place away from direct sunlight.
-                  </span>
+                  <>
+                    <strong>{p.name}</strong> is a {p.form || "medication"} manufactured by <strong>{p.manufacturer}</strong>.
+                    {p.composition ? <> It contains <strong>{p.composition}</strong> as its active {p.composition.split("+").length > 1 ? "ingredients" : "ingredient"}.</> : ""}
+                    {p.strength ? <> The strength of this product is {p.strength}.</> : ""}
+                    <> It comes in a {p.packSize} pack and is available at Kalyan Chemist.</>
+                    {p.prescriptionRequired
+                      ? <> This is a prescription medicine and should be used under the guidance of a registered medical practitioner.</>
+                      : <> This is an over-the-counter product that can be purchased without a prescription.</>
+                    }
+                    <> For best results, store in a cool, dry place away from direct sunlight and follow the recommended dosage.</>
+                  </>
                 )}
               </p>
             </CardContent>
@@ -936,11 +989,13 @@ export default function ProductDetail() {
           <Card className="border-border/60">
             <CardContent className="p-6">
               {p.benefits ? (
-                <div className="text-sm leading-relaxed text-muted-foreground">
+                <div className="space-y-3">
                   {p.benefits.split(". ").filter(Boolean).map((sentence, i) => (
-                    <div key={i} className="flex items-start gap-2 mb-2">
-                      <span className="size-1.5 rounded-full bg-green-500 mt-2 shrink-0" />
-                      <span>{sentence.trim().replace(/\.$/, "")}.</span>
+                    <div key={i} className="flex items-start gap-3">
+                      <div className="size-6 rounded-full bg-green-50 flex items-center justify-center shrink-0 mt-0.5">
+                        <span className="text-xs font-bold text-green-600">{i + 1}</span>
+                      </div>
+                      <p className="text-sm leading-relaxed text-muted-foreground">{sentence.trim().replace(/\.$/, "")}.</p>
                     </div>
                   ))}
                 </div>
@@ -957,7 +1012,20 @@ export default function ProductDetail() {
           <Card className="border-border/60">
             <CardContent className="p-6">
               {p.composition ? (
-                <p className="text-sm leading-relaxed text-muted-foreground">{p.composition}</p>
+                <div>
+                  <p className="text-sm leading-relaxed text-muted-foreground mb-3">
+                    {p.name} contains the following active {p.composition.split("+").length > 1 ? "ingredients" : "ingredient"}:
+                  </p>
+                  <div className="space-y-2">
+                    {p.composition.split("+").map((comp, i) => (
+                      <div key={i} className="flex items-center gap-2 p-2 rounded-lg bg-primary/[0.03]">
+                        <Pill className="size-3.5 text-primary shrink-0" />
+                        <span className="text-sm font-medium text-foreground">{comp.trim()}</span>
+                      </div>
+                    ))}
+                  </div>
+                  {p.strength && <p className="text-xs text-muted-foreground mt-3">Strength: {p.strength}</p>}
+                </div>
               ) : (
                 <p className="text-sm text-muted-foreground italic">Ingredient information not available for this product.</p>
               )}
@@ -972,12 +1040,12 @@ export default function ProductDetail() {
             <CardContent className="p-6">
               <p className="text-sm leading-relaxed text-muted-foreground">
                 {p.consumeType || (
-                  p.form ? `This is a ${p.form} product. Use as directed by your physician or pharmacist.` : "Use as directed by your physician or pharmacist."
+                  p.form ? `${p.name} is a ${p.form} formulation.` : `${p.name} is a medication.`
                 )}
+                {' '}Use as directed by your physician or pharmacist. Follow the dosage instructions on the packaging or as prescribed.
+                {p.prescriptionRequired ? " This medicine requires a valid prescription from a registered medical practitioner — do not self-medicate." : ""}
+                {' '}If you have any questions about usage, please consult your healthcare provider.
               </p>
-              {p.prescriptionRequired && (
-                <p className="text-xs text-amber-600 mt-3 font-medium">This medicine requires a valid prescription from a registered medical practitioner.</p>
-              )}
             </CardContent>
           </Card>
         </motion.div>
@@ -987,13 +1055,11 @@ export default function ProductDetail() {
           <h3 className="text-lg font-bold mb-4">Safety</h3>
           <Card className="border-border/60">
             <CardContent className="p-6 space-y-3">
-              {p.safetyNote ? (
-                <p className="text-sm leading-relaxed text-muted-foreground">{p.safetyNote}</p>
-              ) : (
-                <p className="text-sm text-muted-foreground italic">Consult your doctor or pharmacist before use.</p>
-              )}
-              <p className="text-sm text-muted-foreground">Keep out of reach of children. Store in a cool, dry place away from direct sunlight.</p>
-              {p.prescriptionRequired && <p className="text-sm text-amber-600 font-medium">Prescription required — do not self-medicate.</p>}
+              {p.safetyNote && <p className="text-sm leading-relaxed text-muted-foreground">{p.safetyNote}</p>}
+              <p className="text-sm text-muted-foreground">Keep out of reach of children. Store below 30°C in a dry place, away from direct sunlight and moisture.</p>
+              <p className="text-sm text-muted-foreground">Do not use after the expiry date printed on the packaging. Discard any unused or expired product safely.</p>
+              {p.prescriptionRequired && <p className="text-sm text-amber-600 font-medium">Prescription required — consult your doctor before use. Do not exceed the recommended dose.</p>}
+              <p className="text-sm text-muted-foreground">If you experience any adverse reactions, discontinue use immediately and seek medical attention.</p>
             </CardContent>
           </Card>
         </motion.div>
@@ -1002,23 +1068,29 @@ export default function ProductDetail() {
         <motion.div id="information" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="mt-8 scroll-mt-24">
           <h3 className="text-lg font-bold mb-4">Information</h3>
           <Card className="border-border/60">
-            <CardContent className="p-6 space-y-3">
-              {p.storageInformation && (
-                <div><p className="text-sm font-semibold text-foreground mb-1">Storage</p><p className="text-sm text-muted-foreground">{p.storageInformation}</p></div>
-              )}
-              <div><p className="text-sm font-semibold text-foreground mb-1">Category</p><p className="text-sm text-muted-foreground">{cat?.name || "General"}</p></div>
-              <div><p className="text-sm font-semibold text-foreground mb-1">Available at</p><p className="text-sm text-muted-foreground">Kalyan Chemist — Online & Offline</p></div>
+            <CardContent className="p-6">
+              <div className="grid sm:grid-cols-2 gap-4">
+                {p.storageInformation && (
+                  <div className="p-3 rounded-xl bg-muted/30"><p className="text-xs font-semibold text-primary mb-1">Storage</p><p className="text-sm text-muted-foreground">{p.storageInformation}</p></div>
+                )}
+                <div className="p-3 rounded-xl bg-muted/30"><p className="text-xs font-semibold text-primary mb-1">Category</p><p className="text-sm text-muted-foreground">{cat?.name || "General"}</p></div>
+                <div className="p-3 rounded-xl bg-muted/30"><p className="text-xs font-semibold text-primary mb-1">Pack Size</p><p className="text-sm text-muted-foreground">{p.packSize}</p></div>
+                {p.form && <div className="p-3 rounded-xl bg-muted/30"><p className="text-xs font-semibold text-primary mb-1">Form</p><p className="text-sm text-muted-foreground capitalize">{p.form}</p></div>}
+                <div className="p-3 rounded-xl bg-muted/30"><p className="text-xs font-semibold text-primary mb-1">Available at</p><p className="text-sm text-muted-foreground">Kalyan Chemist — Online & Offline</p></div>
+                {p.expiryDate && <div className="p-3 rounded-xl bg-muted/30"><p className="text-xs font-semibold text-primary mb-1">Expiry</p><p className="text-sm text-green-700 font-medium">On or after {new Date(p.expiryDate).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}</p></div>}
+              </div>
             </CardContent>
           </Card>
         </motion.div>
 
         {/* ── FAQs ── */}
         <motion.div id="faqs" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="mt-8 scroll-mt-24">
-          <h3 className="text-lg font-bold mb-4">FAQs</h3>
+          <h3 className="text-lg font-bold mb-4">Frequently Asked Questions</h3>
           <div className="space-y-3">
-            <Card className="border-border/60"><CardContent className="p-5"><p className="text-sm font-semibold mb-1">Is this product genuine?</p><p className="text-sm text-muted-foreground">Yes, all products at Kalyan Chemist are 100% genuine and sourced directly from authorized distributors.</p></CardContent></Card>
-            <Card className="border-border/60"><CardContent className="p-5"><p className="text-sm font-semibold mb-1">Can I return this product?</p><p className="text-sm text-muted-foreground">{p.prescriptionRequired ? "Prescription medicines cannot be returned once delivered." : "Please check our return policy for this product category."}</p></CardContent></Card>
-            <Card className="border-border/60"><CardContent className="p-5"><p className="text-sm font-semibold mb-1">How long does delivery take?</p><p className="text-sm text-muted-foreground">Standard delivery is within 2-4 hours for local orders. Delivery times may vary based on your location.</p></CardContent></Card>
+            <Card className="border-border/60"><CardContent className="p-5"><p className="text-sm font-semibold mb-1">Is {p.name} genuine?</p><p className="text-sm text-muted-foreground">Yes, {p.name} at Kalyan Chemist is 100% genuine and sourced directly from {p.manufacturer} or authorized distributors.</p></CardContent></Card>
+            <Card className="border-border/60"><CardContent className="p-5"><p className="text-sm font-semibold mb-1">Do I need a prescription for {p.name}?</p><p className="text-sm text-muted-foreground">{p.prescriptionRequired ? `Yes, ${p.name} is a prescription medicine. A valid prescription from a registered medical practitioner is required to purchase this product.` : `No, ${p.name} is an over-the-counter product and can be purchased without a prescription.`}</p></CardContent></Card>
+            <Card className="border-border/60"><CardContent className="p-5"><p className="text-sm font-semibold mb-1">How should I store {p.name}?</p><p className="text-sm text-muted-foreground">{p.storageInformation || `Store ${p.name} in a cool, dry place below 30°C, away from direct sunlight and moisture. Keep out of reach of children.`}</p></CardContent></Card>
+            <Card className="border-border/60"><CardContent className="p-5"><p className="text-sm font-semibold mb-1">Can I return {p.name}?</p><p className="text-sm text-muted-foreground">{p.prescriptionRequired ? `Prescription medicines like ${p.name} cannot be returned once delivered. Please check the product upon delivery.` : `Please check our return policy for ${p.name}. Products must be unopened and in original packaging.`}</p></CardContent></Card>
           </div>
         </motion.div>
 
