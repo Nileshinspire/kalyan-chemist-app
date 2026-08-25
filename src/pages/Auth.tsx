@@ -63,11 +63,16 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
       setIsLoading(false);
     } catch (error) {
       console.error("Email sign-in error:", error);
-      setError(
-        error instanceof Error
-          ? error.message
-          : "We could not send a verification code. Please try again.",
-      );
+      const msg = error instanceof Error ? error.message : "";
+      if (msg.includes("Connection lost")) {
+        setError("Connection issue. Please check your internet and try again.");
+      } else if (msg.includes("rate limit")) {
+        setError("Too many attempts. Please wait a moment and try again.");
+      } else {
+        setError(
+          msg || "We could not send a verification code. Please try again.",
+        );
+      }
       setIsLoading(false);
     }
   };
@@ -82,7 +87,14 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
       navigate(redirect);
     } catch (error) {
       console.error("OTP verification error:", error);
-      setError("The verification code is incorrect. Please check and try again.");
+      const msg = error instanceof Error ? error.message : "";
+      if (msg.includes("Connection lost")) {
+        setError("Connection issue. Please check your internet and try again.");
+      } else if (msg.includes("expired")) {
+        setError("The verification code has expired. Please request a new one.");
+      } else {
+        setError("The verification code is incorrect. Please check and try again.");
+      }
       setIsLoading(false);
       setOtp("");
     }
