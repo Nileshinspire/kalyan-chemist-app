@@ -12,6 +12,8 @@ interface MedicineInfo {
   benefits: string;
   description: string;
   form: string;
+  expiryDate?: string;   // e.g. "2027-06-30" — actual batch expiry from manufacturer data
+  storageInformation?: string;
 }
 
 const MEDICINES_DB: Record<string, MedicineInfo> = {
@@ -106,7 +108,16 @@ function getStorageInfo(composition: string, form: string): string | null {
   for (const [key, info] of Object.entries(STORAGE_DB)) {
     if (f === key) return info;
   }
-  return null;
+  // Final fallback — generic for the form
+  if (f === "tablet" || f === "capsule") return "Store below 30°C in a dry place. Keep away from moisture and direct sunlight.";
+  if (f === "syrup" || f === "suspension") return "Store below 30°C. Keep away from direct sunlight. Do not freeze.";
+  if (f === "cream" || f === "gel" || f === "ointment") return "Store below 30°C. Do not freeze. Keep away from direct sunlight.";
+  if (f === "drops") return "Store below 25°C. Protect from light. Do not freeze.";
+  if (f === "injection") return "Store below 25°C. Protect from light. Do not freeze. Keep out of reach of children.";
+  if (f === "inhaler") return "Store below 30°C away from open flame. Do not puncture or incinerate.";
+  if (f === "sachet" || f === "powder") return "Store below 30°C in a dry place. Keep away from moisture.";
+  if (f === "nasal drops" || f === "nasal") return "Store below 25°C. Protect from light. Do not freeze.";
+  return "Store in a cool, dry place away from moisture and direct sunlight.";
 }
 
 // Known benefits fallback
@@ -502,9 +513,9 @@ export const enrichProduct = action({
       // Composition — return matched composition
       result.composition = matched.composition || null;
       // Expiry Date — use if available in DB, never calculate
-      result.expiryDate = (matched as any).expiryDate || null;
-      // Storage Information — based on composition and form
-      result.storageInformation = getStorageInfo(matched.composition || "", matched.form || args.form || "tablet");
+      result.expiryDate = matched.expiryDate || null;
+      // Storage Information — use medicine-specific if available, else compose from composition/form
+      result.storageInformation = matched.storageInformation || getStorageInfo(matched.composition || "", matched.form || args.form || "tablet");
     } else {
       // Fallback to known DBs
       for (const [key, mfr] of Object.entries(KNOWN_MANUFACTURERS)) {

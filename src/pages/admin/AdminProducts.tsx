@@ -286,8 +286,8 @@ export default function AdminProducts() {
         newForm.manufacturer = result.manufacturer;
         filled.push("Manufacturer");
       }
-      // Composition
-      if ((result as any).composition && !form.composition) {
+      // Composition — always overwrite with exact product composition
+      if ((result as any).composition) {
         newForm.composition = (result as any).composition;
         filled.push("Composition");
       }
@@ -296,13 +296,13 @@ export default function AdminProducts() {
         newForm.form = (result as any).form;
         filled.push("Form");
       }
-      // Expiry Date
-      if ((result as any).expiryDate && !form.expiryDate) {
+      // Expiry Date — fill if available (never calculated)
+      if ((result as any).expiryDate) {
         newForm.expiryDate = (result as any).expiryDate;
         filled.push("Expiry Date");
       }
       // Storage Information — always overwrite with product-specific storage
-      if ((result as any).storageInformation && !form.storageInformation) {
+      if ((result as any).storageInformation) {
         newForm.storageInformation = (result as any).storageInformation;
         filled.push("Storage Information");
       }
