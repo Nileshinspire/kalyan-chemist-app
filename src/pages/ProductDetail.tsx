@@ -49,7 +49,7 @@ import {
   ExternalLink,
   Shield,
   CreditCard,
-  Clock,
+  Calendar,
 } from "lucide-react";
 import { useState, useCallback } from "react";
 import {
@@ -767,16 +767,16 @@ export default function ProductDetail() {
 
             <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
               <div className="flex items-center gap-1.5">
-                <ShieldCheck className="size-3.5 text-primary" />
-                100% Genuine
+                <Truck className="size-3.5 text-slate-700" strokeWidth={1.5} />
+                <span className="font-medium">Fast Delivery</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <Truck className="size-3.5 text-primary" />
-                Fast Delivery
+                <Package className="size-3.5 text-slate-700" strokeWidth={1.5} />
+                <span className="font-medium">Secure Packaging</span>
               </div>
               <div className="flex items-center gap-1.5">
-                <Package className="size-3.5 text-primary" />
-                Secure Packaging
+                <ShieldCheck className="size-3.5 text-slate-700" strokeWidth={1.5} />
+                <span className="font-medium">Trusted Pharmacy</span>
               </div>
             </div>
 
@@ -900,15 +900,15 @@ export default function ProductDetail() {
             {/* Trust indicators */}
             <div className="hidden lg:flex items-center gap-4 ml-auto pb-2">
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Shield className="size-4 text-green-600" />
+                <Shield className="size-4 text-slate-700" strokeWidth={1.5} />
                 <span className="font-medium">100% Genuine Products</span>
               </div>
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Clock className="size-4 text-blue-600" />
+                <Calendar className="size-4 text-slate-700" strokeWidth={1.5} />
                 <span className="font-medium">Expiry After {p.expiryDate ? new Date(p.expiryDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—"}</span>
               </div>
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <CreditCard className="size-4 text-purple-600" />
+                <CreditCard className="size-4 text-slate-700" strokeWidth={1.5} />
                 <span className="font-medium">Safe & Secure Payments</span>
               </div>
             </div>
@@ -945,16 +945,16 @@ export default function ProductDetail() {
           {/* Mobile trust indicators */}
           <div className="flex lg:hidden flex-wrap items-center gap-3 pb-3 pt-1">
             <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-              <Shield className="size-3.5 text-green-600" />
-              <span>100% Genuine</span>
+              <Shield className="size-3.5 text-slate-700" strokeWidth={1.5} />
+              <span className="font-medium">100% Genuine</span>
             </div>
             <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-              <Clock className="size-3.5 text-blue-600" />
-              <span>Expiry {p.expiryDate ? new Date(p.expiryDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—"}</span>
+              <Calendar className="size-3.5 text-slate-700" strokeWidth={1.5} />
+              <span className="font-medium">Expiry {p.expiryDate ? new Date(p.expiryDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—"}</span>
             </div>
             <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-              <CreditCard className="size-3.5 text-purple-600" />
-              <span>Secure Payments</span>
+              <CreditCard className="size-3.5 text-slate-700" strokeWidth={1.5} />
+              <span className="font-medium">Secure Payments</span>
             </div>
           </div>
         </motion.div>
