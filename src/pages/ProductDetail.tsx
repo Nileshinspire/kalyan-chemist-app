@@ -697,21 +697,21 @@ export default function ProductDetail() {
               <Button
                 size="lg"
                 className="flex-1 h-12 text-sm font-semibold gap-2 gradient-primary text-white shadow-glow hover:shadow-card-hover transition-all hover:scale-[1.02] active:scale-[0.98] rounded-xl"
-                onClick={handleAddToCart}
-                disabled={!isInStock}
-              >
-                <ShoppingCart className="size-4" />
-                {isInStock ? "Add to Cart" : "Out of Stock"}
-              </Button>
-              <Button
-                size="lg"
-                variant="outline"
-                className="h-12 text-sm font-semibold gap-2 rounded-xl"
                 onClick={handleBuyNow}
                 disabled={!isInStock}
               >
                 <Zap className="size-4" />
                 Buy Now
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                className="h-12 text-sm font-semibold gap-2 rounded-xl"
+                onClick={handleAddToCart}
+                disabled={!isInStock}
+              >
+                <ShoppingCart className="size-4" />
+                {isInStock ? "Add to Cart" : "Out of Stock"}
               </Button>
               <Button
                 size="lg"
