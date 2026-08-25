@@ -50,6 +50,11 @@ import {
   Shield,
   CreditCard,
   Calendar,
+  BookOpen,
+  Stethoscope,
+  ClipboardList,
+  HelpCircle,
+  Search,
 } from "lucide-react";
 import { useState, useCallback } from "react";
 import {
@@ -863,120 +868,149 @@ export default function ProductDetail() {
           </motion.div>
         </div>
 
-        {/* Section Navigation Tabs */}
+        {/* Section Navigation Tabs — Premium Design */}
         <motion.div
-          initial={{ opacity: 0, y: 12 }}
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15 }}
-          className="mt-10 border-b border-border/60 shadow-[0_1px_3px_-1px_rgba(0,0,0,0.05)]"
+          transition={{ delay: 0.15, duration: 0.5, ease: "easeOut" }}
+          className="mt-10"
         >
-          {/* Row 1: tabs + trust indicators */}
-          <div className="flex flex-wrap items-center gap-x-4 lg:gap-x-6 gap-y-1">
-            <div className="flex flex-wrap gap-x-4 lg:gap-x-6">
+          {/* Tab bar container */}
+          <div className="rounded-2xl border border-border/50 bg-gradient-to-b from-card/80 to-card shadow-[0_2px_8px_-2px_rgba(0,0,0,0.06),0_1px_2px_-1px_rgba(0,0,0,0.04)] overflow-hidden">
+            {/* Row 1: tabs + trust indicators */}
+            <div className="flex flex-wrap items-center gap-x-1 lg:gap-x-2 gap-y-1 px-2 pt-2">
+              <div className="flex flex-wrap gap-x-1 lg:gap-x-1.5">
+                {(
+                  [
+                    { id: "product-info", label: "Product Information", icon: BookOpen },
+                    { id: "medical-benefits", label: "Medical Benefits", icon: Stethoscope },
+                    { id: "key-ingredients", label: "Key Ingredients", icon: Pill },
+                    { id: "directions-for-use", label: "Directions for Use", icon: ClipboardList },
+                    { id: "safety", label: "Safety", icon: ShieldCheck },
+                  ] as const
+                ).map((tab) => {
+                  const Icon = tab.icon;
+                  const isActive = activeTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => {
+                        setActiveTab(tab.id);
+                        document.getElementById(tab.id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+                      }}
+                      className={`relative flex items-center gap-1.5 py-2.5 px-3 text-[11px] sm:text-xs font-semibold tracking-wide uppercase rounded-xl transition-all duration-300 group ${
+                        isActive
+                          ? "bg-primary/10 text-primary shadow-[0_0_0_1px_rgba(var(--primary-rgb,59,130,246),0.15)]"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                      }`}
+                    >
+                      <Icon className={`size-3.5 transition-all duration-300 ${isActive ? "text-primary" : "text-muted-foreground/60 group-hover:text-foreground/70"}`} strokeWidth={isActive ? 2 : 1.5} />
+                      <span className="hidden sm:inline">{tab.label}</span>
+                      <span className="sm:hidden">{tab.label.split(" ")[0]}</span>
+                      {isActive && (
+                        <motion.span
+                          layoutId="activeTabIndicator"
+                          className="absolute inset-0 rounded-xl border border-primary/20 bg-primary/5"
+                          transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                        />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Trust indicators */}
+              <div className="hidden lg:flex items-center gap-5 ml-6 pl-5 border-l border-border/40">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Shield className="size-4 text-slate-700" strokeWidth={1.5} />
+                  <div className="flex flex-col">
+                    <span className="text-[11px] font-semibold text-foreground leading-tight">100% Genuine</span>
+                    <span className="text-[9px] text-muted-foreground leading-tight">Products</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <Calendar className="size-4 text-slate-700" strokeWidth={1.5} />
+                  <div className="flex flex-col">
+                    <span className="text-[11px] font-semibold text-foreground leading-tight">Expiry After</span>
+                    <span className="text-[9px] text-muted-foreground leading-tight">{p.expiryDate ? new Date(p.expiryDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—"}</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <CreditCard className="size-4 text-slate-700" strokeWidth={1.5} />
+                  <div className="flex flex-col">
+                    <span className="text-[11px] font-semibold text-foreground leading-tight">Safe & Secure</span>
+                    <span className="text-[9px] text-muted-foreground leading-tight">Payments</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Row 2: remaining tabs */}
+            <div className="flex flex-wrap gap-x-1 lg:gap-x-1.5 px-2 pb-2 pt-1">
               {(
                 [
-                  { id: "product-info", label: "Product Information" },
-                  { id: "medical-benefits", label: "Medical Benefits" },
-                  { id: "key-ingredients", label: "Key Ingredients" },
-                  { id: "directions-for-use", label: "Directions for Use" },
-                  { id: "safety", label: "Safety" },
+                  { id: "information", label: "Information", icon: Info },
+                  { id: "faqs", label: "FAQs", icon: HelpCircle },
+                  { id: "customers-also-bought", label: "Customers Also Bought", icon: ShoppingCart },
+                  { id: "other-links", label: "Other Links", icon: Link2 },
                 ] as const
-              ).map((tab) => (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => {
-                    setActiveTab(tab.id);
-                    document.getElementById(tab.id)?.scrollIntoView({ behavior: "smooth", block: "start" });
-                  }}
-                  className={`relative py-3 px-1 text-xs sm:text-sm font-semibold tracking-wide uppercase transition-all duration-300 border-b-2 -mb-px rounded-t-lg hover:scale-[1.02] active:scale-[0.98] ${
-                    activeTab === tab.id
-                      ? "border-primary text-primary bg-primary/[0.04]"
-                      : "border-transparent text-muted-foreground hover:text-foreground hover:border-border/50 hover:bg-muted/30"
-                  }`}
-                >
-                  {tab.label}
-                  {activeTab === tab.id && (
-                    <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-4/5 h-[2px] rounded-full bg-primary animate-[pulse_2s_ease-in-out_infinite]" />
-                  )}
-                </button>
-              ))}
+              ).map((tab) => {
+                const Icon = tab.icon;
+                const isActive = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => {
+                      setActiveTab(tab.id);
+                      document.getElementById(tab.id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }}
+                    className={`relative flex items-center gap-1.5 py-2.5 px-3 text-[11px] sm:text-xs font-semibold tracking-wide uppercase rounded-xl transition-all duration-300 group ${
+                      isActive
+                        ? "bg-primary/10 text-primary shadow-[0_0_0_1px_rgba(var(--primary-rgb,59,130,246),0.15)]"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                    }`}
+                  >
+                    <Icon className={`size-3.5 transition-all duration-300 ${isActive ? "text-primary" : "text-muted-foreground/60 group-hover:text-foreground/70"}`} strokeWidth={isActive ? 2 : 1.5} />
+                    <span className="hidden sm:inline">{tab.label}</span>
+                    <span className="sm:hidden">{tab.label.split(" ")[0]}</span>
+                    {isActive && (
+                      <motion.span
+                        layoutId="activeTabIndicator2"
+                        className="absolute inset-0 rounded-xl border border-primary/20 bg-primary/5"
+                        transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                      />
+                    )}
+                  </button>
+                );
+              })}
             </div>
 
-            {/* Trust indicators */}
-            <div className="hidden lg:flex items-center gap-6 ml-8 pb-2">
-              <div className="flex flex-col items-center text-center gap-1">
-                <Shield className="size-5 text-slate-700" strokeWidth={1.5} />
-                <span className="text-xs font-semibold text-foreground">100% Genuine</span>
-                <span className="text-[10px] text-muted-foreground">Products</span>
+            {/* Mobile trust indicators */}
+            <div className="flex lg:hidden flex-wrap items-center gap-4 px-4 pb-3 pt-1 justify-center border-t border-border/30">
+              <div className="flex items-center gap-1.5">
+                <Shield className="size-3.5 text-slate-700" strokeWidth={1.5} />
+                <span className="text-[10px] font-semibold text-foreground">100% Genuine</span>
               </div>
-              <div className="flex flex-col items-center text-center gap-1">
-                <Calendar className="size-5 text-slate-700" strokeWidth={1.5} />
-                <span className="text-xs font-semibold text-foreground">Expiry After</span>
-                <span className="text-[10px] text-muted-foreground">{p.expiryDate ? new Date(p.expiryDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—"}</span>
+              <div className="flex items-center gap-1.5">
+                <Calendar className="size-3.5 text-slate-700" strokeWidth={1.5} />
+                <span className="text-[10px] font-semibold text-foreground">Expiry {p.expiryDate ? new Date(p.expiryDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—"}</span>
               </div>
-              <div className="flex flex-col items-center text-center gap-1">
-                <CreditCard className="size-5 text-slate-700" strokeWidth={1.5} />
-                <span className="text-xs font-semibold text-foreground">Safe & Secure</span>
-                <span className="text-[10px] text-muted-foreground">Payments</span>
+              <div className="flex items-center gap-1.5">
+                <CreditCard className="size-3.5 text-slate-700" strokeWidth={1.5} />
+                <span className="text-[10px] font-semibold text-foreground">Secure Payments</span>
               </div>
-            </div>
-          </div>
-
-          {/* Row 2: remaining tabs */}
-          <div className="flex flex-wrap gap-x-4 lg:gap-x-6 gap-y-1">
-            {(
-              [
-                { id: "information", label: "Information" },
-                { id: "faqs", label: "FAQs" },
-                { id: "customers-also-bought", label: "Customers Also Bought" },
-                { id: "other-links", label: "Other Links" },
-              ] as const
-            ).map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => {
-                  setActiveTab(tab.id);
-                  document.getElementById(tab.id)?.scrollIntoView({ behavior: "smooth", block: "start" });
-                }}
-                className={`relative py-3 px-1 text-xs sm:text-sm font-semibold tracking-wide uppercase transition-all duration-300 border-b-2 -mb-px rounded-t-lg hover:scale-[1.02] active:scale-[0.98] ${
-                  activeTab === tab.id
-                    ? "border-primary text-primary bg-primary/[0.04]"
-                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border/50 hover:bg-muted/30"
-                }`}
-              >
-                {tab.label}
-                {activeTab === tab.id && (
-                  <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-4/5 h-[2px] rounded-full bg-primary animate-[pulse_2s_ease-in-out_infinite]" />
-                )}
-              </button>
-            ))}
-          </div>
-
-          {/* Mobile trust indicators */}
-          <div className="flex lg:hidden flex-wrap items-center gap-4 pb-3 pt-2 justify-center">
-            <div className="flex flex-col items-center text-center gap-0.5">
-              <Shield className="size-4 text-slate-700" strokeWidth={1.5} />
-              <span className="text-[10px] font-semibold text-foreground">100% Genuine</span>
-              <span className="text-[9px] text-muted-foreground">Products</span>
-            </div>
-            <div className="flex flex-col items-center text-center gap-0.5">
-              <Calendar className="size-4 text-slate-700" strokeWidth={1.5} />
-              <span className="text-[10px] font-semibold text-foreground">Expiry After</span>
-              <span className="text-[9px] text-muted-foreground">{p.expiryDate ? new Date(p.expiryDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—"}</span>
-            </div>
-            <div className="flex flex-col items-center text-center gap-0.5">
-              <CreditCard className="size-4 text-slate-700" strokeWidth={1.5} />
-              <span className="text-[10px] font-semibold text-foreground">Safe & Secure</span>
-              <span className="text-[9px] text-muted-foreground">Payments</span>
             </div>
           </div>
         </motion.div>
 
         {/* ── Product Information ── */}
-        <motion.div id="product-info" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: "easeOut" }} className="mt-8 scroll-mt-24">
-          <h3 className="text-lg font-bold mb-4 pl-3 border-l-3 border-primary">Product Information</h3>
+        <motion.div id="product-info" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: [0.25, 0.46, 0.45, 0.94] }} className="mt-8 scroll-mt-24">
+          <div className="flex items-center gap-2.5 mb-4">
+            <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center"><BookOpen className="size-4 text-primary" strokeWidth={1.5} /></div>
+            <h3 className="text-lg font-bold">Product Information</h3>
+          </div>
           <Card className="border-border/60 transition-all duration-300 hover:shadow-md hover:border-primary/15">
             <CardContent className="p-6 space-y-4">
               <p className="text-sm leading-relaxed text-muted-foreground">
@@ -1015,8 +1049,11 @@ export default function ProductDetail() {
         </motion.div>
 
         {/* ── Medical Benefits ── */}
-        <motion.div id="medical-benefits" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: "easeOut" }} className="mt-8 scroll-mt-24">
-          <h3 className="text-lg font-bold mb-4 pl-3 border-l-3 border-primary">Medical Benefits</h3>
+        <motion.div id="medical-benefits" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: [0.25, 0.46, 0.45, 0.94] }} className="mt-8 scroll-mt-24">
+          <div className="flex items-center gap-2.5 mb-4">
+            <div className="size-8 rounded-lg bg-green-100 flex items-center justify-center"><Stethoscope className="size-4 text-green-600" strokeWidth={1.5} /></div>
+            <h3 className="text-lg font-bold">Medical Benefits</h3>
+          </div>
           <Card className="border-border/60 transition-all duration-300 hover:shadow-md hover:border-primary/15">
             <CardContent className="p-6 space-y-4">
               {p.benefits ? (
@@ -1044,8 +1081,11 @@ export default function ProductDetail() {
         </motion.div>
 
         {/* ── Key Ingredients ── */}
-        <motion.div id="key-ingredients" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: "easeOut" }} className="mt-8 scroll-mt-24">
-          <h3 className="text-lg font-bold mb-4 pl-3 border-l-3 border-primary">Key Ingredients</h3>
+        <motion.div id="key-ingredients" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: [0.25, 0.46, 0.45, 0.94] }} className="mt-8 scroll-mt-24">
+          <div className="flex items-center gap-2.5 mb-4">
+            <div className="size-8 rounded-lg bg-violet-100 flex items-center justify-center"><Pill className="size-4 text-violet-600" strokeWidth={1.5} /></div>
+            <h3 className="text-lg font-bold">Key Ingredients</h3>
+          </div>
           <Card className="border-border/60 transition-all duration-300 hover:shadow-md hover:border-primary/15">
             <CardContent className="p-6 space-y-4">
               {p.composition ? (
@@ -1077,8 +1117,11 @@ export default function ProductDetail() {
         </motion.div>
 
         {/* ── Directions for Use ── */}
-        <motion.div id="directions-for-use" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: "easeOut" }} className="mt-8 scroll-mt-24">
-          <h3 className="text-lg font-bold mb-4 pl-3 border-l-3 border-primary">Directions for Use</h3>
+        <motion.div id="directions-for-use" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: [0.25, 0.46, 0.45, 0.94] }} className="mt-8 scroll-mt-24">
+          <div className="flex items-center gap-2.5 mb-4">
+            <div className="size-8 rounded-lg bg-blue-100 flex items-center justify-center"><ClipboardList className="size-4 text-blue-600" strokeWidth={1.5} /></div>
+            <h3 className="text-lg font-bold">Directions for Use</h3>
+          </div>
           <Card className="border-border/60 transition-all duration-300 hover:shadow-md hover:border-primary/15">
             <CardContent className="p-6 space-y-4">
               <p className="text-sm leading-relaxed text-muted-foreground">
@@ -1109,8 +1152,11 @@ export default function ProductDetail() {
         </motion.div>
 
         {/* ── Safety ── */}
-        <motion.div id="safety" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: "easeOut" }} className="mt-8 scroll-mt-24">
-          <h3 className="text-lg font-bold mb-4 pl-3 border-l-3 border-primary">Safety</h3>
+        <motion.div id="safety" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: [0.25, 0.46, 0.45, 0.94] }} className="mt-8 scroll-mt-24">
+          <div className="flex items-center gap-2.5 mb-4">
+            <div className="size-8 rounded-lg bg-amber-100 flex items-center justify-center"><ShieldCheck className="size-4 text-amber-600" strokeWidth={1.5} /></div>
+            <h3 className="text-lg font-bold">Safety</h3>
+          </div>
           <Card className="border-border/60 transition-all duration-300 hover:shadow-md hover:border-primary/15">
             <CardContent className="p-6 space-y-4">
               {p.safetyNote && (
@@ -1143,8 +1189,11 @@ export default function ProductDetail() {
         </motion.div>
 
         {/* ── Information ── */}
-        <motion.div id="information" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: "easeOut" }} className="mt-8 scroll-mt-24">
-          <h3 className="text-lg font-bold mb-4 pl-3 border-l-3 border-primary">Information</h3>
+        <motion.div id="information" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: [0.25, 0.46, 0.45, 0.94] }} className="mt-8 scroll-mt-24">
+          <div className="flex items-center gap-2.5 mb-4">
+            <div className="size-8 rounded-lg bg-slate-100 flex items-center justify-center"><Info className="size-4 text-slate-600" strokeWidth={1.5} /></div>
+            <h3 className="text-lg font-bold">Information</h3>
+          </div>
           <Card className="border-border/60 transition-all duration-300 hover:shadow-md hover:border-primary/15">
             <CardContent className="p-6 space-y-4">
               <p className="text-sm leading-relaxed text-muted-foreground">
@@ -1181,8 +1230,11 @@ export default function ProductDetail() {
         </motion.div>
 
         {/* ── FAQs ── */}
-        <motion.div id="faqs" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: "easeOut" }} className="mt-8 scroll-mt-24">
-          <h3 className="text-lg font-bold mb-4 pl-3 border-l-3 border-primary">Frequently Asked Questions</h3>
+        <motion.div id="faqs" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: [0.25, 0.46, 0.45, 0.94] }} className="mt-8 scroll-mt-24">
+          <div className="flex items-center gap-2.5 mb-4">
+            <div className="size-8 rounded-lg bg-cyan-100 flex items-center justify-center"><HelpCircle className="size-4 text-cyan-600" strokeWidth={1.5} /></div>
+            <h3 className="text-lg font-bold">Frequently Asked Questions</h3>
+          </div>
           <div className="space-y-3">
             <Card className="border-border/60 transition-all duration-300 hover:shadow-sm hover:border-primary/15 cursor-pointer"><CardContent className="p-5 space-y-1"><p className="text-sm font-semibold">Is {p.name} genuine at Kalyan Chemist?</p><p className="text-sm text-muted-foreground">Absolutely. Every unit of {p.name} is sourced directly from {p.manufacturer} or their authorized distributors. We maintain strict supply chain integrity, and each product goes through quality checks before dispatch.</p></CardContent></Card>
             <Card className="border-border/60 transition-all duration-300 hover:shadow-sm hover:border-primary/15 cursor-pointer"><CardContent className="p-5 space-y-1"><p className="text-sm font-semibold">{p.prescriptionRequired ? `Do I need a prescription for ${p.name}?` : `Can I buy ${p.name} without a prescription?`}</p><p className="text-sm text-muted-foreground">{p.prescriptionRequired ? `Yes, ${p.name} is a prescription-only medicine (Rx). A valid prescription from a registered medical practitioner is mandatory for purchase. You can upload your prescription during checkout, and our pharmacist will verify it before processing your order.` : `${p.name} is available as an over-the-counter (OTC) product and can be purchased directly without a prescription. However, we recommend consulting your physician for personalised dosage guidance.`}</p></CardContent></Card>
@@ -1194,8 +1246,11 @@ export default function ProductDetail() {
         </motion.div>
 
         {/* ── Customers Also Bought ── */}
-        <motion.div id="customers-also-bought" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: "easeOut" }} className="mt-8 scroll-mt-24">
-          <h3 className="text-lg font-bold mb-4 pl-3 border-l-3 border-primary">Customers Also Bought</h3>
+        <motion.div id="customers-also-bought" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: [0.25, 0.46, 0.45, 0.94] }} className="mt-8 scroll-mt-24">
+          <div className="flex items-center gap-2.5 mb-4">
+            <div className="size-8 rounded-lg bg-rose-100 flex items-center justify-center"><ShoppingCart className="size-4 text-rose-600" strokeWidth={1.5} /></div>
+            <h3 className="text-lg font-bold">Customers Also Bought</h3>
+          </div>
           {relatedProducts && relatedProducts.length > 0 ? (
             <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
               {relatedProducts.map((rp) => {
@@ -1231,8 +1286,11 @@ export default function ProductDetail() {
         </motion.div>
 
         {/* ── Other Links ── */}
-        <motion.div id="other-links" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: "easeOut" }} className="mt-8 mb-8 scroll-mt-24">
-          <h3 className="text-lg font-bold mb-4 pl-3 border-l-3 border-primary">Other Links</h3>
+        <motion.div id="other-links" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: [0.25, 0.46, 0.45, 0.94] }} className="mt-8 mb-8 scroll-mt-24">
+          <div className="flex items-center gap-2.5 mb-4">
+            <div className="size-8 rounded-lg bg-indigo-100 flex items-center justify-center"><Link2 className="size-4 text-indigo-600" strokeWidth={1.5} /></div>
+            <h3 className="text-lg font-bold">Other Links</h3>
+          </div>
           <Card className="border-border/60">
             <CardContent className="p-6">
               <div className="flex flex-wrap gap-3">
