@@ -243,6 +243,7 @@ export default function ProductDetail() {
   const [shareOpen, setShareOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [selectedImage, setSelectedImage] = useState(0);
+  const [activeTab, setActiveTab] = useState("product-info");
 
   const product = useQuery(
     api.products.getBySlug,
@@ -856,16 +857,68 @@ export default function ProductDetail() {
           </motion.div>
         </div>
 
-        {/* Description + Benefits + Storage */}
+        {/* Section Navigation Tabs */}
         <motion.div
-          initial={{ opacity: 0, y: 16 }}
+          initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="mt-12 grid gap-6 lg:grid-cols-2"
+          transition={{ delay: 0.15 }}
+          className="mt-10 border-b border-border/60"
         >
+          <div className="flex flex-wrap gap-x-6 gap-y-1">
+            {(
+              [
+                { id: "product-info", label: "Product Information" },
+                { id: "medical-benefits", label: "Medical Benefits" },
+                { id: "key-ingredients", label: "Key Ingredients" },
+                { id: "directions-for-use", label: "Directions for Use" },
+                { id: "safety", label: "Safety" },
+                { id: "information", label: "Information" },
+                { id: "faqs", label: "FAQs" },
+                { id: "customers-also-bought", label: "Customers Also Bought" },
+                { id: "other-links", label: "Other Links" },
+              ] as const
+            ).map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  document.getElementById(tab.id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+                }}
+                className={`py-3 text-xs sm:text-sm font-semibold tracking-wide uppercase transition-colors border-b-2 -mb-px ${
+                  activeTab === tab.id
+                    ? "border-primary text-primary"
+                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        </motion.div>
+
+        {/* ── Product Information ── */}
+        <motion.div id="product-info" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="mt-8 scroll-mt-24">
+          <h3 className="text-lg font-bold mb-4">Product Information</h3>
           <Card className="border-border/60">
+            <CardContent className="p-0">
+              <Table>
+                <TableBody>
+                  <TableRow><TableCell className="font-medium text-muted-foreground">Product Name</TableCell><TableCell>{p.name}</TableCell></TableRow>
+                  <TableRow><TableCell className="font-medium text-muted-foreground">Manufacturer</TableCell><TableCell>{p.manufacturer}</TableCell></TableRow>
+                  {p.composition && <TableRow><TableCell className="font-medium text-muted-foreground">Composition</TableCell><TableCell>{p.composition}</TableCell></TableRow>}
+                  {p.form && <TableRow><TableCell className="font-medium text-muted-foreground">Form</TableCell><TableCell className="capitalize">{p.form}</TableCell></TableRow>}
+                  {p.strength && <TableRow><TableCell className="font-medium text-muted-foreground">Strength</TableCell><TableCell>{p.strength}</TableCell></TableRow>}
+                  <TableRow><TableCell className="font-medium text-muted-foreground">Pack Size</TableCell><TableCell>{p.packSize}</TableCell></TableRow>
+                  <TableRow><TableCell className="font-medium text-muted-foreground">Price</TableCell><TableCell>{formatCurrency(hasDiscount ? p.discountPrice! : p.price)}</TableCell></TableRow>
+                  {p.expiryDate && <TableRow><TableCell className="font-medium text-muted-foreground">Expires On or After</TableCell><TableCell className="text-green-700 font-medium">{new Date(p.expiryDate).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}</TableCell></TableRow>}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+          <Card className="border-border/60 mt-4">
             <CardContent className="p-6">
-              <h3 className="text-lg font-bold mb-3">Description</h3>
+              <h4 className="font-bold mb-2">Description</h4>
               <p className="text-sm leading-relaxed text-muted-foreground">
                 {p.description || (
                   <span className="italic text-muted-foreground/60">
@@ -875,58 +928,104 @@ export default function ProductDetail() {
               </p>
             </CardContent>
           </Card>
-          {p.benefits && (
-            <Card className="border-border/60">
-              <CardContent className="p-6">
-                <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
-                  <ShieldCheck className="size-4 text-green-600" />
-                  Benefits
-                </h3>
+        </motion.div>
+
+        {/* ── Medical Benefits ── */}
+        <motion.div id="medical-benefits" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="mt-8 scroll-mt-24">
+          <h3 className="text-lg font-bold mb-4">Medical Benefits</h3>
+          <Card className="border-border/60">
+            <CardContent className="p-6">
+              {p.benefits ? (
                 <div className="text-sm leading-relaxed text-muted-foreground">
                   {p.benefits.split(". ").filter(Boolean).map((sentence, i) => (
-                    <div key={i} className="flex items-start gap-2 mb-1.5">
+                    <div key={i} className="flex items-start gap-2 mb-2">
                       <span className="size-1.5 rounded-full bg-green-500 mt-2 shrink-0" />
                       <span>{sentence.trim().replace(/\.$/, "")}.</span>
                     </div>
                   ))}
                 </div>
-              </CardContent>
-            </Card>
-          )}
-          {p.storageInformation && (
-            <Card className="border-border/60">
-              <CardContent className="p-6">
-                <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
-                  <Info className="size-4 text-primary" />
-                  Storage Information
-                </h3>
-                <p className="text-sm leading-relaxed text-muted-foreground">{p.storageInformation}</p>
-              </CardContent>
-            </Card>
-          )}
-          {p.safetyNote && (
-            <Card className="border-border/60">
-              <CardContent className="p-6">
-                <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
-                  <ShieldCheck className="size-4 text-amber-500" />
-                  Safety Note
-                </h3>
-                <p className="text-sm leading-relaxed text-muted-foreground">{p.safetyNote}</p>
-              </CardContent>
-            </Card>
-          )}
+              ) : (
+                <p className="text-sm text-muted-foreground italic">No specific medical benefits listed for this product.</p>
+              )}
+            </CardContent>
+          </Card>
         </motion.div>
 
-        {/* Customer Reviews — displayed here for reference */}
+        {/* ── Key Ingredients ── */}
+        <motion.div id="key-ingredients" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="mt-8 scroll-mt-24">
+          <h3 className="text-lg font-bold mb-4">Key Ingredients</h3>
+          <Card className="border-border/60">
+            <CardContent className="p-6">
+              {p.composition ? (
+                <p className="text-sm leading-relaxed text-muted-foreground">{p.composition}</p>
+              ) : (
+                <p className="text-sm text-muted-foreground italic">Ingredient information not available for this product.</p>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
 
-        {relatedProducts && relatedProducts.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="mt-12"
-          >
-            <h3 className="text-xl font-bold mb-6">Related Products</h3>
+        {/* ── Directions for Use ── */}
+        <motion.div id="directions-for-use" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="mt-8 scroll-mt-24">
+          <h3 className="text-lg font-bold mb-4">Directions for Use</h3>
+          <Card className="border-border/60">
+            <CardContent className="p-6">
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                {p.consumeType || (
+                  p.form ? `This is a ${p.form} product. Use as directed by your physician or pharmacist.` : "Use as directed by your physician or pharmacist."
+                )}
+              </p>
+              {p.prescriptionRequired && (
+                <p className="text-xs text-amber-600 mt-3 font-medium">This medicine requires a valid prescription from a registered medical practitioner.</p>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* ── Safety ── */}
+        <motion.div id="safety" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="mt-8 scroll-mt-24">
+          <h3 className="text-lg font-bold mb-4">Safety</h3>
+          <Card className="border-border/60">
+            <CardContent className="p-6 space-y-3">
+              {p.safetyNote ? (
+                <p className="text-sm leading-relaxed text-muted-foreground">{p.safetyNote}</p>
+              ) : (
+                <p className="text-sm text-muted-foreground italic">Consult your doctor or pharmacist before use.</p>
+              )}
+              <p className="text-sm text-muted-foreground">Keep out of reach of children. Store in a cool, dry place away from direct sunlight.</p>
+              {p.prescriptionRequired && <p className="text-sm text-amber-600 font-medium">Prescription required — do not self-medicate.</p>}
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* ── Information ── */}
+        <motion.div id="information" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="mt-8 scroll-mt-24">
+          <h3 className="text-lg font-bold mb-4">Information</h3>
+          <Card className="border-border/60">
+            <CardContent className="p-6 space-y-3">
+              {p.storageInformation && (
+                <div><p className="text-sm font-semibold text-foreground mb-1">Storage</p><p className="text-sm text-muted-foreground">{p.storageInformation}</p></div>
+              )}
+              <div><p className="text-sm font-semibold text-foreground mb-1">Category</p><p className="text-sm text-muted-foreground">{cat?.name || "General"}</p></div>
+              <div><p className="text-sm font-semibold text-foreground mb-1">Available at</p><p className="text-sm text-muted-foreground">Kalyan Chemist — Online & Offline</p></div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* ── FAQs ── */}
+        <motion.div id="faqs" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="mt-8 scroll-mt-24">
+          <h3 className="text-lg font-bold mb-4">FAQs</h3>
+          <div className="space-y-3">
+            <Card className="border-border/60"><CardContent className="p-5"><p className="text-sm font-semibold mb-1">Is this product genuine?</p><p className="text-sm text-muted-foreground">Yes, all products at Kalyan Chemist are 100% genuine and sourced directly from authorized distributors.</p></CardContent></Card>
+            <Card className="border-border/60"><CardContent className="p-5"><p className="text-sm font-semibold mb-1">Can I return this product?</p><p className="text-sm text-muted-foreground">{p.prescriptionRequired ? "Prescription medicines cannot be returned once delivered." : "Please check our return policy for this product category."}</p></CardContent></Card>
+            <Card className="border-border/60"><CardContent className="p-5"><p className="text-sm font-semibold mb-1">How long does delivery take?</p><p className="text-sm text-muted-foreground">Standard delivery is within 2-4 hours for local orders. Delivery times may vary based on your location.</p></CardContent></Card>
+          </div>
+        </motion.div>
+
+        {/* ── Customers Also Bought ── */}
+        <motion.div id="customers-also-bought" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="mt-8 scroll-mt-24">
+          <h3 className="text-lg font-bold mb-4">Customers Also Bought</h3>
+          {relatedProducts && relatedProducts.length > 0 ? (
             <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
               {relatedProducts.map((rp) => {
                 const hasDisc = rp.discountPrice && rp.discountPrice < rp.price;
@@ -955,8 +1054,32 @@ export default function ProductDetail() {
                 );
               })}
             </div>
-          </motion.div>
-        )}
+          ) : (
+            <p className="text-sm text-muted-foreground italic">No related products available.</p>
+          )}
+        </motion.div>
+
+        {/* ── Other Links ── */}
+        <motion.div id="other-links" initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="mt-8 mb-8 scroll-mt-24">
+          <h3 className="text-lg font-bold mb-4">Other Links</h3>
+          <Card className="border-border/60">
+            <CardContent className="p-6">
+              <div className="flex flex-wrap gap-3">
+                {cat && (
+                  <Button variant="outline" size="sm" className="rounded-xl text-xs" onClick={() => navigate(`/category/${cat.slug}`)}>
+                    Browse {cat.name}
+                  </Button>
+                )}
+                <Button variant="outline" size="sm" className="rounded-xl text-xs" onClick={() => navigate("/products")}>
+                  All Medicines
+                </Button>
+                <Button variant="outline" size="sm" className="rounded-xl text-xs" onClick={() => navigate("/")}>
+                  Home
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
       </main>
 
       {/* Share Dialog */}
