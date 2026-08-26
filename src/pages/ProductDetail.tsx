@@ -926,7 +926,7 @@ export default function ProductDetail() {
           className="mt-10"
         >
           {/* Tab bar container */}
-          <div className="rounded-2xl border border-border/50 bg-gradient-to-b from-card/80 to-card shadow-[0_2px_8px_-2px_rgba(0,0,0,0.06),0_1px_2px_-1px_rgba(0,0,0,0.04)] overflow-hidden">
+          <div className="rounded-2xl border border-border/40 bg-gradient-to-b from-card/90 to-card shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] overflow-hidden">
             {/* Row 1: tabs + trust indicators */}
             <div className="flex flex-wrap items-center gap-x-1 lg:gap-x-2 gap-y-1 px-2 pt-2">
               <div className="flex flex-wrap gap-x-1 lg:gap-x-1.5">
@@ -949,22 +949,25 @@ export default function ProductDetail() {
                         setActiveTab(tab.id);
                         document.getElementById(tab.id)?.scrollIntoView({ behavior: "smooth", block: "start" });
                       }}
-                      className={`relative flex items-center gap-1.5 py-2.5 px-3 text-[11px] sm:text-xs font-semibold tracking-wide uppercase rounded-xl transition-all duration-200 ease-out group ${
+                      className={`relative flex items-center gap-1.5 py-2.5 px-3.5 text-[11px] sm:text-xs font-medium tracking-wide cursor-pointer rounded-t-lg transition-all duration-250 ease-out group ${
                         isActive
-                          ? "bg-primary/15 text-primary shadow-[0_0_0_1.5px_rgba(var(--primary-rgb,59,130,246),0.2),0_1px_3px_-1px_rgba(0,0,0,0.08)] scale-[1.02]"
-                          : "text-muted-foreground hover:text-foreground hover:bg-muted/60 hover:shadow-[0_1px_4px_-1px_rgba(0,0,0,0.08)] hover:scale-[1.02] active:scale-[0.97]"
+                          ? "text-primary font-semibold"
+                          : "text-muted-foreground hover:text-foreground"
                       }`}
                     >
-                      <Icon className={`size-3.5 transition-all duration-200 ${isActive ? "text-primary scale-110" : "text-muted-foreground/60 group-hover:text-foreground group-hover:scale-110"}`} strokeWidth={isActive ? 2 : 1.5} />
-                      <span className="hidden sm:inline">{tab.label}</span>
-                      <span className="sm:hidden">{tab.label.split(" ")[0]}</span>
+                      <Icon className={`size-3.5 transition-all duration-250 ${isActive ? "text-primary" : "text-muted-foreground/50 group-hover:text-primary/70 group-hover:translate-y-[-1px]"}`} strokeWidth={isActive ? 2 : 1.5} />
+                      <span className="hidden sm:inline transition-colors duration-250">{tab.label}</span>
+                      <span className="sm:hidden transition-colors duration-250">{tab.label.split(" ")[0]}</span>
+                      {/* Animated underline indicator */}
                       {isActive && (
                         <motion.span
                           layoutId="activeTabIndicator"
-                          className="absolute inset-0 rounded-xl border border-primary/25 bg-primary/[0.08]"
-                          transition={{ type: "spring", stiffness: 500, damping: 32 }}
+                          className="absolute bottom-0 left-2 right-2 h-[2.5px] rounded-full bg-primary"
+                          transition={{ type: "spring", stiffness: 500, damping: 30 }}
                         />
                       )}
+                      {/* Hover underline (non-active only) */}
+                      <span className="absolute bottom-0 left-3 right-3 h-[2px] rounded-full bg-primary/20 scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
                     </button>
                   );
                 })}
@@ -997,7 +1000,7 @@ export default function ProductDetail() {
             </div>
 
             {/* Row 2: remaining tabs */}
-            <div className="flex flex-wrap gap-x-1 lg:gap-x-1.5 px-2 pb-2 pt-1">
+            <div className="flex flex-wrap gap-x-1 lg:gap-x-1.5 px-2 pb-0 pt-0 border-t border-border/30">
               {(
                 [
                   { id: "information", label: "Information", icon: Info },
@@ -1016,22 +1019,23 @@ export default function ProductDetail() {
                       setActiveTab(tab.id);
                       document.getElementById(tab.id)?.scrollIntoView({ behavior: "smooth", block: "start" });
                     }}
-                    className={`relative flex items-center gap-1.5 py-2.5 px-3 text-[11px] sm:text-xs font-semibold tracking-wide uppercase rounded-xl transition-all duration-200 ease-out group ${
+                    className={`relative flex items-center gap-1.5 py-2.5 px-3.5 text-[11px] sm:text-xs font-medium tracking-wide cursor-pointer rounded-t-lg transition-all duration-250 ease-out group ${
                       isActive
-                        ? "bg-primary/15 text-primary shadow-[0_0_0_1.5px_rgba(var(--primary-rgb,59,130,246),0.2),0_1px_3px_-1px_rgba(0,0,0,0.08)] scale-[1.02]"
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted/60 hover:shadow-[0_1px_4px_-1px_rgba(0,0,0,0.08)] hover:scale-[1.02] active:scale-[0.97]"
+                        ? "text-primary font-semibold"
+                        : "text-muted-foreground hover:text-foreground"
                     }`}
                   >
-                    <Icon className={`size-3.5 transition-all duration-200 ${isActive ? "text-primary scale-110" : "text-muted-foreground/60 group-hover:text-foreground group-hover:scale-110"}`} strokeWidth={isActive ? 2 : 1.5} />
-                    <span className="hidden sm:inline">{tab.label}</span>
-                    <span className="sm:hidden">{tab.label.split(" ")[0]}</span>
+                    <Icon className={`size-3.5 transition-all duration-250 ${isActive ? "text-primary" : "text-muted-foreground/50 group-hover:text-primary/70 group-hover:translate-y-[-1px]"}`} strokeWidth={isActive ? 2 : 1.5} />
+                    <span className="hidden sm:inline transition-colors duration-250">{tab.label}</span>
+                    <span className="sm:hidden transition-colors duration-250">{tab.label.split(" ")[0]}</span>
                     {isActive && (
                       <motion.span
                         layoutId="activeTabIndicator2"
-                        className="absolute inset-0 rounded-xl border border-primary/25 bg-primary/[0.08]"
-                        transition={{ type: "spring", stiffness: 500, damping: 32 }}
+                        className="absolute bottom-0 left-2 right-2 h-[2.5px] rounded-full bg-primary"
+                        transition={{ type: "spring", stiffness: 500, damping: 30 }}
                       />
                     )}
+                    <span className="absolute bottom-0 left-3 right-3 h-[2px] rounded-full bg-primary/20 scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
                   </button>
                 );
               })}
