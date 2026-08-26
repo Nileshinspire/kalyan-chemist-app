@@ -81,6 +81,7 @@ const schema = defineSchema(
       isAnonymous: v.optional(v.boolean()),
       role: v.optional(roleValidator),
       phone: v.optional(v.string()),
+      phoneVerificationTime: v.optional(v.number()),
       phoneVerified: v.optional(v.boolean()),
       emailVerified: v.optional(v.boolean()),
       whatsappOptIn: v.optional(v.boolean()),

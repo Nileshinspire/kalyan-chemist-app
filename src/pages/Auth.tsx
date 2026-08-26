@@ -83,10 +83,12 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
     }
 
     if (isEmail(rawInput)) {
-      // Email OTP flow
+      // Email OTP flow — server expects 'email' param, not 'identifier'
       try {
-        await signIn("email-otp", formData);
-        setStep({ identifier: rawInput, method: "email" });
+        const emailFormData = new FormData();
+        emailFormData.set("email", rawInput.trim());
+        await signIn("email-otp", emailFormData);
+        setStep({ identifier: rawInput.trim(), method: "email" });
         setIsLoading(false);
       } catch (error) {
         console.error("Email sign-in error:", error);
