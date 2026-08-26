@@ -100,7 +100,7 @@ const EMPTY_FORM: ProductForm = {
   packSize: "",
   packSizeVariants: [],
   strength: "",
-  form: "tablet",
+  form: "",
   sku: "",
   prescriptionRequired: false,
   storageInformation: "",
@@ -170,7 +170,7 @@ export default function AdminProducts() {
       packSize: product.packSize,
       packSizeVariants: product.packSizeVariants || [],
       strength: product.strength || "",
-      form: product.form || "tablet",
+      form: product.form || "",
       sku: product.sku || "",
       prescriptionRequired: product.prescriptionRequired,
       storageInformation: product.storageInformation || "",
@@ -654,8 +654,8 @@ export default function AdminProducts() {
               </div>
               <div className="space-y-2">
                 <Label>Form</Label>
-                <Select value={form.form} onValueChange={(v) => setForm({ ...form, form: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                <Select value={form.form || undefined} onValueChange={(v) => setForm({ ...form, form: v })}>
+                  <SelectTrigger><SelectValue placeholder="Select form" /></SelectTrigger>
                   <SelectContent>
                     {FORM_OPTIONS.map((f) => (
                       <SelectItem key={f} value={f}>{f.charAt(0).toUpperCase() + f.slice(1)}</SelectItem>
