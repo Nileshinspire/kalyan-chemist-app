@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/input-otp";
 
 import { useAuth } from "@/hooks/use-auth";
-import { ArrowRight, Loader2, Mail } from "lucide-react";
+import { ArrowRight, Loader2, Mail, Phone } from "lucide-react";
 import { Suspense, useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
@@ -33,6 +33,22 @@ function resolveRedirectAfterAuth(
   return fallback;
 }
 
+/** Detect if input is an email address */
+function isEmail(value: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
+/** Detect if input is a valid Indian phone number */
+function isPhone(value: string): boolean {
+  const cleaned = value.replace(/[\s\-()+]/g, "");
+  return /^[6-9]\d{9}$/.test(cleaned);
+}
+
+/** Normalize phone number to 10 digits */
+function normalizePhone(value: string): string {
+  return value.replace(/[\s\-()+]/g, "").slice(-10);
+}
+
 function Auth({ redirectAfterAuth }: AuthProps = {}) {
   const { isLoading: authLoading, isAuthenticated, signIn } = useAuth();
   const navigate = useNavigate();
@@ -41,7 +57,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
     searchParams.get("returnTo"),
     redirectAfterAuth,
   );
-  const [step, setStep] = useState<"signIn" | { email: string }>("signIn");
+  const [step, setStep] = useState<"signIn" | { identifier: string; method: "email" | "phone" }>("signIn");
   const [otp, setOtp] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,27 +68,72 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
     }
   }, [authLoading, isAuthenticated, navigate, redirect]);
 
-  const handleEmailSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleIdentifierSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsLoading(true);
     setError(null);
-    try {
-      const formData = new FormData(event.currentTarget);
-      await signIn("email-otp", formData);
-      setStep({ email: formData.get("email") as string });
+
+    const formData = new FormData(event.currentTarget);
+    const rawInput = (formData.get("identifier") as string)?.trim() || "";
+
+    if (!rawInput) {
+      setError("Please enter your email address or phone number.");
       setIsLoading(false);
-    } catch (error) {
-      console.error("Email sign-in error:", error);
-      const msg = error instanceof Error ? error.message : "";
-      if (msg.includes("Connection lost")) {
-        setError("Connection issue. Please check your internet and try again.");
-      } else if (msg.includes("rate limit")) {
-        setError("Too many attempts. Please wait a moment and try again.");
-      } else {
-        setError(
-          msg || "We could not send a verification code. Please try again.",
-        );
+      return;
+    }
+
+    if (isEmail(rawInput)) {
+      // Email OTP flow
+      try {
+        await signIn("email-otp", formData);
+        setStep({ identifier: rawInput, method: "email" });
+        setIsLoading(false);
+      } catch (error) {
+        console.error("Email sign-in error:", error);
+        const msg = error instanceof Error ? error.message : "";
+        if (msg.includes("Connection lost")) {
+          setError("Connection issue. Please check your internet and try again.");
+        } else if (msg.includes("rate limit")) {
+          setError("Too many attempts. Please wait a moment and try again.");
+        } else {
+          setError(
+            msg || "We could not send a verification code. Please try again.",
+          );
+        }
+        setIsLoading(false);
       }
+    } else if (isPhone(rawInput)) {
+      // Phone OTP flow
+      const phone = normalizePhone(rawInput);
+      try {
+        // Create a new FormData with the phone field for phone-otp provider
+        const phoneFormData = new FormData();
+        phoneFormData.set("phone", `+91${phone}`);
+        await signIn("phone-otp", phoneFormData);
+        setStep({ identifier: phone, method: "phone" });
+        setIsLoading(false);
+      } catch (error) {
+        console.error("Phone sign-in error:", error);
+        const msg = error instanceof Error ? error.message : "";
+        if (msg.includes("Connection lost")) {
+          setError("Connection issue. Please check your internet and try again.");
+        } else if (msg.includes("rate limit")) {
+          setError("Too many attempts. Please wait a moment and try again.");
+        } else if (msg.includes("not configured") || msg.includes("provider")) {
+          setError(
+            "Phone verification is not yet configured. Please use your email address to sign in.",
+          );
+        } else {
+          setError(
+            msg || "We could not send a verification code. Please try again.",
+          );
+        }
+        setIsLoading(false);
+      }
+    } else {
+      setError(
+        "Please enter a valid email address (e.g. you@example.com) or 10-digit phone number (e.g. 9876543210).",
+      );
       setIsLoading(false);
     }
   };
@@ -83,7 +144,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
     setError(null);
     try {
       const formData = new FormData(event.currentTarget);
-      await signIn("email-otp", formData);
+      await signIn(step.method === "email" ? "email-otp" : "phone-otp", formData);
       navigate(redirect);
     } catch (error) {
       console.error("OTP verification error:", error);
@@ -135,19 +196,21 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                     Welcome to Kalyan Chemist
                   </CardTitle>
                   <CardDescription className="text-sm leading-relaxed">
-                    Enter your email address to sign in or create a new account.
+                    Enter your email or phone number to sign in or create a new account.
                     We will send you a verification code.
                   </CardDescription>
                 </CardHeader>
-                <form onSubmit={handleEmailSubmit}>
+                <form onSubmit={handleIdentifierSubmit}>
                   <CardContent>
                     <div className="relative flex items-center gap-2">
                       <div className="relative flex-1">
                         <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                         <Input
-                          name="email"
-                          placeholder="you@example.com"
-                          type="email"
+                          name="identifier"
+                          placeholder="Email or phone number"
+                          type="text"
+                          inputMode="text"
+                          autoComplete="username"
                           className="pl-9"
                           disabled={isLoading}
                           required
@@ -176,104 +239,95 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
               <>
                 <CardHeader className="text-center">
                   <CardTitle className="text-xl font-bold">
-                    Check Your Inbox
+                    {step.method === "email" ? "Check Your Inbox" : "Check Your Phone"}
                   </CardTitle>
                   <CardDescription className="text-sm leading-relaxed">
-                    We have sent a 6-digit verification code to{" "}
-                    <span className="font-medium text-foreground">{step.email}</span>.
-                    Enter it below to continue.
+                    {step.method === "email" ? (
+                      <>
+                        We sent a verification code to{" "}
+                        <span className="font-medium text-foreground">{step.identifier}</span>
+                      </>
+                    ) : (
+                      <>
+                        We sent an OTP to{" "}
+                        <span className="font-medium text-foreground">+91 {step.identifier}</span>
+                      </>
+                    )}
                   </CardDescription>
                 </CardHeader>
                 <form onSubmit={handleOtpSubmit}>
-                  <CardContent className="pb-4">
-                    <input type="hidden" name="email" value={step.email} />
+                  <CardContent className="space-y-4">
                     <input type="hidden" name="code" value={otp} />
-
+                    <input
+                      type="hidden"
+                      name={step.method === "email" ? "email" : "phone"}
+                      value={step.method === "email" ? step.identifier : `+91${step.identifier}`}
+                    />
                     <div className="flex justify-center">
                       <InputOTP
+                        maxLength={6}
                         value={otp}
                         onChange={setOtp}
-                        maxLength={6}
                         disabled={isLoading}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && otp.length === 6 && !isLoading) {
-                            const form = (e.target as HTMLElement).closest("form");
-                            if (form) {
-                              form.requestSubmit();
-                            }
-                          }
-                        }}
                       >
                         <InputOTPGroup>
-                          {Array.from({ length: 6 }).map((_, index) => (
-                            <InputOTPSlot key={index} index={index} />
-                          ))}
+                          <InputOTPSlot index={0} />
+                          <InputOTPSlot index={1} />
+                          <InputOTPSlot index={2} />
+                        </InputOTPGroup>
+                        <InputOTPGroup>
+                          <InputOTPSlot index={3} />
+                          <InputOTPSlot index={4} />
+                          <InputOTPSlot index={5} />
                         </InputOTPGroup>
                       </InputOTP>
                     </div>
                     {error && (
-                      <p className="mt-2 text-sm text-destructive text-center">
-                        {error}
-                      </p>
+                      <p className="text-sm text-destructive text-center">{error}</p>
                     )}
-                    <p className="text-sm text-muted-foreground text-center mt-4">
-                      Did not receive a code?{" "}
-                      <Button
-                        variant="link"
-                        className="p-0 h-auto"
-                        onClick={() => setStep("signIn")}
-                      >
-                        Try a different email
-                      </Button>
-                    </p>
                   </CardContent>
-                  <CardFooter className="flex-col gap-2">
+                  <CardFooter className="flex flex-col gap-3">
                     <Button
                       type="submit"
-                      className="w-full font-semibold"
-                      disabled={isLoading || otp.length !== 6}
+                      className="w-full gradient-primary text-white"
+                      disabled={isLoading || otp.length < 6}
                     >
                       {isLoading ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Verifying…
-                        </>
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
                       ) : (
-                        <>
-                          Verify & Sign In
-                          <ArrowRight className="ml-2 h-4 w-4" />
-                        </>
+                        <Mail className="h-4 w-4 mr-2" />
                       )}
+                      Verify Code
                     </Button>
                     <Button
                       type="button"
                       variant="ghost"
-                      onClick={() => setStep("signIn")}
-                      disabled={isLoading}
-                      className="w-full text-sm"
+                      size="sm"
+                      onClick={() => {
+                        setStep("signIn");
+                        setOtp("");
+                        setError(null);
+                      }}
                     >
-                      Use a different email address
+                      Use a different method
                     </Button>
                   </CardFooter>
                 </form>
               </>
             )}
           </Card>
-
-          <p className="mt-6 text-center text-xs text-muted-foreground max-w-xs leading-relaxed">
-            By continuing, you agree to Kalyan Chemist&apos;s terms of use and
-            privacy policy.
-          </p>
         </div>
       </div>
     </div>
   );
 }
 
-export default function AuthPage(props: AuthProps) {
+function AuthPage() {
   return (
     <Suspense>
-      <Auth {...props} />
+      <Auth />
     </Suspense>
   );
 }
+
+export default AuthPage;
