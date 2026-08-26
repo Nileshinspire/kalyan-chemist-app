@@ -144,7 +144,8 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
     setError(null);
     try {
       const formData = new FormData(event.currentTarget);
-      await signIn(step.method === "email" ? "email-otp" : "phone-otp", formData);
+      const provider = typeof step === "object" && step.method === "email" ? "email-otp" : "phone-otp";
+      await signIn(provider, formData);
       navigate(redirect);
     } catch (error) {
       console.error("OTP verification error:", error);

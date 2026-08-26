@@ -45,12 +45,12 @@ describe("AuthPage (OTP sign-in)", () => {
 
   it("shows email input prompt", () => {
     render(<AuthPage />, { wrapper });
-    expect(screen.getByText(/Enter your email address/)).toBeInTheDocument();
+    expect(screen.getByText(/Enter your email/)).toBeInTheDocument();
   });
 
-  it("has an email input field", () => {
+  it("has an email/phone input field", () => {
     render(<AuthPage />, { wrapper });
-    expect(screen.getByPlaceholderText("you@example.com")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Email or phone number")).toBeInTheDocument();
   });
 
   it("does NOT show OTP input initially", () => {

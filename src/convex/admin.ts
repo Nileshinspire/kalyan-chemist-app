@@ -1,5 +1,6 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { query, mutation } from "./_generated/server";
+import { api } from "./_generated/api";
 import { v } from "convex/values";
 
 // ── Helper: verify admin ──
@@ -321,39 +322,13 @@ export const updateOrderStatus = mutation({
       updatedAt: now,
     });
 
-    // Notify the customer of the status change
-    const statusTitles: Record<string, string> = {
-      confirmed: "Order Confirmed ✓",
-      processing: "Order Being Prepared",
-      ready_for_dispatch: "Ready for Dispatch 📦",
-      out_for_delivery: "Out for Delivery 🚚",
-      delivered: "Order Delivered ✓",
-      cancelled: "Order Cancelled",
-      refund_initiated: "Refund Initiated",
-      refunded: "Refund Completed ✓",
-    };
-    const statusBodies: Record<string, string> = {
-      confirmed: `Your order ${order.invoiceNumber || ""} has been confirmed and is being processed.`,
-      processing: `Your order ${order.invoiceNumber || ""} is being packed by our pharmacist.`,
-      ready_for_dispatch: `Your order ${order.invoiceNumber || ""} has been packed and is ready for dispatch.`,
-      out_for_delivery: `Your order ${order.invoiceNumber || ""} is on its way to you.`,
-      delivered: `Your order ${order.invoiceNumber || ""} has been delivered. We hope you feel better soon!`,
-      cancelled: `Your order ${order.invoiceNumber || ""} has been cancelled.${order.paymentMethod === "online" ? " A refund will be initiated." : ""}`,
-      refund_initiated: `Your refund for order ${order.invoiceNumber || ""} has been initiated. It will be processed within 5-7 business days.`,
-      refunded: `Your refund for order ${order.invoiceNumber || ""} has been completed.`,
-    };
-    if (statusTitles[args.status]) {
-      await ctx.db.insert("notifications", {
-        userId: order.userId,
-        type: "order_status",
-        title: statusTitles[args.status],
-        body: statusBodies[args.status],
-        read: false,
-        link: `/orders/${args.orderId}`,
-        metadata: JSON.stringify({ orderId: args.orderId, status: args.status }),
-        createdAt: Date.now(),
-      });
-    }
+    // Delegate notification to the centralized order notification service.
+    // This determines available channels (email/SMS/WhatsApp) based on the
+    // customer's verified contact info and notification preferences.
+    await ctx.scheduler.runAfter(0, api.orderNotifications.sendOrderStatusNotification, {
+      orderId: args.orderId,
+      status: args.status,
+    });
 
     return { success: true };
   },
