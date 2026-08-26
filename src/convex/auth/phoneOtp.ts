@@ -3,8 +3,6 @@ import axios from "axios";
 import { RandomReader, generateRandomString } from "@oslojs/crypto/random";
 
 export const phoneOtp = Phone({
-  id: "phone-otp",
-  maxAge: 60 * 15, // 15 minutes
   // Normalize phone to E.164 format (+91XXXXXXXXXX)
   normalizeIdentifier(identifier: string) {
     const digits = identifier.replace(/\D/g, "");

@@ -85,7 +85,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
     if (isEmail(rawInput)) {
       // Email OTP flow
       try {
-        await signIn("email-otp", formData);
+        await signIn("email", formData);
         setStep({ identifier: rawInput, method: "email" });
         setIsLoading(false);
       } catch (error) {
@@ -109,7 +109,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
         // Create a new FormData with the phone field for phone-otp provider
         const phoneFormData = new FormData();
         phoneFormData.set("phone", `+91${phone}`);
-        await signIn("phone-otp", phoneFormData);
+        await signIn("phone", phoneFormData);
         setStep({ identifier: phone, method: "phone" });
         setIsLoading(false);
       } catch (error) {
@@ -144,7 +144,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
     setError(null);
     try {
       const formData = new FormData(event.currentTarget);
-      const provider = typeof step === "object" && step.method === "email" ? "email-otp" : "phone-otp";
+      const provider = typeof step === "object" && step.method === "email" ? "email" : "phone";
       await signIn(provider, formData);
       navigate(redirect);
     } catch (error) {
