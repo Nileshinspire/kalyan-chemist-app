@@ -269,8 +269,8 @@ export default function AdminProducts() {
         newForm.imageUrl = result.imageUrl;
         filled.push("Image");
       }
-      // Description
-      if (result.description && !form.description) {
+      // Description — always overwrite with product-specific description
+      if (result.description) {
         newForm.description = result.description;
         filled.push("Description");
       }
@@ -289,8 +289,8 @@ export default function AdminProducts() {
         newForm.safetyNote = (result as any).safetyNote;
         filled.push("Safety Note");
       }
-      // Manufacturer
-      if (result.manufacturer && !form.manufacturer) {
+      // Manufacturer — always overwrite with product-specific manufacturer
+      if (result.manufacturer) {
         newForm.manufacturer = result.manufacturer;
         filled.push("Manufacturer");
       }
@@ -299,8 +299,8 @@ export default function AdminProducts() {
         newForm.composition = (result as any).composition;
         filled.push("Composition");
       }
-      // Form — auto-select based on product name/composition
-      if ((result as any).form && !form.form) {
+      // Form — always overwrite with correct product form (e.g. cream, gel, spray)
+      if ((result as any).form) {
         newForm.form = (result as any).form;
         filled.push("Form");
       }
@@ -313,6 +313,16 @@ export default function AdminProducts() {
       if ((result as any).storageInformation) {
         newForm.storageInformation = (result as any).storageInformation;
         filled.push("Storage Information");
+      }
+      // Category — fill if the enrichment returned a suggested category
+      if ((result as any).category) {
+        // Try to match the suggested category name to an existing category
+        const suggestedName = (result as any).category as string;
+        const matchedCat = categories?.find((c: any) => c.name.toLowerCase() === suggestedName.toLowerCase());
+        if (matchedCat && !form.categoryId) {
+          newForm.categoryId = matchedCat._id;
+          filled.push("Category");
+        }
       }
 
       setForm(newForm);

@@ -46,6 +46,38 @@ const MEDICINES_DB: Record<string, MedicineInfo> = {
   "nasivion": { manufacturer: "Meda Pharmaceuticals India", composition: "Oxymetazoline 0.025% / 0.05%", benefits: "Nasal decongestant spray for rapid relief from nasal congestion due to cold and allergies.", description: "Nasivion from Meda provides quick nasal decongestion via oxymetazoline nasal spray.", form: "nasal drops" },
   "zifi": { manufacturer: "FDC Ltd", composition: "Cefixime 200mg", benefits: "Third-generation cephalosporin antibiotic for respiratory, urinary, and ENT infections.", description: "Zifi from FDC contains Cefixime. Effective oral treatment for respiratory and UTIs.", form: "tablet" },
   "taxim": { manufacturer: "Alkem Laboratories Ltd", composition: "Cefixime 200mg", benefits: "Oral cephalosporin antibiotic for respiratory infections, UTI, and typhoid fever.", description: "Taxim from Alkem contains Cefixime with excellent bioavailability for bacterial infections.", form: "tablet" },
+  // ── Topical / Creams / Gels / Ointments ──
+  "iodex": { manufacturer: "GlaxoSmithKline Pharmaceuticals Ltd", composition: "Methyl Salicylate + Eucalyptus Oil + Turpentine Oil", benefits: "Fast-acting topical pain reliever that provides warming relief from muscular aches, back pain, joint pain, and stiffness. Penetrates deep into muscles for effective local pain relief.", description: "Iodex Extra Power from GSK is a trusted topical analgesic balm containing Methyl Salicylate, Eucalyptus Oil, and Turpentine Oil. It provides fast warming pain relief for muscular and joint discomfort.", form: "cream" },
+  "volini": { manufacturer: "Sun Pharmaceutical Industries Ltd", composition: "Diclofenac Diethylamine + Methyl Salicylate + Menthol + Linseed Oil", benefits: "Topical anti-inflammatory gel that provides targeted relief from muscle pain, joint pain, sprains, and sports injuries. Reduces pain and inflammation at the site of application.", description: "Volini from Sun Pharma is a topical analgesic gel combining Diclofenac, Methyl Salicylate, and Menthol for fast, targeted pain relief from muscular and joint conditions.", form: "gel" },
+  "moov": { manufacturer: "Reckitt Benckiser (India) Ltd", composition: "Menthol + Methyl Salicylate + Eucalyptus Oil", benefits: "Fast-acting topical pain relief cream that provides warming sensation and effective relief from backache, muscle pain, and joint stiffness.", description: "Moov from Reckitt Benckiser is a trusted topical pain reliever cream providing fast relief from backache, muscle pain, and joint stiffness through a warming action.", form: "cream" },
+  "tiger balm": { manufacturer: "Haw Par Corporation", composition: "Menthol + Camphor + Clove Oil + Eucalyptus Oil + Cinnamon Oil", benefits: "Traditional herbal pain reliever providing warming relief from headaches, muscle aches, and nasal congestion. Natural ingredients offer gentle yet effective relief.", description: "Tiger Balm is a world-famous topical analgesic combining natural ingredients like Menthol, Camphor, and essential oils for fast relief from pain and congestion.", form: "ointment" },
+  "zeet": { manufacturer: "Cipla Ltd", composition: "Diclofenac Diethylamine + Linseed Oil + Methyl Salicylate + Menthol", benefits: "Topical anti-inflammatory gel for effective relief from muscular and joint pain. Provides targeted treatment with minimal systemic side effects.", description: "Zeet from Cipla is a topical pain relief gel combining Diclofenac with natural oils for fast and effective muscular pain relief.", form: "gel" },
+  "intex": { manufacturer: "Intas Pharmaceuticals Ltd", composition: "Diclofenac Diethylamine + Menthol + Methyl Salicylate", benefits: "Topical gel providing targeted anti-inflammatory and analgesic relief from muscle sprains, strains, and joint pain.", description: "Intex gel from Intas Pharmaceuticals provides topical pain relief with Diclofenac and cooling Menthol for muscle and joint conditions.", form: "gel" },
+  // ── Sprays ──
+  "volini spray": { manufacturer: "Sun Pharmaceutical Industries Ltd", composition: "Diclofenac Diethylamine + Menthol + Methyl Salicylate", benefits: "Convenient spray format for hands-free topical pain relief. Provides targeted anti-inflammatory action for muscle and joint pain without messy application.", description: "Volini Spray from Sun Pharma delivers Diclofenac-based pain relief in a convenient spray format for targeted muscle and joint pain treatment.", form: "spray" },
+  "deepspray": { manufacturer: "Cipla Ltd", composition: "Diclofenac Diethylamine + Menthol + Methyl Salicylate", benefits: "Fast-acting pain relief spray for muscles and joints. Easy-to-use spray format provides targeted cooling and anti-inflammatory relief.", description: "Deep Spray from Cipla provides convenient topical pain relief in spray form with Diclofenac for muscle and joint conditions.", form: "spray" },
+  "moov spray": { manufacturer: "Reckitt Benckiser (India) Ltd", composition: "Methyl Salicylate + Menthol + Eucalyptus Oil", benefits: "Quick-relief pain spray that provides fast warming action for backache, muscle pain, and sprains. Convenient no-touch application.", description: "Moov Spray from Reckitt Benckiser provides fast-acting pain relief in a convenient spray format for muscular and joint pain.", form: "spray" },
+  // ── Drops ──
+  "toba eye drops": { manufacturer: "Alcon Laboratories (India) Pvt Ltd", composition: "Tobramycin 0.3%", benefits: "Antibiotic eye drops effective against bacterial eye infections including conjunctivitis and blepharitis. Provides targeted ocular infection treatment.", description: "Toba Eye Drops from Alcon contains Tobramycin, an aminoglycoside antibiotic for treating bacterial eye infections.", form: "drops" },
+  "ozidex": { manufacturer: "Micro Labs Ltd", composition: "Ofloxacin 0.3%", benefits: "Fluoroquinolone antibiotic eye drops for bacterial conjunctivitis and other ocular infections. Effective broad-spectrum coverage.", description: "Ozidex from Micro Labs contains Ofloxacin for treating bacterial eye infections with broad-spectrum antibiotic action.", form: "drops" },
+  "cipladine": { manufacturer: "Cipla Ltd", composition: "Povidone Iodine 5% / 10%", benefits: "Antiseptic solution for wound cleaning and skin preparation. Effective against bacteria, fungi, and viruses. Essential first-aid antiseptic.", description: "Cipladine from Cipla contains Povidone Iodine, a broad-spectrum antiseptic for wound care and skin disinfection.", form: "drops" },
+  // ── Syrups (additional) ──
+  "digene": { manufacturer: "Abbott India Ltd", composition: "Magaldrate + Simethicone", benefits: "Dual-action antacid that neutralizes stomach acid and relieves gas bloating. Provides fast relief from acidity, heartburn, and indigestion.", description: "Digene from Abbott is a trusted antacid combining Magaldrate and Simethicone for complete relief from acidity and gas.", form: "syrup" },
+  "ENO": { manufacturer: "GlaxoSmithKline Pharmaceuticals Ltd", composition: "Sodium Bicarbonate + Citric Acid + Sodium Carbonate", benefits: "Fast-acting effervescent antacid that neutralizes excess stomach acid in seconds. Provides quick relief from acidity, heartburn, and acid reflux.", description: "ENO from GSK is a popular fast-acting antacid powder that provides instant relief from acidity and heartburn.", form: "powder" },
+  // ── Powders ──
+  "gelusil": { manufacturer: "Pfizer Ltd", composition: "Aluminum Hydroxide + Magnesium Hydroxide + Simethicone", benefits: "Complete antacid providing acid neutralization plus gas relief. Effective for heartburn, acid reflux, and stomach discomfort.", description: "Gelusil from Pfizer is a complete antacid combining acid-neutralizing agents with Simethicone for gas and bloating relief.", form: "powder" },
+  // ── Additional common medicines ──
+  "Augmentin": { manufacturer: "GlaxoSmithKline Pharmaceuticals Ltd", composition: "Amoxicillin 1000mg + Clavulanic Acid 125mg", benefits: "Broad-spectrum antibiotic combining Amoxicillin with Clavulanic Acid to overcome bacterial resistance. Effective for respiratory, urinary, and skin infections.", description: "Augmentin from GSK combines Amoxicillin with Clavulanic Acid for enhanced broad-spectrum antibiotic activity against resistant bacteria.", form: "tablet" },
+  "Panadol": { manufacturer: "GlaxoSmithKline Pharmaceuticals Ltd", composition: "Paracetamol 500mg", benefits: "Trusted paracetamol brand providing effective relief from mild to moderate pain and fever. Gentle on the stomach with a proven safety profile.", description: "Panadol from GSK is a widely trusted paracetamol brand providing safe and effective pain and fever relief.", form: "tablet" },
+  "Calpol": { manufacturer: "GlaxoSmithKline Pharmaceuticals Ltd", composition: "Paracetamol 120mg / 250mg / 500mg", benefits: "Gentle and effective fever and pain reliever suitable for children and adults. Available in delicious strawberry flavor for easy administration.", description: "Calpol from GSK is a trusted pediatric paracetamol brand providing safe fever and pain relief for children.", form: "syrup" },
+  "Naprosyn": { manufacturer: "Alembic Pharmaceuticals Ltd", composition: "Naproxen 250mg / 500mg", benefits: "Long-lasting NSAID providing up to 12 hours of pain and inflammation relief. Effective for arthritis, gout, menstrual cramps, and musculoskeletal pain.", description: "Naprosyn from Alembic contains Naproxen for sustained pain and inflammation relief with once or twice daily dosing.", form: "tablet" },
+  "Amlogard": { manufacturer: "Pfizer Ltd", composition: "Amlodipine 5mg / 10mg", benefits: "Calcium channel blocker providing smooth, gradual blood pressure reduction with 24-hour control. Also effective for angina relief.", description: "Amlogard from Pfizer contains Amlodipine for effective once-daily blood pressure control and angina management.", form: "tablet" },
+  "Gudcef": { manufacturer: "Cipla Ltd", composition: "Cefpodoxime Proxetil 200mg", benefits: "Third-generation oral cephalosporin antibiotic effective for respiratory tract infections, urinary tract infections, and ENT infections. Convenient once-daily dosing.", description: "Gudcef from Cipla contains Cefpodoxime for effective treatment of bacterial infections with convenient dosing.", form: "tablet" },
+  "Mox": { manufacturer: "Cipla Ltd", composition: "Amoxicillin 500mg / 250mg", benefits: "Broad-spectrum penicillin antibiotic for common bacterial infections of the respiratory tract, urinary tract, ear, and throat. Well-tolerated and effective.", description: "Mox from Cipla contains Amoxicillin for effective treatment of common bacterial infections.", form: "capsule" },
+  "Tuspel": { manufacturer: "Cipla Ltd", composition: "Ambroxol 30mg + Terbutaline 1.25mg + Guaifenesin 50mg", benefits: "Triple-action cough syrup that thins mucus, opens airways, and provides effective relief from productive and dry cough.", description: "Tuspel from Cipla is a combination cough syrup with Ambroxol, Terbutaline, and Guaifenesin for comprehensive cough relief.", form: "syrup" },
+  "Ascoril": { manufacturer: "GlaxoSmithKline Pharmaceuticals Ltd", composition: "Salbutamol + Bromhexine + Guaifenesin + Menthol", benefits: "Bronchodilator cough syrup that opens airways and thins mucus for effective relief from cough associated with asthma, bronchitis, and COPD.", description: "Ascoril from GSK combines Salbutamol with mucolytics for effective cough relief in respiratory conditions.", form: "syrup" },
+  "Zifi": { manufacturer: "FDC Ltd", composition: "Cefixime 200mg", benefits: "Third-generation cephalosporin antibiotic for respiratory, urinary, and ENT infections.", description: "Zifi from FDC contains Cefixime. Effective oral treatment for respiratory and UTIs.", form: "tablet" },
+  "Taxim": { manufacturer: "Alkem Laboratories Ltd", composition: "Cefixime 200mg", benefits: "Oral cephalosporin antibiotic for respiratory infections, UTI, and typhoid fever.", description: "Taxim from Alkem contains Cefixime with excellent bioavailability for bacterial infections.", form: "tablet" },
 };
 
 // Known manufacturers fallback
@@ -498,7 +530,36 @@ export const enrichProduct = action({
       storageInformation: string | null;
       composition: string | null;
       expiryDate: string | null;
-    } = { imageUrl: null, manufacturer: null, benefits: null, description: null, consumeType: null, safetyNote: null, form: null, storageInformation: null, composition: null, expiryDate: null };
+      category: string | null;
+    } = { imageUrl: null, manufacturer: null, benefits: null, description: null, consumeType: null, safetyNote: null, form: null, storageInformation: null, composition: null, expiryDate: null, category: null };
+
+    // Category inference based on product form, composition, and name
+    function inferCategory(form: string, composition: string, name: string): string | null {
+      const f = form.toLowerCase();
+      const c = composition.toLowerCase();
+      const n = name.toLowerCase();
+      if (["cream", "gel", "ointment", "lotion"].includes(f)) return "Personal Care";
+      if (f === "spray") return "Personal Care";
+      if (f === "drops" && (n.includes("eye") || c.includes("ofloxacin") || c.includes("tobramycin"))) return "Eye Care";
+      if (f === "drops" && (n.includes("nasal") || c.includes("oxymetazoline"))) return "Cold & Flu";
+      if (f === "nasal drops" || f === "nasal") return "Cold & Flu";
+      if (["syrup", "suspension"].includes(f) && (c.includes("ambroxol") || c.includes("salbutamol") || c.includes("bromhexine") || c.includes("guaifenesin") || n.includes("cough"))) return "Cough & Cold";
+      if (["syrup", "suspension"].includes(f) && (c.includes("paracetamol") || c.includes("phenylephrine"))) return "Cold & Flu";
+      if (["syrup", "suspension"].includes(f) && (c.includes("magaldrate") || c.includes("simethicone") || c.includes("ranitidine"))) return "Digestive Care";
+      if (["syrup", "suspension"].includes(f) && (c.includes("cetirizine") || c.includes("loratadine") || c.includes("montelukast"))) return "Allergy & Sinus";
+      if (["syrup", "suspension"].includes(f) && n.includes("calcium") || c.includes("calcium")) return "Vitamins & Supplements";
+      if (f === "powder" && (c.includes("sodium bicarbonate") || c.includes("antacid") || n.includes("eno") || n.includes("gelusil"))) return "Digestive Care";
+      if (f === "sachet" && c.includes("bacillus")) return "Digestive Care";
+      if (f === "inhaler" || f === "respules") return "Respiratory Care";
+      if (c.includes("paracetamol") || c.includes("ibuprofen") || c.includes("diclofenac") || c.includes("nimesulide")) return "Pain & Relief";
+      if (c.includes("cetirizine") || c.includes("loratadine") || c.includes("fexofenadine") || c.includes("montelukast")) return "Allergy & Sinus";
+      if (c.includes("pantoprazole") || c.includes("omeprazole") || c.includes("rabeprazole") || c.includes("ranitidine")) return "Digestive Care";
+      if (c.includes("metformin") || c.includes("glimepiride") || c.includes("gliclazide")) return "Diabetes Care";
+      if (c.includes("amlodipine") || c.includes("losartan") || c.includes("telmisartan") || c.includes("atorvastatin")) return "Heart & Cardio";
+      if (c.includes("amoxicillin") || c.includes("azithromycin") || c.includes("cefixime") || c.includes("ciprofloxacin")) return "Antibiotics";
+      if (c.includes("vitamin") || c.includes("calcium") || c.includes("iron") || c.includes("multivitamin")) return "Vitamins & Supplements";
+      return null;
+    }
 
     if (matched) {
       result.manufacturer = matched.manufacturer;
@@ -516,6 +577,8 @@ export const enrichProduct = action({
       result.expiryDate = matched.expiryDate || null;
       // Storage Information — use medicine-specific if available, else compose from composition/form
       result.storageInformation = matched.storageInformation || getStorageInfo(matched.composition || "", matched.form || args.form || "tablet");
+      // Category inference
+      result.category = inferCategory(matched.form || args.form || "", matched.composition || "", args.productName);
     } else {
       // Fallback to known DBs
       for (const [key, mfr] of Object.entries(KNOWN_MANUFACTURERS)) {
@@ -547,6 +610,8 @@ export const enrichProduct = action({
       result.expiryDate = null;
       // Storage Information — based on composition and form
       result.storageInformation = getStorageInfo(args.composition || args.productName, args.form || "tablet");
+      // Category inference
+      result.category = inferCategory(args.form || "", args.composition || "", args.productName);
     }
 
     // Image: try Wikimedia Commons (free, no API key)
