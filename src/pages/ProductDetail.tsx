@@ -899,20 +899,20 @@ export default function ProductDetail() {
                         setActiveTab(tab.id);
                         document.getElementById(tab.id)?.scrollIntoView({ behavior: "smooth", block: "start" });
                       }}
-                      className={`relative flex items-center gap-1.5 py-2.5 px-3 text-[11px] sm:text-xs font-semibold tracking-wide uppercase rounded-xl transition-all duration-300 group ${
+                      className={`relative flex items-center gap-1.5 py-2.5 px-3 text-[11px] sm:text-xs font-semibold tracking-wide uppercase rounded-xl transition-all duration-200 ease-out group ${
                         isActive
-                          ? "bg-primary/10 text-primary shadow-[0_0_0_1px_rgba(var(--primary-rgb,59,130,246),0.15)]"
-                          : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                          ? "bg-primary/15 text-primary shadow-[0_0_0_1.5px_rgba(var(--primary-rgb,59,130,246),0.2),0_1px_3px_-1px_rgba(0,0,0,0.08)] scale-[1.02]"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted/60 hover:shadow-[0_1px_4px_-1px_rgba(0,0,0,0.08)] hover:scale-[1.02] active:scale-[0.97]"
                       }`}
                     >
-                      <Icon className={`size-3.5 transition-all duration-300 ${isActive ? "text-primary" : "text-muted-foreground/60 group-hover:text-foreground/70"}`} strokeWidth={isActive ? 2 : 1.5} />
+                      <Icon className={`size-3.5 transition-all duration-200 ${isActive ? "text-primary scale-110" : "text-muted-foreground/60 group-hover:text-foreground group-hover:scale-110"}`} strokeWidth={isActive ? 2 : 1.5} />
                       <span className="hidden sm:inline">{tab.label}</span>
                       <span className="sm:hidden">{tab.label.split(" ")[0]}</span>
                       {isActive && (
                         <motion.span
                           layoutId="activeTabIndicator"
-                          className="absolute inset-0 rounded-xl border border-primary/20 bg-primary/5"
-                          transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                          className="absolute inset-0 rounded-xl border border-primary/25 bg-primary/[0.08]"
+                          transition={{ type: "spring", stiffness: 500, damping: 32 }}
                         />
                       )}
                     </button>
@@ -922,22 +922,22 @@ export default function ProductDetail() {
 
               {/* Trust indicators */}
               <div className="hidden lg:flex items-center gap-5 ml-6 pl-5 border-l border-border/40">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Shield className="size-4 text-slate-700" strokeWidth={1.5} />
+                <div className="flex items-center gap-2.5 text-muted-foreground">
+                  <Shield className="size-7 text-slate-700" strokeWidth={1.5} />
                   <div className="flex flex-col">
                     <span className="text-[11px] font-semibold text-foreground leading-tight">100% Genuine</span>
                     <span className="text-[9px] text-muted-foreground leading-tight">Products</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Calendar className="size-4 text-slate-700" strokeWidth={1.5} />
+                <div className="flex items-center gap-2.5 text-muted-foreground">
+                  <Calendar className="size-7 text-slate-700" strokeWidth={1.5} />
                   <div className="flex flex-col">
                     <span className="text-[11px] font-semibold text-foreground leading-tight">Expiry After</span>
                     <span className="text-[9px] text-muted-foreground leading-tight">{p.expiryDate ? new Date(p.expiryDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—"}</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <CreditCard className="size-4 text-slate-700" strokeWidth={1.5} />
+                <div className="flex items-center gap-2.5 text-muted-foreground">
+                  <CreditCard className="size-7 text-slate-700" strokeWidth={1.5} />
                   <div className="flex flex-col">
                     <span className="text-[11px] font-semibold text-foreground leading-tight">Safe & Secure</span>
                     <span className="text-[9px] text-muted-foreground leading-tight">Payments</span>
@@ -966,20 +966,20 @@ export default function ProductDetail() {
                       setActiveTab(tab.id);
                       document.getElementById(tab.id)?.scrollIntoView({ behavior: "smooth", block: "start" });
                     }}
-                    className={`relative flex items-center gap-1.5 py-2.5 px-3 text-[11px] sm:text-xs font-semibold tracking-wide uppercase rounded-xl transition-all duration-300 group ${
+                    className={`relative flex items-center gap-1.5 py-2.5 px-3 text-[11px] sm:text-xs font-semibold tracking-wide uppercase rounded-xl transition-all duration-200 ease-out group ${
                       isActive
-                        ? "bg-primary/10 text-primary shadow-[0_0_0_1px_rgba(var(--primary-rgb,59,130,246),0.15)]"
-                        : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                        ? "bg-primary/15 text-primary shadow-[0_0_0_1.5px_rgba(var(--primary-rgb,59,130,246),0.2),0_1px_3px_-1px_rgba(0,0,0,0.08)] scale-[1.02]"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted/60 hover:shadow-[0_1px_4px_-1px_rgba(0,0,0,0.08)] hover:scale-[1.02] active:scale-[0.97]"
                     }`}
                   >
-                    <Icon className={`size-3.5 transition-all duration-300 ${isActive ? "text-primary" : "text-muted-foreground/60 group-hover:text-foreground/70"}`} strokeWidth={isActive ? 2 : 1.5} />
+                    <Icon className={`size-3.5 transition-all duration-200 ${isActive ? "text-primary scale-110" : "text-muted-foreground/60 group-hover:text-foreground group-hover:scale-110"}`} strokeWidth={isActive ? 2 : 1.5} />
                     <span className="hidden sm:inline">{tab.label}</span>
                     <span className="sm:hidden">{tab.label.split(" ")[0]}</span>
                     {isActive && (
                       <motion.span
                         layoutId="activeTabIndicator2"
-                        className="absolute inset-0 rounded-xl border border-primary/20 bg-primary/5"
-                        transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                        className="absolute inset-0 rounded-xl border border-primary/25 bg-primary/[0.08]"
+                        transition={{ type: "spring", stiffness: 500, damping: 32 }}
                       />
                     )}
                   </button>
@@ -989,16 +989,16 @@ export default function ProductDetail() {
 
             {/* Mobile trust indicators */}
             <div className="flex lg:hidden flex-wrap items-center gap-4 px-4 pb-3 pt-1 justify-center border-t border-border/30">
-              <div className="flex items-center gap-1.5">
-                <Shield className="size-3.5 text-slate-700" strokeWidth={1.5} />
+              <div className="flex items-center gap-2">
+                <Shield className="size-5 text-slate-700" strokeWidth={1.5} />
                 <span className="text-[10px] font-semibold text-foreground">100% Genuine</span>
               </div>
-              <div className="flex items-center gap-1.5">
-                <Calendar className="size-3.5 text-slate-700" strokeWidth={1.5} />
+              <div className="flex items-center gap-2">
+                <Calendar className="size-5 text-slate-700" strokeWidth={1.5} />
                 <span className="text-[10px] font-semibold text-foreground">Expiry {p.expiryDate ? new Date(p.expiryDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "—"}</span>
               </div>
-              <div className="flex items-center gap-1.5">
-                <CreditCard className="size-3.5 text-slate-700" strokeWidth={1.5} />
+              <div className="flex items-center gap-2">
+                <CreditCard className="size-5 text-slate-700" strokeWidth={1.5} />
                 <span className="text-[10px] font-semibold text-foreground">Secure Payments</span>
               </div>
             </div>
