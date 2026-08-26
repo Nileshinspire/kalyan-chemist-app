@@ -248,3 +248,90 @@ export const bulkUpdate = mutation({
     return { success: true, count: args.productIds.length };
   },
 });
+
+// ── Admin: Get expiring/expired medicines ──
+const THREE_MONTHS_MS = 90 * 24 * 60 * 60 * 1000; // ~3 months in ms
+
+type ExpiryStatus = "expired" | "expiring_soon";
+
+type ExpiringProduct = {
+  _id: Id<"products">;
+  name: string;
+  imageUrl: string | undefined;
+  expiryDate: number;
+  stockQuantity: number;
+  expiryStatus: ExpiryStatus;
+  daysUntilExpiry: number;
+  categoryName: string;
+  manufacturer: string;
+};
+
+export const getExpiringMedicines = query({
+  args: {},
+  handler: async (ctx): Promise<ExpiringProduct[]> => {
+    const now = Date.now();
+    const allProducts = await ctx.db.query("products").collect();
+
+    const expiringProducts: ExpiringProduct[] = [];
+
+    for (const product of allProducts) {
+      if (!product.expiryDate) continue;
+
+      const daysUntilExpiry = Math.floor(
+        (product.expiryDate - now) / (1000 * 60 * 60 * 24)
+      );
+
+      let expiryStatus: ExpiryStatus | null = null;
+
+      if (product.expiryDate <= now) {
+        expiryStatus = "expired";
+      } else if (product.expiryDate <= now + THREE_MONTHS_MS) {
+        expiryStatus = "expiring_soon";
+      }
+
+      if (expiryStatus) {
+        const category = await ctx.db.get(product.categoryId);
+        expiringProducts.push({
+          _id: product._id,
+          name: product.name,
+          imageUrl: product.imageUrl,
+          expiryDate: product.expiryDate,
+          stockQuantity: product.stockQuantity,
+          expiryStatus,
+          daysUntilExpiry,
+          categoryName: category?.name ?? "Unknown",
+          manufacturer: product.manufacturer,
+        });
+      }
+    }
+
+    // Sort: expired first (most overdue first), then expiring soon (soonest first)
+    expiringProducts.sort((a, b) => a.expiryDate - b.expiryDate);
+
+    return expiringProducts;
+  },
+});
+
+// ── Admin: Get count of expiring products (for notification badge) ──
+export const getExpiringMedicinesCount = query({
+  args: {},
+  handler: async (ctx): Promise<{ expired: number; expiringSoon: number; total: number }> => {
+    const now = Date.now();
+    const allProducts = await ctx.db.query("products").collect();
+
+    let expired = 0;
+    let expiringSoon = 0;
+
+    for (const product of allProducts) {
+      if (!product.expiryDate) continue;
+
+      if (product.expiryDate <= now) {
+        expired++;
+      } else if (product.expiryDate <= now + THREE_MONTHS_MS) {
+        expiringSoon++;
+      }
+    }
+
+    return { expired, expiringSoon, total: expired + expiringSoon };
+  },
+});

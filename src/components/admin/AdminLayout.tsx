@@ -1,5 +1,7 @@
 import { useState, memo } from "react";
 import { useLocation, useNavigate } from "react-router";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -23,6 +25,7 @@ import {
   Truck,
   MessageCircle,
   FileCheck2,
+  CalendarClock,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -33,6 +36,7 @@ const NAV_ITEMS = [
   { label: "Inventory", path: "/admin/inventory", icon: Warehouse },
   { label: "Orders", path: "/admin/orders", icon: ClipboardList },
   { label: "Prescriptions", path: "/admin/prescriptions", icon: FileCheck2 },
+  { label: "Expiring Medicines", path: "/admin/expiring", icon: CalendarClock },
   { label: "Customers", path: "/admin/users", icon: Users },
   { label: "Coupons", path: "/admin/coupons", icon: Ticket },
   { label: "Reviews", path: "/admin/reviews", icon: Star },
@@ -50,6 +54,7 @@ const AdminLayout = memo(function AdminLayout({
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const expiringCount = useQuery(api.adminProducts.getExpiringMedicinesCount);
 
   const isActive = (path: string) =>
     path === "/admin"
@@ -74,29 +79,40 @@ const AdminLayout = memo(function AdminLayout({
         </div>
       </div>
       <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
-        {NAV_ITEMS.map((item) => (
-          <button
-            key={item.label}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-200 ${
-              isActive(item.path)
-                ? "bg-primary/10 text-primary font-medium shadow-sm"
-                : "text-muted-foreground hover:bg-muted hover:text-foreground"
-            }`}
-            onClick={() => {
-              navigate(item.path);
-              setSidebarOpen(false);
-            }}
-          >
-            <item.icon className="size-4 shrink-0" />
-            {item.label}
-            {isActive(item.path) && (
-              <motion.div
-                layoutId="admin-active"
-                className="ml-auto w-1.5 h-1.5 rounded-full bg-primary"
-              />
-            )}
-          </button>
-        ))}
+        {NAV_ITEMS.map((item) => {
+          const badgeCount =
+            item.path === "/admin/expiring" && expiringCount?.total
+              ? expiringCount.total
+              : 0;
+          return (
+            <button
+              key={item.label}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all duration-200 ${
+                isActive(item.path)
+                  ? "bg-primary/10 text-primary font-medium shadow-sm"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              }`}
+              onClick={() => {
+                navigate(item.path);
+                setSidebarOpen(false);
+              }}
+            >
+              <item.icon className="size-4 shrink-0" />
+              {item.label}
+              {badgeCount > 0 && (
+                <span className="ml-auto flex items-center justify-center min-w-[18px] h-[18px] rounded-full bg-red-500 text-white text-[10px] font-bold px-1">
+                  {badgeCount > 99 ? "99+" : badgeCount}
+                </span>
+              )}
+              {isActive(item.path) && badgeCount === 0 && (
+                <motion.div
+                  layoutId="admin-active"
+                  className="ml-auto w-1.5 h-1.5 rounded-full bg-primary"
+                />
+              )}
+            </button>
+          );
+        })}
       </nav>
       <div className="p-3 border-t border-border/40 space-y-1">
         <button

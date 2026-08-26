@@ -44,6 +44,7 @@ const AdminReports = lazy(() => import("./pages/admin/AdminReports"));
 const AdminDeliverySettings = lazy(() => import("./pages/admin/AdminDeliverySettings"));
 const AdminWhatsApp = lazy(() => import("./pages/admin/AdminWhatsApp"));
 const AdminPrescriptions = lazy(() => import("./pages/admin/AdminPrescriptions"));
+const AdminExpiringMedicines = lazy(() => import("./pages/admin/AdminExpiringMedicines"));
 const CategoriesPage = lazy(() => import("./pages/Categories.tsx"));
 const BrandsPage = lazy(() => import("./pages/Brands.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
@@ -462,6 +463,16 @@ function AnimatedRoutes() {
             <PageTransition>
               <RequireAuth adminOnly>
                 <AdminWhatsApp />
+              </RequireAuth>
+            </PageTransition>
+          }
+        />
+        <Route
+          path="/admin/expiring"
+          element={
+            <PageTransition>
+              <RequireAuth adminOnly>
+                <AdminExpiringMedicines />
               </RequireAuth>
             </PageTransition>
           }
