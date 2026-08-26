@@ -15,7 +15,14 @@ import {
 } from "@/components/ui/input-otp";
 
 import { useAuth } from "@/hooks/use-auth";
-import { ArrowRight, Loader2, Mail, Phone } from "lucide-react";
+import {
+  ArrowRight,
+  Loader2,
+  Lock,
+  Mail,
+  Phone,
+  UserPlus,
+} from "lucide-react";
 import { Suspense, useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
@@ -49,6 +56,11 @@ function normalizePhone(value: string): string {
   return value.replace(/[\s\-()+]/g, "").slice(-10);
 }
 
+type AuthStep =
+  | "signIn"
+  | { method: "email"; identifier: string }
+  | { method: "phone"; phone: string };
+
 function Auth({ redirectAfterAuth }: AuthProps = {}) {
   const { isLoading: authLoading, isAuthenticated, signIn } = useAuth();
   const navigate = useNavigate();
@@ -57,8 +69,11 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
     searchParams.get("returnTo"),
     redirectAfterAuth,
   );
-  const [step, setStep] = useState<"signIn" | { identifier: string; method: "email" | "phone" }>("signIn");
+
+  const [step, setStep] = useState<AuthStep>("signIn");
   const [otp, setOtp] = useState("");
+  const [password, setPassword] = useState("");
+  const [isSignUp, setIsSignUp] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -68,7 +83,10 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
     }
   }, [authLoading, isAuthenticated, navigate, redirect]);
 
-  const handleIdentifierSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+  // ── Step 1: Detect email vs phone ──
+  const handleIdentifierSubmit = async (
+    event: React.FormEvent<HTMLFormElement>,
+  ) => {
     event.preventDefault();
     setIsLoading(true);
     setError(null);
@@ -83,18 +101,20 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
     }
 
     if (isEmail(rawInput)) {
-      // Email OTP flow — server expects 'email' param, not 'identifier'
+      // ── Email OTP flow (unchanged) ──
       try {
         const emailFormData = new FormData();
         emailFormData.set("email", rawInput.trim());
         await signIn("email-otp", emailFormData);
-        setStep({ identifier: rawInput.trim(), method: "email" });
+        setStep({ method: "email", identifier: rawInput.trim() });
         setIsLoading(false);
       } catch (error) {
         console.error("Email sign-in error:", error);
         const msg = error instanceof Error ? error.message : "";
         if (msg.includes("Connection lost")) {
-          setError("Connection issue. Please check your internet and try again.");
+          setError(
+            "Connection issue. Please check your internet and try again.",
+          );
         } else if (msg.includes("rate limit")) {
           setError("Too many attempts. Please wait a moment and try again.");
         } else {
@@ -105,33 +125,10 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
         setIsLoading(false);
       }
     } else if (isPhone(rawInput)) {
-      // Phone OTP flow
+      // ── Phone + Password flow ──
       const phone = normalizePhone(rawInput);
-      try {
-        // Create a new FormData with the phone field for phone-otp provider
-        const phoneFormData = new FormData();
-        phoneFormData.set("phone", `+91${phone}`);
-        await signIn("phone", phoneFormData);
-        setStep({ identifier: phone, method: "phone" });
-        setIsLoading(false);
-      } catch (error) {
-        console.error("Phone sign-in error:", error);
-        const msg = error instanceof Error ? error.message : "";
-        if (msg.includes("Connection lost")) {
-          setError("Connection issue. Please check your internet and try again.");
-        } else if (msg.includes("rate limit")) {
-          setError("Too many attempts. Please wait a moment and try again.");
-        } else if (msg.includes("not configured") || msg.includes("provider")) {
-          setError(
-            "Phone verification is not yet configured. Please use your email address to sign in.",
-          );
-        } else {
-          setError(
-            msg || "We could not send a verification code. Please try again.",
-          );
-        }
-        setIsLoading(false);
-      }
+      setStep({ method: "phone", phone });
+      setIsLoading(false);
     } else {
       setError(
         "Please enter a valid email address (e.g. you@example.com) or 10-digit phone number (e.g. 9876543210).",
@@ -140,30 +137,88 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
     }
   };
 
+  // ── Step 2a: Email OTP verification (unchanged) ──
   const handleOtpSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsLoading(true);
     setError(null);
     try {
       const formData = new FormData(event.currentTarget);
-      const provider = typeof step === "object" && step.method === "email" ? "email-otp" : "phone";
-      await signIn(provider, formData);
+      await signIn("email-otp", formData);
       navigate(redirect);
     } catch (error) {
       console.error("OTP verification error:", error);
       const msg = error instanceof Error ? error.message : "";
       if (msg.includes("Connection lost")) {
-        setError("Connection issue. Please check your internet and try again.");
+        setError(
+          "Connection issue. Please check your internet and try again.",
+        );
       } else if (msg.includes("expired")) {
-        setError("The verification code has expired. Please request a new one.");
+        setError(
+          "The verification code has expired. Please request a new one.",
+        );
       } else {
-        setError("The verification code is incorrect. Please check and try again.");
+        setError(
+          "The verification code is incorrect. Please check and try again.",
+        );
       }
       setIsLoading(false);
       setOtp("");
     }
   };
 
+  // ── Step 2b: Phone + Password sign-in / sign-up ──
+  const handlePasswordSubmit = async (
+    event: React.FormEvent<HTMLFormElement>,
+  ) => {
+    event.preventDefault();
+    setIsLoading(true);
+    setError(null);
+
+    if (typeof step !== "object" || step.method !== "phone") return;
+    const phoneStep = step;
+
+    if (!password || password.length < 8) {
+      setError("Password must be at least 8 characters long.");
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const flow = isSignUp ? "signUp" : "signIn";
+      await signIn("phone-password", {
+        flow,
+        phone: `+91${phoneStep.phone}`,
+        password,
+      });
+      navigate(redirect);
+    } catch (error) {
+      console.error("Phone password auth error:", error);
+      const msg = error instanceof Error ? error.message : "";
+      if (msg.includes("already exists")) {
+        setError(
+          "An account with this phone number already exists. Please sign in instead.",
+        );
+        setIsSignUp(false);
+      } else if (msg.includes("Invalid")) {
+        setError(
+          isSignUp
+            ? "Could not create account. Please try again."
+            : "Invalid phone number or password. Please try again.",
+        );
+      } else if (msg.includes("Connection lost")) {
+        setError(
+          "Connection issue. Please check your internet and try again.",
+        );
+      } else {
+        setError(msg || "Something went wrong. Please try again.");
+      }
+      setIsLoading(false);
+      setPassword("");
+    }
+  };
+
+  // ── Render ──
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-primary/[0.03] to-background">
       {/* Header */}
@@ -192,15 +247,16 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
       <div className="flex-1 flex items-center justify-center px-4 py-12">
         <div className="flex items-center justify-center h-full flex-col">
           <Card className="min-w-[360px] max-w-[400px] border-border/70 shadow-lg">
-            {step === "signIn" ? (
+            {/* ─── Step: Enter email or phone ─── */}
+            {step === "signIn" && (
               <>
                 <CardHeader className="text-center">
                   <CardTitle className="text-xl font-bold">
                     Welcome to Kalyan Chemist
                   </CardTitle>
                   <CardDescription className="text-sm leading-relaxed">
-                    Enter your email or phone number to sign in or create a new account.
-                    We will send you a verification code.
+                    Enter your email or phone number to sign in or create a new
+                    account.
                   </CardDescription>
                 </CardHeader>
                 <form onSubmit={handleIdentifierSubmit}>
@@ -238,34 +294,26 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                   </CardContent>
                 </form>
               </>
-            ) : (
+            )}
+
+            {/* ─── Step: Email OTP verification (unchanged) ─── */}
+            {typeof step === "object" && step.method === "email" && (
               <>
                 <CardHeader className="text-center">
                   <CardTitle className="text-xl font-bold">
-                    {step.method === "email" ? "Check Your Inbox" : "Check Your Phone"}
+                    Check Your Inbox
                   </CardTitle>
                   <CardDescription className="text-sm leading-relaxed">
-                    {step.method === "email" ? (
-                      <>
-                        We sent a verification code to{" "}
-                        <span className="font-medium text-foreground">{step.identifier}</span>
-                      </>
-                    ) : (
-                      <>
-                        We sent an OTP to{" "}
-                        <span className="font-medium text-foreground">+91 {step.identifier}</span>
-                      </>
-                    )}
+                    We sent a verification code to{" "}
+                    <span className="font-medium text-foreground">
+                      {step.identifier}
+                    </span>
                   </CardDescription>
                 </CardHeader>
                 <form onSubmit={handleOtpSubmit}>
                   <CardContent className="space-y-4">
                     <input type="hidden" name="code" value={otp} />
-                    <input
-                      type="hidden"
-                      name={step.method === "email" ? "email" : "phone"}
-                      value={step.method === "email" ? step.identifier : `+91${step.identifier}`}
-                    />
+                    <input type="hidden" name="email" value={step.identifier} />
                     <div className="flex justify-center">
                       <InputOTP
                         maxLength={6}
@@ -286,7 +334,9 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                       </InputOTP>
                     </div>
                     {error && (
-                      <p className="text-sm text-destructive text-center">{error}</p>
+                      <p className="text-sm text-destructive text-center">
+                        {error}
+                      </p>
                     )}
                   </CardContent>
                   <CardFooter className="flex flex-col gap-3">
@@ -310,6 +360,102 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                         setStep("signIn");
                         setOtp("");
                         setError(null);
+                      }}
+                    >
+                      Use a different method
+                    </Button>
+                  </CardFooter>
+                </form>
+              </>
+            )}
+
+            {/* ─── Step: Phone + Password ─── */}
+            {typeof step === "object" && step.method === "phone" && (
+              <>
+                <CardHeader className="text-center">
+                  <CardTitle className="text-xl font-bold">
+                    {isSignUp ? "Create Account" : "Welcome Back"}
+                  </CardTitle>
+                  <CardDescription className="text-sm leading-relaxed">
+                    {isSignUp ? (
+                      <>
+                        Create a password for{" "}
+                        <span className="font-medium text-foreground">
+                          +91 {step.phone}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        Enter your password for{" "}
+                        <span className="font-medium text-foreground">
+                          +91 {step.phone}
+                        </span>
+                      </>
+                    )}
+                  </CardDescription>
+                </CardHeader>
+                <form onSubmit={handlePasswordSubmit}>
+                  <CardContent className="space-y-4">
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        type="password"
+                        placeholder="Password (min. 8 characters)"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="pl-9"
+                        autoComplete={
+                          isSignUp ? "new-password" : "current-password"
+                        }
+                        disabled={isLoading}
+                        required
+                        minLength={8}
+                      />
+                    </div>
+                    {error && (
+                      <p className="text-sm text-destructive text-center">
+                        {error}
+                      </p>
+                    )}
+                  </CardContent>
+                  <CardFooter className="flex flex-col gap-3">
+                    <Button
+                      type="submit"
+                      className="w-full gradient-primary text-white"
+                      disabled={isLoading || password.length < 8}
+                    >
+                      {isLoading ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      ) : isSignUp ? (
+                        <UserPlus className="h-4 w-4 mr-2" />
+                      ) : (
+                        <Lock className="h-4 w-4 mr-2" />
+                      )}
+                      {isSignUp ? "Create Account" : "Sign In"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setIsSignUp((prev) => !prev);
+                        setPassword("");
+                        setError(null);
+                      }}
+                    >
+                      {isSignUp
+                        ? "Already have an account? Sign in"
+                        : "Don't have an account? Create one"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setStep("signIn");
+                        setPassword("");
+                        setError(null);
+                        setIsSignUp(false);
                       }}
                     >
                       Use a different method
