@@ -85,7 +85,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
     if (isEmail(rawInput)) {
       // Email OTP flow
       try {
-        await signIn("email", formData);
+        await signIn("email-otp", formData);
         setStep({ identifier: rawInput, method: "email" });
         setIsLoading(false);
       } catch (error) {
@@ -144,7 +144,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
     setError(null);
     try {
       const formData = new FormData(event.currentTarget);
-      const provider = typeof step === "object" && step.method === "email" ? "email" : "phone";
+      const provider = typeof step === "object" && step.method === "email" ? "email-otp" : "phone";
       await signIn(provider, formData);
       navigate(redirect);
     } catch (error) {

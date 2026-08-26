@@ -88,7 +88,9 @@ const schema = defineSchema(
       city: v.optional(v.string()),
       state: v.optional(v.string()),
       pincode: v.optional(v.string()),
-    }).index("email", ["email"]),
+    })
+      .index("email", ["email"])
+      .index("phone", ["phone"]),
 
     // ── Brands ──
     brands: defineTable({
