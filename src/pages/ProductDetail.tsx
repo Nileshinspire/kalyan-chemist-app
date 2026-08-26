@@ -952,10 +952,10 @@ export default function ProductDetail() {
                       className={`relative flex items-center gap-1.5 py-2.5 px-3.5 text-[11px] sm:text-xs font-medium tracking-wide cursor-pointer rounded-t-lg transition-all duration-250 ease-out group ${
                         isActive
                           ? "text-primary font-semibold"
-                          : "text-muted-foreground hover:text-foreground"
+                          : "text-slate-500 hover:text-slate-800"
                       }`}
                     >
-                      <Icon className={`size-3.5 transition-all duration-250 ${isActive ? "text-primary" : "text-muted-foreground/50 group-hover:text-primary/70 group-hover:translate-y-[-1px]"}`} strokeWidth={isActive ? 2 : 1.5} />
+                      <Icon className={`size-3.5 transition-all duration-250 ${isActive ? "text-primary" : "text-slate-400 group-hover:text-primary/80 group-hover:translate-y-[-1px]"}`} strokeWidth={isActive ? 2 : 1.5} />
                       <span className="hidden sm:inline transition-colors duration-250">{tab.label}</span>
                       <span className="sm:hidden transition-colors duration-250">{tab.label.split(" ")[0]}</span>
                       {/* Animated underline indicator */}
@@ -1022,10 +1022,10 @@ export default function ProductDetail() {
                     className={`relative flex items-center gap-1.5 py-2.5 px-3.5 text-[11px] sm:text-xs font-medium tracking-wide cursor-pointer rounded-t-lg transition-all duration-250 ease-out group ${
                       isActive
                         ? "text-primary font-semibold"
-                        : "text-muted-foreground hover:text-foreground"
+                        : "text-slate-500 hover:text-slate-800"
                     }`}
                   >
-                    <Icon className={`size-3.5 transition-all duration-250 ${isActive ? "text-primary" : "text-muted-foreground/50 group-hover:text-primary/70 group-hover:translate-y-[-1px]"}`} strokeWidth={isActive ? 2 : 1.5} />
+                    <Icon className={`size-3.5 transition-all duration-250 ${isActive ? "text-primary" : "text-slate-400 group-hover:text-primary/80 group-hover:translate-y-[-1px]"}`} strokeWidth={isActive ? 2 : 1.5} />
                     <span className="hidden sm:inline transition-colors duration-250">{tab.label}</span>
                     <span className="sm:hidden transition-colors duration-250">{tab.label.split(" ")[0]}</span>
                     {isActive && (
