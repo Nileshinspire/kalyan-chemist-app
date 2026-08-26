@@ -251,6 +251,7 @@ export default function ProductDetail() {
   const [shareOpen, setShareOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [selectedImage, setSelectedImage] = useState(0);
+  const [selectedVariantIndex, setSelectedVariantIndex] = useState(0);
   const [activeTab, setActiveTab] = useState("product-info");
 
   const product = useQuery(
@@ -288,6 +289,14 @@ export default function ProductDetail() {
   const deliveryConfig = useQuery(api.deliveryConfig.getPublic);
   const logWhatsApp = useMutation(api.whatsappEnquiries.log);
 
+  const hasVariants = !!(product && (product as any).packSizeVariants && (product as any).packSizeVariants.length > 0);
+  const activeVariant = hasVariants ? (product as any).packSizeVariants[selectedVariantIndex] : null;
+  const activePrice = activeVariant ? activeVariant.price : (product?.discountPrice && product.discountPrice < (product?.price ?? 0) ? product.discountPrice! : product?.price ?? 0);
+  const activeOriginalPrice = activeVariant ? (activeVariant.discountPrice && activeVariant.discountPrice < activeVariant.price ? activeVariant.price : activeVariant.price) : product?.price ?? 0;
+  const activeDiscount = activeVariant?.discountPrice && activeVariant.discountPrice < activeVariant.price ? activeVariant : null;
+  const activeStock = activeVariant ? activeVariant.stockQuantity : (product?.stockQuantity ?? 0);
+  const activePackLabel = activeVariant ? activeVariant.label : (product?.packSize ?? "");
+
   const handleAddToCart = async () => {
     if (!product) return;
     if (!isAuthenticated) {
@@ -297,7 +306,7 @@ export default function ProductDetail() {
     }
     try {
       await addToCart({ productId: product._id, quantity: 1 });
-      toast.success("Added to cart");
+      toast.success(`Added to cart${activeVariant ? ` (${activeVariant.label})` : ""}`);
     } catch (error: any) {
       toast.error(error.message || "Failed to add to cart");
     }
@@ -310,7 +319,7 @@ export default function ProductDetail() {
       navigate(`/auth?returnTo=${encodeURIComponent(window.location.pathname)}`);
       return;
     }
-    navigate(`/checkout?buyNow=${product._id}`);
+    navigate(`/checkout?buyNow=${product._id}${activeVariant ? `&variant=${selectedVariantIndex}` : ""}`);
   };
 
   const handleCopyLink = useCallback(async () => {
@@ -357,15 +366,14 @@ export default function ProductDetail() {
       return;
     }
     const p = product;
-    const hasDiscount = p.discountPrice && p.discountPrice < p.price;
-    const unitPrice = hasDiscount ? p.discountPrice! : p.price;
-    const isAvailable = p.stockQuantity >= whatsappQty;
+    const unitPrice = activeDiscount ? activeDiscount.discountPrice! : activePrice;
+    const isAvailable = activeStock >= whatsappQty;
     const msg = generateProductMessage({
       productName: p.name,
       price: unitPrice,
       composition: p.composition,
-      packSize: p.packSize,
-      stockQuantity: p.stockQuantity,
+      packSize: activePackLabel,
+      stockQuantity: activeStock,
       requestedQuantity: whatsappQty,
       prescriptionRequired: p.prescriptionRequired,
     });
@@ -373,7 +381,7 @@ export default function ProductDetail() {
     logWhatsApp({
       type: "order",
       message: msg,
-      summary: `WhatsApp Order — ${p.name} × ${whatsappQty}${isAvailable ? " (Available)" : " (Unavailable)"}`,
+      summary: `WhatsApp Order — ${p.name}${activeVariant ? ` (${activeVariant.label})` : ""} × ${whatsappQty}${isAvailable ? " (Available)" : " (Unavailable)"}`,
       productId: p._id,
       productName: p.name,
       totalAmount: unitPrice * whatsappQty,
@@ -653,32 +661,74 @@ export default function ProductDetail() {
               <Button
                 variant="outline"
                 size="icon"
-                className="shrink-0 size-10 rounded-full border-border/60 hover:border-primary/40 hover:bg-primary/5 transition-all"
+                className="shrink-0 size-12 rounded-full border-border/60 hover:border-primary/40 hover:bg-primary/5 transition-all"
                 onClick={() => setShareOpen(true)}
                 title="Share this product"
               >
-                <Share2 className="size-4" />
+                <Share2 className="size-5" />
               </Button>
             </div>
 
             <div className="flex items-baseline gap-3">
-              <span className="text-3xl font-extrabold">{formatCurrency(hasDiscount ? p.discountPrice! : p.price)}</span>
-              {hasDiscount && (
+              <span className="text-3xl font-extrabold">{formatCurrency(activeDiscount ? activeDiscount.discountPrice! : activePrice)}</span>
+              {activeDiscount && (
                 <>
-                  <span className="text-lg text-muted-foreground line-through">{formatCurrency(p.price)}</span>
+                  <span className="text-lg text-muted-foreground line-through">{formatCurrency(activeDiscount.price)}</span>
                   <Badge className="bg-green-100 text-green-700 border-green-200 font-bold">
-                    Save {formatCurrency(p.price - p.discountPrice!)}
+                    Save {formatCurrency(activeDiscount.price - activeDiscount.discountPrice!)}
                   </Badge>
                 </>
               )}
             </div>
 
+            {/* Pack Size Variants Selector */}
+            {hasVariants && (
+              <div className="space-y-2">
+                <p className="text-sm font-semibold text-foreground">Selected Pack Size: <span className="text-primary">{activePackLabel}</span></p>
+                <div className="flex flex-wrap gap-2">
+                  {(product as any).packSizeVariants.map((variant: any, i: number) => {
+                    const vDiscount = variant.discountPrice && variant.discountPrice < variant.price;
+                    const vInStock = variant.stockQuantity > 0;
+                    return (
+                      <button
+                        key={i}
+                        type="button"
+                        disabled={!vInStock}
+                        onClick={() => setSelectedVariantIndex(i)}
+                        className={`relative flex flex-col items-start p-3 rounded-xl border-2 transition-all duration-200 min-w-[100px] ${
+                          selectedVariantIndex === i
+                            ? "border-primary bg-primary/5 shadow-sm ring-1 ring-primary/20"
+                            : vInStock
+                            ? "border-border/60 hover:border-primary/30 hover:bg-muted/30"
+                            : "border-border/30 opacity-50 cursor-not-allowed"
+                        }`}
+                      >
+                        <span className="text-sm font-semibold text-foreground">{variant.label}</span>
+                        <span className="text-sm font-bold mt-1">{formatCurrency(vDiscount ? variant.discountPrice! : variant.price)}</span>
+                        {vDiscount && (
+                          <span className="text-xs text-muted-foreground line-through">{formatCurrency(variant.price)}</span>
+                        )}
+                        <span className={`text-xs mt-1 font-medium ${vInStock ? "text-green-600" : "text-red-500"}`}>
+                          {vInStock ? "In Stock" : "Out of Stock"}
+                        </span>
+                        {selectedVariantIndex === i && (
+                          <div className="absolute top-1.5 right-1.5 size-4 rounded-full bg-primary flex items-center justify-center">
+                            <span className="text-[8px] text-white font-bold">✓</span>
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             <div>
-              {isInStock ? (
+              {activeStock > 0 ? (
                 <div className="flex items-center gap-2">
-                  <div className={`size-2 rounded-full ${isLowStock ? "bg-amber-500" : "bg-green-500"}`} />
-                  <span className={`text-sm font-medium ${isLowStock ? "text-amber-600" : "text-green-600"}`}>
-                    {isLowStock ? `Only ${p.stockQuantity} left in stock` : "In Stock"}
+                  <div className={`size-2 rounded-full ${activeStock < 10 ? "bg-amber-500" : "bg-green-500"}`} />
+                  <span className={`text-sm font-medium ${activeStock < 10 ? "text-amber-600" : "text-green-600"}`}>
+                    {activeStock < 10 ? `Only ${activeStock} left in stock` : "In Stock"}
                   </span>
                 </div>
               ) : (
@@ -707,7 +757,7 @@ export default function ProductDetail() {
                 size="lg"
                 className="flex-1 h-12 text-sm font-semibold gap-2 gradient-primary text-white shadow-glow hover:shadow-card-hover transition-all hover:scale-[1.02] active:scale-[0.98] rounded-xl"
                 onClick={handleBuyNow}
-                disabled={!isInStock}
+                disabled={activeStock <= 0}
               >
                 <Zap className="size-4" />
                 Buy Now
@@ -717,7 +767,7 @@ export default function ProductDetail() {
                 variant="outline"
                 className="h-12 text-sm font-semibold gap-2 rounded-xl"
                 onClick={handleAddToCart}
-                disabled={!isInStock}
+                disabled={activeStock <= 0}
               >
                 <ShoppingCart className="size-4" />
                 {isInStock ? "Add to Cart" : "Out of Stock"}
@@ -733,7 +783,7 @@ export default function ProductDetail() {
             </div>
 
             {/* WhatsApp Quantity Selector */}
-            {isInStock && (
+            {activeStock > 0 && (
               <div className="flex items-center gap-3">
                 <span className="text-sm font-medium text-muted-foreground">Qty for WhatsApp:</span>
                 <div className="flex items-center gap-2">
@@ -751,8 +801,8 @@ export default function ProductDetail() {
                     variant="outline"
                     size="icon"
                     className="size-8 rounded-lg"
-                    onClick={() => setWhatsappQty(Math.min(p.stockQuantity, whatsappQty + 1))}
-                    disabled={whatsappQty >= p.stockQuantity}
+                    onClick={() => setWhatsappQty(Math.min(activeStock, whatsappQty + 1))}
+                    disabled={whatsappQty >= activeStock}
                   >
                     <Plus className="size-3" />
                   </Button>
@@ -1376,7 +1426,7 @@ export default function ProductDetail() {
               className="flex flex-col items-center gap-1.5 p-3 rounded-xl hover:bg-amber-50 transition-colors"
               onClick={() => {
                 const subject = encodeURIComponent(`Check out ${p.name}`);
-                const body = encodeURIComponent(`I found this product on Kalyan Chemist and thought you might be interested:\n\n${p.name} — ${formatCurrency(hasDiscount ? p.discountPrice! : p.price)}\n\n${shareUrl}`);
+                const body = encodeURIComponent(`I found this product on Kalyan Chemist and thought you might be interested:\n\n${p.name} — ${formatCurrency(activeDiscount ? activeDiscount.discountPrice! : activePrice)}\n\n${shareUrl}`);
                 window.open(`mailto:?subject=${subject}&body=${body}`);
               }}
             >

@@ -129,6 +129,13 @@ const schema = defineSchema(
       manufacturer: v.string(),
       dosage: v.optional(v.string()),
       packSize: v.string(),
+      packSizeVariants: v.optional(v.array(v.object({
+        label: v.string(),
+        price: v.number(),
+        discountPrice: v.optional(v.number()),
+        stockQuantity: v.number(),
+        sku: v.optional(v.string()),
+      }))),
       strength: v.optional(v.string()),
       form: v.optional(v.string()), // tablet, capsule, syrup, injection, cream, etc.
       sku: v.optional(v.string()),

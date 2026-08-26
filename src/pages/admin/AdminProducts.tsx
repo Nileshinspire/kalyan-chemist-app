@@ -70,6 +70,7 @@ interface ProductForm {
   manufacturer: string;
   dosage: string;
   packSize: string;
+  packSizeVariants: Array<{ label: string; price: number; discountPrice?: number; stockQuantity: number; sku?: string }>;
   strength: string;
   form: string;
   sku: string;
@@ -97,6 +98,7 @@ const EMPTY_FORM: ProductForm = {
   manufacturer: "",
   dosage: "",
   packSize: "",
+  packSizeVariants: [],
   strength: "",
   form: "tablet",
   sku: "",
@@ -166,6 +168,7 @@ export default function AdminProducts() {
       manufacturer: product.manufacturer,
       dosage: product.dosage || "",
       packSize: product.packSize,
+      packSizeVariants: product.packSizeVariants || [],
       strength: product.strength || "",
       form: product.form || "tablet",
       sku: product.sku || "",
@@ -204,6 +207,7 @@ export default function AdminProducts() {
         manufacturer: form.manufacturer,
         dosage: form.dosage || undefined,
         packSize: form.packSize,
+        packSizeVariants: form.packSizeVariants.length > 0 ? form.packSizeVariants : undefined,
         strength: form.strength || undefined,
         form: form.form || undefined,
         sku: form.sku || undefined,
@@ -664,6 +668,46 @@ export default function AdminProducts() {
               <div className="space-y-2">
                 <Label>Stock Quantity *</Label>
                 <Input type="number" value={form.stockQuantity || ""} onChange={(e) => setForm({ ...form, stockQuantity: parseInt(e.target.value) || 0 })} placeholder="0" />
+              </div>
+              {/* Pack Size Variants */}
+              <div className="sm:col-span-2 space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>Pack Size Variants (optional)</Label>
+                  <Button type="button" variant="outline" size="sm" className="h-7 text-xs gap-1"
+                    onClick={() => setForm({ ...form, packSizeVariants: [...form.packSizeVariants, { label: "", price: form.price, stockQuantity: 0 }] })}
+                  >
+                    + Add Variant
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">Add different pack sizes with individual prices and stock. Leave empty if only one pack size.</p>
+                {form.packSizeVariants.length > 0 && (
+                  <div className="space-y-2 mt-2">
+                    {form.packSizeVariants.map((v, i) => (
+                      <div key={i} className="flex items-center gap-2 p-2 rounded-lg border border-border/60 bg-muted/20">
+                        <Input value={v.label} onChange={(e) => {
+                          const next = [...form.packSizeVariants];
+                          next[i] = { ...next[i], label: e.target.value };
+                          setForm({ ...form, packSizeVariants: next });
+                        }} placeholder="e.g. 27.5 ml" className="h-8 text-xs flex-1" />
+                        <Input type="number" value={v.price || ""} onChange={(e) => {
+                          const next = [...form.packSizeVariants];
+                          next[i] = { ...next[i], price: parseFloat(e.target.value) || 0 };
+                          setForm({ ...form, packSizeVariants: next });
+                        }} placeholder="Price" className="h-8 text-xs w-24" />
+                        <Input type="number" value={v.stockQuantity || ""} onChange={(e) => {
+                          const next = [...form.packSizeVariants];
+                          next[i] = { ...next[i], stockQuantity: parseInt(e.target.value) || 0 };
+                          setForm({ ...form, packSizeVariants: next });
+                        }} placeholder="Stock" className="h-8 text-xs w-20" />
+                        <Button type="button" variant="ghost" size="icon" className="size-7 text-destructive hover:text-destructive"
+                          onClick={() => setForm({ ...form, packSizeVariants: form.packSizeVariants.filter((_, j) => j !== i) })}
+                        >
+                          ×
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="sm:col-span-2 space-y-2">
                 <Label>Product Image</Label>
