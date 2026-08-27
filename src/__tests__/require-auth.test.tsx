@@ -10,6 +10,31 @@ vi.mock("lucide-react", () => ({
   ),
 }));
 
+vi.mock("convex/react", () => ({
+  useQuery: vi.fn(() => undefined),
+  useMutation: vi.fn(() => vi.fn()),
+}));
+
+vi.mock("@/hooks/useBrowserNotifications", () => ({
+  useBrowserNotifications: vi.fn(),
+}));
+
+vi.mock("@/convex/_generated/api", () => ({
+  api: {},
+}));
+
+// Mock react-router — mock ALL hooks used by RequireAuth, keep real components
+vi.mock("react-router", async (importOriginal) => {
+  const actual: any = await importOriginal();
+  return {
+    ...actual,
+    useNavigate: vi.fn(() => vi.fn()),
+    useLocation: vi.fn(() => ({ pathname: "/dashboard", search: "", hash: "", state: null, key: "default" })),
+    useParams: vi.fn(() => ({})),
+    useSearchParams: vi.fn(() => [new URLSearchParams(), vi.fn()]),
+  };
+});
+
 // Mock AuthContext
 let mockAuthState = {
   isLoading: false,

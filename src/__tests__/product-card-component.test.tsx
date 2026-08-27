@@ -5,7 +5,15 @@ import { useQuery, useMutation } from "convex/react";
 import ProductCard from "@/components/ProductCard";
 
 vi.mock("convex/react");
-vi.mock("@/context/AuthContext");
+vi.mock("@/context/AuthContext", () => ({
+  useAuth: vi.fn(() => ({
+    user: null,
+    isLoading: false,
+    isAuthenticated: false,
+    isAdmin: false,
+  })),
+  AuthProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
 
 const mockUseQuery = vi.mocked(useQuery);
 const mockUseMutation = vi.mocked(useMutation);
