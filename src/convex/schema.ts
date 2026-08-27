@@ -553,6 +553,35 @@ const schema = defineSchema(
       .index("by_product", ["productId"])
       .index("by_status", ["status"])
       .index("by_product_status", ["productId", "status"]),
+    // Activity / Audit Log
+    auditLogs: defineTable({
+    action: v.string(),
+    category: v.string(),
+    item: v.string(),
+    details: v.optional(v.string()),
+    adminId: v.id("users"),
+    adminName: v.optional(v.string()),
+    timestamp: v.number(),
+  })
+    .index("by_timestamp", ["timestamp"])
+    .index("by_admin", ["adminId"])
+    .index("by_category", ["category"]),
+    // Store settings
+    storeSettings: defineTable({
+    storeName: v.string(),
+    storeEmail: v.string(),
+    storePhone: v.string(),
+    storeAddress: v.string(),
+    storeHours: v.string(),
+    currency: v.string(),
+    taxRate: v.number(),
+    minOrderAmount: v.number(),
+    deliveryFee: v.number(),
+    freeDeliveryAbove: v.number(),
+    whatsappNumber: v.string(),
+    updatedBy: v.optional(v.id("users")),
+    updatedAt: v.number(),
+  }),
   },
   {
     schemaValidation: false,

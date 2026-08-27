@@ -26,6 +26,7 @@ import {
   MessageCircle,
   FileCheck2,
   CalendarClock,
+  History,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -43,6 +44,8 @@ const NAV_ITEMS = [
   { label: "Reports", path: "/admin/reports", icon: BarChart3 },
   { label: "Delivery Settings", path: "/admin/delivery", icon: Truck },
   { label: "WhatsApp Enquiries", path: "/admin/whatsapp", icon: MessageCircle },
+  { label: "Settings", path: "/admin/settings", icon: Settings },
+  { label: "Activity Log", path: "/admin/activity", icon: History },
 ];
 
 const AdminLayout = memo(function AdminLayout({
