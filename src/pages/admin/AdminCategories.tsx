@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/table";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import { Plus, Search, Pencil, Trash2, Tag, Loader2 } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Tag, Loader2, Package } from "lucide-react";
 
 function slugify(text: string) {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
@@ -47,6 +47,12 @@ export default function AdminCategories() {
   const deleteCategory = useMutation(api.adminCategories.remove);
   const toggleActive = useMutation(api.adminCategories.toggleActive);
   const seedAll = useMutation(api.adminCategories.seedAll);
+
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const categoryProducts = useQuery(
+    api.adminCategories.listCategoryProducts,
+    selectedCategoryId ? { categoryId: selectedCategoryId as any } : "skip"
+  );
 
   // Auto-seed default categories on first load if missing
   useEffect(() => {
@@ -155,12 +161,17 @@ export default function AdminCategories() {
                 </TableHeader>
                 <TableBody>
                   {categories.map((cat) => (
-                    <TableRow key={cat._id}>
-                      <TableCell className="font-medium">{cat.name}</TableCell>
+                    <TableRow key={cat._id} className={`${cat.productCount > 0 ? "cursor-pointer" : ""} hover:bg-muted/30 transition-colors`} onClick={() => cat.productCount > 0 && setSelectedCategoryId(cat._id)}>
+                      <TableCell className="font-medium hover:text-primary transition-colors">{cat.name}</TableCell>
                       <TableCell className="text-xs font-mono text-muted-foreground">{cat.slug}</TableCell>
                       <TableCell className="text-sm text-muted-foreground max-w-xs truncate">{cat.description || "—"}</TableCell>
                       <TableCell className="text-center">
-                        <Badge variant="secondary" className="text-xs">{cat.productCount}</Badge>
+                        <Badge
+                          variant="secondary"
+                          className="text-xs"
+                        >
+                          {cat.productCount}
+                        </Badge>
                       </TableCell>
                       <TableCell className="text-center">
                         <Badge variant={cat.isActive ? "default" : "secondary"} className={`text-xs ${cat.isActive ? "bg-green-100 text-green-700" : ""}`}>
@@ -235,6 +246,78 @@ export default function AdminCategories() {
               <Button variant="outline" onClick={() => setDeleteConfirm(null)}>Cancel</Button>
               <Button variant="destructive" onClick={handleDelete}>Delete</Button>
             </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Category Products Dialog */}
+        <Dialog open={!!selectedCategoryId} onOpenChange={(open) => { if (!open) setSelectedCategoryId(null); }}>
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Package className="size-5 text-primary" />
+                {categoryProducts?.category?.name ?? "Category"} — Products
+              </DialogTitle>
+            </DialogHeader>
+            <div className="flex-1 overflow-y-auto">
+              {!categoryProducts ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="size-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : categoryProducts.products.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <div className="size-14 rounded-2xl bg-muted/50 flex items-center justify-center mb-3">
+                    <Package className="size-6 text-muted-foreground" />
+                  </div>
+                  <p className="text-sm font-medium">No products in this category yet.</p>
+                  <p className="text-xs text-muted-foreground mt-1">Assign products to this category from the Products section.</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Product</TableHead>
+                      <TableHead className="text-right">Price</TableHead>
+                      <TableHead className="text-center">Stock</TableHead>
+                      <TableHead className="text-center">Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {categoryProducts.products.map((product) => (
+                      <TableRow key={product._id}>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            {product.imageUrl ? (
+                              <img src={product.imageUrl} alt={product.name} className="size-10 rounded-lg object-cover bg-muted" />
+                            ) : (
+                              <div className="size-10 rounded-lg bg-muted flex items-center justify-center">
+                                <Package className="size-4 text-muted-foreground" />
+                              </div>
+                            )}
+                            <div>
+                              <p className="font-medium text-sm">{product.name}</p>
+                              {product.manufacturer && (
+                                <p className="text-xs text-muted-foreground">{product.manufacturer}</p>
+                              )}
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-right font-medium">₹{product.price}</TableCell>
+                        <TableCell className="text-center">
+                          <Badge variant={product.stockQuantity > 0 ? "secondary" : "destructive"} className="text-xs">
+                            {product.stockQuantity}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Badge variant={product.isActive ? "default" : "secondary"} className={`text-xs ${product.isActive ? "bg-green-100 text-green-700" : ""}`}>
+                            {product.isActive ? "Active" : "Inactive"}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </div>
           </DialogContent>
         </Dialog>
       </div>

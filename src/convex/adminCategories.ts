@@ -55,6 +55,34 @@ export const get = query({
   },
 });
 
+// List products for a specific category
+export const listCategoryProducts = query({
+  args: { categoryId: v.id("categories") },
+  handler: async (ctx, args) => {
+    const products = await ctx.db
+      .query("products")
+      .withIndex("by_category", (q) => q.eq("categoryId", args.categoryId))
+      .collect();
+
+    const category = await ctx.db.get(args.categoryId);
+
+    return {
+      category: category ? { _id: category._id, name: category.name, slug: category.slug } : null,
+      products: products.map((p) => ({
+        _id: p._id,
+        name: p.name,
+        slug: p.slug,
+        price: p.price,
+        stockQuantity: p.stockQuantity,
+        imageUrl: p.imageUrl,
+        isActive: p.isActive,
+        prescriptionRequired: p.prescriptionRequired,
+        manufacturer: p.manufacturer,
+      })),
+    };
+  },
+});
+
 // ── Admin: Create a category ──
 export const create = mutation({
   args: {
