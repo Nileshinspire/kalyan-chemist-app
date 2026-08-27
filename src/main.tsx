@@ -56,6 +56,8 @@ const AccountOrders = lazy(() => import("./pages/account/AccountOrders"));
 const AccountPrescriptions = lazy(() => import("./pages/account/AccountPrescriptions"));
 const AccountWishlist = lazy(() => import("./pages/Wishlist"));
 const AccountNotifications = lazy(() => import("./pages/account/AccountNotifications"));
+const AccountTrackOrder = lazy(() => import("./pages/account/AccountTrackOrder"));
+const AccountHelpSupport = lazy(() => import("./pages/account/AccountHelpSupport"));
 
 /** Animated loading skeleton for route transitions */
 function RouteLoading() {
@@ -336,6 +338,8 @@ function AnimatedRoutes() {
           <Route path="prescriptions" element={<Suspense fallback={<RouteLoading />}><AccountPrescriptions /></Suspense>} />
           <Route path="wishlist" element={<Suspense fallback={<RouteLoading />}><AccountWishlist /></Suspense>} />
           <Route path="notifications" element={<Suspense fallback={<RouteLoading />}><AccountNotifications /></Suspense>} />
+          <Route path="track-order" element={<Suspense fallback={<RouteLoading />}><AccountTrackOrder /></Suspense>} />
+          <Route path="help-support" element={<Suspense fallback={<RouteLoading />}><AccountHelpSupport /></Suspense>} />
         </Route>
         <Route
           path="/admin"

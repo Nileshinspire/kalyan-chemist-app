@@ -14,6 +14,8 @@ import {
   LogOut,
   Menu,
   X,
+  Truck,
+  Headphones,
 } from "lucide-react";
 import { ArrowLeft } from "lucide-react";
 import { useState } from "react";
@@ -23,9 +25,11 @@ const NAV_ITEMS = [
   { to: "/account/profile", label: "Profile", icon: User },
   { to: "/account/addresses", label: "Addresses", icon: MapPin },
   { to: "/account/orders", label: "My Orders", icon: ClipboardList },
+  { to: "/account/track-order", label: "Track Order", icon: Truck },
   { to: "/account/prescriptions", label: "Prescriptions", icon: Pill },
   { to: "/account/wishlist", label: "Wishlist", icon: Heart },
   { to: "/account/notifications", label: "Notifications", icon: Bell },
+  { to: "/account/help-support", label: "Help & Support", icon: Headphones },
 ];
 
 export default function AccountLayout() {
