@@ -601,6 +601,64 @@ export default function ProductDetail() {
                 )}
               </div>
             </div>
+
+            {/* Purchase Assurance Panel */}
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.25 }}
+              className="mt-6 rounded-2xl border border-border/40 bg-gradient-to-b from-primary/[0.02] to-transparent p-5 space-y-4"
+            >
+              <div className="space-y-1">
+                <h3 className="text-sm font-bold text-slate-900 tracking-tight">Purchase Assurance</h3>
+                <p className="text-[11px] text-slate-400 leading-relaxed">A smooth and secure way to shop at Kalyan Chemist</p>
+              </div>
+
+              <div className="space-y-3.5">
+                {(
+                  [
+                    {
+                      icon: Lock,
+                      title: "Secure Checkout",
+                      desc: "Safe & encrypted payment process",
+                    },
+                    {
+                      icon: Search,
+                      title: "Easy Order Tracking",
+                      desc: "Track your order in real time",
+                    },
+                    {
+                      icon: MessageCircle,
+                      title: "Quick Customer Support",
+                      desc: "Instant help via WhatsApp & phone",
+                    },
+                    {
+                      icon: ShoppingCart,
+                      title: "Simple Ordering",
+                      desc: "Quick buy with fast delivery",
+                    },
+                  ] as const
+                ).map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <motion.div
+                      key={item.title}
+                      whileHover={{ x: 3 }}
+                      transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                      className="flex items-start gap-3 group cursor-default"
+                    >
+                      <div className="size-9 rounded-xl border border-border/50 bg-background flex items-center justify-center shrink-0 group-hover:border-primary/30 group-hover:bg-primary/[0.04] transition-all duration-300">
+                        <Icon className="size-[18px] text-slate-600 group-hover:text-primary transition-colors duration-300" strokeWidth={1.5} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[13px] font-semibold text-slate-800 leading-tight">{item.title}</p>
+                        <p className="text-[11px] text-slate-400 mt-0.5 leading-snug">{item.desc}</p>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            </motion.div>
           </motion.div>
 
           {/* Product Info */}
@@ -839,67 +897,7 @@ export default function ProductDetail() {
               </div>
             </div>
 
-            <div className="grid gap-6 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1fr)]">
-              {/* Purchase Assurance Panel */}
-              <motion.div
-                initial={{ opacity: 0, x: -12 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.5, delay: 0.2 }}
-                className="rounded-2xl border border-border/40 bg-gradient-to-b from-primary/[0.02] to-transparent p-5 space-y-5 self-start sticky top-24"
-              >
-                <div className="space-y-1.5">
-                  <h3 className="text-sm font-bold text-slate-900 tracking-tight">Purchase Assurance</h3>
-                  <p className="text-[11px] text-slate-400 leading-relaxed">A smooth and secure way to shop at Kalyan Chemist</p>
-                </div>
-
-                <div className="space-y-4">
-                  {(
-                    [
-                      {
-                        icon: Lock,
-                        title: "Secure Checkout",
-                        desc: "Safe & encrypted payment process",
-                      },
-                      {
-                        icon: Search,
-                        title: "Easy Order Tracking",
-                        desc: "Track your order in real time",
-                      },
-                      {
-                        icon: MessageCircle,
-                        title: "Quick Customer Support",
-                        desc: "Instant help via WhatsApp & phone",
-                      },
-                      {
-                        icon: ShoppingCart,
-                        title: "Simple Ordering",
-                        desc: "Quick buy with fast delivery",
-                      },
-                    ] as const
-                  ).map((item) => {
-                    const Icon = item.icon;
-                    return (
-                      <motion.div
-                        key={item.title}
-                        whileHover={{ x: 4 }}
-                        transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                        className="flex items-start gap-3 group cursor-default"
-                      >
-                        <div className="size-9 rounded-xl border border-border/50 bg-background flex items-center justify-center shrink-0 group-hover:border-primary/30 group-hover:bg-primary/[0.04] transition-all duration-300">
-                          <Icon className="size-[18px] text-slate-600 group-hover:text-primary transition-colors duration-300" strokeWidth={1.5} />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-[13px] font-semibold text-slate-800 leading-tight">{item.title}</p>
-                          <p className="text-[11px] text-slate-400 mt-0.5 leading-snug">{item.desc}</p>
-                        </div>
-                      </motion.div>
-                    );
-                  })}
-                </div>
-              </motion.div>
-
-              {/* Product Details Table */}
-              <Card className="border-border/60">
+            <Card className="border-border/60">
                 <CardContent className="p-0">
                   <Table>
                     <TableHeader>
@@ -976,7 +974,6 @@ export default function ProductDetail() {
                   </Table>
                 </CardContent>
               </Card>
-            </div>
           </motion.div>
         </div>
 
