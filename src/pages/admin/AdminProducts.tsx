@@ -132,7 +132,7 @@ export default function AdminProducts() {
   const enrichSingleProduct = useMutation(api.productBackfill.enrichSingleProduct);
   const backfillProducts = useMutation(api.productBackfill.backfillProducts);
   const [backfilling, setBackfilling] = useState(false);
-  const categories = useQuery(api.categories.list);
+  const hierarchicalCategories = useQuery(api.adminCategories.listHierarchical);
   const brands = useQuery(api.adminBrands.list, { isActive: true });
   const products = useQuery(api.adminProducts.list, {
     search: search || undefined,
@@ -318,7 +318,9 @@ export default function AdminProducts() {
       if ((result as any).category) {
         // Try to match the suggested category name to an existing category
         const suggestedName = (result as any).category as string;
-        const matchedCat = categories?.find((c: any) => c.name.toLowerCase() === suggestedName.toLowerCase());
+        // Flatten hierarchical categories to find a match
+        const allLeaf = hierarchicalCategories?.flatMap((p) => p.children.length > 0 ? p.children : [p]) ?? [];
+        const matchedCat = allLeaf.find((c: any) => c.name.toLowerCase() === suggestedName.toLowerCase());
         if (matchedCat && !form.categoryId) {
           newForm.categoryId = matchedCat._id;
           filled.push("Category");
@@ -377,7 +379,7 @@ export default function AdminProducts() {
     }
   };
 
-  const isLoading = products === undefined || categories === undefined;
+  const isLoading = products === undefined || hierarchicalCategories === undefined;
 
   return (
     <AdminLayout>
@@ -417,8 +419,16 @@ export default function AdminProducts() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Categories</SelectItem>
-                  {categories?.map((c) => (
-                    <SelectItem key={c._id} value={c._id}>{c.name}</SelectItem>
+                  {hierarchicalCategories?.map((parent) => (
+                    parent.children.length > 0 ? (
+                      parent.children.map((child, i) => (
+                        <SelectItem key={child._id} value={child._id}>
+                          {i === 0 ? parent.name + " \u2192 " : ""}{child.name}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem key={parent._id} value={parent._id}>{parent.name}</SelectItem>
+                    )
                   ))}
                 </SelectContent>
               </Select>
@@ -618,8 +628,18 @@ export default function AdminProducts() {
                 <Select value={form.categoryId} onValueChange={(v) => setForm({ ...form, categoryId: v })}>
                   <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
                   <SelectContent>
-                    {categories?.map((c) => (
-                      <SelectItem key={c._id} value={c._id}>{c.name}</SelectItem>
+                    {hierarchicalCategories?.map((parent) => (
+                      <div key={parent._id}>
+                        {parent.children.length > 0 ? (
+                          parent.children.map((child, i) => (
+                            <SelectItem key={child._id} value={child._id}>
+                              {i === 0 ? `${parent.name} → ` : '\u00A0\u00A0\u00A0\u00A0'}{child.name}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem key={parent._id} value={parent._id}>{parent.name}</SelectItem>
+                        )}
+                      </div>
                     ))}
                   </SelectContent>
                 </Select>

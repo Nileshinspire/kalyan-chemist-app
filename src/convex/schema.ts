@@ -115,10 +115,12 @@ const schema = defineSchema(
       imageUrl: v.optional(v.string()),
       isActive: v.boolean(),
       sortOrder: v.number(),
+      parentId: v.optional(v.id("categories")),
     })
       .index("by_slug", ["slug"])
       .index("by_sortOrder", ["sortOrder"])
-      .index("by_isActive", ["isActive"]),
+      .index("by_isActive", ["isActive"])
+      .index("by_parentId", ["parentId"]),
 
     // Product catalogue — medicines, supplements, devices
     products: defineTable({
