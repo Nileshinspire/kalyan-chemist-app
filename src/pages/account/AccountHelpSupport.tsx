@@ -98,7 +98,7 @@ export default function AccountHelpSupport() {
         </Card>
 
         {/* Phone */}
-        <Card className="border-border/60 cursor-pointer hover:shadow-card-hover hover:border-primary/20 transition-all group">
+        <Card className="border-border/60 cursor-pointer hover:shadow-card-hover hover:border-primary/20 transition-all group" onClick={() => window.open("tel:+919876543210", "_self")}>
           <CardContent className="p-5">
             <div className="flex items-start gap-3">
               <div className="size-10 rounded-xl bg-primary/[0.06] flex items-center justify-center shrink-0 group-hover:bg-primary/10 transition-colors">
@@ -124,7 +124,7 @@ export default function AccountHelpSupport() {
         </Card>
 
         {/* Email */}
-        <Card className="border-border/60 cursor-pointer hover:shadow-card-hover hover:border-primary/20 transition-all group">
+        <Card className="border-border/60 cursor-pointer hover:shadow-card-hover hover:border-primary/20 transition-all group" onClick={() => window.open("mailto:hello@kalyanchemist.in?subject=Support%20Request%20-%20Kalyan%20Chemist", "_self")}>
           <CardContent className="p-5">
             <div className="flex items-start gap-3">
               <div className="size-10 rounded-xl bg-primary/[0.06] flex items-center justify-center shrink-0 group-hover:bg-primary/10 transition-colors">
@@ -149,7 +149,7 @@ export default function AccountHelpSupport() {
         </Card>
 
         {/* Visit Store */}
-        <Card className="border-border/60 hover:shadow-card-hover hover:border-primary/20 transition-all group">
+        <Card className="border-border/60 cursor-pointer hover:shadow-card-hover hover:border-primary/20 transition-all group" onClick={() => window.open("https://www.google.com/maps/search/?api=1&query=123+Health+Street+Mumbai+Maharashtra+400001", "_blank")}>
           <CardContent className="p-5">
             <div className="flex items-start gap-3">
               <div className="size-10 rounded-xl bg-primary/[0.06] flex items-center justify-center shrink-0 group-hover:bg-primary/10 transition-colors">
