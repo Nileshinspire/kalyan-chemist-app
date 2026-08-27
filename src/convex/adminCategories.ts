@@ -140,3 +140,40 @@ export const toggleActive = mutation({
     return { success: true };
   },
 });
+
+// Seed all default categories (idempotent — upserts by slug)
+export const seedAll = mutation({
+  args: {},
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    const DEFAULT_CATEGORIES = [
+      { name: "Pain Relief", slug: "pain-relief", description: "Analgesics, anti-inflammatory drugs, and muscle relaxants", sortOrder: 1 },
+      { name: "Heart & Cardio", slug: "heart-cardio", description: "Cardiac care, blood pressure, and cholesterol management", sortOrder: 2 },
+      { name: "Diabetes Care", slug: "diabetes-care", description: "Insulin, oral hypoglycaemics, and glucose monitoring supplies", sortOrder: 3 },
+      { name: "Vitamins & Supplements", slug: "vitamins-supplements", description: "Daily wellness, immunity boosters, and nutritional supplements", sortOrder: 4 },
+      { name: "Baby & Mother", slug: "baby-mother", description: "Infant nutrition, prenatal vitamins, and maternal care", sortOrder: 5 },
+      { name: "Skin & Personal Care", slug: "skin-personal-care", description: "Dermatological products, sunscreens, and hygiene essentials", sortOrder: 6 },
+      { name: "Antibiotics", slug: "antibiotics", description: "Prescription antibiotics and antimicrobial agents", sortOrder: 7 },
+      { name: "Digestive Health", slug: "digestive-health", description: "Antacids, probiotics, and gastrointestinal medications", sortOrder: 8 },
+      { name: "Family Care", slug: "family-care", description: "Mother and maternity care products for the whole family", sortOrder: 9 },
+      { name: "Sexual Wellness", slug: "sexual-wellness", description: "Contraceptives and sexual wellness products", sortOrder: 10 },
+      { name: "Personal Care", slug: "personal-care", description: "Hair care, oral care, eye and ear care essentials", sortOrder: 11 },
+      { name: "Health & Safety", slug: "health-safety", description: "Cold and cough remedies, first aid, medical devices, and hygiene products", sortOrder: 12 },
+      { name: "Nutrition", slug: "nutrition", description: "Nutrition and health drinks for daily wellness", sortOrder: 13 },
+      { name: "Alternative Medicine", slug: "alternative-medicine", description: "Ayurvedic and herbal medicines for natural healing", sortOrder: 14 },
+      { name: "Other Healthcare", slug: "other-healthcare", description: "Home healthcare products and other healthcare essentials", sortOrder: 15 },
+      { name: "Prescription Required", slug: "prescription-required", description: "Medications that require a valid prescription", sortOrder: 16 },
+    ];
+    let created = 0;
+    for (const cat of DEFAULT_CATEGORIES) {
+      const existing = await ctx.db.query("categories").withIndex("by_slug", (q) => q.eq("slug", cat.slug)).first();
+      if (existing) {
+        await ctx.db.patch(existing._id, { name: cat.name, description: cat.description, sortOrder: cat.sortOrder, isActive: true });
+      } else {
+        await ctx.db.insert("categories", { ...cat, isActive: true });
+        created++;
+      }
+    }
+    return { created, total: DEFAULT_CATEGORIES.length };
+  },
+});

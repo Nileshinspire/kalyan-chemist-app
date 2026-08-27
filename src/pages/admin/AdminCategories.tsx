@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import AdminLayout from "@/components/admin/AdminLayout";
@@ -46,6 +46,12 @@ export default function AdminCategories() {
   const updateCategory = useMutation(api.adminCategories.update);
   const deleteCategory = useMutation(api.adminCategories.remove);
   const toggleActive = useMutation(api.adminCategories.toggleActive);
+  const seedAll = useMutation(api.adminCategories.seedAll);
+
+  // Auto-seed default categories on first load if missing
+  useEffect(() => {
+    seedAll().catch(() => {});
+  }, [seedAll]);
 
   const openCreate = () => {
     setEditing(null);
