@@ -55,6 +55,7 @@ import {
   ClipboardList,
   HelpCircle,
   Search,
+  Lock,
 } from "lucide-react";
 import { useState, useCallback } from "react";
 import {
@@ -838,83 +839,144 @@ export default function ProductDetail() {
               </div>
             </div>
 
-            <Card className="border-border/60">
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead colSpan={2} className="text-sm font-bold">
-                        Product Details
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {p.composition && (
+            <div className="grid gap-6 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1fr)]">
+              {/* Purchase Assurance Panel */}
+              <motion.div
+                initial={{ opacity: 0, x: -12 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.5, delay: 0.2 }}
+                className="rounded-2xl border border-border/40 bg-gradient-to-b from-primary/[0.02] to-transparent p-5 space-y-5 self-start sticky top-24"
+              >
+                <div className="space-y-1.5">
+                  <h3 className="text-sm font-bold text-slate-900 tracking-tight">Purchase Assurance</h3>
+                  <p className="text-[11px] text-slate-400 leading-relaxed">A smooth and secure way to shop at Kalyan Chemist</p>
+                </div>
+
+                <div className="space-y-4">
+                  {(
+                    [
+                      {
+                        icon: Lock,
+                        title: "Secure Checkout",
+                        desc: "Safe & encrypted payment process",
+                      },
+                      {
+                        icon: Search,
+                        title: "Easy Order Tracking",
+                        desc: "Track your order in real time",
+                      },
+                      {
+                        icon: MessageCircle,
+                        title: "Quick Customer Support",
+                        desc: "Instant help via WhatsApp & phone",
+                      },
+                      {
+                        icon: ShoppingCart,
+                        title: "Simple Ordering",
+                        desc: "Quick buy with fast delivery",
+                      },
+                    ] as const
+                  ).map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <motion.div
+                        key={item.title}
+                        whileHover={{ x: 4 }}
+                        transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                        className="flex items-start gap-3 group cursor-default"
+                      >
+                        <div className="size-9 rounded-xl border border-border/50 bg-background flex items-center justify-center shrink-0 group-hover:border-primary/30 group-hover:bg-primary/[0.04] transition-all duration-300">
+                          <Icon className="size-[18px] text-slate-600 group-hover:text-primary transition-colors duration-300" strokeWidth={1.5} />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[13px] font-semibold text-slate-800 leading-tight">{item.title}</p>
+                          <p className="text-[11px] text-slate-400 mt-0.5 leading-snug">{item.desc}</p>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              </motion.div>
+
+              {/* Product Details Table */}
+              <Card className="border-border/60">
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
                       <TableRow>
-                        <TableCell className="font-medium text-muted-foreground">Composition</TableCell>
-                        <TableCell>{p.composition}</TableCell>
+                        <TableHead colSpan={2} className="text-sm font-bold">
+                          Product Details
+                        </TableHead>
                       </TableRow>
-                    )}
-                    {p.strength && (
+                    </TableHeader>
+                    <TableBody>
+                      {p.composition && (
+                        <TableRow>
+                          <TableCell className="font-medium text-muted-foreground">Composition</TableCell>
+                          <TableCell>{p.composition}</TableCell>
+                        </TableRow>
+                      )}
+                      {p.strength && (
+                        <TableRow>
+                          <TableCell className="font-medium text-muted-foreground">Strength</TableCell>
+                          <TableCell>{p.strength}</TableCell>
+                        </TableRow>
+                      )}
+                      {p.form && (
+                        <TableRow>
+                          <TableCell className="font-medium text-muted-foreground">Form</TableCell>
+                          <TableCell className="capitalize">{p.form}</TableCell>
+                        </TableRow>
+                      )}
                       <TableRow>
-                        <TableCell className="font-medium text-muted-foreground">Strength</TableCell>
-                        <TableCell>{p.strength}</TableCell>
+                        <TableCell className="font-medium text-muted-foreground">Pack Size</TableCell>
+                        <TableCell>{p.packSize}</TableCell>
                       </TableRow>
-                    )}
-                    {p.form && (
                       <TableRow>
-                        <TableCell className="font-medium text-muted-foreground">Form</TableCell>
-                        <TableCell className="capitalize">{p.form}</TableCell>
+                        <TableCell className="font-medium text-muted-foreground">Manufacturer</TableCell>
+                        <TableCell>{p.manufacturer}</TableCell>
                       </TableRow>
-                    )}
-                    <TableRow>
-                      <TableCell className="font-medium text-muted-foreground">Pack Size</TableCell>
-                      <TableCell>{p.packSize}</TableCell>
-                    </TableRow>
-                    <TableRow>
-                      <TableCell className="font-medium text-muted-foreground">Manufacturer</TableCell>
-                      <TableCell>{p.manufacturer}</TableCell>
-                    </TableRow>
-                    {p.expiryDate && (
-                      <TableRow>
-                        <TableCell className="font-medium text-muted-foreground">Expires On or After</TableCell>
-                        <TableCell className="text-green-700 font-medium">
-                          {new Date(p.expiryDate).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}
-                        </TableCell>
-                      </TableRow>
-                    )}
-                    {p.sku && (
-                      <TableRow>
-                        <TableCell className="font-medium text-muted-foreground">SKU</TableCell>
-                        <TableCell className="font-mono text-xs">{p.sku}</TableCell>
-                      </TableRow>
-                    )}
-                    {cat && (
-                      <TableRow>
-                        <TableCell className="font-medium text-muted-foreground">Category</TableCell>
-                        <TableCell>{cat.name}</TableCell>
-                      </TableRow>
-                    )}
-                    {(p.consumeType || p.form) && (
-                      <TableRow>
-                        <TableCell className="font-medium text-muted-foreground">Consume Type</TableCell>
-                        <TableCell>{
-                          p.consumeType || (
-                            ["tablet", "capsule", "syrup", "suspension", "drops", "inhaler", "powder", "sachet"].includes((p.form || "").toLowerCase())
-                              ? "For oral use"
-                              : ["cream", "gel", "ointment", "lotion"].includes((p.form || "").toLowerCase())
-                              ? "For external use only"
-                              : p.form === "injection"
-                              ? "For injection use only"
-                              : `For ${p.form} use`
-                          )
-                        }</TableCell>
-                      </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+                      {p.expiryDate && (
+                        <TableRow>
+                          <TableCell className="font-medium text-muted-foreground">Expires On or After</TableCell>
+                          <TableCell className="text-green-700 font-medium">
+                            {new Date(p.expiryDate).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" })}
+                          </TableCell>
+                        </TableRow>
+                      )}
+                      {p.sku && (
+                        <TableRow>
+                          <TableCell className="font-medium text-muted-foreground">SKU</TableCell>
+                          <TableCell className="font-mono text-xs">{p.sku}</TableCell>
+                        </TableRow>
+                      )}
+                      {cat && (
+                        <TableRow>
+                          <TableCell className="font-medium text-muted-foreground">Category</TableCell>
+                          <TableCell>{cat.name}</TableCell>
+                        </TableRow>
+                      )}
+                      {(p.consumeType || p.form) && (
+                        <TableRow>
+                          <TableCell className="font-medium text-muted-foreground">Consume Type</TableCell>
+                          <TableCell>{
+                            p.consumeType || (
+                              ["tablet", "capsule", "syrup", "suspension", "drops", "inhaler", "powder", "sachet"].includes((p.form || "").toLowerCase())
+                                ? "For oral use"
+                                : ["cream", "gel", "ointment", "lotion"].includes((p.form || "").toLowerCase())
+                                ? "For external use only"
+                                : p.form === "injection"
+                                ? "For injection use only"
+                                : `For ${p.form} use`
+                            )
+                          }</TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </div>
           </motion.div>
         </div>
 
