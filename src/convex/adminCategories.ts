@@ -35,10 +35,19 @@ export const list = query({
     // Enrich with product count
     const enriched = await Promise.all(
       categories.map(async (c) => {
-        const products = await ctx.db
-          .query("products")
-          .withIndex("by_category", (q) => q.eq("categoryId", c._id))
-          .collect();
+        let products;
+        if (c.slug === "prescription-required") {
+          // Prescription Required is a virtual category based on the product flag
+          products = await ctx.db
+            .query("products")
+            .filter((q) => q.eq(q.field("prescriptionRequired"), true))
+            .collect();
+        } else {
+          products = await ctx.db
+            .query("products")
+            .withIndex("by_category", (q) => q.eq("categoryId", c._id))
+            .collect();
+        }
         return { ...c, productCount: products.length };
       })
     );
@@ -59,15 +68,25 @@ export const get = query({
 export const listCategoryProducts = query({
   args: { categoryId: v.id("categories") },
   handler: async (ctx, args) => {
-    const products = await ctx.db
-      .query("products")
-      .withIndex("by_category", (q) => q.eq("categoryId", args.categoryId))
-      .collect();
-
     const category = await ctx.db.get(args.categoryId);
+    if (!category) return { category: null, products: [] };
+
+    let products;
+    if (category.slug === "prescription-required") {
+      // Prescription Required: show ALL products where prescriptionRequired === true
+      products = await ctx.db
+        .query("products")
+        .filter((q) => q.eq(q.field("prescriptionRequired"), true))
+        .collect();
+    } else {
+      products = await ctx.db
+        .query("products")
+        .withIndex("by_category", (q) => q.eq("categoryId", args.categoryId))
+        .collect();
+    }
 
     return {
-      category: category ? { _id: category._id, name: category.name, slug: category.slug } : null,
+      category: { _id: category._id, name: category.name, slug: category.slug },
       products: products.map((p) => ({
         _id: p._id,
         name: p.name,

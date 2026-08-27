@@ -161,7 +161,7 @@ export default function AdminCategories() {
                 </TableHeader>
                 <TableBody>
                   {categories.map((cat) => (
-                    <TableRow key={cat._id} className={`${cat.productCount > 0 ? "cursor-pointer" : ""} hover:bg-muted/30 transition-colors`} onClick={() => cat.productCount > 0 && setSelectedCategoryId(cat._id)}>
+                    <TableRow key={cat._id} className="cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => setSelectedCategoryId(cat._id)}>
                       <TableCell className="font-medium hover:text-primary transition-colors">{cat.name}</TableCell>
                       <TableCell className="text-xs font-mono text-muted-foreground">{cat.slug}</TableCell>
                       <TableCell className="text-sm text-muted-foreground max-w-xs truncate">{cat.description || "—"}</TableCell>
