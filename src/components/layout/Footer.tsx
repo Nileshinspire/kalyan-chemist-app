@@ -97,12 +97,14 @@ const Footer = memo(function Footer() {
             </h4>
             <ul className="space-y-2.5 text-sm text-muted-foreground">
               {[
-                { name: "Pain & Relief", slug: "pain-relief" },
+                { name: "Pain Relief", slug: "pain-relief" },
                 { name: "Heart & Cardio", slug: "heart-cardio" },
                 { name: "Diabetes Care", slug: "diabetes-care" },
                 { name: "Vitamins & Supplements", slug: "vitamins-supplements" },
-                { name: "Baby & Mother", slug: "baby-mother" },
-                { name: "Mind & Neurology", slug: "mind-neurology" },
+                { name: "Personal Care", slug: "personal-care" },
+                { name: "Health & Safety", slug: "health-safety" },
+                { name: "Alternative Medicine", slug: "alternative-medicine" },
+                { name: "Prescription Required", slug: "prescription-required" },
               ].map((cat) => (
                 <li key={cat.slug}>
                   <button

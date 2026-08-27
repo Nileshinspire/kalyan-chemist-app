@@ -16,6 +16,14 @@ import {
   Shield,
   Brain,
   Tag,
+  Heart,
+  Droplets,
+  Smile,
+  Thermometer,
+  Apple,
+  Activity,
+  Home,
+  FileText,
 } from "lucide-react";
 
 const CATEGORY_STYLES: Record<string, { icon: typeof Pill; color: string; hoverBg: string }> = {
@@ -27,6 +35,14 @@ const CATEGORY_STYLES: Record<string, { icon: typeof Pill; color: string; hoverB
   "skin-personal-care": { icon: Sparkles, color: "from-pink-500/15 to-fuchsia-500/15", hoverBg: "hover:from-pink-500/20 hover:to-fuchsia-500/20" },
   "antibiotics": { icon: Shield, color: "from-teal-500/15 to-cyan-500/15", hoverBg: "hover:from-teal-500/20 hover:to-cyan-500/20" },
   "digestive-health": { icon: Stethoscope, color: "from-amber-500/15 to-yellow-500/15", hoverBg: "hover:from-amber-500/20 hover:to-yellow-500/20" },
+  "family-care": { icon: Heart, color: "from-fuchsia-500/15 to-rose-500/15", hoverBg: "hover:from-fuchsia-500/20 hover:to-rose-500/20" },
+  "sexual-wellness": { icon: Droplets, color: "from-indigo-500/15 to-purple-500/15", hoverBg: "hover:from-indigo-500/20 hover:to-purple-500/20" },
+  "personal-care": { icon: Smile, color: "from-sky-500/15 to-blue-500/15", hoverBg: "hover:from-sky-500/20 hover:to-blue-500/20" },
+  "health-safety": { icon: Thermometer, color: "from-red-500/15 to-orange-500/15", hoverBg: "hover:from-red-500/20 hover:to-orange-500/20" },
+  "nutrition": { icon: Apple, color: "from-lime-500/15 to-green-500/15", hoverBg: "hover:from-lime-500/20 hover:to-green-500/20" },
+  "alternative-medicine": { icon: Leaf, color: "from-green-600/15 to-emerald-500/15", hoverBg: "hover:from-green-600/20 hover:to-emerald-500/20" },
+  "other-healthcare": { icon: Home, color: "from-slate-500/15 to-gray-500/15", hoverBg: "hover:from-slate-500/20 hover:to-gray-500/20" },
+  "prescription-required": { icon: FileText, color: "from-amber-600/15 to-yellow-600/15", hoverBg: "hover:from-amber-600/20 hover:to-yellow-600/20" },
 };
 const DEFAULT_STYLE = { icon: Tag, color: "from-primary/15 to-primary/10", hoverBg: "hover:from-primary/20 hover:to-primary/15" };
 
