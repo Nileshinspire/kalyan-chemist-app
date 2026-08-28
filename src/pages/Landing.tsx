@@ -116,6 +116,7 @@ function HeroCategoryNav() {
             const isActive = currentNavKey === cat.key;
             return (
               <button
+                type="button"
                 key={cat.key}
                 onClick={() => {
                   if (cat.slug) {
@@ -124,7 +125,7 @@ function HeroCategoryNav() {
                     navigate(`/products?nav=all`);
                   }
                 }}
-                className="relative px-3 lg:px-4 py-2.5 text-xs lg:text-sm font-medium whitespace-nowrap transition-all duration-200 shrink-0 text-white hover:text-white" style={{ color: '#FFFFFF' }}
+                className="relative px-3 lg:px-4 py-2.5 text-xs lg:text-sm font-medium whitespace-nowrap transition-all duration-200 shrink-0 cursor-pointer" style={{ color: '#FFFFFF' }}
               >
                 {cat.label}
                 {isActive && (
@@ -183,7 +184,7 @@ export default function Landing() {
         {/* Category Navigation Strip — integrated at top of hero */}
         <HeroCategoryNav />
         {/* Decorative background elements */}
-        <div className="absolute inset-0">
+        <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-0 left-0 w-96 h-96 bg-white/8 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2" />
           <div className="absolute bottom-0 right-0 w-80 h-80 bg-white/8 rounded-full blur-3xl translate-x-1/4 translate-y-1/4" />
           <div className="absolute inset-0 opacity-[0.03]" style={{
