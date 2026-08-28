@@ -315,8 +315,10 @@ export default function AdminProducts() {
         filled.push("Storage Information");
       }
       // Category — fill if the enrichment returned a suggested subcategory
-      const suggestedSubcategory = (result as any).subcategory as string | null;
-      const suggestedCategory = (result as any).category as string | null;
+      // The enrichment action returns category as { category: string, subcategory: string }
+      const categoryInfo = (result as any).category;
+      const suggestedSubcategory: string | null = categoryInfo && typeof categoryInfo === "object" ? categoryInfo.subcategory : null;
+      const suggestedParentName: string | null = categoryInfo && typeof categoryInfo === "object" ? categoryInfo.category : (typeof categoryInfo === "string" ? categoryInfo : null);
       if (!newForm.categoryId && hierarchicalCategories) {
         // Priority 1: Match subcategory name within hierarchical categories
         if (suggestedSubcategory) {
@@ -329,11 +331,11 @@ export default function AdminProducts() {
             }
           }
         }
-        // Priority 2: If no subcategory match, match parent category name (only for leaf categories without children)
-        if (!newForm.categoryId && suggestedCategory) {
+        // Priority 2: If no subcategory match, match parent category name (only for standalone/leaf categories)
+        if (!newForm.categoryId && suggestedParentName) {
           for (const parent of hierarchicalCategories) {
-            if (parent.name.toLowerCase() === suggestedCategory.toLowerCase()) {
-              // Only assign directly if the parent has no children (is a leaf category)
+            if (parent.name.toLowerCase() === suggestedParentName.toLowerCase()) {
+              // Only assign directly if the parent has no children (is a standalone/leaf category)
               if (parent.children.length === 0) {
                 newForm.categoryId = parent._id;
                 filled.push("Category");
