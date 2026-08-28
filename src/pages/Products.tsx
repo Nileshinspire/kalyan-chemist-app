@@ -50,6 +50,16 @@ export default function Products() {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const autocompleteRef = useRef<HTMLDivElement>(null);
 
+  // Sync URL params → state when navigating from outside (e.g. Navbar category clicks)
+  useEffect(() => {
+    setSearchQuery(searchParams.get("search") || "");
+    setSelectedCategorySlug(searchParams.get("category") || "");
+    setSelectedBrandSlug(searchParams.get("brand") || "");
+    setSortBy(searchParams.get("sort") || "relevance");
+    setPrescriptionFilter(searchParams.get("rx") || "");
+    setStockFilter(searchParams.get("stock") || "");
+  }, [searchParams]);
+
   // Look up category/brand IDs from slugs
   const allCategories = useQuery(api.categories.list);
   const allBrands = useQuery(api.publicBrands.list);

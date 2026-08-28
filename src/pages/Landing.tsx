@@ -132,11 +132,11 @@ export default function Landing() {
       <Navbar />
 
       {/* ── Hero: Buy Medicines and Essentials ── */}
-      <section ref={heroRef} className="relative bg-gradient-to-br from-[#0f2035] via-[#162d4a] to-[#1a3555] overflow-hidden">
+      <section ref={heroRef} className="relative overflow-hidden" style={{ background: 'linear-gradient(160deg, oklch(0.30 0.07 170) 0%, oklch(0.24 0.06 175) 50%, oklch(0.20 0.05 180) 100%)' }}>
         {/* Decorative background elements */}
         <div className="absolute inset-0">
           <div className="absolute top-0 left-0 w-96 h-96 bg-primary/10 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2" />
-          <div className="absolute bottom-0 right-0 w-80 h-80 bg-blue-400/10 rounded-full blur-3xl translate-x-1/4 translate-y-1/4" />
+          <div className="absolute bottom-0 right-0 w-80 h-80 bg-primary/10 rounded-full blur-3xl translate-x-1/4 translate-y-1/4" />
           <div className="absolute inset-0 opacity-[0.03]" style={{
             backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)",
             backgroundSize: "24px 24px",
