@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useSearchParams, useNavigate, useLocation } from "react-router";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -27,6 +27,34 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 
+/* ─────────────────────────────────────────────────────────────
+   CATEGORY NAV ITEMS
+   Each nav item maps to one or more DB category name patterns.
+   "all" means no filter (show all products).
+   ───────────────────────────────────────────────────────────── */
+interface NavCategoryAll {
+  label: string;
+  key: string;
+  filterSlugs: null;
+}
+interface NavCategoryFiltered {
+  label: string;
+  key: string;
+  filterSlugs: string[];
+}
+type NavCategory = NavCategoryAll | NavCategoryFiltered;
+
+const NAV_CATEGORIES: NavCategory[] = [
+  { label: "Kalyan Chemist Products", key: "all", filterSlugs: null },
+  { label: "Baby Care", key: "baby-care", filterSlugs: ["baby-mother"] },
+  { label: "Nutritional Drinks & Supplements", key: "nutrition", filterSlugs: ["nutrition"] },
+  { label: "Women Care", key: "women-care", filterSlugs: ["baby-mother"] },
+  { label: "Personal Care", key: "personal-care", filterSlugs: ["personal-care", "skin-personal-care"] },
+  { label: "Ayurveda", key: "ayurveda", filterSlugs: ["alternative-medicine"] },
+  { label: "Home Essentials", key: "home-essentials", filterSlugs: ["others"] },
+  { label: "Health Conditions", key: "health-conditions", filterSlugs: ["health-safety", "heart-cardio", "diabetes-care", "pain-relief", "digestive-health"] },
+];
+
 export default function Products() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -47,6 +75,10 @@ export default function Products() {
   const [autocompleteQuery, setAutocompleteQuery] = useState("");
   const [showAutocomplete, setShowAutocomplete] = useState(false);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [activeNavKey, setActiveNavKey] = useState<string>(() => {
+    return searchParams.get("nav") || "all";
+  });
+  const [heroSearch, setHeroSearch] = useState("");
   const searchInputRef = useRef<HTMLInputElement>(null);
   const autocompleteRef = useRef<HTMLDivElement>(null);
 
@@ -57,6 +89,43 @@ export default function Products() {
   const selectedCategoryId = allCategories?.find((c) => c.slug === selectedCategorySlug)?._id;
   const selectedBrandId = allBrands?.find((b) => b.slug === selectedBrandSlug)?._id;
 
+  /* ────────────────────────────────────────────────────────
+     Resolve active nav category → set of DB slugs to filter
+     ──────────────────────────────────────────────────────── */
+  const navFilterSlugs = useMemo(() => {
+    const nav = NAV_CATEGORIES.find((n) => n.key === activeNavKey);
+    if (!nav || !nav.filterSlugs) return null;
+    return nav.filterSlugs;
+  }, [activeNavKey]);
+
+  /* When a nav category is clicked, clear sidebar category filter
+     and set the nav slug. When "all" is clicked, clear both. */
+  const handleNavClick = (key: string) => {
+    setActiveNavKey(key);
+    setSelectedCategorySlug("");
+    setSelectedBrandSlug("");
+    setSearchQuery("");
+    setAutocompleteQuery("");
+    setPrescriptionFilter("");
+    setStockFilter("");
+  };
+
+  /* ────────────────────────────────────────────────────────
+     Determine which DB category IDs to pass to the search query.
+     If nav filter is active, gather all category IDs whose slug
+     matches the nav filter slugs. Otherwise use sidebar selection.
+     ──────────────────────────────────────────────────────── */
+  const effectiveCategoryId = useMemo(() => {
+    // Sidebar category takes precedence if explicitly selected
+    if (selectedCategoryId) return selectedCategoryId;
+    // Nav filter: collect IDs of matching categories
+    if (navFilterSlugs && allCategories) {
+      const matching = allCategories.filter((c) => navFilterSlugs.includes(c.slug));
+      return matching.length > 0 ? matching[0]._id : undefined;
+    }
+    return undefined;
+  }, [selectedCategoryId, navFilterSlugs, allCategories]);
+
   // Autocomplete suggestions
   const suggestions = useQuery(
     api.publicProducts.autocomplete,
@@ -66,7 +135,7 @@ export default function Products() {
   // Main search query
   const products = useQuery(api.publicProducts.search, {
     query: searchQuery || "",
-    categoryId: selectedCategoryId as any,
+    categoryId: effectiveCategoryId as any,
     brandId: selectedBrandId as any,
     prescriptionRequired: prescriptionFilter === "rx" ? true : prescriptionFilter === "otc" ? false : undefined,
     inStock: stockFilter === "in_stock" ? true : undefined,
@@ -82,8 +151,9 @@ export default function Products() {
     if (sortBy !== "relevance") params.set("sort", sortBy);
     if (prescriptionFilter) params.set("rx", prescriptionFilter);
     if (stockFilter) params.set("stock", stockFilter);
+    if (activeNavKey && activeNavKey !== "all") params.set("nav", activeNavKey);
     setSearchParams(params, { replace: true });
-  }, [searchQuery, selectedCategorySlug, selectedBrandSlug, sortBy, prescriptionFilter, stockFilter, setSearchParams]);
+  }, [searchQuery, selectedCategorySlug, selectedBrandSlug, sortBy, prescriptionFilter, stockFilter, activeNavKey, setSearchParams]);
 
   // Close autocomplete on outside click
   useEffect(() => {
@@ -117,6 +187,14 @@ export default function Products() {
     }
   };
 
+  const handleHeroSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (heroSearch.trim()) {
+      setSearchQuery(heroSearch.trim());
+      setActiveNavKey("all");
+    }
+  };
+
   const clearFilters = () => {
     setSearchQuery("");
     setSelectedCategorySlug("");
@@ -124,43 +202,210 @@ export default function Products() {
     setSortBy("relevance");
     setPrescriptionFilter("");
     setStockFilter("");
+    setActiveNavKey("all");
+    setHeroSearch("");
     setSearchParams({}, { replace: true });
   };
 
-  const hasActiveFilters = searchQuery || selectedCategorySlug || selectedBrandSlug || prescriptionFilter || stockFilter;
+  const hasActiveFilters = searchQuery || selectedCategorySlug || selectedBrandSlug || prescriptionFilter || stockFilter || activeNavKey !== "all";
 
   const isLoading = products === undefined || allCategories === undefined;
+
+  /* ────────────────────────────────────────────────────────
+     Compute nav category counts from DB categories
+     ──────────────────────────────────────────────────────── */
+  const navCategoryCounts = useMemo(() => {
+    if (!allCategories) return {} as Record<string, number>;
+    const counts: Record<string, number> = {};
+    for (const nav of NAV_CATEGORIES) {
+      if (!nav.filterSlugs) {
+        counts[nav.key] = allCategories.reduce((sum, c) => sum + (c as any).productCount, 0);
+      } else {
+        counts[nav.key] = allCategories
+          .filter((c) => nav.filterSlugs!.includes(c.slug))
+          .reduce((sum, c) => sum + (c as any).productCount, 0);
+      }
+    }
+    return counts;
+  }, [allCategories]);
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
 
       <main className="flex-1">
-        {/* Header */}
-        <div className="bg-gradient-to-b from-primary/[0.03] to-transparent border-b border-border/30">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8">
+        {/* ════════════════════════════════════════════════════
+            CATEGORY NAVIGATION BAR
+            ════════════════════════════════════════════════════ */}
+        <nav className="bg-white border-b border-gray-200 sticky top-0 z-30">
+          <div className="mx-auto max-w-7xl overflow-x-auto scrollbar-none">
+            <div className="flex items-center gap-0 min-w-max">
+              {NAV_CATEGORIES.map((cat) => {
+                const isActive = cat.key === activeNavKey;
+                return (
+                  <button
+                    key={cat.key}
+                    onClick={() => handleNavClick(cat.key)}
+                    className={`relative px-4 py-3 text-sm font-medium whitespace-nowrap transition-all duration-200 ${
+                      isActive
+                        ? "text-primary-foreground bg-primary"
+                        : "text-gray-700 hover:text-primary hover:bg-primary/5"
+                    }`}
+                  >
+                    {cat.label}
+                    {isActive && (
+                      <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary-foreground" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </nav>
+
+        {/* ════════════════════════════════════════════════════
+            HERO SEARCH SECTION
+            ════════════════════════════════════════════════════ */}
+        <section className="relative bg-gradient-to-br from-[#0f2035] via-[#162d4a] to-[#1a3555] overflow-hidden">
+          {/* Decorative background elements */}
+          <div className="absolute inset-0">
+            <div className="absolute top-0 left-0 w-96 h-96 bg-primary/10 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2" />
+            <div className="absolute bottom-0 right-0 w-80 h-80 bg-blue-400/10 rounded-full blur-3xl translate-x-1/4 translate-y-1/4" />
+            {/* Grid pattern overlay */}
+            <div className="absolute inset-0 opacity-[0.03]" style={{
+              backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)",
+              backgroundSize: "24px 24px",
+            }} />
+          </div>
+
+          <div className="relative mx-auto max-w-7xl px-4 sm:px-6 py-10 md:py-16">
+            <div className="flex flex-col lg:flex-row items-center gap-8 lg:gap-12">
+              {/* Left: Illustrations (hidden on mobile) */}
+              <div className="hidden lg:flex items-center gap-4 shrink-0">
+                <div className="w-20 h-20 rounded-2xl bg-white/10 backdrop-blur-sm flex items-center justify-center border border-white/10">
+                  <svg viewBox="0 0 24 24" fill="none" className="w-10 h-10 text-white/80" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
+                  </svg>
+                </div>
+                <div className="w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-sm flex items-center justify-center border border-white/10">
+                  <svg viewBox="0 0 24 24" fill="none" className="w-8 h-8 text-white/70" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
+                  </svg>
+                </div>
+                <div className="w-14 h-14 rounded-2xl bg-white/10 backdrop-blur-sm flex items-center justify-center border border-white/10">
+                  <svg viewBox="0 0 24 24" fill="none" className="w-7 h-7 text-white/60" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.104v5.714a2.25 2.25 0 01-.659 1.591L5 14.5M9.75 3.104c-.251.023-.501.05-.75.082m.75-.082a24.301 24.301 0 014.5 0m0 0v5.714c0 .597.237 1.17.659 1.591L19.8 15.3M14.25 3.104c.251.023.501.05.75.082M19.8 15.3l-1.57.393A9.065 9.065 0 0112 15a9.065 9.065 0 00-6.23.693L5 14.5m14.8.8l1.402 1.402c1.232 1.232.65 3.318-1.067 3.611A48.309 48.309 0 0112 21c-2.773 0-5.491-.235-8.135-.687-1.718-.293-2.3-2.379-1.067-3.61L5 14.5" />
+                  </svg>
+                </div>
+              </div>
+
+              {/* Center: Heading + Search */}
+              <div className="flex-1 text-center max-w-2xl mx-auto">
+                <motion.h1
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5 }}
+                  className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-tight mb-4"
+                >
+                  Buy Medicines and Essentials
+                </motion.h1>
+
+                <motion.form
+                  onSubmit={handleHeroSearch}
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: 0.15 }}
+                  className="relative max-w-xl mx-auto"
+                >
+                  <div className="relative">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-5 text-gray-400" />
+                    <input
+                      type="text"
+                      value={heroSearch}
+                      onChange={(e) => setHeroSearch(e.target.value)}
+                      placeholder="Search Medicines"
+                      className="w-full h-12 sm:h-14 pl-12 pr-32 sm:pr-36 rounded-xl bg-white text-gray-900 placeholder-gray-400 text-base sm:text-lg font-medium shadow-lg focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
+                    />
+                    <button
+                      type="submit"
+                      className="absolute right-1.5 top-1/2 -translate-y-1/2 h-9 sm:h-10 px-5 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition-colors"
+                    >
+                      Search
+                    </button>
+                  </div>
+                </motion.form>
+
+                {/* Quick search tags */}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.5, delay: 0.3 }}
+                  className="flex flex-wrap justify-center gap-2 mt-4"
+                >
+                  {["Paracetamol", "Vitamin C", "Cough Syrup", "Diabetes", "Skin Care"].map((tag) => (
+                    <button
+                      key={tag}
+                      onClick={() => { setHeroSearch(tag); setSearchQuery(tag); setActiveNavKey("all"); }}
+                      className="px-3 py-1 rounded-full bg-white/10 text-white/80 text-xs font-medium hover:bg-white/20 transition-colors border border-white/10"
+                    >
+                      {tag}
+                    </button>
+                  ))}
+                </motion.div>
+              </div>
+
+              {/* Right: Illustrations (hidden on mobile) */}
+              <div className="hidden lg:flex items-center gap-4 shrink-0">
+                <div className="w-14 h-14 rounded-2xl bg-white/10 backdrop-blur-sm flex items-center justify-center border border-white/10">
+                  <svg viewBox="0 0 24 24" fill="none" className="w-7 h-7 text-white/60" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+                  </svg>
+                </div>
+                <div className="w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-sm flex items-center justify-center border border-white/10">
+                  <svg viewBox="0 0 24 24" fill="none" className="w-8 h-8 text-white/70" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                  </svg>
+                </div>
+                <div className="w-20 h-20 rounded-2xl bg-white/10 backdrop-blur-sm flex items-center justify-center border border-white/10">
+                  <svg viewBox="0 0 24 24" fill="none" className="w-10 h-10 text-white/80" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ════════════════════════════════════════════════════
+            PRODUCT LISTING AREA (existing filters + grid)
+            ════════════════════════════════════════════════════ */}
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 py-6">
+          {/* Header */}
+          <div className="mb-6">
             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
               <div className="inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary mb-3">
                 <Sparkles className="size-3" />
-                Medicine Catalogue
+                {                  activeNavKey !== "all"
+                  ? NAV_CATEGORIES.find((n) => n.key === activeNavKey)?.label || "Category"
+                  : "Medicine Catalogue"}
               </div>
-              <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+              <h2 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
                 {searchQuery
                   ? `Results for "${searchQuery}"`
                   : selectedCategorySlug
                   ? allCategories?.find((c) => c.slug === selectedCategorySlug)?.name ?? "Category"
                   : selectedBrandSlug
                   ? allBrands?.find((b) => b.slug === selectedBrandSlug)?.name ?? "Brand"
+                  :                  activeNavKey !== "all"
+                  ? NAV_CATEGORIES.find((n) => n.key === activeNavKey)?.label ?? "Products"
                   : "All Medicines"}
-              </h1>
+              </h2>
               <p className="mt-1.5 text-sm text-muted-foreground">
                 {products ? `${products.length} product(s) found` : "Browse our catalogue of genuine medicines and healthcare products."}
               </p>
             </motion.div>
           </div>
-        </div>
 
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8">
           <div className="flex gap-8">
             {/* Desktop sidebar filters */}
             <aside className="hidden lg:block w-64 shrink-0">
@@ -221,11 +466,11 @@ export default function Products() {
                   <div className="space-y-0.5">
                     <button
                       className={`w-full text-left px-3 py-2.5 rounded-xl text-sm transition-all duration-200 ${
-                        !selectedCategorySlug
+                        !selectedCategorySlug && activeNavKey === "all"
                           ? "bg-primary/10 text-primary font-semibold shadow-sm"
                           : "text-muted-foreground hover:bg-muted hover:text-foreground"
                       }`}
-                      onClick={() => setSelectedCategorySlug("")}
+                      onClick={() => { setSelectedCategorySlug(""); setActiveNavKey("all"); }}
                     >
                       All Categories
                     </button>
