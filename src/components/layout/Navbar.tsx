@@ -1,5 +1,5 @@
 import { useState, useEffect, memo, useCallback } from "react";
-import { useNavigate, useLocation } from "react-router";
+import { useNavigate, useLocation, useSearchParams } from "react-router";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,6 +42,7 @@ const Navbar = memo(function Navbar() {
   const { isAuthenticated, isAdmin, user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState("");
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
@@ -412,6 +413,33 @@ const Navbar = memo(function Navbar() {
         </div>
       </div>
 
+      {/* ═══════════════════════════════════════════════════════
+          GLOBAL CATEGORY NAVIGATION BAR
+          ═══════════════════════════════════════════════════════ */}
+      <nav className="hidden md:block" style={{ background: '#0a3d2e' }}>
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
+          <div className="flex items-center gap-0 overflow-x-auto scrollbar-none">
+            {CATEGORY_NAV_ITEMS.map((cat) => {
+              const currentNavKey = searchParams.get("nav") || "";
+              const isCurrentCategory = currentNavKey === cat.key;
+              return (
+                <button
+                  type="button"
+                  key={cat.key}
+                  onClick={() => handleCategoryNav(cat.slug, cat.key)}
+                  className="relative px-3 lg:px-4 py-2.5 text-xs lg:text-sm font-medium whitespace-nowrap transition-all duration-200 shrink-0 cursor-pointer"
+                  style={{ color: '#FFFFFF' }}
+                >
+                  {cat.label}
+                  {isCurrentCategory && (
+                    <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-white rounded-full" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </nav>
     </header>
   );
 });
