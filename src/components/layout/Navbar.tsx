@@ -82,10 +82,10 @@ const Navbar = memo(function Navbar() {
 
   return (
     <header
-      className={`sticky top-0 z-50 border-b transition-all duration-300 ${
+      className={`sticky top-0 z-50 transition-all duration-300 ${
         scrolled
-          ? "glass-strong border-border/20 shadow-md shadow-primary/[0.03]"
-          : "glass-strong border-border/30 shadow-sm"
+          ? "glass-strong shadow-md shadow-primary/[0.03]"
+          : "glass-strong shadow-sm"
       }`}
     >
       <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 sm:px-6 py-3">
