@@ -180,8 +180,6 @@ export default function Landing() {
 
             {/* ── Hero: Buy Medicines and Essentials ── */}
       <section ref={heroRef} className="relative overflow-hidden" style={{ background: 'linear-gradient(160deg, oklch(0.42 0.09 170) 0%, oklch(0.38 0.10 168) 40%, oklch(0.35 0.08 172) 100%)' }}>
-        {/* Category navigation strip — inside hero, darker green */}
-        <HeroCategoryNav />
         {/* Decorative background elements */}
         <div className="absolute inset-0">
           <div className="absolute top-0 left-0 w-96 h-96 bg-white/8 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2" />

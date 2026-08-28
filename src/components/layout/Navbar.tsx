@@ -418,6 +418,31 @@ const Navbar = memo(function Navbar() {
       </div>
 
 
+      {/* ═══════════════════════════════════════════════════════
+          GLOBAL CATEGORY NAVIGATION BAR
+          ═══════════════════════════════════════════════════════ */}
+      <nav className="hidden md:block border-b border-white/10" style={{ background: 'rgba(0,0,0,0.22)' }}>
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
+          <div className="flex items-center gap-0 overflow-x-auto scrollbar-none">
+            {CATEGORY_NAV_ITEMS.map((cat) => {
+              const isCurrentCategory = currentNavKey === cat.key;
+              return (
+                <button
+                  key={cat.key}
+                  onClick={() => handleCategoryNav(cat.slug, cat.key)}
+                  className="relative px-3 lg:px-4 py-2.5 text-xs lg:text-sm font-medium whitespace-nowrap transition-all duration-200 shrink-0 text-white hover:text-white"
+                  style={{ color: '#FFFFFF' }}
+                >
+                  {cat.label}
+                  {isCurrentCategory && (
+                    <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-white rounded-full" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </nav>
     </header>
   );
 });
