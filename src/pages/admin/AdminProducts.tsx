@@ -314,16 +314,33 @@ export default function AdminProducts() {
         newForm.storageInformation = (result as any).storageInformation;
         filled.push("Storage Information");
       }
-      // Category — fill if the enrichment returned a suggested category
-      if ((result as any).category) {
-        // Try to match the suggested category name to an existing category
-        const suggestedName = (result as any).category as string;
-        // Flatten hierarchical categories to find a match
-        const allLeaf = hierarchicalCategories?.flatMap((p) => p.children.length > 0 ? p.children : [p]) ?? [];
-        const matchedCat = allLeaf.find((c: any) => c.name.toLowerCase() === suggestedName.toLowerCase());
-        if (matchedCat && !form.categoryId) {
-          newForm.categoryId = matchedCat._id;
-          filled.push("Category");
+      // Category — fill if the enrichment returned a suggested subcategory
+      const suggestedSubcategory = (result as any).subcategory as string | null;
+      const suggestedCategory = (result as any).category as string | null;
+      if (!newForm.categoryId && hierarchicalCategories) {
+        // Priority 1: Match subcategory name within hierarchical categories
+        if (suggestedSubcategory) {
+          for (const parent of hierarchicalCategories) {
+            const child = parent.children?.find((c: any) => c.name.toLowerCase() === suggestedSubcategory.toLowerCase());
+            if (child) {
+              newForm.categoryId = child._id;
+              filled.push("Category");
+              break;
+            }
+          }
+        }
+        // Priority 2: If no subcategory match, match parent category name (only for leaf categories without children)
+        if (!newForm.categoryId && suggestedCategory) {
+          for (const parent of hierarchicalCategories) {
+            if (parent.name.toLowerCase() === suggestedCategory.toLowerCase()) {
+              // Only assign directly if the parent has no children (is a leaf category)
+              if (parent.children.length === 0) {
+                newForm.categoryId = parent._id;
+                filled.push("Category");
+              }
+              break;
+            }
+          }
         }
       }
 
