@@ -109,7 +109,7 @@ function HeroCategoryNav() {
   const currentNavKey = useMemo(() => searchParams.get("nav") || "", [searchParams.get("nav")]);
 
   return (
-    <div className="relative z-30 border-b border-white/10" style={{ background: 'rgba(0,0,0,0.12)' }}>
+    <div className="relative z-30 border-b border-white/10" style={{ background: 'rgba(0,0,0,0.22)' }}>
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
         <div className="flex items-center gap-0 overflow-x-auto scrollbar-none">
           {HERO_CATEGORIES.map((cat) => {
