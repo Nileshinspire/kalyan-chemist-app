@@ -1,5 +1,5 @@
-import { useState, useEffect, memo } from "react";
-import { useNavigate, useLocation } from "react-router";
+import { useState, useEffect, memo, useCallback } from "react";
+import { useNavigate, useLocation, useSearchParams } from "react-router";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,10 +43,14 @@ const Navbar = memo(function Navbar() {
   const { isAuthenticated, isAdmin, user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState("");
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+
+  // Current nav key from URL — stable reference from useSearchParams
+  const currentNavKey = searchParams.get("nav") || "";
 
   // Track scroll for navbar background enhancement
   useEffect(() => {
@@ -57,28 +61,28 @@ const Navbar = memo(function Navbar() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = useCallback((e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
       navigate(`/products?search=${encodeURIComponent(searchQuery.trim())}`);
       setSearchQuery("");
     }
-  };
+  }, [searchQuery, navigate]);
 
-  const handleSignOut = async () => {
+  const handleSignOut = useCallback(async () => {
     await logout();
     navigate("/");
-  };
+  }, [logout, navigate]);
 
-  const handleCategoryNav = (slug: string, key: string) => {
+  const handleCategoryNav = useCallback((slug: string, key: string) => {
     if (slug) {
       navigate(`/products?category=${slug}&nav=${key}`);
     } else {
       navigate(`/products?nav=all`);
     }
-  };
+  }, [navigate]);
 
-  const isActive = (path: string) => location.pathname === path;
+  const isActive = useCallback((path: string) => location.pathname === path, [location.pathname]);
 
   return (
     <header
@@ -420,8 +424,7 @@ const Navbar = memo(function Navbar() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <div className="flex items-center gap-0 overflow-x-auto scrollbar-none">
             {CATEGORY_NAV_ITEMS.map((cat) => {
-              const currentNav = new URLSearchParams(location.search).get("nav");
-              const isCurrentCategory = currentNav === cat.key;
+              const isCurrentCategory = currentNavKey === cat.key;
               return (
                 <button
                   key={cat.key}

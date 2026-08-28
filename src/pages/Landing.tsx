@@ -146,76 +146,133 @@ export default function Landing() {
         <div className="relative mx-auto max-w-7xl px-4 sm:px-6 py-10 md:py-16">
           <div className="flex flex-col lg:flex-row items-center gap-8 lg:gap-12">
             {/* Left illustrations */}
-            <div className="hidden lg:flex items-end gap-3 shrink-0">
-              {/* Doctor with stethoscope */}
+            <div className="hidden lg:flex items-end gap-4 shrink-0">
+              {/* Doctor — taller figure with stethoscope */}
               <motion.div
-                initial={{ opacity: 0, x: -20 }}
+                initial={{ opacity: 0, x: -30 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.6, delay: 0.2 }}
-                className="w-28 h-36 rounded-2xl bg-white/10 backdrop-blur-sm flex flex-col items-center justify-end border border-white/15 p-3 pb-2"
+                transition={{ duration: 0.5 }}
+                className="w-32 h-44 rounded-2xl bg-white/8 backdrop-blur-sm flex flex-col items-center justify-end border border-white/12 p-3 pb-2"
               >
-                <svg viewBox="0 0 100 120" fill="none" className="w-20 h-24">
-                  {/* Head */}
-                  <circle cx="50" cy="22" r="14" fill="rgba(255,255,255,0.85)" />
-                  {/* Hair */}
-                  <path d="M36 18 Q36 8 50 8 Q64 8 64 18" fill="rgba(60,60,60,0.5)" />
-                  {/* Eyes */}
-                  <circle cx="44" cy="22" r="1.5" fill="rgba(60,60,60,0.7)" />
-                  <circle cx="56" cy="22" r="1.5" fill="rgba(60,60,60,0.7)" />
+                <svg viewBox="0 0 120 160" fill="none" className="w-24 h-32">
+                  <defs>
+                    <linearGradient id="skinL" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="rgba(255,220,190,0.95)" /><stop offset="100%" stopColor="rgba(235,195,160,0.95)" /></linearGradient>
+                    <linearGradient id="coatW" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="rgba(255,255,255,0.88)" /><stop offset="100%" stopColor="rgba(230,235,240,0.82)" /></linearGradient>
+                    <linearGradient id="hairDark" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="rgba(45,35,30,0.8)" /><stop offset="100%" stopColor="rgba(60,45,35,0.65)" /></linearGradient>
+                  </defs>
+                  {/* Neck */}
+                  <rect x="52" y="38" width="16" height="14" rx="4" fill="url(#skinL)" />
+                  {/* Body — white coat silhouette */}
+                  <path d="M34 52 L30 56 L28 120 L92 120 L90 56 L86 52 Q86 46 72 44 L48 44 Q34 46 34 52 Z" fill="url(#coatW)" />
+                  {/* Coat collar/lapels */}
+                  <path d="M48 46 L56 62 L60 52" stroke="rgba(200,205,215,0.6)" strokeWidth="1.2" fill="none" />
+                  <path d="M72 46 L64 62 L60 52" stroke="rgba(200,205,215,0.6)" strokeWidth="1.2" fill="none" />
+                  {/* Shirt underneath */}
+                  <path d="M52 48 L56 62 L60 52 L64 62 L68 48" fill="rgba(120,160,220,0.35)" />
+                  {/* Stethoscope tubing */}
+                  <path d="M50 60 Q44 64 44 74 Q44 82 50 84 Q56 82 56 74 Q56 64 50 60" stroke="rgba(80,150,200,0.7)" strokeWidth="2" fill="none" />
+                  <path d="M44 66 L40 56 Q40 50 46 48" stroke="rgba(80,150,200,0.5)" strokeWidth="1.5" fill="none" />
+                  <path d="M56 66 L60 56 Q60 50 54 48" stroke="rgba(80,150,200,0.5)" strokeWidth="1.5" fill="none" />
+                  <circle cx="50" cy="84" r="5" stroke="rgba(80,150,200,0.8)" strokeWidth="2.5" fill="rgba(80,150,200,0.1)" />
+                  {/* Left arm */}
+                  <path d="M30 56 Q22 70 20 90 L24 90 Q28 74 32 60" fill="url(#coatW)" />
+                  {/* Right arm */}
+                  <path d="M90 56 Q98 70 100 90 L96 90 Q92 74 88 60" fill="url(#coatW)" />
+                  {/* Hand — right, holding stethoscope end */}
+                  <ellipse cx="100" cy="88" rx="4" ry="3" fill="url(#skinL)" />
+                  {/* Head shape — slightly oval for realism */}
+                  <ellipse cx="60" cy="22" rx="16" ry="18" fill="url(#skinL)" />
+                  {/* Hair — styled side part */}
+                  <path d="M44 18 Q44 6 60 4 Q76 6 76 18 L76 12 Q76 2 60 2 Q44 2 44 12 Z" fill="url(#hairDark)" />
+                  <path d="M44 18 Q44 10 50 8" stroke="url(#hairDark)" strokeWidth="3" fill="none" />
+                  {/* Ears */}
+                  <ellipse cx="44" cy="22" rx="3" ry="4" fill="rgba(235,195,160,0.7)" />
+                  <ellipse cx="76" cy="22" rx="3" ry="4" fill="rgba(235,195,160,0.7)" />
+                  {/* Eyes — almond shaped */}
+                  <path d="M52 20 Q54 18 56 20 Q54 22 52 20" fill="rgba(50,40,35,0.8)" />
+                  <path d="M64 20 Q66 18 68 20 Q66 22 64 20" fill="rgba(50,40,35,0.8)" />
+                  <circle cx="54" cy="20" r="0.8" fill="white" opacity="0.7" />
+                  <circle cx="66" cy="20" r="0.8" fill="white" opacity="0.7" />
+                  {/* Eyebrows */}
+                  <path d="M51 17 Q54 15 57 17" stroke="rgba(50,35,25,0.5)" strokeWidth="1" fill="none" />
+                  <path d="M63 17 Q66 15 69 17" stroke="rgba(50,35,25,0.5)" strokeWidth="1" fill="none" />
+                  {/* Nose */}
+                  <path d="M59 22 Q60 26 61 22" stroke="rgba(180,140,110,0.4)" strokeWidth="0.8" fill="none" />
                   {/* Smile */}
-                  <path d="M44 28 Q50 32 56 28" stroke="rgba(60,60,60,0.4)" strokeWidth="1" fill="none" />
-                  {/* White coat / body */}
-                  <path d="M32 40 L32 85 C32 90 68 90 68 85 L68 40 C68 35 32 35 32 40 Z" fill="rgba(255,255,255,0.75)" />
-                  {/* Coat lapels */}
-                  <path d="M42 38 L50 55 L58 38" stroke="rgba(200,200,200,0.5)" strokeWidth="1" fill="none" />
-                  {/* Stethoscope */}
-                  <circle cx="50" cy="65" r="5" stroke="rgba(100,180,220,0.8)" strokeWidth="2" fill="none" />
-                  <path d="M45 65 L45 55 Q45 50 50 50 Q55 50 55 55 L55 65" stroke="rgba(100,180,220,0.8)" strokeWidth="1.5" fill="none" />
-                  <path d="M45 55 L42 42" stroke="rgba(100,180,220,0.7)" strokeWidth="1.5" fill="none" />
-                  <path d="M55 55 L58 42" stroke="rgba(100,180,220,0.7)" strokeWidth="1.5" fill="none" />
-                  {/* Name badge */}
-                  <rect x="55" y="48" width="10" height="7" rx="1" fill="rgba(100,180,220,0.3)" />
+                  <path d="M55 28 Q60 31 65 28" stroke="rgba(160,110,90,0.45)" strokeWidth="1" fill="none" />
+                  {/* Name badge on coat */}
+                  <rect x="72" y="60" width="10" height="7" rx="1.5" fill="rgba(80,150,200,0.25)" />
+                  <line x1="74" y1="62" x2="80" y2="62" stroke="rgba(80,150,200,0.4)" strokeWidth="0.6" />
+                  <line x1="74" y1="64.5" x2="78" y2="64.5" stroke="rgba(80,150,200,0.3)" strokeWidth="0.5" />
                 </svg>
-                <span className="text-[10px] text-white/60 font-medium mt-1">Doctor</span>
+                <span className="text-[10px] text-white/50 font-medium mt-1.5 tracking-wide">Doctor</span>
               </motion.div>
-              {/* Nurse/Pharmacist */}
+              {/* Pharmacist — shorter figure with clipboard */}
               <motion.div
-                initial={{ opacity: 0, x: -20 }}
+                initial={{ opacity: 0, x: -30 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.6, delay: 0.35 }}
-                className="w-24 h-32 rounded-2xl bg-white/10 backdrop-blur-sm flex flex-col items-center justify-end border border-white/15 p-3 pb-2"
+                transition={{ duration: 0.5, delay: 0.1 }}
+                className="w-28 h-40 rounded-2xl bg-white/8 backdrop-blur-sm flex flex-col items-center justify-end border border-white/12 p-3 pb-2"
               >
-                <svg viewBox="0 0 80 100" fill="none" className="w-16 h-20">
-                  {/* Head */}
-                  <circle cx="40" cy="18" r="12" fill="rgba(255,255,255,0.85)" />
-                  {/* Hair */}
-                  <path d="M28 15 Q28 5 40 5 Q52 5 52 15" fill="rgba(80,50,30,0.5)" />
-                  {/* Nurse cap */}
-                  <rect x="30" y="2" width="20" height="8" rx="2" fill="rgba(255,255,255,0.9)" stroke="rgba(200,200,200,0.4)" strokeWidth="0.5" />
-                  <path d="M37 3 L40 0 L43 3 L43 8 L37 8 Z" fill="rgba(220,60,60,0.6)" />
-                  {/* Eyes */}
-                  <circle cx="35" cy="18" r="1.2" fill="rgba(60,60,60,0.7)" />
-                  <circle cx="45" cy="18" r="1.2" fill="rgba(60,60,60,0.7)" />
-                  {/* Body (scrubs) */}
-                  <path d="M26 32 L26 75 C26 78 54 78 54 75 L54 32 C54 28 26 28 26 32 Z" fill="rgba(100,180,220,0.6)" />
-                  {/* Collar */}
-                  <path d="M34 30 L40 40 L46 30" stroke="rgba(255,255,255,0.5)" strokeWidth="1" fill="none" />
+                <svg viewBox="0 0 110 150" fill="none" className="w-20 h-28">
+                  <defs>
+                    <linearGradient id="scrubsG" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="rgba(70,140,130,0.75)" /><stop offset="100%" stopColor="rgba(55,115,105,0.65)" /></linearGradient>
+                    <linearGradient id="skinM" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="rgba(245,210,180,0.95)" /><stop offset="100%" stopColor="rgba(225,185,155,0.95)" /></linearGradient>
+                    <linearGradient id="hairBr" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="rgba(70,40,20,0.8)" /><stop offset="100%" stopColor="rgba(85,50,25,0.6)" /></linearGradient>
+                  </defs>
+                  {/* Neck */}
+                  <rect x="46" y="36" width="14" height="12" rx="4" fill="url(#skinM)" />
+                  {/* Scrubs top */}
+                  <path d="M30 48 L28 52 L26 115 L84 115 L82 52 L80 48 Q80 42 68 40 L42 40 Q30 42 30 48 Z" fill="url(#scrubsG)" />
+                  {/* V-neck detail */}
+                  <path d="M48 42 L55 58 L60 48" stroke="rgba(255,255,255,0.35)" strokeWidth="1" fill="rgba(255,255,255,0.1)" />
+                  {/* ID lanyard */}
+                  <line x1="60" y1="42" x2="60" y2="68" stroke="rgba(255,255,255,0.3)" strokeWidth="0.8" />
+                  <rect x="55" y="68" width="10" height="8" rx="1.5" fill="rgba(255,255,255,0.4)" />
+                  {/* Left arm */}
+                  <path d="M28 52 Q18 68 16 88 L20 88 Q24 72 30 56" fill="url(#scrubsG)" />
+                  {/* Right arm — holding clipboard */}
+                  <path d="M82 52 Q92 64 94 80 L90 80 Q88 66 80 56" fill="url(#scrubsG)" />
+                  {/* Hand */}
+                  <ellipse cx="94" cy="78" rx="3.5" ry="3" fill="url(#skinM)" />
                   {/* Clipboard */}
-                  <rect x="56" y="45" width="12" height="16" rx="1" fill="rgba(255,255,255,0.6)" stroke="rgba(200,200,200,0.5)" strokeWidth="0.5" />
-                  <line x1="58" y1="50" x2="66" y2="50" stroke="rgba(150,150,150,0.5)" strokeWidth="0.5" />
-                  <line x1="58" y1="53" x2="64" y2="53" stroke="rgba(150,150,150,0.5)" strokeWidth="0.5" />
-                  <line x1="58" y1="56" x2="65" y2="56" stroke="rgba(150,150,150,0.5)" strokeWidth="0.5" />
+                  <rect x="88" y="64" width="16" height="22" rx="2" fill="rgba(255,255,255,0.65)" stroke="rgba(180,185,195,0.4)" strokeWidth="0.8" />
+                  <line x1="91" y1="70" x2="101" y2="70" stroke="rgba(120,130,145,0.4)" strokeWidth="0.6" />
+                  <line x1="91" y1="74" x2="99" y2="74" stroke="rgba(120,130,145,0.35)" strokeWidth="0.5" />
+                  <line x1="91" y1="78" x2="100" y2="78" stroke="rgba(120,130,145,0.3)" strokeWidth="0.5" />
+                  {/* Head */}
+                  <ellipse cx="55" cy="20" rx="14" ry="16" fill="url(#skinM)" />
+                  {/* Hair — pulled back */}
+                  <path d="M41 16 Q41 4 55 3 Q69 4 69 16 L69 10 Q68 2 55 2 Q42 2 41 10 Z" fill="url(#hairBr)" />
+                  <path d="M41 16 Q41 12 44 10" fill="url(#hairBr)" />
+                  {/* Hair bun */}
+                  <ellipse cx="55" cy="4" rx="8" ry="5" fill="url(#hairBr)" opacity="0.8" />
+                  {/* Ears */}
+                  <ellipse cx="41" cy="20" rx="2.5" ry="3.5" fill="rgba(225,185,155,0.6)" />
+                  <ellipse cx="69" cy="20" rx="2.5" ry="3.5" fill="rgba(225,185,155,0.6)" />
+                  {/* Eyes */}
+                  <path d="M48 18 Q50 16.5 52 18 Q50 19.5 48 18" fill="rgba(45,35,30,0.8)" />
+                  <path d="M58 18 Q60 16.5 62 18 Q60 19.5 58 18" fill="rgba(45,35,30,0.8)" />
+                  <circle cx="50" cy="18" r="0.7" fill="white" opacity="0.6" />
+                  <circle cx="60" cy="18" r="0.7" fill="white" opacity="0.6" />
+                  {/* Eyebrows */}
+                  <path d="M47 15 Q50 13.5 53 15" stroke="rgba(60,35,20,0.45)" strokeWidth="0.8" fill="none" />
+                  <path d="M57 15 Q60 13.5 63 15" stroke="rgba(60,35,20,0.45)" strokeWidth="0.8" fill="none" />
+                  {/* Nose */}
+                  <path d="M54 20 Q55 23 56 20" stroke="rgba(180,140,110,0.35)" strokeWidth="0.7" fill="none" />
+                  {/* Smile */}
+                  <path d="M51 25 Q55 28 59 25" stroke="rgba(160,110,90,0.4)" strokeWidth="0.9" fill="none" />
                 </svg>
-                <span className="text-[10px] text-white/60 font-medium mt-1">Pharmacist</span>
+                <span className="text-[10px] text-white/50 font-medium mt-1.5 tracking-wide">Pharmacist</span>
               </motion.div>
             </div>
 
             {/* Center: Heading + Search */}
             <div className="flex-1 text-center max-w-2xl mx-auto">
               <motion.h1
-                initial={{ opacity: 0, y: 16 }}
+                initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
+                transition={{ duration: 0.4 }}
                 className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-tight mb-4"
               >
                 Buy Medicines and Essentials
@@ -227,9 +284,9 @@ export default function Landing() {
                   const q = (e.target as HTMLFormElement).querySelector("input")?.value;
                   if (q?.trim()) navigate(`/products?search=${encodeURIComponent(q.trim())}`);
                 }}
-                initial={{ opacity: 0, y: 16 }}
+                initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.15 }}
+                transition={{ duration: 0.4, delay: 0.08 }}
                 className="relative max-w-xl mx-auto"
               >
                 <div className="relative">
@@ -252,7 +309,7 @@ export default function Landing() {
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ duration: 0.5, delay: 0.3 }}
+                transition={{ duration: 0.4, delay: 0.15 }}
                 className="flex flex-wrap justify-center gap-2 mt-4"
               >
                 {["Paracetamol", "Vitamin C", "Cough Syrup", "Diabetes", "Skin Care"].map((tag) => (
@@ -268,62 +325,121 @@ export default function Landing() {
             </div>
 
             {/* Right illustrations */}
-            <div className="hidden lg:flex items-end gap-3 shrink-0">
-              {/* Mother & child */}
+            <div className="hidden lg:flex items-end gap-4 shrink-0">
+              {/* Mother holding baby */}
               <motion.div
-                initial={{ opacity: 0, x: 20 }}
+                initial={{ opacity: 0, x: 30 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.6, delay: 0.35 }}
-                className="w-24 h-32 rounded-2xl bg-white/10 backdrop-blur-sm flex flex-col items-center justify-end border border-white/15 p-3 pb-2"
+                transition={{ duration: 0.5, delay: 0.1 }}
+                className="w-28 h-40 rounded-2xl bg-white/8 backdrop-blur-sm flex flex-col items-center justify-end border border-white/12 p-3 pb-2"
               >
-                <svg viewBox="0 0 80 100" fill="none" className="w-16 h-20">
-                  {/* Mother head */}
-                  <circle cx="35" cy="16" r="11" fill="rgba(255,255,255,0.85)" />
-                  {/* Hair */}
-                  <path d="M24 14 Q24 4 35 4 Q46 4 46 14 L46 20 Q46 14 35 14 Q24 14 24 20 Z" fill="rgba(80,50,30,0.5)" />
-                  {/* Eyes */}
-                  <circle cx="31" cy="16" r="1.2" fill="rgba(60,60,60,0.7)" />
-                  <circle cx="39" cy="16" r="1.2" fill="rgba(60,60,60,0.7)" />
-                  {/* Mother body */}
-                  <path d="M22 30 L22 70 C22 74 48 74 48 70 L48 30 C48 26 22 26 22 30 Z" fill="rgba(220,130,160,0.55)" />
+                <svg viewBox="0 0 110 150" fill="none" className="w-20 h-28">
+                  <defs>
+                    <linearGradient id="skinF" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="rgba(250,218,190,0.95)" /><stop offset="100%" stopColor="rgba(230,192,162,0.95)" /></linearGradient>
+                    <linearGradient id="dressP" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="rgba(200,110,140,0.65)" /><stop offset="100%" stopColor="rgba(170,90,120,0.55)" /></linearGradient>
+                    <linearGradient id="hairW" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="rgba(55,35,25,0.8)" /><stop offset="100%" stopColor="rgba(70,42,28,0.6)" /></linearGradient>
+                  </defs>
+                  {/* Neck */}
+                  <rect x="48" y="38" width="14" height="12" rx="4" fill="url(#skinF)" />
+                  {/* Dress / top */}
+                  <path d="M32 50 L30 54 L28 120 L82 120 L80 54 L78 50 Q78 44 66 42 L44 42 Q32 44 32 50 Z" fill="url(#dressP)" />
+                  {/* Neckline */}
+                  <path d="M46 44 Q55 54 64 44" stroke="rgba(255,255,255,0.3)" strokeWidth="0.8" fill="none" />
+                  {/* Left arm — cradling baby */}
+                  <path d="M30 54 Q20 66 18 82 L22 82 Q26 70 32 58" fill="url(#skinF)" />
+                  {/* Right arm — supporting baby */}
+                  <path d="M80 54 Q86 66 88 82 L84 82 Q82 70 78 58" fill="url(#skinF)" />
+                  {/* Baby (held in arms) */}
+                  <ellipse cx="55" cy="78" rx="18" ry="20" fill="rgba(255,255,255,0.55)" />
+                  {/* Baby blanket wrap */}
+                  <path d="M38 72 Q40 60 55 58 Q70 60 72 72 Q72 88 55 92 Q38 88 38 72 Z" fill="rgba(200,220,240,0.45)" />
                   {/* Baby head */}
-                  <circle cx="56" cy="35" r="8" fill="rgba(255,255,255,0.8)" />
-                  {/* Baby eyes */}
-                  <circle cx="53" cy="35" r="1" fill="rgba(60,60,60,0.6)" />
-                  <circle cx="59" cy="35" r="1" fill="rgba(60,60,60,0.6)" />
-                  {/* Baby body */}
-                  <path d="M48 45 L48 65 C48 68 64 68 64 65 L64 45 C64 42 48 42 48 45 Z" fill="rgba(255,255,255,0.5)" />
-                </svg>
-                <span className="text-[10px] text-white/60 font-medium mt-1">Mother & Baby</span>
-              </motion.div>
-              {/* Health worker with medicine */}
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.6, delay: 0.2 }}
-                className="w-28 h-36 rounded-2xl bg-white/10 backdrop-blur-sm flex flex-col items-center justify-end border border-white/15 p-3 pb-2"
-              >
-                <svg viewBox="0 0 100 120" fill="none" className="w-20 h-24">
-                  {/* Head */}
-                  <circle cx="50" cy="22" r="14" fill="rgba(255,255,255,0.85)" />
-                  {/* Hair */}
-                  <path d="M36 18 Q36 6 50 6 Q64 6 64 18" fill="rgba(50,50,50,0.5)" />
+                  <circle cx="55" cy="65" r="10" fill="url(#skinF)" />
+                  {/* Baby hair wisps */}
+                  <path d="M48 60 Q50 55 55 54 Q60 55 62 60" stroke="rgba(60,40,25,0.4)" strokeWidth="1.5" fill="none" />
+                  {/* Baby eyes — closed (sleeping) */}
+                  <path d="M51 64 Q53 63 55 64" stroke="rgba(60,40,30,0.5)" strokeWidth="0.7" fill="none" />
+                  <path d="M55 64 Q57 63 59 64" stroke="rgba(60,40,30,0.5)" strokeWidth="0.7" fill="none" />
+                  {/* Baby nose */}
+                  <circle cx="55" cy="66.5" r="0.6" fill="rgba(200,150,130,0.4)" />
+                  {/* Mother head */}
+                  <ellipse cx="55" cy="22" rx="15" ry="17" fill="url(#skinF)" />
+                  {/* Hair — flowing */}
+                  <path d="M40 18 Q40 5 55 3 Q70 5 70 18 L70 10 Q70 2 55 2 Q40 2 40 10 Z" fill="url(#hairW)" />
+                  <path d="M40 18 Q38 28 36 38" stroke="url(#hairW)" strokeWidth="3" fill="none" />
+                  <path d="M70 18 Q72 28 73 35" stroke="url(#hairW)" strokeWidth="3" fill="none" />
+                  {/* Ears */}
+                  <ellipse cx="40" cy="22" rx="2.5" ry="3.5" fill="rgba(230,192,162,0.6)" />
                   {/* Eyes */}
-                  <circle cx="44" cy="22" r="1.5" fill="rgba(60,60,60,0.7)" />
-                  <circle cx="56" cy="22" r="1.5" fill="rgba(60,60,60,0.7)" />
-                  {/* Smile */}
-                  <path d="M44 28 Q50 32 56 28" stroke="rgba(60,60,60,0.4)" strokeWidth="1" fill="none" />
-                  {/* Lab coat */}
-                  <path d="M32 40 L32 85 C32 90 68 90 68 85 L68 40 C68 35 32 35 32 40 Z" fill="rgba(255,255,255,0.75)" />
-                  {/* Cross emblem */}
-                  <rect x="45" y="52" width="10" height="10" rx="2" fill="rgba(220,70,70,0.35)" />
-                  <rect x="48" y="54" width="4" height="6" rx="0.5" fill="rgba(220,70,70,0.6)" />
-                  <rect x="46" y="56" width="8" height="2" rx="0.5" fill="rgba(220,70,70,0.6)" />
-                  {/* Medicine bottle in hand */}
-                  <rect x="70" y="55" width="8" height="14" rx="2" fill="rgba(100,200,150,0.6)" />
-                  <rect x="71" y="52" width="6" height="4" rx="1" fill="rgba(100,200,150,0.4)" />
+                  <path d="M49 20 Q51 18.5 53 20 Q51 21.5 49 20" fill="rgba(50,35,25,0.8)" />
+                  <path d="M57 20 Q59 18.5 61 20 Q59 21.5 57 20" fill="rgba(50,35,25,0.8)" />
+                  <circle cx="51" cy="20" r="0.7" fill="white" opacity="0.6" />
+                  <circle cx="59" cy="20" r="0.7" fill="white" opacity="0.6" />
+                  {/* Eyebrows */}
+                  <path d="M48 17 Q51 15.5 54 17" stroke="rgba(55,35,22,0.4)" strokeWidth="0.8" fill="none" />
+                  <path d="M56 17 Q59 15.5 62 17" stroke="rgba(55,35,22,0.4)" strokeWidth="0.8" fill="none" />
+                  {/* Nose */}
+                  <path d="M54 22 Q55 25 56 22" stroke="rgba(180,140,110,0.35)" strokeWidth="0.7" fill="none" />
+                  {/* Warm smile */}
+                  <path d="M50 27 Q55 30 60 27" stroke="rgba(160,100,80,0.4)" strokeWidth="0.9" fill="none" />
                 </svg>
-                <span className="text-[10px] text-white/60 font-medium mt-1">Healthcare Expert</span>
+                <span className="text-[10px] text-white/50 font-medium mt-1.5 tracking-wide">Mother & Baby</span>
+              </motion.div>
+              {/* Healthcare expert with medicine bottle */}
+              <motion.div
+                initial={{ opacity: 0, x: 30 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.5 }}
+                className="w-32 h-44 rounded-2xl bg-white/8 backdrop-blur-sm flex flex-col items-center justify-end border border-white/12 p-3 pb-2"
+              >
+                <svg viewBox="0 0 120 160" fill="none" className="w-24 h-32">
+                  <defs>
+                    <linearGradient id="skinE" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="rgba(240,205,175,0.95)" /><stop offset="100%" stopColor="rgba(220,182,152,0.95)" /></linearGradient>
+                    <linearGradient id="coatE" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="rgba(255,255,255,0.88)" /><stop offset="100%" stopColor="rgba(232,237,242,0.82)" /></linearGradient>
+                    <linearGradient id="hairBl" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="rgba(40,30,25,0.82)" /><stop offset="100%" stopColor="rgba(55,40,32,0.65)" /></linearGradient>
+                  </defs>
+                  {/* Neck */}
+                  <rect x="52" y="38" width="16" height="14" rx="4" fill="url(#skinE)" />
+                  {/* White coat body */}
+                  <path d="M34 52 L30 56 L28 120 L92 120 L90 56 L86 52 Q86 46 72 44 L48 44 Q34 46 34 52 Z" fill="url(#coatE)" />
+                  {/* Coat lapels */}
+                  <path d="M48 46 L56 62 L60 52" stroke="rgba(200,205,215,0.6)" strokeWidth="1.2" fill="none" />
+                  <path d="M72 46 L64 62 L60 52" stroke="rgba(200,205,215,0.6)" strokeWidth="1.2" fill="none" />
+                  {/* Red cross emblem on coat */}
+                  <circle cx="60" cy="72" r="8" fill="rgba(220,65,65,0.15)" />
+                  <rect x="58" y="66" width="4" height="12" rx="1" fill="rgba(220,65,65,0.5)" />
+                  <rect x="54" y="70" width="12" height="4" rx="1" fill="rgba(220,65,65,0.5)" />
+                  {/* Left arm */}
+                  <path d="M30 56 Q22 70 20 90 L24 90 Q28 74 32 60" fill="url(#coatE)" />
+                  {/* Right arm — extended holding bottle */}
+                  <path d="M90 56 Q100 66 104 82 L100 82 Q96 68 88 60" fill="url(#coatE)" />
+                  {/* Hand */}
+                  <ellipse cx="104" cy="80" rx="4" ry="3" fill="url(#skinE)" />
+                  {/* Medicine bottle in hand */}
+                  <rect x="98" y="70" width="10" height="16" rx="2.5" fill="rgba(80,180,130,0.65)" />
+                  <rect x="99" y="66" width="8" height="5" rx="1.5" fill="rgba(80,180,130,0.5)" />
+                  <rect x="100" y="73" width="6" height="1" rx="0.5" fill="rgba(255,255,255,0.4)" />
+                  {/* Head */}
+                  <ellipse cx="60" cy="22" rx="16" ry="18" fill="url(#skinE)" />
+                  {/* Hair — short professional */}
+                  <path d="M44 18 Q44 6 60 4 Q76 6 76 18 L76 12 Q76 2 60 2 Q44 2 44 12 Z" fill="url(#hairBl)" />
+                  {/* Ears */}
+                  <ellipse cx="44" cy="22" rx="3" ry="4" fill="rgba(220,182,152,0.6)" />
+                  <ellipse cx="76" cy="22" rx="3" ry="4" fill="rgba(220,182,152,0.6)" />
+                  {/* Eyes */}
+                  <path d="M52 20 Q54 18.5 56 20 Q54 21.5 52 20" fill="rgba(45,35,28,0.8)" />
+                  <path d="M64 20 Q66 18.5 68 20 Q66 21.5 64 20" fill="rgba(45,35,28,0.8)" />
+                  <circle cx="54" cy="20" r="0.8" fill="white" opacity="0.6" />
+                  <circle cx="66" cy="20" r="0.8" fill="white" opacity="0.6" />
+                  {/* Eyebrows */}
+                  <path d="M51 17 Q54 15.5 57 17" stroke="rgba(45,30,20,0.5)" strokeWidth="1" fill="none" />
+                  <path d="M63 17 Q66 15.5 69 17" stroke="rgba(45,30,20,0.5)" strokeWidth="1" fill="none" />
+                  {/* Nose */}
+                  <path d="M59 22 Q60 26 61 22" stroke="rgba(175,135,105,0.4)" strokeWidth="0.8" fill="none" />
+                  {/* Smile */}
+                  <path d="M55 28 Q60 31 65 28" stroke="rgba(155,105,85,0.4)" strokeWidth="1" fill="none" />
+                </svg>
+                <span className="text-[10px] text-white/50 font-medium mt-1.5 tracking-wide">Healthcare Expert</span>
               </motion.div>
             </div>
           </div>

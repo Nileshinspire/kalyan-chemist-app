@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useSearchParams, useNavigate, useLocation } from "react-router";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -50,15 +50,26 @@ export default function Products() {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const autocompleteRef = useRef<HTMLDivElement>(null);
 
+  // Read nav param (stable — doesn't change within Products page)
+  const navKey = useMemo(() => searchParams.get("nav") || "", [searchParams.get("nav")]);
+
   // Sync URL params → state when navigating from outside (e.g. Navbar category clicks)
+  // Use individual param values as deps to avoid triggering on every searchParams object recreation
+  const urlSearch = searchParams.get("search") || "";
+  const urlCategory = searchParams.get("category") || "";
+  const urlBrand = searchParams.get("brand") || "";
+  const urlSort = searchParams.get("sort") || "relevance";
+  const urlRx = searchParams.get("rx") || "";
+  const urlStock = searchParams.get("stock") || "";
+
   useEffect(() => {
-    setSearchQuery(searchParams.get("search") || "");
-    setSelectedCategorySlug(searchParams.get("category") || "");
-    setSelectedBrandSlug(searchParams.get("brand") || "");
-    setSortBy(searchParams.get("sort") || "relevance");
-    setPrescriptionFilter(searchParams.get("rx") || "");
-    setStockFilter(searchParams.get("stock") || "");
-  }, [searchParams]);
+    setSearchQuery(urlSearch);
+    setSelectedCategorySlug(urlCategory);
+    setSelectedBrandSlug(urlBrand);
+    setSortBy(urlSort);
+    setPrescriptionFilter(urlRx);
+    setStockFilter(urlStock);
+  }, [urlSearch, urlCategory, urlBrand, urlSort, urlRx, urlStock]);
 
   // Look up category/brand IDs from slugs
   const allCategories = useQuery(api.categories.list);
@@ -83,19 +94,23 @@ export default function Products() {
     sortBy: sortBy as any,
   });
 
-  // Sync URL params (preserve nav param from Navbar)
+  // Sync state → URL params (only when user changes filters, not on every render)
+  const prevUrlRef = useRef("");
   useEffect(() => {
     const params = new URLSearchParams();
-    const navParam = searchParams.get("nav");
-    if (navParam) params.set("nav", navParam);
+    if (navKey) params.set("nav", navKey);
     if (searchQuery) params.set("search", searchQuery);
     if (selectedCategorySlug) params.set("category", selectedCategorySlug);
     if (selectedBrandSlug) params.set("brand", selectedBrandSlug);
     if (sortBy !== "relevance") params.set("sort", sortBy);
     if (prescriptionFilter) params.set("rx", prescriptionFilter);
     if (stockFilter) params.set("stock", stockFilter);
-    setSearchParams(params, { replace: true });
-  }, [searchQuery, selectedCategorySlug, selectedBrandSlug, sortBy, prescriptionFilter, stockFilter, setSearchParams, searchParams]);
+    const newUrl = params.toString();
+    if (newUrl !== prevUrlRef.current) {
+      prevUrlRef.current = newUrl;
+      setSearchParams(params, { replace: true });
+    }
+  }, [searchQuery, selectedCategorySlug, selectedBrandSlug, sortBy, prescriptionFilter, stockFilter, navKey, setSearchParams]);
 
   // Close autocomplete on outside click
   useEffect(() => {
