@@ -132,11 +132,11 @@ export default function Landing() {
       <Navbar />
 
       {/* ── Hero: Buy Medicines and Essentials ── */}
-      <section ref={heroRef} className="relative overflow-hidden" style={{ background: 'linear-gradient(160deg, oklch(0.30 0.07 170) 0%, oklch(0.24 0.06 175) 50%, oklch(0.20 0.05 180) 100%)' }}>
+      <section ref={heroRef} className="relative overflow-hidden" style={{ background: 'linear-gradient(160deg, oklch(0.42 0.09 170) 0%, oklch(0.38 0.10 168) 40%, oklch(0.35 0.08 172) 100%)' }}>
         {/* Decorative background elements */}
         <div className="absolute inset-0">
-          <div className="absolute top-0 left-0 w-96 h-96 bg-primary/10 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2" />
-          <div className="absolute bottom-0 right-0 w-80 h-80 bg-primary/10 rounded-full blur-3xl translate-x-1/4 translate-y-1/4" />
+          <div className="absolute top-0 left-0 w-96 h-96 bg-white/8 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2" />
+          <div className="absolute bottom-0 right-0 w-80 h-80 bg-white/8 rounded-full blur-3xl translate-x-1/4 translate-y-1/4" />
           <div className="absolute inset-0 opacity-[0.03]" style={{
             backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)",
             backgroundSize: "24px 24px",
@@ -146,25 +146,68 @@ export default function Landing() {
         <div className="relative mx-auto max-w-7xl px-4 sm:px-6 py-10 md:py-16">
           <div className="flex flex-col lg:flex-row items-center gap-8 lg:gap-12">
             {/* Left illustrations */}
-            <div className="hidden lg:flex items-center gap-4 shrink-0">
-              {/* Doctor with patient */}
-              <div className="w-24 h-28 rounded-2xl bg-white/10 backdrop-blur-sm flex flex-col items-center justify-center border border-white/10 p-3">
-                <svg viewBox="0 0 80 80" fill="none" className="w-16 h-16">
-                  <circle cx="40" cy="20" r="12" fill="rgba(255,255,255,0.7)" />
-                  <path d="M20 55 C20 40 60 40 60 55 L60 70 L20 70 Z" fill="rgba(255,255,255,0.5)" />
-                  <rect x="35" y="12" width="10" height="4" rx="2" fill="rgba(96,165,250,0.8)" />
-                  <circle cx="60" cy="28" r="8" fill="rgba(255,255,255,0.4)" />
-                  <path d="M52 45 C52 36 68 36 68 45 L68 55 L52 55 Z" fill="rgba(255,255,255,0.3)" />
+            <div className="hidden lg:flex items-end gap-3 shrink-0">
+              {/* Doctor with stethoscope */}
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.6, delay: 0.2 }}
+                className="w-28 h-36 rounded-2xl bg-white/10 backdrop-blur-sm flex flex-col items-center justify-end border border-white/15 p-3 pb-2"
+              >
+                <svg viewBox="0 0 100 120" fill="none" className="w-20 h-24">
+                  {/* Head */}
+                  <circle cx="50" cy="22" r="14" fill="rgba(255,255,255,0.85)" />
+                  {/* Hair */}
+                  <path d="M36 18 Q36 8 50 8 Q64 8 64 18" fill="rgba(60,60,60,0.5)" />
+                  {/* Eyes */}
+                  <circle cx="44" cy="22" r="1.5" fill="rgba(60,60,60,0.7)" />
+                  <circle cx="56" cy="22" r="1.5" fill="rgba(60,60,60,0.7)" />
+                  {/* Smile */}
+                  <path d="M44 28 Q50 32 56 28" stroke="rgba(60,60,60,0.4)" strokeWidth="1" fill="none" />
+                  {/* White coat / body */}
+                  <path d="M32 40 L32 85 C32 90 68 90 68 85 L68 40 C68 35 32 35 32 40 Z" fill="rgba(255,255,255,0.75)" />
+                  {/* Coat lapels */}
+                  <path d="M42 38 L50 55 L58 38" stroke="rgba(200,200,200,0.5)" strokeWidth="1" fill="none" />
+                  {/* Stethoscope */}
+                  <circle cx="50" cy="65" r="5" stroke="rgba(100,180,220,0.8)" strokeWidth="2" fill="none" />
+                  <path d="M45 65 L45 55 Q45 50 50 50 Q55 50 55 55 L55 65" stroke="rgba(100,180,220,0.8)" strokeWidth="1.5" fill="none" />
+                  <path d="M45 55 L42 42" stroke="rgba(100,180,220,0.7)" strokeWidth="1.5" fill="none" />
+                  <path d="M55 55 L58 42" stroke="rgba(100,180,220,0.7)" strokeWidth="1.5" fill="none" />
+                  {/* Name badge */}
+                  <rect x="55" y="48" width="10" height="7" rx="1" fill="rgba(100,180,220,0.3)" />
                 </svg>
-              </div>
-              {/* Pharmacist */}
-              <div className="w-20 h-24 rounded-2xl bg-white/10 backdrop-blur-sm flex flex-col items-center justify-center border border-white/10 p-3">
-                <svg viewBox="0 0 60 60" fill="none" className="w-12 h-12">
-                  <circle cx="30" cy="16" r="10" fill="rgba(255,255,255,0.6)" />
-                  <path d="M15 45 C15 32 45 32 45 45 L45 55 L15 55 Z" fill="rgba(255,255,255,0.4)" />
-                  <rect x="24" y="8" width="12" height="6" rx="3" fill="rgba(52,211,153,0.7)" />
+                <span className="text-[10px] text-white/60 font-medium mt-1">Doctor</span>
+              </motion.div>
+              {/* Nurse/Pharmacist */}
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.6, delay: 0.35 }}
+                className="w-24 h-32 rounded-2xl bg-white/10 backdrop-blur-sm flex flex-col items-center justify-end border border-white/15 p-3 pb-2"
+              >
+                <svg viewBox="0 0 80 100" fill="none" className="w-16 h-20">
+                  {/* Head */}
+                  <circle cx="40" cy="18" r="12" fill="rgba(255,255,255,0.85)" />
+                  {/* Hair */}
+                  <path d="M28 15 Q28 5 40 5 Q52 5 52 15" fill="rgba(80,50,30,0.5)" />
+                  {/* Nurse cap */}
+                  <rect x="30" y="2" width="20" height="8" rx="2" fill="rgba(255,255,255,0.9)" stroke="rgba(200,200,200,0.4)" strokeWidth="0.5" />
+                  <path d="M37 3 L40 0 L43 3 L43 8 L37 8 Z" fill="rgba(220,60,60,0.6)" />
+                  {/* Eyes */}
+                  <circle cx="35" cy="18" r="1.2" fill="rgba(60,60,60,0.7)" />
+                  <circle cx="45" cy="18" r="1.2" fill="rgba(60,60,60,0.7)" />
+                  {/* Body (scrubs) */}
+                  <path d="M26 32 L26 75 C26 78 54 78 54 75 L54 32 C54 28 26 28 26 32 Z" fill="rgba(100,180,220,0.6)" />
+                  {/* Collar */}
+                  <path d="M34 30 L40 40 L46 30" stroke="rgba(255,255,255,0.5)" strokeWidth="1" fill="none" />
+                  {/* Clipboard */}
+                  <rect x="56" y="45" width="12" height="16" rx="1" fill="rgba(255,255,255,0.6)" stroke="rgba(200,200,200,0.5)" strokeWidth="0.5" />
+                  <line x1="58" y1="50" x2="66" y2="50" stroke="rgba(150,150,150,0.5)" strokeWidth="0.5" />
+                  <line x1="58" y1="53" x2="64" y2="53" stroke="rgba(150,150,150,0.5)" strokeWidth="0.5" />
+                  <line x1="58" y1="56" x2="65" y2="56" stroke="rgba(150,150,150,0.5)" strokeWidth="0.5" />
                 </svg>
-              </div>
+                <span className="text-[10px] text-white/60 font-medium mt-1">Pharmacist</span>
+              </motion.div>
             </div>
 
             {/* Center: Heading + Search */}
@@ -225,23 +268,63 @@ export default function Landing() {
             </div>
 
             {/* Right illustrations */}
-            <div className="hidden lg:flex items-center gap-4 shrink-0">
-              {/* Mother & baby */}
-              <div className="w-20 h-24 rounded-2xl bg-white/10 backdrop-blur-sm flex flex-col items-center justify-center border border-white/10 p-3">
-                <svg viewBox="0 0 60 60" fill="none" className="w-12 h-12">
-                  <circle cx="30" cy="14" r="9" fill="rgba(255,255,255,0.6)" />
-                  <path d="M16 42 C16 30 44 30 44 42 L44 52 L16 52 Z" fill="rgba(255,255,255,0.4)" />
-                  <circle cx="42" cy="30" r="6" fill="rgba(255,255,255,0.3)" />
+            <div className="hidden lg:flex items-end gap-3 shrink-0">
+              {/* Mother & child */}
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.6, delay: 0.35 }}
+                className="w-24 h-32 rounded-2xl bg-white/10 backdrop-blur-sm flex flex-col items-center justify-end border border-white/15 p-3 pb-2"
+              >
+                <svg viewBox="0 0 80 100" fill="none" className="w-16 h-20">
+                  {/* Mother head */}
+                  <circle cx="35" cy="16" r="11" fill="rgba(255,255,255,0.85)" />
+                  {/* Hair */}
+                  <path d="M24 14 Q24 4 35 4 Q46 4 46 14 L46 20 Q46 14 35 14 Q24 14 24 20 Z" fill="rgba(80,50,30,0.5)" />
+                  {/* Eyes */}
+                  <circle cx="31" cy="16" r="1.2" fill="rgba(60,60,60,0.7)" />
+                  <circle cx="39" cy="16" r="1.2" fill="rgba(60,60,60,0.7)" />
+                  {/* Mother body */}
+                  <path d="M22 30 L22 70 C22 74 48 74 48 70 L48 30 C48 26 22 26 22 30 Z" fill="rgba(220,130,160,0.55)" />
+                  {/* Baby head */}
+                  <circle cx="56" cy="35" r="8" fill="rgba(255,255,255,0.8)" />
+                  {/* Baby eyes */}
+                  <circle cx="53" cy="35" r="1" fill="rgba(60,60,60,0.6)" />
+                  <circle cx="59" cy="35" r="1" fill="rgba(60,60,60,0.6)" />
+                  {/* Baby body */}
+                  <path d="M48 45 L48 65 C48 68 64 68 64 65 L64 45 C64 42 48 42 48 45 Z" fill="rgba(255,255,255,0.5)" />
                 </svg>
-              </div>
-              {/* Medicine/shield */}
-              <div className="w-24 h-28 rounded-2xl bg-white/10 backdrop-blur-sm flex flex-col items-center justify-center border border-white/10 p-3">
-                <svg viewBox="0 0 80 80" fill="none" className="w-16 h-16">
-                  <path d="M40 8 L60 20 L60 45 C60 60 40 72 40 72 C40 72 20 60 20 45 L20 20 Z" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.4)" strokeWidth="1.5" />
-                  <path d="M35 40 L40 35 L45 40 L40 45 Z" fill="rgba(96,165,250,0.8)" />
-                  <rect x="37" y="30" width="6" height="20" rx="3" fill="rgba(96,165,250,0.6)" />
+                <span className="text-[10px] text-white/60 font-medium mt-1">Mother & Baby</span>
+              </motion.div>
+              {/* Health worker with medicine */}
+              <motion.div
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.6, delay: 0.2 }}
+                className="w-28 h-36 rounded-2xl bg-white/10 backdrop-blur-sm flex flex-col items-center justify-end border border-white/15 p-3 pb-2"
+              >
+                <svg viewBox="0 0 100 120" fill="none" className="w-20 h-24">
+                  {/* Head */}
+                  <circle cx="50" cy="22" r="14" fill="rgba(255,255,255,0.85)" />
+                  {/* Hair */}
+                  <path d="M36 18 Q36 6 50 6 Q64 6 64 18" fill="rgba(50,50,50,0.5)" />
+                  {/* Eyes */}
+                  <circle cx="44" cy="22" r="1.5" fill="rgba(60,60,60,0.7)" />
+                  <circle cx="56" cy="22" r="1.5" fill="rgba(60,60,60,0.7)" />
+                  {/* Smile */}
+                  <path d="M44 28 Q50 32 56 28" stroke="rgba(60,60,60,0.4)" strokeWidth="1" fill="none" />
+                  {/* Lab coat */}
+                  <path d="M32 40 L32 85 C32 90 68 90 68 85 L68 40 C68 35 32 35 32 40 Z" fill="rgba(255,255,255,0.75)" />
+                  {/* Cross emblem */}
+                  <rect x="45" y="52" width="10" height="10" rx="2" fill="rgba(220,70,70,0.35)" />
+                  <rect x="48" y="54" width="4" height="6" rx="0.5" fill="rgba(220,70,70,0.6)" />
+                  <rect x="46" y="56" width="8" height="2" rx="0.5" fill="rgba(220,70,70,0.6)" />
+                  {/* Medicine bottle in hand */}
+                  <rect x="70" y="55" width="8" height="14" rx="2" fill="rgba(100,200,150,0.6)" />
+                  <rect x="71" y="52" width="6" height="4" rx="1" fill="rgba(100,200,150,0.4)" />
                 </svg>
-              </div>
+                <span className="text-[10px] text-white/60 font-medium mt-1">Healthcare Expert</span>
+              </motion.div>
             </div>
           </div>
         </div>

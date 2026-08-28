@@ -83,9 +83,11 @@ export default function Products() {
     sortBy: sortBy as any,
   });
 
-  // Sync URL params
+  // Sync URL params (preserve nav param from Navbar)
   useEffect(() => {
     const params = new URLSearchParams();
+    const navParam = searchParams.get("nav");
+    if (navParam) params.set("nav", navParam);
     if (searchQuery) params.set("search", searchQuery);
     if (selectedCategorySlug) params.set("category", selectedCategorySlug);
     if (selectedBrandSlug) params.set("brand", selectedBrandSlug);
@@ -93,7 +95,7 @@ export default function Products() {
     if (prescriptionFilter) params.set("rx", prescriptionFilter);
     if (stockFilter) params.set("stock", stockFilter);
     setSearchParams(params, { replace: true });
-  }, [searchQuery, selectedCategorySlug, selectedBrandSlug, sortBy, prescriptionFilter, stockFilter, setSearchParams]);
+  }, [searchQuery, selectedCategorySlug, selectedBrandSlug, sortBy, prescriptionFilter, stockFilter, setSearchParams, searchParams]);
 
   // Close autocomplete on outside click
   useEffect(() => {

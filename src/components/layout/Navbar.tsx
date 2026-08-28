@@ -28,15 +28,15 @@ import {
 
 /* ─── Global Category Navigation Items ─── */
 const CATEGORY_NAV_ITEMS = [
-  { label: "Kalyan Chemist Products", slug: "" },
-  { label: "Baby Care", slug: "baby-mother" },
-  { label: "Nutritional Drinks & Supplements", slug: "nutrition" },
-  { label: "Women Care", slug: "baby-mother" },
-  { label: "Personal Care", slug: "personal-care" },
-  { label: "Ayurveda", slug: "alternative-medicine" },
-  { label: "Health Devices", slug: "health-safety" },
-  { label: "Home Essentials", slug: "others" },
-  { label: "Health Conditions", slug: "health-safety" },
+  { label: "Kalyan Chemist Products", slug: "", key: "all" },
+  { label: "Baby Care", slug: "baby-mother", key: "baby-care" },
+  { label: "Nutritional Drinks & Supplements", slug: "nutrition", key: "nutrition" },
+  { label: "Women Care", slug: "baby-mother", key: "women-care" },
+  { label: "Personal Care", slug: "personal-care", key: "personal-care" },
+  { label: "Ayurveda", slug: "alternative-medicine", key: "ayurveda" },
+  { label: "Health Devices", slug: "health-safety", key: "health-devices" },
+  { label: "Home Essentials", slug: "others", key: "home-essentials" },
+  { label: "Health Conditions", slug: "health-safety", key: "health-conditions" },
 ] as const;
 
 const Navbar = memo(function Navbar() {
@@ -70,11 +70,11 @@ const Navbar = memo(function Navbar() {
     navigate("/");
   };
 
-  const handleCategoryNav = (slug: string) => {
+  const handleCategoryNav = (slug: string, key: string) => {
     if (slug) {
-      navigate(`/products?category=${slug}`);
+      navigate(`/products?category=${slug}&nav=${key}`);
     } else {
-      navigate("/products");
+      navigate(`/products?nav=all`);
     }
   };
 
@@ -304,11 +304,11 @@ const Navbar = memo(function Navbar() {
                     </div>
                     {CATEGORY_NAV_ITEMS.map((cat) => (
                       <Button
-                        key={cat.label}
+                        key={cat.key}
                         variant="ghost"
                         className="justify-start rounded-xl h-9 text-xs"
                         onClick={() => {
-                          handleCategoryNav(cat.slug);
+                          handleCategoryNav(cat.slug, cat.key);
                           setMobileOpen(false);
                         }}
                       >
@@ -420,15 +420,13 @@ const Navbar = memo(function Navbar() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <div className="flex items-center gap-0 overflow-x-auto scrollbar-none">
             {CATEGORY_NAV_ITEMS.map((cat) => {
-              const isCurrentCategory =
-                location.pathname === "/products" &&
-                new URLSearchParams(location.search).get("category") ===
-                  (cat.slug || null);
+              const currentNav = new URLSearchParams(location.search).get("nav");
+              const isCurrentCategory = currentNav === cat.key;
               return (
                 <button
-                  key={cat.label}
-                  onClick={() => handleCategoryNav(cat.slug)}
-                  className={`relative px-3 lg:px-4 py-2.5 text-xs lg:text-sm font-medium whitespace-nowrap transition-all duration-200 ${
+                  key={cat.key}
+                  onClick={() => handleCategoryNav(cat.slug, cat.key)}
+                  className={`relative px-3 lg:px-4 py-2.5 text-xs lg:text-sm font-medium whitespace-nowrap transition-all duration-200 shrink-0 ${
                     isCurrentCategory
                       ? "text-primary"
                       : "text-gray-600 hover:text-primary"
