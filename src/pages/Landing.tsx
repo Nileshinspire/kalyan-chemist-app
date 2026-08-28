@@ -27,8 +27,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useNavigate, useLocation } from "react-router";
-import { useRef, useState } from "react";
+import { useNavigate, useLocation, useSearchParams } from "react-router";
+import { useRef, useState, useMemo } from "react";
 import { openWhatsApp, generateEnquiryMessage } from "@/lib/whatsapp";
 import Navbar from "@/components/layout/Navbar";
 import WhatsAppFloat from "@/components/WhatsAppFloat";
@@ -90,7 +90,58 @@ const features = [
   { icon: Pill, title: "Expert Guidance", description: "Our pharmacists are available to answer your questions about dosage and interactions." },
 ];
 
+/* ─── Category Navigation inside Hero Banner ─── */
+const HERO_CATEGORIES = [
+  { label: "Kalyan Chemist Products", slug: "", key: "all" },
+  { label: "Baby Care", slug: "baby-mother", key: "baby-care" },
+  { label: "Nutritional Drinks & Supplements", slug: "nutrition", key: "nutrition" },
+  { label: "Women Care", slug: "baby-mother", key: "women-care" },
+  { label: "Personal Care", slug: "personal-care", key: "personal-care" },
+  { label: "Ayurveda", slug: "alternative-medicine", key: "ayurveda" },
+  { label: "Health Devices", slug: "health-safety", key: "health-devices" },
+  { label: "Home Essentials", slug: "others", key: "home-essentials" },
+  { label: "Health Conditions", slug: "health-safety", key: "health-conditions" },
+] as const;
 
+function HeroCategoryNav() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const currentNavKey = useMemo(() => searchParams.get("nav") || "", [searchParams.get("nav")]);
+
+  return (
+    <div className="relative z-30 border-b border-white/10" style={{ background: 'rgba(0,0,0,0.12)' }}>
+      <div className="mx-auto max-w-7xl px-4 sm:px-6">
+        <div className="flex items-center gap-0 overflow-x-auto scrollbar-none">
+          {HERO_CATEGORIES.map((cat) => {
+            const isActive = currentNavKey === cat.key;
+            return (
+              <button
+                key={cat.key}
+                onClick={() => {
+                  if (cat.slug) {
+                    navigate(`/products?category=${cat.slug}&nav=${cat.key}`);
+                  } else {
+                    navigate(`/products?nav=all`);
+                  }
+                }}
+                className={`relative px-3 lg:px-4 py-2.5 text-xs lg:text-sm font-medium whitespace-nowrap transition-all duration-200 shrink-0 ${
+                  isActive
+                    ? "text-white"
+                    : "text-white/70 hover:text-white"
+                }`}
+              >
+                {cat.label}
+                {isActive && (
+                  <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-white rounded-full" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function Landing() {
   const navigate = useNavigate();
@@ -133,6 +184,8 @@ export default function Landing() {
 
             {/* ── Hero: Buy Medicines and Essentials ── */}
       <section ref={heroRef} className="relative overflow-hidden" style={{ background: 'linear-gradient(160deg, oklch(0.42 0.09 170) 0%, oklch(0.38 0.10 168) 40%, oklch(0.35 0.08 172) 100%)' }}>
+        {/* Category navigation strip — inside hero, darker green */}
+        <HeroCategoryNav />
         {/* Decorative background elements */}
         <div className="absolute inset-0">
           <div className="absolute top-0 left-0 w-96 h-96 bg-white/8 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2" />
@@ -148,12 +201,12 @@ export default function Landing() {
           {/* ─── LEFT SIDE: Doctor (outer) + Pharmacist (inner) ─── */}
           {/* Doctor — tall, outer-left, half-body from bottom */}
           <motion.div
-            initial={{ opacity: 0, y: 40 }}
+            initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7 }}
-            className="absolute bottom-0 left-[2%] xl:left-[4%]"
+            transition={{ duration: 0.6 }}
+            className="absolute bottom-0 left-[1%] xl:left-[3%]"
           >
-            <svg viewBox="0 0 160 280" fill="none" className="w-[130px] h-[230px] md:w-[150px] md:h-[260px]">
+            <svg viewBox="0 0 160 280" fill="none" className="w-[100px] h-[175px] md:w-[120px] md:h-[210px]">
               <defs>
                 <linearGradient id="hDocSkin" x1="0.3" y1="0" x2="0.7" y2="1"><stop offset="0%" stopColor="#f5d4b8" /><stop offset="100%" stopColor="#e2b494" /></linearGradient>
                 <linearGradient id="hDocCoat" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#ffffff" /><stop offset="50%" stopColor="#f2f4f7" /><stop offset="100%" stopColor="#e6eaf0" /></linearGradient>
@@ -220,12 +273,12 @@ export default function Landing() {
 
           {/* Pharmacist — shorter, inner-left, half-body from bottom */}
           <motion.div
-            initial={{ opacity: 0, y: 40 }}
+            initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.1 }}
-            className="absolute bottom-0 left-[12%] xl:left-[14%]"
+            transition={{ duration: 0.6, delay: 0.08 }}
+            className="absolute bottom-0 left-[9%] xl:left-[11%]"
           >
-            <svg viewBox="0 0 150 260" fill="none" className="w-[115px] h-[200px] md:w-[130px] md:h-[220px]">
+            <svg viewBox="0 0 150 260" fill="none" className="w-[85px] h-[150px] md:w-[100px] md:h-[175px]">
               <defs>
                 <linearGradient id="hPharmSkin" x1="0.3" y1="0" x2="0.7" y2="1"><stop offset="0%" stopColor="#f0d0b0" /><stop offset="100%" stopColor="#ddb494" /></linearGradient>
                 <linearGradient id="hPharmScrub" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#3d9e8e" /><stop offset="100%" stopColor="#2d7e70" /></linearGradient>
@@ -283,12 +336,12 @@ export default function Landing() {
           {/* ─── RIGHT SIDE: Mother & Baby (inner) + Expert (outer) ─── */}
           {/* Mother & Baby — inner-right, half-body from bottom */}
           <motion.div
-            initial={{ opacity: 0, y: 40 }}
+            initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.1 }}
-            className="absolute bottom-0 right-[12%] xl:right-[14%]"
+            transition={{ duration: 0.6, delay: 0.08 }}
+            className="absolute bottom-0 right-[9%] xl:right-[11%]"
           >
-            <svg viewBox="0 0 150 260" fill="none" className="w-[115px] h-[200px] md:w-[130px] md:h-[220px]">
+            <svg viewBox="0 0 150 260" fill="none" className="w-[85px] h-[150px] md:w-[100px] md:h-[175px]">
               <defs>
                 <linearGradient id="hMomSkin" x1="0.3" y1="0" x2="0.7" y2="1"><stop offset="0%" stopColor="#f2d4b6" /><stop offset="100%" stopColor="#deb696" /></linearGradient>
                 <linearGradient id="hMomDress" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#c8688a" /><stop offset="100%" stopColor="#a85070" /></linearGradient>
@@ -347,12 +400,12 @@ export default function Landing() {
 
           {/* Healthcare Expert — tall, outer-right, half-body from bottom */}
           <motion.div
-            initial={{ opacity: 0, y: 40 }}
+            initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7 }}
-            className="absolute bottom-0 right-[2%] xl:right-[4%]"
+            transition={{ duration: 0.6 }}
+            className="absolute bottom-0 right-[1%] xl:right-[3%]"
           >
-            <svg viewBox="0 0 160 280" fill="none" className="w-[130px] h-[230px] md:w-[150px] md:h-[260px]">
+            <svg viewBox="0 0 160 280" fill="none" className="w-[100px] h-[175px] md:w-[120px] md:h-[210px]">
               <defs>
                 <linearGradient id="hExpSkin" x1="0.3" y1="0" x2="0.7" y2="1"><stop offset="0%" stopColor="#f0d2b4" /><stop offset="100%" stopColor="#dcb494" /></linearGradient>
                 <linearGradient id="hExpCoat" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#ffffff" /><stop offset="50%" stopColor="#f2f4f7" /><stop offset="100%" stopColor="#e6eaf0" /></linearGradient>
