@@ -113,7 +113,7 @@ const EMPTY_FORM: ProductForm = {
   isActive: true,
 };
 
-const FORM_OPTIONS = ["tablet", "capsule", "syrup", "injection", "cream", "gel", "drops", "inhaler", "powder", "sachet", "strip", "other"];
+const FORM_OPTIONS = ["tablet", "capsule", "syrup", "injection", "cream", "gel", "ointment", "lotion", "drops", "nasal drops", "spray", "inhaler", "powder", "sachet", "balm", "strip", "other"];
 
 export default function AdminProducts() {
   const [search, setSearch] = useState("");

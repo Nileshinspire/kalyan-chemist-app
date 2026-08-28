@@ -715,7 +715,7 @@ export const enrichProduct = action({
       parts.push("Consult your healthcare provider for proper dosage and usage instructions.");
       result.description = parts.join(" ");
       // Generate consumeType from form
-      result.consumeType = inferConsumeType(args.form || "tablet");
+      result.consumeType = inferConsumeType(args.form || "");
       // Safety note
       result.safetyNote = "Consult your doctor or pharmacist before use.";
       // Form — return for auto-select in admin form
@@ -725,7 +725,7 @@ export const enrichProduct = action({
       // Expiry Date — leave null for unknown medicines
       result.expiryDate = null;
       // Storage Information — based on composition and form
-      result.storageInformation = getStorageInfo(args.composition || args.productName, args.form || "tablet");
+      result.storageInformation = getStorageInfo(args.composition || args.productName, args.form || "");
       // Category inference
       result.category = inferCategory(args.form || "", args.composition || "", args.productName);
     }
