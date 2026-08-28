@@ -124,11 +124,7 @@ function HeroCategoryNav() {
                     navigate(`/products?nav=all`);
                   }
                 }}
-                className={`relative px-3 lg:px-4 py-2.5 text-xs lg:text-sm font-medium whitespace-nowrap transition-all duration-200 shrink-0 ${
-                  isActive
-                    ? "text-white"
-                    : "text-white/70 hover:text-white"
-                }`}
+                className="relative px-3 lg:px-4 py-2.5 text-xs lg:text-sm font-medium whitespace-nowrap transition-all duration-200 shrink-0 text-white hover:text-white" style={{ color: '#FFFFFF' }}
               >
                 {cat.label}
                 {isActive && (
