@@ -145,125 +145,150 @@ export default function Landing() {
 
         <div className="relative mx-auto max-w-7xl px-4 sm:px-6 py-10 md:py-16">
           <div className="flex flex-col lg:flex-row items-center gap-8 lg:gap-12">
-            {/* Left illustrations */}
-            <div className="hidden lg:flex items-end gap-4 shrink-0">
-              {/* Doctor — taller figure with stethoscope */}
+            {/* Left illustrations — floating premium style */}
+            <div className="hidden lg:flex items-end gap-2 shrink-0">
+              {/* Doctor — premium floating figure with stethoscope */}
               <motion.div
-                initial={{ opacity: 0, x: -30 }}
+                initial={{ opacity: 0, x: -40 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.5 }}
-                className="w-32 h-44 rounded-2xl bg-white/8 backdrop-blur-sm flex flex-col items-center justify-end border border-white/12 p-3 pb-2"
+                transition={{ duration: 0.6 }}
+                className="relative flex flex-col items-center"
               >
-                <svg viewBox="0 0 120 160" fill="none" className="w-24 h-32">
+                {/* Soft glow behind figure */}
+                <div className="absolute inset-0 -m-4 bg-white/5 rounded-full blur-2xl" />
+                <svg viewBox="0 0 140 200" fill="none" className="w-[120px] h-[170px] relative">
                   <defs>
-                    <linearGradient id="skinL" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="rgba(255,220,190,0.95)" /><stop offset="100%" stopColor="rgba(235,195,160,0.95)" /></linearGradient>
-                    <linearGradient id="coatW" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="rgba(255,255,255,0.88)" /><stop offset="100%" stopColor="rgba(230,235,240,0.82)" /></linearGradient>
-                    <linearGradient id="hairDark" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="rgba(45,35,30,0.8)" /><stop offset="100%" stopColor="rgba(60,45,35,0.65)" /></linearGradient>
+                    <linearGradient id="docSkin" x1="0" y1="0" x2="0.2" y2="1"><stop offset="0%" stopColor="#f5d4b8" /><stop offset="100%" stopColor="#e6b899" /></linearGradient>
+                    <linearGradient id="docCoat" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#ffffff" /><stop offset="60%" stopColor="#f0f2f5" /><stop offset="100%" stopColor="#e8ecf0" /></linearGradient>
+                    <linearGradient id="docHair" x1="0.5" y1="0" x2="0.5" y2="1"><stop offset="0%" stopColor="#2c1e16" /><stop offset="100%" stopColor="#3d2a1f" /></linearGradient>
+                    <linearGradient id="docShirt" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#4a90b8" /><stop offset="100%" stopColor="#3a7aa0" /></linearGradient>
+                    <filter id="docShadow"><feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#000" floodOpacity="0.12" /></filter>
+                    <radialGradient id="docCheekL" cx="0.3" cy="0.6" r="0.3"><stop offset="0%" stopColor="#e8a0a0" stopOpacity="0.3" /><stop offset="100%" stopColor="transparent" /></radialGradient>
+                    <radialGradient id="docCheekR" cx="0.7" cy="0.6" r="0.3"><stop offset="0%" stopColor="#e8a0a0" stopOpacity="0.3" /><stop offset="100%" stopColor="transparent" /></radialGradient>
                   </defs>
+                  {/* Body with shadow */}
+                  <g filter="url(#docShadow)">
+                    {/* White coat body */}
+                    <path d="M40 65 L36 70 L34 170 L106 170 L104 70 L100 65 Q100 58 85 55 L55 55 Q40 58 40 65 Z" fill="url(#docCoat)" />
+                    {/* Coat lapel shading */}
+                    <path d="M55 57 L65 78 L70 65" fill="url(#docShirt)" opacity="0.15" />
+                    <path d="M85 57 L75 78 L70 65" fill="url(#docShirt)" opacity="0.15" />
+                    {/* Shirt underneath */}
+                    <path d="M58 60 L65 78 L70 68 L75 78 L82 60" fill="url(#docShirt)" opacity="0.6" />
+                    {/* Coat buttons */}
+                    <circle cx="70" cy="95" r="1.5" fill="rgba(100,110,125,0.3)" />
+                    <circle cx="70" cy="110" r="1.5" fill="rgba(100,110,125,0.3)" />
+                    <circle cx="70" cy="125" r="1.5" fill="rgba(100,110,125,0.3)" />
+                    {/* Stethoscope */}
+                    <path d="M60 76 Q54 80 54 92 Q54 102 60 104 Q66 102 66 92 Q66 80 60 76" stroke="#5aafcc" strokeWidth="2.5" fill="none" />
+                    <path d="M54 84 L48 74 Q48 66 56 62" stroke="#5aafcc" strokeWidth="2" fill="none" opacity="0.7" />
+                    <path d="M66 84 L72 74 Q72 66 64 62" stroke="#5aafcc" strokeWidth="2" fill="none" opacity="0.7" />
+                    <circle cx="60" cy="104" r="6" stroke="#5aafcc" strokeWidth="3" fill="rgba(90,175,204,0.15)" />
+                    <circle cx="60" cy="104" r="2.5" fill="#5aafcc" opacity="0.4" />
+                    {/* Left arm */}
+                    <path d="M36 70 Q26 88 24 115 L30 115 Q34 94 40 74" fill="url(#docCoat)" />
+                    <path d="M24 112 Q22 118 26 120 L30 120 Q32 116 30 112" fill="url(#docSkin)" />
+                    {/* Right arm — holding stethoscope end */}
+                    <path d="M104 70 Q114 88 116 115 L110 115 Q106 94 100 74" fill="url(#docCoat)" />
+                    <ellipse cx="116" cy="113" rx="5" ry="4" fill="url(#docSkin)" />
+                  </g>
                   {/* Neck */}
-                  <rect x="52" y="38" width="16" height="14" rx="4" fill="url(#skinL)" />
-                  {/* Body — white coat silhouette */}
-                  <path d="M34 52 L30 56 L28 120 L92 120 L90 56 L86 52 Q86 46 72 44 L48 44 Q34 46 34 52 Z" fill="url(#coatW)" />
-                  {/* Coat collar/lapels */}
-                  <path d="M48 46 L56 62 L60 52" stroke="rgba(200,205,215,0.6)" strokeWidth="1.2" fill="none" />
-                  <path d="M72 46 L64 62 L60 52" stroke="rgba(200,205,215,0.6)" strokeWidth="1.2" fill="none" />
-                  {/* Shirt underneath */}
-                  <path d="M52 48 L56 62 L60 52 L64 62 L68 48" fill="rgba(120,160,220,0.35)" />
-                  {/* Stethoscope tubing */}
-                  <path d="M50 60 Q44 64 44 74 Q44 82 50 84 Q56 82 56 74 Q56 64 50 60" stroke="rgba(80,150,200,0.7)" strokeWidth="2" fill="none" />
-                  <path d="M44 66 L40 56 Q40 50 46 48" stroke="rgba(80,150,200,0.5)" strokeWidth="1.5" fill="none" />
-                  <path d="M56 66 L60 56 Q60 50 54 48" stroke="rgba(80,150,200,0.5)" strokeWidth="1.5" fill="none" />
-                  <circle cx="50" cy="84" r="5" stroke="rgba(80,150,200,0.8)" strokeWidth="2.5" fill="rgba(80,150,200,0.1)" />
-                  {/* Left arm */}
-                  <path d="M30 56 Q22 70 20 90 L24 90 Q28 74 32 60" fill="url(#coatW)" />
-                  {/* Right arm */}
-                  <path d="M90 56 Q98 70 100 90 L96 90 Q92 74 88 60" fill="url(#coatW)" />
-                  {/* Hand — right, holding stethoscope end */}
-                  <ellipse cx="100" cy="88" rx="4" ry="3" fill="url(#skinL)" />
-                  {/* Head shape — slightly oval for realism */}
-                  <ellipse cx="60" cy="22" rx="16" ry="18" fill="url(#skinL)" />
-                  {/* Hair — styled side part */}
-                  <path d="M44 18 Q44 6 60 4 Q76 6 76 18 L76 12 Q76 2 60 2 Q44 2 44 12 Z" fill="url(#hairDark)" />
-                  <path d="M44 18 Q44 10 50 8" stroke="url(#hairDark)" strokeWidth="3" fill="none" />
-                  {/* Ears */}
-                  <ellipse cx="44" cy="22" rx="3" ry="4" fill="rgba(235,195,160,0.7)" />
-                  <ellipse cx="76" cy="22" rx="3" ry="4" fill="rgba(235,195,160,0.7)" />
-                  {/* Eyes — almond shaped */}
-                  <path d="M52 20 Q54 18 56 20 Q54 22 52 20" fill="rgba(50,40,35,0.8)" />
-                  <path d="M64 20 Q66 18 68 20 Q66 22 64 20" fill="rgba(50,40,35,0.8)" />
-                  <circle cx="54" cy="20" r="0.8" fill="white" opacity="0.7" />
-                  <circle cx="66" cy="20" r="0.8" fill="white" opacity="0.7" />
-                  {/* Eyebrows */}
-                  <path d="M51 17 Q54 15 57 17" stroke="rgba(50,35,25,0.5)" strokeWidth="1" fill="none" />
-                  <path d="M63 17 Q66 15 69 17" stroke="rgba(50,35,25,0.5)" strokeWidth="1" fill="none" />
-                  {/* Nose */}
-                  <path d="M59 22 Q60 26 61 22" stroke="rgba(180,140,110,0.4)" strokeWidth="0.8" fill="none" />
-                  {/* Smile */}
-                  <path d="M55 28 Q60 31 65 28" stroke="rgba(160,110,90,0.45)" strokeWidth="1" fill="none" />
-                  {/* Name badge on coat */}
-                  <rect x="72" y="60" width="10" height="7" rx="1.5" fill="rgba(80,150,200,0.25)" />
-                  <line x1="74" y1="62" x2="80" y2="62" stroke="rgba(80,150,200,0.4)" strokeWidth="0.6" />
-                  <line x1="74" y1="64.5" x2="78" y2="64.5" stroke="rgba(80,150,200,0.3)" strokeWidth="0.5" />
-                </svg>
-                <span className="text-[10px] text-white/50 font-medium mt-1.5 tracking-wide">Doctor</span>
-              </motion.div>
-              {/* Pharmacist — shorter figure with clipboard */}
-              <motion.div
-                initial={{ opacity: 0, x: -30 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.5, delay: 0.1 }}
-                className="w-28 h-40 rounded-2xl bg-white/8 backdrop-blur-sm flex flex-col items-center justify-end border border-white/12 p-3 pb-2"
-              >
-                <svg viewBox="0 0 110 150" fill="none" className="w-20 h-28">
-                  <defs>
-                    <linearGradient id="scrubsG" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="rgba(70,140,130,0.75)" /><stop offset="100%" stopColor="rgba(55,115,105,0.65)" /></linearGradient>
-                    <linearGradient id="skinM" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="rgba(245,210,180,0.95)" /><stop offset="100%" stopColor="rgba(225,185,155,0.95)" /></linearGradient>
-                    <linearGradient id="hairBr" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="rgba(70,40,20,0.8)" /><stop offset="100%" stopColor="rgba(85,50,25,0.6)" /></linearGradient>
-                  </defs>
-                  {/* Neck */}
-                  <rect x="46" y="36" width="14" height="12" rx="4" fill="url(#skinM)" />
-                  {/* Scrubs top */}
-                  <path d="M30 48 L28 52 L26 115 L84 115 L82 52 L80 48 Q80 42 68 40 L42 40 Q30 42 30 48 Z" fill="url(#scrubsG)" />
-                  {/* V-neck detail */}
-                  <path d="M48 42 L55 58 L60 48" stroke="rgba(255,255,255,0.35)" strokeWidth="1" fill="rgba(255,255,255,0.1)" />
-                  {/* ID lanyard */}
-                  <line x1="60" y1="42" x2="60" y2="68" stroke="rgba(255,255,255,0.3)" strokeWidth="0.8" />
-                  <rect x="55" y="68" width="10" height="8" rx="1.5" fill="rgba(255,255,255,0.4)" />
-                  {/* Left arm */}
-                  <path d="M28 52 Q18 68 16 88 L20 88 Q24 72 30 56" fill="url(#scrubsG)" />
-                  {/* Right arm — holding clipboard */}
-                  <path d="M82 52 Q92 64 94 80 L90 80 Q88 66 80 56" fill="url(#scrubsG)" />
-                  {/* Hand */}
-                  <ellipse cx="94" cy="78" rx="3.5" ry="3" fill="url(#skinM)" />
-                  {/* Clipboard */}
-                  <rect x="88" y="64" width="16" height="22" rx="2" fill="rgba(255,255,255,0.65)" stroke="rgba(180,185,195,0.4)" strokeWidth="0.8" />
-                  <line x1="91" y1="70" x2="101" y2="70" stroke="rgba(120,130,145,0.4)" strokeWidth="0.6" />
-                  <line x1="91" y1="74" x2="99" y2="74" stroke="rgba(120,130,145,0.35)" strokeWidth="0.5" />
-                  <line x1="91" y1="78" x2="100" y2="78" stroke="rgba(120,130,145,0.3)" strokeWidth="0.5" />
+                  <rect x="62" y="50" width="16" height="14" rx="5" fill="url(#docSkin)" />
                   {/* Head */}
-                  <ellipse cx="55" cy="20" rx="14" ry="16" fill="url(#skinM)" />
-                  {/* Hair — pulled back */}
-                  <path d="M41 16 Q41 4 55 3 Q69 4 69 16 L69 10 Q68 2 55 2 Q42 2 41 10 Z" fill="url(#hairBr)" />
-                  <path d="M41 16 Q41 12 44 10" fill="url(#hairBr)" />
-                  {/* Hair bun */}
-                  <ellipse cx="55" cy="4" rx="8" ry="5" fill="url(#hairBr)" opacity="0.8" />
+                  <ellipse cx="70" cy="30" rx="20" ry="22" fill="url(#docSkin)" />
+                  {/* Cheek blush */}
+                  <ellipse cx="58" cy="34" rx="6" ry="4" fill="url(#docCheekL)" />
+                  <ellipse cx="82" cy="34" rx="6" ry="4" fill="url(#docCheekR)" />
+                  {/* Hair — styled side part */}
+                  <path d="M50 24 Q50 8 70 6 Q90 8 90 24 L90 16 Q90 4 70 2 Q50 4 50 16 Z" fill="url(#docHair)" />
+                  <path d="M50 24 Q50 16 56 13" stroke="url(#docHair)" strokeWidth="4" fill="none" />
                   {/* Ears */}
-                  <ellipse cx="41" cy="20" rx="2.5" ry="3.5" fill="rgba(225,185,155,0.6)" />
-                  <ellipse cx="69" cy="20" rx="2.5" ry="3.5" fill="rgba(225,185,155,0.6)" />
-                  {/* Eyes */}
-                  <path d="M48 18 Q50 16.5 52 18 Q50 19.5 48 18" fill="rgba(45,35,30,0.8)" />
-                  <path d="M58 18 Q60 16.5 62 18 Q60 19.5 58 18" fill="rgba(45,35,30,0.8)" />
-                  <circle cx="50" cy="18" r="0.7" fill="white" opacity="0.6" />
-                  <circle cx="60" cy="18" r="0.7" fill="white" opacity="0.6" />
+                  <ellipse cx="50" cy="30" rx="4" ry="5" fill="#e0b898" />
+                  <ellipse cx="90" cy="30" rx="4" ry="5" fill="#e0b898" />
+                  {/* Eyes — natural almond shape */}
+                  <path d="M60 28 Q63 25 66 28 Q63 30 60 28" fill="#2c1e16" />
+                  <path d="M74 28 Q77 25 80 28 Q77 30 74 28" fill="#2c1e16" />
+                  <circle cx="63" cy="27.5" r="1" fill="white" opacity="0.75" />
+                  <circle cx="77" cy="27.5" r="1" fill="white" opacity="0.75" />
                   {/* Eyebrows */}
-                  <path d="M47 15 Q50 13.5 53 15" stroke="rgba(60,35,20,0.45)" strokeWidth="0.8" fill="none" />
-                  <path d="M57 15 Q60 13.5 63 15" stroke="rgba(60,35,20,0.45)" strokeWidth="0.8" fill="none" />
+                  <path d="M59 24 Q63 22 67 24" stroke="#3d2a1f" strokeWidth="1.2" fill="none" opacity="0.6" />
+                  <path d="M73 24 Q77 22 81 24" stroke="#3d2a1f" strokeWidth="1.2" fill="none" opacity="0.6" />
                   {/* Nose */}
-                  <path d="M54 20 Q55 23 56 20" stroke="rgba(180,140,110,0.35)" strokeWidth="0.7" fill="none" />
+                  <path d="M68 30 Q70 35 72 30" stroke="#c49a78" strokeWidth="1" fill="none" opacity="0.5" />
                   {/* Smile */}
-                  <path d="M51 25 Q55 28 59 25" stroke="rgba(160,110,90,0.4)" strokeWidth="0.9" fill="none" />
+                  <path d="M64 37 Q70 41 76 37" stroke="#c48a72" strokeWidth="1.2" fill="none" opacity="0.5" />
+                  {/* Name badge */}
+                  <rect x="85" y="82" width="12" height="9" rx="2" fill="rgba(90,175,204,0.2)" />
+                  <line x1="87" y1="85" x2="95" y2="85" stroke="rgba(90,175,204,0.35)" strokeWidth="0.7" />
+                  <line x1="87" y1="88" x2="93" y2="88" stroke="rgba(90,175,204,0.25)" strokeWidth="0.6" />
                 </svg>
-                <span className="text-[10px] text-white/50 font-medium mt-1.5 tracking-wide">Pharmacist</span>
+                <span className="text-[10px] text-white/40 font-medium mt-1 tracking-wider uppercase">Doctor</span>
+              </motion.div>
+              {/* Pharmacist — premium floating figure with clipboard */}
+              <motion.div
+                initial={{ opacity: 0, x: -40 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.6, delay: 0.12 }}
+                className="relative flex flex-col items-center -ml-2"
+              >
+                <div className="absolute inset-0 -m-4 bg-white/5 rounded-full blur-2xl" />
+                <svg viewBox="0 0 130 185" fill="none" className="w-[105px] h-[155px] relative">
+                  <defs>
+                    <linearGradient id="pharmSkin" x1="0.2" y1="0" x2="0.8" y2="1"><stop offset="0%" stopColor="#f0d0b0" /><stop offset="100%" stopColor="#ddb494" /></linearGradient>
+                    <linearGradient id="pharmScrub" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#3d9e8e" /><stop offset="100%" stopColor="#2d7e70" /></linearGradient>
+                    <linearGradient id="pharmHair" x1="0.5" y1="0" x2="0.5" y2="1"><stop offset="0%" stopColor="#462814" /><stop offset="100%" stopColor="#5c3820" /></linearGradient>
+                    <filter id="pharmShadow"><feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#000" floodOpacity="0.1" /></filter>
+                    <radialGradient id="pharmCheek"><stop offset="0%" stopColor="#dda0a0" stopOpacity="0.25" /><stop offset="100%" stopColor="transparent" /></radialGradient>
+                  </defs>
+                  <g filter="url(#pharmShadow)">
+                    {/* Scrubs body */}
+                    <path d="M36 60 L32 65 L30 155 L100 155 L98 65 L94 60 Q94 54 82 52 L48 52 Q36 54 36 60 Z" fill="url(#pharmScrub)" />
+                    {/* V-neck */}
+                    <path d="M56 54 L64 72 L70 62" stroke="rgba(255,255,255,0.3)" strokeWidth="1.2" fill="rgba(255,255,255,0.08)" />
+                    {/* ID lanyard */}
+                    <line x1="70" y1="54" x2="70" y2="86" stroke="rgba(255,255,255,0.25)" strokeWidth="1" />
+                    <rect x="64" y="86" width="12" height="10" rx="2" fill="rgba(255,255,255,0.35)" />
+                    <line x1="66" y1="89" x2="74" y2="89" stroke="rgba(255,255,255,0.3)" strokeWidth="0.6" />
+                    {/* Left arm */}
+                    <path d="M32 65 Q22 82 20 108 L26 108 Q30 88 36 70" fill="url(#pharmScrub)" />
+                    <ellipse cx="20" cy="106" rx="4" ry="3.5" fill="url(#pharmSkin)" />
+                    {/* Right arm — holding clipboard */}
+                    <path d="M98 65 Q108 82 110 105 L104 105 Q100 85 96 70" fill="url(#pharmScrub)" />
+                    <ellipse cx="110" cy="103" rx="4" ry="3.5" fill="url(#pharmSkin)" />
+                    {/* Clipboard */}
+                    <rect x="102" y="88" width="20" height="28" rx="2.5" fill="rgba(255,255,255,0.7)" stroke="rgba(170,180,195,0.35)" strokeWidth="1" />
+                    <line x1="105" y1="95" x2="119" y2="95" stroke="rgba(100,115,135,0.35)" strokeWidth="0.8" />
+                    <line x1="105" y1="100" x2="117" y2="100" stroke="rgba(100,115,135,0.3)" strokeWidth="0.7" />
+                    <line x1="105" y1="105" x2="118" y2="105" stroke="rgba(100,115,135,0.25)" strokeWidth="0.6" />
+                    <line x1="105" y1="110" x2="114" y2="110" stroke="rgba(100,115,135,0.2)" strokeWidth="0.5" />
+                  </g>
+                  {/* Neck */}
+                  <rect x="60" y="44" width="16" height="14" rx="5" fill="url(#pharmSkin)" />
+                  {/* Head */}
+                  <ellipse cx="68" cy="26" rx="18" ry="20" fill="url(#pharmSkin)" />
+                  {/* Cheeks */}
+                  <ellipse cx="57" cy="30" rx="5" ry="3.5" fill="url(#pharmCheek)" />
+                  <ellipse cx="79" cy="30" rx="5" ry="3.5" fill="url(#pharmCheek)" />
+                  {/* Hair — pulled back with bun */}
+                  <path d="M50 22 Q50 6 68 4 Q86 6 86 22 L86 14 Q86 2 68 2 Q50 2 50 14 Z" fill="url(#pharmHair)" />
+                  <ellipse cx="68" cy="5" rx="10" ry="6" fill="url(#pharmHair)" opacity="0.85" />
+                  {/* Ears */}
+                  <ellipse cx="50" cy="26" rx="3.5" ry="5" fill="#d8aa8a" />
+                  <ellipse cx="86" cy="26" rx="3.5" ry="5" fill="#d8aa8a" />
+                  {/* Eyes */}
+                  <path d="M59 24 Q62 21.5 65 24 Q62 26 59 24" fill="#2a1c14" />
+                  <path d="M71 24 Q74 21.5 77 24 Q74 26 71 24" fill="#2a1c14" />
+                  <circle cx="62" cy="23.5" r="0.9" fill="white" opacity="0.7" />
+                  <circle cx="74" cy="23.5" r="0.9" fill="white" opacity="0.7" />
+                  {/* Eyebrows */}
+                  <path d="M58 21 Q62 19 66 21" stroke="#3d2a1f" strokeWidth="1" fill="none" opacity="0.5" />
+                  <path d="M70 21 Q74 19 78 21" stroke="#3d2a1f" strokeWidth="1" fill="none" opacity="0.5" />
+                  {/* Nose */}
+                  <path d="M66 26 Q68 30 70 26" stroke="#c49a78" strokeWidth="0.9" fill="none" opacity="0.45" />
+                  {/* Smile */}
+                  <path d="M63 32 Q68 35 73 32" stroke="#c08a70" strokeWidth="1" fill="none" opacity="0.45" />
+                </svg>
+                <span className="text-[10px] text-white/40 font-medium mt-1 tracking-wider uppercase">Pharmacist</span>
               </motion.div>
             </div>
 
@@ -324,122 +349,143 @@ export default function Landing() {
               </motion.div>
             </div>
 
-            {/* Right illustrations */}
-            <div className="hidden lg:flex items-end gap-4 shrink-0">
-              {/* Mother holding baby */}
+            {/* Right illustrations — floating premium style */}
+            <div className="hidden lg:flex items-end gap-2 shrink-0">
+              {/* Mother & Baby — premium floating figure */}
               <motion.div
-                initial={{ opacity: 0, x: 30 }}
+                initial={{ opacity: 0, x: 40 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.5, delay: 0.1 }}
-                className="w-28 h-40 rounded-2xl bg-white/8 backdrop-blur-sm flex flex-col items-center justify-end border border-white/12 p-3 pb-2"
+                transition={{ duration: 0.6, delay: 0.12 }}
+                className="relative flex flex-col items-center -mr-2"
               >
-                <svg viewBox="0 0 110 150" fill="none" className="w-20 h-28">
+                <div className="absolute inset-0 -m-4 bg-white/5 rounded-full blur-2xl" />
+                <svg viewBox="0 0 130 185" fill="none" className="w-[105px] h-[155px] relative">
                   <defs>
-                    <linearGradient id="skinF" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="rgba(250,218,190,0.95)" /><stop offset="100%" stopColor="rgba(230,192,162,0.95)" /></linearGradient>
-                    <linearGradient id="dressP" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="rgba(200,110,140,0.65)" /><stop offset="100%" stopColor="rgba(170,90,120,0.55)" /></linearGradient>
-                    <linearGradient id="hairW" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="rgba(55,35,25,0.8)" /><stop offset="100%" stopColor="rgba(70,42,28,0.6)" /></linearGradient>
+                    <linearGradient id="momSkin" x1="0.2" y1="0" x2="0.8" y2="1"><stop offset="0%" stopColor="#f2d4b6" /><stop offset="100%" stopColor="#deb696" /></linearGradient>
+                    <linearGradient id="momDress" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#c8688a" /><stop offset="100%" stopColor="#a85070" /></linearGradient>
+                    <linearGradient id="momHair" x1="0.5" y1="0" x2="0.5" y2="1"><stop offset="0%" stopColor="#2a1810" /><stop offset="100%" stopColor="#3c2518" /></linearGradient>
+                    <linearGradient id="babyBlanket" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#c8ddf0" /><stop offset="100%" stopColor="#a8c0dc" /></linearGradient>
+                    <linearGradient id="babySkin" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#f8dcc4" /><stop offset="100%" stopColor="#f0c8a8" /></linearGradient>
+                    <filter id="momShadow"><feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#000" floodOpacity="0.1" /></filter>
+                    <radialGradient id="momCheek"><stop offset="0%" stopColor="#dda0a0" stopOpacity="0.25" /><stop offset="100%" stopColor="transparent" /></radialGradient>
                   </defs>
-                  {/* Neck */}
-                  <rect x="48" y="38" width="14" height="12" rx="4" fill="url(#skinF)" />
-                  {/* Dress / top */}
-                  <path d="M32 50 L30 54 L28 120 L82 120 L80 54 L78 50 Q78 44 66 42 L44 42 Q32 44 32 50 Z" fill="url(#dressP)" />
-                  {/* Neckline */}
-                  <path d="M46 44 Q55 54 64 44" stroke="rgba(255,255,255,0.3)" strokeWidth="0.8" fill="none" />
-                  {/* Left arm — cradling baby */}
-                  <path d="M30 54 Q20 66 18 82 L22 82 Q26 70 32 58" fill="url(#skinF)" />
-                  {/* Right arm — supporting baby */}
-                  <path d="M80 54 Q86 66 88 82 L84 82 Q82 70 78 58" fill="url(#skinF)" />
-                  {/* Baby (held in arms) */}
-                  <ellipse cx="55" cy="78" rx="18" ry="20" fill="rgba(255,255,255,0.55)" />
-                  {/* Baby blanket wrap */}
-                  <path d="M38 72 Q40 60 55 58 Q70 60 72 72 Q72 88 55 92 Q38 88 38 72 Z" fill="rgba(200,220,240,0.45)" />
+                  <g filter="url(#momShadow)">
+                    {/* Dress body */}
+                    <path d="M38 60 L34 65 L32 170 L98 170 L96 65 L92 60 Q92 54 80 52 L50 52 Q38 54 38 60 Z" fill="url(#momDress)" />
+                    {/* Neckline */}
+                    <path d="M54 54 Q65 66 76 54" stroke="rgba(255,255,255,0.25)" strokeWidth="1" fill="none" />
+                    {/* Left arm — cradling baby */}
+                    <path d="M34 65 Q24 80 22 100 L28 100 Q32 84 38 70" fill="url(#momSkin)" />
+                    {/* Right arm — supporting baby */}
+                    <path d="M96 65 Q106 80 108 100 L102 100 Q98 84 94 70" fill="url(#momSkin)" />
+                    {/* Baby blanket wrap */}
+                    <path d="M42 96 Q44 82 65 80 Q86 82 88 96 Q88 116 65 120 Q42 116 42 96 Z" fill="url(#babyBlanket)" opacity="0.7" />
+                    {/* Baby body in blanket */}
+                    <ellipse cx="65" cy="102" rx="22" ry="24" fill="url(#babyBlanket)" opacity="0.5" />
+                  </g>
                   {/* Baby head */}
-                  <circle cx="55" cy="65" r="10" fill="url(#skinF)" />
+                  <circle cx="65" cy="86" r="12" fill="url(#babySkin)" />
                   {/* Baby hair wisps */}
-                  <path d="M48 60 Q50 55 55 54 Q60 55 62 60" stroke="rgba(60,40,25,0.4)" strokeWidth="1.5" fill="none" />
+                  <path d="M56 80 Q58 74 65 73 Q72 74 74 80" stroke="#4a3020" strokeWidth="1.8" fill="none" opacity="0.4" />
                   {/* Baby eyes — closed (sleeping) */}
-                  <path d="M51 64 Q53 63 55 64" stroke="rgba(60,40,30,0.5)" strokeWidth="0.7" fill="none" />
-                  <path d="M55 64 Q57 63 59 64" stroke="rgba(60,40,30,0.5)" strokeWidth="0.7" fill="none" />
-                  {/* Baby nose */}
-                  <circle cx="55" cy="66.5" r="0.6" fill="rgba(200,150,130,0.4)" />
+                  <path d="M60 85 Q62 84 64 85" stroke="#4a3020" strokeWidth="0.9" fill="none" opacity="0.5" />
+                  <path d="M66 85 Q68 84 70 85" stroke="#4a3020" strokeWidth="0.9" fill="none" opacity="0.5" />
+                  <circle cx="65" cy="88" r="0.8" fill="#d8a090" opacity="0.5" />
+                  {/* Mother neck */}
+                  <rect x="58" y="44" width="14" height="14" rx="5" fill="url(#momSkin)" />
                   {/* Mother head */}
-                  <ellipse cx="55" cy="22" rx="15" ry="17" fill="url(#skinF)" />
-                  {/* Hair — flowing */}
-                  <path d="M40 18 Q40 5 55 3 Q70 5 70 18 L70 10 Q70 2 55 2 Q40 2 40 10 Z" fill="url(#hairW)" />
-                  <path d="M40 18 Q38 28 36 38" stroke="url(#hairW)" strokeWidth="3" fill="none" />
-                  <path d="M70 18 Q72 28 73 35" stroke="url(#hairW)" strokeWidth="3" fill="none" />
+                  <ellipse cx="65" cy="26" rx="19" ry="21" fill="url(#momSkin)" />
+                  {/* Cheeks */}
+                  <ellipse cx="53" cy="30" rx="5" ry="3.5" fill="url(#momCheek)" />
+                  <ellipse cx="77" cy="30" rx="5" ry="3.5" fill="url(#momCheek)" />
+                  {/* Hair — flowing with waves */}
+                  <path d="M46 22 Q46 6 65 4 Q84 6 84 22 L84 14 Q84 2 65 2 Q46 2 46 14 Z" fill="url(#momHair)" />
+                  <path d="M46 22 Q44 34 42 48" stroke="url(#momHair)" strokeWidth="3.5" fill="none" opacity="0.7" />
+                  <path d="M84 22 Q86 34 87 46" stroke="url(#momHair)" strokeWidth="3.5" fill="none" opacity="0.7" />
                   {/* Ears */}
-                  <ellipse cx="40" cy="22" rx="2.5" ry="3.5" fill="rgba(230,192,162,0.6)" />
+                  <ellipse cx="46" cy="26" rx="3.5" ry="5" fill="#d8aa8a" />
                   {/* Eyes */}
-                  <path d="M49 20 Q51 18.5 53 20 Q51 21.5 49 20" fill="rgba(50,35,25,0.8)" />
-                  <path d="M57 20 Q59 18.5 61 20 Q59 21.5 57 20" fill="rgba(50,35,25,0.8)" />
-                  <circle cx="51" cy="20" r="0.7" fill="white" opacity="0.6" />
-                  <circle cx="59" cy="20" r="0.7" fill="white" opacity="0.6" />
+                  <path d="M57 24 Q60 21.5 63 24 Q60 26 57 24" fill="#2a1c14" />
+                  <path d="M67 24 Q70 21.5 73 24 Q70 26 67 24" fill="#2a1c14" />
+                  <circle cx="60" cy="23.5" r="0.9" fill="white" opacity="0.7" />
+                  <circle cx="70" cy="23.5" r="0.9" fill="white" opacity="0.7" />
                   {/* Eyebrows */}
-                  <path d="M48 17 Q51 15.5 54 17" stroke="rgba(55,35,22,0.4)" strokeWidth="0.8" fill="none" />
-                  <path d="M56 17 Q59 15.5 62 17" stroke="rgba(55,35,22,0.4)" strokeWidth="0.8" fill="none" />
+                  <path d="M56 21 Q60 19 64 21" stroke="#3c2518" strokeWidth="1" fill="none" opacity="0.5" />
+                  <path d="M66 21 Q70 19 74 21" stroke="#3c2518" strokeWidth="1" fill="none" opacity="0.5" />
                   {/* Nose */}
-                  <path d="M54 22 Q55 25 56 22" stroke="rgba(180,140,110,0.35)" strokeWidth="0.7" fill="none" />
+                  <path d="M63 26 Q65 30 67 26" stroke="#c49a78" strokeWidth="0.9" fill="none" opacity="0.45" />
                   {/* Warm smile */}
-                  <path d="M50 27 Q55 30 60 27" stroke="rgba(160,100,80,0.4)" strokeWidth="0.9" fill="none" />
+                  <path d="M60 32 Q65 36 70 32" stroke="#c08a70" strokeWidth="1" fill="none" opacity="0.45" />
                 </svg>
-                <span className="text-[10px] text-white/50 font-medium mt-1.5 tracking-wide">Mother & Baby</span>
+                <span className="text-[10px] text-white/40 font-medium mt-1 tracking-wider uppercase">Mother & Baby</span>
               </motion.div>
-              {/* Healthcare expert with medicine bottle */}
+              {/* Healthcare Expert — premium floating figure with medicine */}
               <motion.div
-                initial={{ opacity: 0, x: 30 }}
+                initial={{ opacity: 0, x: 40 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.5 }}
-                className="w-32 h-44 rounded-2xl bg-white/8 backdrop-blur-sm flex flex-col items-center justify-end border border-white/12 p-3 pb-2"
+                transition={{ duration: 0.6 }}
+                className="relative flex flex-col items-center"
               >
-                <svg viewBox="0 0 120 160" fill="none" className="w-24 h-32">
+                <div className="absolute inset-0 -m-4 bg-white/5 rounded-full blur-2xl" />
+                <svg viewBox="0 0 140 200" fill="none" className="w-[120px] h-[170px] relative">
                   <defs>
-                    <linearGradient id="skinE" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="rgba(240,205,175,0.95)" /><stop offset="100%" stopColor="rgba(220,182,152,0.95)" /></linearGradient>
-                    <linearGradient id="coatE" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="rgba(255,255,255,0.88)" /><stop offset="100%" stopColor="rgba(232,237,242,0.82)" /></linearGradient>
-                    <linearGradient id="hairBl" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="rgba(40,30,25,0.82)" /><stop offset="100%" stopColor="rgba(55,40,32,0.65)" /></linearGradient>
+                    <linearGradient id="expSkin" x1="0.2" y1="0" x2="0.8" y2="1"><stop offset="0%" stopColor="#f0d2b4" /><stop offset="100%" stopColor="#dcb494" /></linearGradient>
+                    <linearGradient id="expCoat" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#ffffff" /><stop offset="60%" stopColor="#f0f2f5" /><stop offset="100%" stopColor="#e8ecf0" /></linearGradient>
+                    <linearGradient id="expHair" x1="0.5" y1="0" x2="0.5" y2="1"><stop offset="0%" stopColor="#1e1410" /><stop offset="100%" stopColor="#302018" /></linearGradient>
+                    <linearGradient id="expBottle" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#4db87a" /><stop offset="100%" stopColor="#3a9a62" /></linearGradient>
+                    <filter id="expShadow"><feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#000" floodOpacity="0.12" /></filter>
+                    <radialGradient id="expCheek"><stop offset="0%" stopColor="#e0a0a0" stopOpacity="0.25" /><stop offset="100%" stopColor="transparent" /></radialGradient>
                   </defs>
+                  <g filter="url(#expShadow)">
+                    {/* White coat body */}
+                    <path d="M40 65 L36 70 L34 170 L106 170 L104 70 L100 65 Q100 58 85 55 L55 55 Q40 58 40 65 Z" fill="url(#expCoat)" />
+                    {/* Lapels */}
+                    <path d="M55 57 L65 78 L70 65" fill="rgba(200,205,215,0.12)" />
+                    <path d="M85 57 L75 78 L70 65" fill="rgba(200,205,215,0.12)" />
+                    {/* Red cross emblem */}
+                    <circle cx="70" cy="92" r="10" fill="rgba(220,60,60,0.1)" />
+                    <rect x="68" y="84" width="4" height="16" rx="1.5" fill="rgba(220,60,60,0.45)" />
+                    <rect x="63" y="88" width="14" height="4" rx="1.5" fill="rgba(220,60,60,0.45)" />
+                    {/* Coat buttons */}
+                    <circle cx="70" cy="115" r="1.5" fill="rgba(100,110,125,0.3)" />
+                    <circle cx="70" cy="130" r="1.5" fill="rgba(100,110,125,0.3)" />
+                    {/* Left arm */}
+                    <path d="M36 70 Q26 88 24 115 L30 115 Q34 94 40 74" fill="url(#expCoat)" />
+                    <ellipse cx="24" cy="113" rx="5" ry="4" fill="url(#expSkin)" />
+                    {/* Right arm — holding medicine bottle */}
+                    <path d="M104 70 Q114 88 118 112 L112 112 Q108 90 100 74" fill="url(#expCoat)" />
+                    <ellipse cx="118" cy="110" rx="5" ry="4" fill="url(#expSkin)" />
+                    {/* Medicine bottle */}
+                    <rect x="112" y="96" width="13" height="20" rx="3" fill="url(#expBottle)" opacity="0.75" />
+                    <rect x="113" y="90" width="11" height="7" rx="2" fill="url(#expBottle)" opacity="0.55" />
+                    <rect x="114" y="100" width="9" height="1.5" rx="0.5" fill="rgba(255,255,255,0.45)" />
+                  </g>
                   {/* Neck */}
-                  <rect x="52" y="38" width="16" height="14" rx="4" fill="url(#skinE)" />
-                  {/* White coat body */}
-                  <path d="M34 52 L30 56 L28 120 L92 120 L90 56 L86 52 Q86 46 72 44 L48 44 Q34 46 34 52 Z" fill="url(#coatE)" />
-                  {/* Coat lapels */}
-                  <path d="M48 46 L56 62 L60 52" stroke="rgba(200,205,215,0.6)" strokeWidth="1.2" fill="none" />
-                  <path d="M72 46 L64 62 L60 52" stroke="rgba(200,205,215,0.6)" strokeWidth="1.2" fill="none" />
-                  {/* Red cross emblem on coat */}
-                  <circle cx="60" cy="72" r="8" fill="rgba(220,65,65,0.15)" />
-                  <rect x="58" y="66" width="4" height="12" rx="1" fill="rgba(220,65,65,0.5)" />
-                  <rect x="54" y="70" width="12" height="4" rx="1" fill="rgba(220,65,65,0.5)" />
-                  {/* Left arm */}
-                  <path d="M30 56 Q22 70 20 90 L24 90 Q28 74 32 60" fill="url(#coatE)" />
-                  {/* Right arm — extended holding bottle */}
-                  <path d="M90 56 Q100 66 104 82 L100 82 Q96 68 88 60" fill="url(#coatE)" />
-                  {/* Hand */}
-                  <ellipse cx="104" cy="80" rx="4" ry="3" fill="url(#skinE)" />
-                  {/* Medicine bottle in hand */}
-                  <rect x="98" y="70" width="10" height="16" rx="2.5" fill="rgba(80,180,130,0.65)" />
-                  <rect x="99" y="66" width="8" height="5" rx="1.5" fill="rgba(80,180,130,0.5)" />
-                  <rect x="100" y="73" width="6" height="1" rx="0.5" fill="rgba(255,255,255,0.4)" />
+                  <rect x="62" y="50" width="16" height="14" rx="5" fill="url(#expSkin)" />
                   {/* Head */}
-                  <ellipse cx="60" cy="22" rx="16" ry="18" fill="url(#skinE)" />
-                  {/* Hair — short professional */}
-                  <path d="M44 18 Q44 6 60 4 Q76 6 76 18 L76 12 Q76 2 60 2 Q44 2 44 12 Z" fill="url(#hairBl)" />
+                  <ellipse cx="70" cy="30" rx="20" ry="22" fill="url(#expSkin)" />
+                  {/* Cheeks */}
+                  <ellipse cx="58" cy="34" rx="6" ry="4" fill="url(#expCheek)" />
+                  <ellipse cx="82" cy="34" rx="6" ry="4" fill="url(#expCheek)" />
+                  {/* Hair */}
+                  <path d="M50 24 Q50 8 70 6 Q90 8 90 24 L90 16 Q90 4 70 2 Q50 4 50 16 Z" fill="url(#expHair)" />
                   {/* Ears */}
-                  <ellipse cx="44" cy="22" rx="3" ry="4" fill="rgba(220,182,152,0.6)" />
-                  <ellipse cx="76" cy="22" rx="3" ry="4" fill="rgba(220,182,152,0.6)" />
+                  <ellipse cx="50" cy="30" rx="4" ry="5" fill="#d8a888" />
+                  <ellipse cx="90" cy="30" rx="4" ry="5" fill="#d8a888" />
                   {/* Eyes */}
-                  <path d="M52 20 Q54 18.5 56 20 Q54 21.5 52 20" fill="rgba(45,35,28,0.8)" />
-                  <path d="M64 20 Q66 18.5 68 20 Q66 21.5 64 20" fill="rgba(45,35,28,0.8)" />
-                  <circle cx="54" cy="20" r="0.8" fill="white" opacity="0.6" />
-                  <circle cx="66" cy="20" r="0.8" fill="white" opacity="0.6" />
+                  <path d="M60 28 Q63 25 66 28 Q63 30 60 28" fill="#1e1410" />
+                  <path d="M74 28 Q77 25 80 28 Q77 30 74 28" fill="#1e1410" />
+                  <circle cx="63" cy="27.5" r="1" fill="white" opacity="0.75" />
+                  <circle cx="77" cy="27.5" r="1" fill="white" opacity="0.75" />
                   {/* Eyebrows */}
-                  <path d="M51 17 Q54 15.5 57 17" stroke="rgba(45,30,20,0.5)" strokeWidth="1" fill="none" />
-                  <path d="M63 17 Q66 15.5 69 17" stroke="rgba(45,30,20,0.5)" strokeWidth="1" fill="none" />
+                  <path d="M59 24 Q63 22 67 24" stroke="#302018" strokeWidth="1.2" fill="none" opacity="0.6" />
+                  <path d="M73 24 Q77 22 81 24" stroke="#302018" strokeWidth="1.2" fill="none" opacity="0.6" />
                   {/* Nose */}
-                  <path d="M59 22 Q60 26 61 22" stroke="rgba(175,135,105,0.4)" strokeWidth="0.8" fill="none" />
+                  <path d="M68 30 Q70 35 72 30" stroke="#c49a78" strokeWidth="1" fill="none" opacity="0.5" />
                   {/* Smile */}
-                  <path d="M55 28 Q60 31 65 28" stroke="rgba(155,105,85,0.4)" strokeWidth="1" fill="none" />
+                  <path d="M64 37 Q70 41 76 37" stroke="#c08a70" strokeWidth="1.2" fill="none" opacity="0.5" />
                 </svg>
-                <span className="text-[10px] text-white/50 font-medium mt-1.5 tracking-wide">Healthcare Expert</span>
+                <span className="text-[10px] text-white/40 font-medium mt-1 tracking-wider uppercase">Healthcare Expert</span>
               </motion.div>
             </div>
           </div>

@@ -8,7 +8,7 @@ import { ConvexReactClient } from "convex/react";
 import React, { StrictMode, useEffect, lazy, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Route, Routes, useLocation } from "react-router";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import ScrollRestorer from "@/components/ScrollRestorer";
 import { PageErrorBoundary } from "@/components/PageErrorBoundary";
 import "./index.css";
@@ -84,10 +84,9 @@ function RouteLoading() {
 function PageTransition({ children }: { children: React.ReactNode }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 6 }}
+      initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -6 }}
-      transition={{ duration: 0.2, ease: "easeOut" }}
+      transition={{ duration: 0.15, ease: "easeOut" }}
     >
       {children}
     </motion.div>
@@ -183,13 +182,12 @@ function RouteSyncer() {
   return null;
 }
 
-/** Animated routes with page transitions */
+/** Routes with page transitions */
 function AnimatedRoutes() {
   const location = useLocation();
 
   return (
-    <AnimatePresence mode="wait">
-      <Routes location={location} key={location.pathname}>
+      <Routes location={location}>
         <Route
           path="/"
           element={
@@ -516,7 +514,6 @@ function AnimatedRoutes() {
           }
         />
       </Routes>
-    </AnimatePresence>
   );
 }
 

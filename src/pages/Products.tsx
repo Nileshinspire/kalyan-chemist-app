@@ -27,41 +27,46 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 
+/**
+ * Extract URL search-param values OUTSIDE the component so they are stable
+ * across renders. This avoids the bidirectional URL ↔ state sync loop that
+ * caused visible page blinking on every category navigation.
+ */
+function useUrlFilterValues() {
+  const [searchParams] = useSearchParams();
+  const urlSearch = useMemo(() => searchParams.get("search") || "", [searchParams.get("search")]);
+  const urlCategory = useMemo(() => searchParams.get("category") || "", [searchParams.get("category")]);
+  const urlBrand = useMemo(() => searchParams.get("brand") || "", [searchParams.get("brand")]);
+  const urlSort = useMemo(() => searchParams.get("sort") || "relevance", [searchParams.get("sort")]);
+  const urlRx = useMemo(() => searchParams.get("rx") || "", [searchParams.get("rx")]);
+  const urlStock = useMemo(() => searchParams.get("stock") || "", [searchParams.get("stock")]);
+  const navKey = useMemo(() => searchParams.get("nav") || "", [searchParams.get("nav")]);
+  return { urlSearch, urlCategory, urlBrand, urlSort, urlRx, urlStock, navKey };
+}
+
 export default function Products() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const initialSearch = searchParams.get("search") || "";
-  const initialCategory = searchParams.get("category") || "";
-  const initialBrand = searchParams.get("brand") || "";
-  const initialSort = searchParams.get("sort") || "relevance";
-  const initialRx = searchParams.get("rx") || "";
-  const initialStock = searchParams.get("stock") || "";
+  const [, setSearchParams] = useSearchParams();
 
-  const [searchQuery, setSearchQuery] = useState(initialSearch);
-  const [selectedCategorySlug, setSelectedCategorySlug] = useState(initialCategory);
-  const [selectedBrandSlug, setSelectedBrandSlug] = useState(initialBrand);
-  const [sortBy, setSortBy] = useState(initialSort);
-  const [prescriptionFilter, setPrescriptionFilter] = useState(initialRx);
-  const [stockFilter, setStockFilter] = useState(initialStock);
+  // Read URL params into stable memoized values (no extra renders)
+  const { urlSearch, urlCategory, urlBrand, urlSort, urlRx, urlStock, navKey } = useUrlFilterValues();
+
+  // Local state — initialized from URL, updated by user interactions
+  const [searchQuery, setSearchQuery] = useState(urlSearch);
+  const [selectedCategorySlug, setSelectedCategorySlug] = useState(urlCategory);
+  const [selectedBrandSlug, setSelectedBrandSlug] = useState(urlBrand);
+  const [sortBy, setSortBy] = useState(urlSort);
+  const [prescriptionFilter, setPrescriptionFilter] = useState(urlRx);
+  const [stockFilter, setStockFilter] = useState(urlStock);
   const [autocompleteQuery, setAutocompleteQuery] = useState("");
   const [showAutocomplete, setShowAutocomplete] = useState(false);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const autocompleteRef = useRef<HTMLDivElement>(null);
 
-  // Read nav param (stable — doesn't change within Products page)
-  const navKey = useMemo(() => searchParams.get("nav") || "", [searchParams.get("nav")]);
-
-  // Sync URL params → state when navigating from outside (e.g. Navbar category clicks)
-  // Use individual param values as deps to avoid triggering on every searchParams object recreation
-  const urlSearch = searchParams.get("search") || "";
-  const urlCategory = searchParams.get("category") || "";
-  const urlBrand = searchParams.get("brand") || "";
-  const urlSort = searchParams.get("sort") || "relevance";
-  const urlRx = searchParams.get("rx") || "";
-  const urlStock = searchParams.get("stock") || "";
-
+  // Sync URL → local state on external navigation (e.g. Navbar category click)
+  // Only runs when individual param values actually change — not on every render
   useEffect(() => {
     setSearchQuery(urlSearch);
     setSelectedCategorySlug(urlCategory);
@@ -84,7 +89,7 @@ export default function Products() {
     autocompleteQuery.length >= 2 ? { query: autocompleteQuery } : "skip"
   );
 
-  // Main search query
+  // Main search query — uses local state which syncs from URL on navigation
   const products = useQuery(api.publicProducts.search, {
     query: searchQuery || "",
     categoryId: selectedCategoryId as any,
@@ -94,9 +99,14 @@ export default function Products() {
     sortBy: sortBy as any,
   });
 
-  // Sync state → URL params (only when user changes filters, not on every render)
-  const prevUrlRef = useRef("");
+  // Sync state → URL only on user interactions (not on external navigation)
+  // Skip the initial render since URL already matches state
+  const isInitialMount = useRef(true);
   useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
     const params = new URLSearchParams();
     if (navKey) params.set("nav", navKey);
     if (searchQuery) params.set("search", searchQuery);
@@ -105,11 +115,7 @@ export default function Products() {
     if (sortBy !== "relevance") params.set("sort", sortBy);
     if (prescriptionFilter) params.set("rx", prescriptionFilter);
     if (stockFilter) params.set("stock", stockFilter);
-    const newUrl = params.toString();
-    if (newUrl !== prevUrlRef.current) {
-      prevUrlRef.current = newUrl;
-      setSearchParams(params, { replace: true });
-    }
+    setSearchParams(params, { replace: true });
   }, [searchQuery, selectedCategorySlug, selectedBrandSlug, sortBy, prescriptionFilter, stockFilter, navKey, setSearchParams]);
 
   // Close autocomplete on outside click
