@@ -421,7 +421,7 @@ const Navbar = memo(function Navbar() {
       {/* ═══════════════════════════════════════════════════════
           GLOBAL CATEGORY NAVIGATION BAR
           ═══════════════════════════════════════════════════════ */}
-      <nav className="hidden md:block border-b border-white/10" style={{ background: 'rgba(0,0,0,0.22)' }}>
+      <nav className="hidden md:block" style={{ background: '#0a3d2e' }}>
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <div className="flex items-center gap-0 overflow-x-auto scrollbar-none">
             {CATEGORY_NAV_ITEMS.map((cat) => {
