@@ -532,34 +532,148 @@ export const enrichProduct = action({
       storageInformation: string | null;
       composition: string | null;
       expiryDate: string | null;
-      category: string | null;
-    } = { imageUrl: null, manufacturer: null, benefits: null, description: null, consumeType: null, safetyNote: null, form: null, storageInformation: null, composition: null, expiryDate: null, category: null };
+      category: any;
+      subcategory: string | null;
+    } = { imageUrl: null, manufacturer: null, benefits: null, description: null, consumeType: null, safetyNote: null, form: null, storageInformation: null, composition: null, expiryDate: null, category: null, subcategory: null };
 
-    // Category inference based on product form, composition, and name
-    function inferCategory(form: string, composition: string, name: string): string | null {
+    // Category inference based on product form, composition, and name.
+    // Returns { category, subcategory } matching the actual DB category hierarchy.
+    function inferCategory(form: string, composition: string, name: string): { category: string; subcategory: string | null } | null {
       const f = form.toLowerCase();
       const c = composition.toLowerCase();
       const n = name.toLowerCase();
-      if (["cream", "gel", "ointment", "lotion"].includes(f)) return "Personal Care";
-      if (f === "spray") return "Personal Care";
-      if (f === "drops" && (n.includes("eye") || c.includes("ofloxacin") || c.includes("tobramycin"))) return "Eye Care";
-      if (f === "drops" && (n.includes("nasal") || c.includes("oxymetazoline"))) return "Cold & Flu";
-      if (f === "nasal drops" || f === "nasal") return "Cold & Flu";
-      if (["syrup", "suspension"].includes(f) && (c.includes("ambroxol") || c.includes("salbutamol") || c.includes("bromhexine") || c.includes("guaifenesin") || n.includes("cough"))) return "Cough & Cold";
-      if (["syrup", "suspension"].includes(f) && (c.includes("paracetamol") || c.includes("phenylephrine"))) return "Cold & Flu";
-      if (["syrup", "suspension"].includes(f) && (c.includes("magaldrate") || c.includes("simethicone") || c.includes("ranitidine"))) return "Digestive Care";
-      if (["syrup", "suspension"].includes(f) && (c.includes("cetirizine") || c.includes("loratadine") || c.includes("montelukast"))) return "Allergy & Sinus";
-      if (["syrup", "suspension"].includes(f) && n.includes("calcium") || c.includes("calcium")) return "Vitamins & Supplements";
-      if (f === "powder" && (c.includes("sodium bicarbonate") || c.includes("antacid") || n.includes("eno") || n.includes("gelusil"))) return "Digestive Care";
-      if (f === "sachet" && c.includes("bacillus")) return "Digestive Care";
-      if (f === "inhaler" || f === "respules") return "Respiratory Care";
-      if (c.includes("paracetamol") || c.includes("ibuprofen") || c.includes("diclofenac") || c.includes("nimesulide")) return "Pain & Relief";
-      if (c.includes("cetirizine") || c.includes("loratadine") || c.includes("fexofenadine") || c.includes("montelukast")) return "Allergy & Sinus";
-      if (c.includes("pantoprazole") || c.includes("omeprazole") || c.includes("rabeprazole") || c.includes("ranitidine")) return "Digestive Care";
-      if (c.includes("metformin") || c.includes("glimepiride") || c.includes("gliclazide")) return "Diabetes Care";
-      if (c.includes("amlodipine") || c.includes("losartan") || c.includes("telmisartan") || c.includes("atorvastatin")) return "Heart & Cardio";
-      if (c.includes("amoxicillin") || c.includes("azithromycin") || c.includes("cefixime") || c.includes("ciprofloxacin")) return "Antibiotics";
-      if (c.includes("vitamin") || c.includes("calcium") || c.includes("iron") || c.includes("multivitamin")) return "Vitamins & Supplements";
+
+      // ── Exact medicine name mappings (highest confidence) ──
+      const MEDICINE_CATEGORIES: Record<string, { category: string; subcategory: string }> = {
+        // Pain Relief
+        "dolo": { category: "Pain Relief", subcategory: "Pain Relief" },
+        "crocin": { category: "Pain Relief", subcategory: "Pain Relief" },
+        "combiflam": { category: "Pain Relief", subcategory: "Pain Relief" },
+        "calpol": { category: "Pain Relief", subcategory: "Pain Relief" },
+        "meftal": { category: "Pain Relief", subcategory: "Pain Relief" },
+        "naprosyn": { category: "Pain Relief", subcategory: "Pain Relief" },
+        "zandu balm": { category: "Pain Relief", subcategory: "Pain Relief" },
+        "zandu": { category: "Pain Relief", subcategory: "Pain Relief" },
+        "volini": { category: "Pain Relief", subcategory: "Pain Relief" },
+        "volini spray": { category: "Pain Relief", subcategory: "Pain Relief" },
+        "moov": { category: "Pain Relief", subcategory: "Pain Relief" },
+        "moov spray": { category: "Pain Relief", subcategory: "Pain Relief" },
+        "iodex": { category: "Pain Relief", subcategory: "Pain Relief" },
+        "tiger balm": { category: "Pain Relief", subcategory: "Pain Relief" },
+        "zeet": { category: "Pain Relief", subcategory: "Pain Relief" },
+        "intex": { category: "Pain Relief", subcategory: "Pain Relief" },
+        "deepspray": { category: "Pain Relief", subcategory: "Pain Relief" },
+        // Heart & Cardio
+        "atorva": { category: "Heart & Cardio", subcategory: "Heart & Cardio" },
+        "amlogard": { category: "Heart & Cardio", subcategory: "Heart & Cardio" },
+        "stamlo": { category: "Heart & Cardio", subcategory: "Heart & Cardio" },
+        "telma": { category: "Heart & Cardio", subcategory: "Heart & Cardio" },
+        "losar": { category: "Heart & Cardio", subcategory: "Heart & Cardio" },
+        // Diabetes Care
+        "glycomet": { category: "Diabetes Care", subcategory: "Diabetes Care" },
+        // Digestive Health
+        "pan": { category: "Digestive Health", subcategory: "Digestive Health" },
+        "omez": { category: "Digestive Health", subcategory: "Digestive Health" },
+        "rabecee": { category: "Digestive Health", subcategory: "Digestive Health" },
+        "digene": { category: "Digestive Health", subcategory: "Digestive Health" },
+        "gelusil": { category: "Digestive Health", subcategory: "Digestive Health" },
+        "enterogermina": { category: "Digestive Health", subcategory: "Digestive Health" },
+        // Vitamins & Supplements
+        "shelcal": { category: "Vitamins & Supplements", subcategory: "Vitamins & Supplements" },
+        "becosules": { category: "Vitamins & Supplements", subcategory: "Vitamins & Supplements" },
+        "supradyn": { category: "Vitamins & Supplements", subcategory: "Vitamins & Supplements" },
+        "neurobion": { category: "Vitamins & Supplements", subcategory: "Vitamins & Supplements" },
+        "revital": { category: "Vitamins & Supplements", subcategory: "Vitamins & Supplements" },
+        // Antibiotics
+        "azee": { category: "Antibiotics", subcategory: "Antibiotics" },
+        "augmentin": { category: "Antibiotics", subcategory: "Antibiotics" },
+        "zifi": { category: "Antibiotics", subcategory: "Antibiotics" },
+        "taxim": { category: "Antibiotics", subcategory: "Antibiotics" },
+        "gudcef": { category: "Antibiotics", subcategory: "Antibiotics" },
+        "mox": { category: "Antibiotics", subcategory: "Antibiotics" },
+        // Cold & Cough
+        "sinarest": { category: "Health & Safety", subcategory: "Cold & Cough" },
+        "benadryl": { category: "Health & Safety", subcategory: "Cold & Cough" },
+        "vicks": { category: "Health & Safety", subcategory: "Cold & Cough" },
+        "tuspel": { category: "Health & Safety", subcategory: "Cold & Cough" },
+        "ascoril": { category: "Health & Safety", subcategory: "Cold & Cough" },
+        "asthalin": { category: "Health & Safety", subcategory: "Cold & Cough" },
+        "nasivion": { category: "Health & Safety", subcategory: "Cold & Cough" },
+        // Eye & Ear Care
+        "toba eye drops": { category: "Personal Care", subcategory: "Eye & Ear Care" },
+        "ozidex": { category: "Personal Care", subcategory: "Eye & Ear Care" },
+        // Antiseptic / First Aid
+        "cipladine": { category: "Health & Safety", subcategory: "First Aid" },
+        // Duphaston → Baby & Mother
+        "duphaston": { category: "Baby & Mother", subcategory: "Baby & Mother" },
+      };
+
+      // Try exact match first
+      if (MEDICINE_CATEGORIES[n]) return MEDICINE_CATEGORIES[n];
+      // Try stripped name
+      const stripped = n.replace(/\s*\d+\s*(mg|ml|g|mcg|iu|%)?$/i, "").trim();
+      if (MEDICINE_CATEGORIES[stripped]) return MEDICINE_CATEGORIES[stripped];
+      // Try partial match (longest key wins)
+      let bestKey = "";
+      let bestMatch: { category: string; subcategory: string } | null = null;
+      for (const [key, val] of Object.entries(MEDICINE_CATEGORIES)) {
+        if (n.includes(key) && key.length > bestKey.length) {
+          bestKey = key;
+          bestMatch = val;
+        }
+      }
+      if (bestMatch) return bestMatch;
+
+      // ── Composition-based fallback ──
+      if (c.includes("paracetamol") || c.includes("ibuprofen") || c.includes("diclofenac") || c.includes("nimesulide") || c.includes("naproxen") || c.includes("mefenamic acid") || c.includes("aceclofenac"))
+        return { category: "Pain Relief", subcategory: "Pain Relief" };
+      if (c.includes("amoxicillin") || c.includes("azithromycin") || c.includes("cefixime") || c.includes("ciprofloxacin") || c.includes("doxycycline") || c.includes("cefuroxime") || c.includes("metronidazole") || c.includes("ceftriaxone"))
+        return { category: "Antibiotics", subcategory: "Antibiotics" };
+      if (c.includes("metformin") || c.includes("glimepiride") || c.includes("gliclazide") || c.includes("teneligliptin"))
+        return { category: "Diabetes Care", subcategory: "Diabetes Care" };
+      if (c.includes("amlodipine") || c.includes("losartan") || c.includes("telmisartan") || c.includes("atorvastatin") || c.includes("metoprolol") || c.includes("rosuvastatin"))
+        return { category: "Heart & Cardio", subcategory: "Heart & Cardio" };
+      if (c.includes("pantoprazole") || c.includes("omeprazole") || c.includes("rabeprazole") || c.includes("ranitidine") || c.includes("magaldrate") || c.includes("simethicone"))
+        return { category: "Digestive Health", subcategory: "Digestive Health" };
+      if (c.includes("cetirizine") || c.includes("loratadine") || c.includes("fexofenadine") || c.includes("montelukast"))
+        return { category: "Health & Safety", subcategory: "Cold & Cough" };
+      if (c.includes("vitamin") || c.includes("calcium") || c.includes("iron") || c.includes("multivitamin") || c.includes("ginseng"))
+        return { category: "Vitamins & Supplements", subcategory: "Vitamins & Supplements" };
+      if (c.includes("salbutamol") || c.includes("ambroxol") || c.includes("bromhexine") || c.includes("guaifenesin") || c.includes("dextromethorphan"))
+        return { category: "Health & Safety", subcategory: "Cold & Cough" };
+      if (c.includes("oxymetazoline") || c.includes("xylometazoline"))
+        return { category: "Health & Safety", subcategory: "Cold & Cough" };
+      if (c.includes("ofloxacin") && (f === "drops" || n.includes("eye")))
+        return { category: "Personal Care", subcategory: "Eye & Ear Care" };
+      if (c.includes("tobramycin") && f === "drops")
+        return { category: "Personal Care", subcategory: "Eye & Ear Care" };
+      if (c.includes("prednisolone") || c.includes("clobetasol") || c.includes("adapalene"))
+        return { category: "Skin & Personal Care", subcategory: "Skin & Personal Care" };
+      if (c.includes("levothyroxine"))
+        return { category: "Others", subcategory: "Other Healthcare Products" };
+
+      // ── Form-based fallback ──
+      if (["cream", "gel", "ointment", "lotion"].includes(f))
+        return { category: "Skin & Personal Care", subcategory: "Skin & Personal Care" };
+      if (f === "spray")
+        return { category: "Pain Relief", subcategory: "Pain Relief" };
+      if (f === "drops" && (n.includes("eye") || c.includes("ofloxacin") || c.includes("tobramycin")))
+        return { category: "Personal Care", subcategory: "Eye & Ear Care" };
+      if (f === "drops" && (n.includes("nasal") || c.includes("oxymetazoline")))
+        return { category: "Health & Safety", subcategory: "Cold & Cough" };
+      if (f === "nasal drops" || f === "nasal")
+        return { category: "Health & Safety", subcategory: "Cold & Cough" };
+      if (["syrup", "suspension"].includes(f) && (c.includes("paracetamol") || c.includes("phenylephrine")))
+        return { category: "Health & Safety", subcategory: "Cold & Cough" };
+      if (f === "powder" && (c.includes("sodium bicarbonate") || c.includes("antacid") || n.includes("eno") || n.includes("gelusil")))
+        return { category: "Digestive Health", subcategory: "Digestive Health" };
+      if (f === "sachet" && c.includes("bacillus"))
+        return { category: "Digestive Health", subcategory: "Digestive Health" };
+      if (f === "inhaler" || f === "respules")
+        return { category: "Health & Safety", subcategory: "Cold & Cough" };
+      if (c.includes("bacillus") || c.includes("probiotic"))
+        return { category: "Digestive Health", subcategory: "Digestive Health" };
+
       return null;
     }
 
