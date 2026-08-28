@@ -78,8 +78,6 @@ const MEDICINES_DB: Record<string, MedicineInfo> = {
   "Mox": { manufacturer: "Cipla Ltd", composition: "Amoxicillin 500mg / 250mg", benefits: "Broad-spectrum penicillin antibiotic for common bacterial infections of the respiratory tract, urinary tract, ear, and throat. Well-tolerated and effective.", description: "Mox from Cipla contains Amoxicillin for effective treatment of common bacterial infections.", form: "capsule" },
   "Tuspel": { manufacturer: "Cipla Ltd", composition: "Ambroxol 30mg + Terbutaline 1.25mg + Guaifenesin 50mg", benefits: "Triple-action cough syrup that thins mucus, opens airways, and provides effective relief from productive and dry cough.", description: "Tuspel from Cipla is a combination cough syrup with Ambroxol, Terbutaline, and Guaifenesin for comprehensive cough relief.", form: "syrup" },
   "Ascoril": { manufacturer: "GlaxoSmithKline Pharmaceuticals Ltd", composition: "Salbutamol + Bromhexine + Guaifenesin + Menthol", benefits: "Bronchodilator cough syrup that opens airways and thins mucus for effective relief from cough associated with asthma, bronchitis, and COPD.", description: "Ascoril from GSK combines Salbutamol with mucolytics for effective cough relief in respiratory conditions.", form: "syrup" },
-  "Zifi": { manufacturer: "FDC Ltd", composition: "Cefixime 200mg", benefits: "Third-generation cephalosporin antibiotic for respiratory, urinary, and ENT infections.", description: "Zifi from FDC contains Cefixime. Effective oral treatment for respiratory and UTIs.", form: "tablet" },
-  "Taxim": { manufacturer: "Alkem Laboratories Ltd", composition: "Cefixime 200mg", benefits: "Oral cephalosporin antibiotic for respiratory infections, UTI, and typhoid fever.", description: "Taxim from Alkem contains Cefixime with excellent bioavailability for bacterial infections.", form: "tablet" },
 };
 
 // Known manufacturers fallback
@@ -275,7 +273,7 @@ function matchMedicine(productName: string): MedicineInfo | null {
   let bestMatch: MedicineInfo | null = null;
   let bestLen = 0;
   for (const [key, info] of Object.entries(MEDICINES_DB)) {
-    if (lower.includes(key) && key.length > bestLen) {
+    if (lower.includes(key.toLowerCase()) && key.length > bestLen) {
       bestMatch = info;
       bestLen = key.length;
     }
@@ -514,7 +512,7 @@ export const enrichProduct = action({
     else {
       let bestLen = 0;
       for (const [key, info] of Object.entries(MEDICINES_DB)) {
-        if (lower.includes(key) && key.length > bestLen) {
+        if (lower.includes(key.toLowerCase()) && key.length > bestLen) {
           matched = info;
           bestLen = key.length;
         }
