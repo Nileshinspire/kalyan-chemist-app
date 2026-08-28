@@ -109,7 +109,7 @@ function HeroCategoryNav() {
   const currentNavKey = useMemo(() => searchParams.get("nav") || "", [searchParams.get("nav")]);
 
   return (
-    <div className="relative z-30 border-b border-white/10" style={{ background: 'rgba(0,0,0,0.22)' }}>
+    <div className="relative" style={{ background: '#0a3d2e' }}>
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
         <div className="flex items-center gap-0 overflow-x-auto scrollbar-none">
           {HERO_CATEGORIES.map((cat) => {
@@ -180,6 +180,8 @@ export default function Landing() {
 
             {/* ── Hero: Buy Medicines and Essentials ── */}
       <section ref={heroRef} className="relative overflow-hidden" style={{ background: 'linear-gradient(160deg, oklch(0.42 0.09 170) 0%, oklch(0.38 0.10 168) 40%, oklch(0.35 0.08 172) 100%)' }}>
+        {/* Category Navigation Strip — integrated at top of hero */}
+        <HeroCategoryNav />
         {/* Decorative background elements */}
         <div className="absolute inset-0">
           <div className="absolute top-0 left-0 w-96 h-96 bg-white/8 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2" />
