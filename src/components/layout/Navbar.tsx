@@ -26,6 +26,19 @@ import {
   X,
 } from "lucide-react";
 
+/* ─── Global Category Navigation Items ─── */
+const CATEGORY_NAV_ITEMS = [
+  { label: "Kalyan Chemist Products", slug: "" },
+  { label: "Baby Care", slug: "baby-mother" },
+  { label: "Nutritional Drinks & Supplements", slug: "nutrition" },
+  { label: "Women Care", slug: "baby-mother" },
+  { label: "Personal Care", slug: "personal-care" },
+  { label: "Ayurveda", slug: "alternative-medicine" },
+  { label: "Health Devices", slug: "health-safety" },
+  { label: "Home Essentials", slug: "others" },
+  { label: "Health Conditions", slug: "health-safety" },
+] as const;
+
 const Navbar = memo(function Navbar() {
   const { isAuthenticated, isAdmin, user, logout } = useAuth();
   const navigate = useNavigate();
@@ -55,6 +68,14 @@ const Navbar = memo(function Navbar() {
   const handleSignOut = async () => {
     await logout();
     navigate("/");
+  };
+
+  const handleCategoryNav = (slug: string) => {
+    if (slug) {
+      navigate(`/products?category=${slug}`);
+    } else {
+      navigate("/products");
+    }
   };
 
   const isActive = (path: string) => location.pathname === path;
@@ -240,7 +261,7 @@ const Navbar = memo(function Navbar() {
                     <X className="size-4" />
                   </Button>
                 </div>
-                <div className="p-4 flex-1">
+                <div className="p-4 flex-1 overflow-y-auto">
                   <form onSubmit={handleSearch} className="mb-4">
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
@@ -275,8 +296,28 @@ const Navbar = memo(function Navbar() {
                       <Package className="mr-2 size-4" />
                       Browse Medicines
                     </Button>
+                    {/* Mobile category links */}
+                    <div className="mt-2 mb-2 px-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                        Categories
+                      </p>
+                    </div>
+                    {CATEGORY_NAV_ITEMS.map((cat) => (
+                      <Button
+                        key={cat.label}
+                        variant="ghost"
+                        className="justify-start rounded-xl h-9 text-xs"
+                        onClick={() => {
+                          handleCategoryNav(cat.slug);
+                          setMobileOpen(false);
+                        }}
+                      >
+                        {cat.label}
+                      </Button>
+                    ))}
                     {isAuthenticated && (
                       <>
+                        <div className="my-2 border-t border-border/40" />
                         <Button
                           variant="ghost"
                           className="justify-start rounded-xl h-10"
@@ -371,6 +412,38 @@ const Navbar = memo(function Navbar() {
           </Sheet>
         </div>
       </div>
+
+      {/* ═══════════════════════════════════════════════════════
+          GLOBAL CATEGORY NAVIGATION BAR
+          ═══════════════════════════════════════════════════════ */}
+      <nav className="hidden md:block border-t border-border/30 bg-white/80 backdrop-blur-sm">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
+          <div className="flex items-center gap-0 overflow-x-auto scrollbar-none">
+            {CATEGORY_NAV_ITEMS.map((cat) => {
+              const isCurrentCategory =
+                location.pathname === "/products" &&
+                new URLSearchParams(location.search).get("category") ===
+                  (cat.slug || null);
+              return (
+                <button
+                  key={cat.label}
+                  onClick={() => handleCategoryNav(cat.slug)}
+                  className={`relative px-3 lg:px-4 py-2.5 text-xs lg:text-sm font-medium whitespace-nowrap transition-all duration-200 ${
+                    isCurrentCategory
+                      ? "text-primary"
+                      : "text-gray-600 hover:text-primary"
+                  }`}
+                >
+                  {cat.label}
+                  {isCurrentCategory && (
+                    <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-primary rounded-full" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </nav>
     </header>
   );
 });

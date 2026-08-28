@@ -30,6 +30,7 @@ import { Badge } from "@/components/ui/badge";
 import { useNavigate, useLocation } from "react-router";
 import { useRef, useState } from "react";
 import { openWhatsApp, generateEnquiryMessage } from "@/lib/whatsapp";
+import Navbar from "@/components/layout/Navbar";
 import WhatsAppFloat from "@/components/WhatsAppFloat";
 import WriteReview from "@/components/WriteReview";
 import { useQuery, useMutation } from "convex/react";
@@ -127,126 +128,123 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen bg-background text-foreground overflow-hidden">
-      {/* ── Navigation ── */}
-      <header className="sticky top-0 z-50 glass-strong border-b border-border/40">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => navigate("/")}>
-            <div className="flex size-9 items-center justify-center rounded-xl gradient-primary text-white font-bold text-sm tracking-tight shadow-glow">
-              KC
+      {/* ── Global Navigation ── */}
+      <Navbar />
+
+      {/* ── Hero: Buy Medicines and Essentials ── */}
+      <section ref={heroRef} className="relative bg-gradient-to-br from-[#0f2035] via-[#162d4a] to-[#1a3555] overflow-hidden">
+        {/* Decorative background elements */}
+        <div className="absolute inset-0">
+          <div className="absolute top-0 left-0 w-96 h-96 bg-primary/10 rounded-full blur-3xl -translate-x-1/2 -translate-y-1/2" />
+          <div className="absolute bottom-0 right-0 w-80 h-80 bg-blue-400/10 rounded-full blur-3xl translate-x-1/4 translate-y-1/4" />
+          <div className="absolute inset-0 opacity-[0.03]" style={{
+            backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)",
+            backgroundSize: "24px 24px",
+          }} />
+        </div>
+
+        <div className="relative mx-auto max-w-7xl px-4 sm:px-6 py-10 md:py-16">
+          <div className="flex flex-col lg:flex-row items-center gap-8 lg:gap-12">
+            {/* Left illustrations */}
+            <div className="hidden lg:flex items-center gap-4 shrink-0">
+              {/* Doctor with patient */}
+              <div className="w-24 h-28 rounded-2xl bg-white/10 backdrop-blur-sm flex flex-col items-center justify-center border border-white/10 p-3">
+                <svg viewBox="0 0 80 80" fill="none" className="w-16 h-16">
+                  <circle cx="40" cy="20" r="12" fill="rgba(255,255,255,0.7)" />
+                  <path d="M20 55 C20 40 60 40 60 55 L60 70 L20 70 Z" fill="rgba(255,255,255,0.5)" />
+                  <rect x="35" y="12" width="10" height="4" rx="2" fill="rgba(96,165,250,0.8)" />
+                  <circle cx="60" cy="28" r="8" fill="rgba(255,255,255,0.4)" />
+                  <path d="M52 45 C52 36 68 36 68 45 L68 55 L52 55 Z" fill="rgba(255,255,255,0.3)" />
+                </svg>
+              </div>
+              {/* Pharmacist */}
+              <div className="w-20 h-24 rounded-2xl bg-white/10 backdrop-blur-sm flex flex-col items-center justify-center border border-white/10 p-3">
+                <svg viewBox="0 0 60 60" fill="none" className="w-12 h-12">
+                  <circle cx="30" cy="16" r="10" fill="rgba(255,255,255,0.6)" />
+                  <path d="M15 45 C15 32 45 32 45 45 L45 55 L15 55 Z" fill="rgba(255,255,255,0.4)" />
+                  <rect x="24" y="8" width="12" height="6" rx="3" fill="rgba(52,211,153,0.7)" />
+                </svg>
+              </div>
             </div>
-            <div className="leading-tight">
-              <span className="text-lg font-bold tracking-tight text-foreground">Kalyan Chemist</span>
-              <span className="hidden sm:block text-[11px] font-medium uppercase tracking-widest text-primary/70">
-                Trusted Pharmacy
-              </span>
+
+            {/* Center: Heading + Search */}
+            <div className="flex-1 text-center max-w-2xl mx-auto">
+              <motion.h1
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-tight mb-4"
+              >
+                Buy Medicines and Essentials
+              </motion.h1>
+
+              <motion.form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const q = (e.target as HTMLFormElement).querySelector("input")?.value;
+                  if (q?.trim()) navigate(`/products?search=${encodeURIComponent(q.trim())}`);
+                }}
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.15 }}
+                className="relative max-w-xl mx-auto"
+              >
+                <div className="relative">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 size-5 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search Medicines"
+                    className="w-full h-12 sm:h-14 pl-12 pr-32 sm:pr-36 rounded-xl bg-white text-gray-900 placeholder-gray-400 text-base sm:text-lg font-medium shadow-lg focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
+                  />
+                  <button
+                    type="submit"
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 h-9 sm:h-10 px-5 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition-colors"
+                  >
+                    Search
+                  </button>
+                </div>
+              </motion.form>
+
+              {/* Quick search tags */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.5, delay: 0.3 }}
+                className="flex flex-wrap justify-center gap-2 mt-4"
+              >
+                {["Paracetamol", "Vitamin C", "Cough Syrup", "Diabetes", "Skin Care"].map((tag) => (
+                  <button
+                    key={tag}
+                    onClick={() => navigate(`/products?search=${encodeURIComponent(tag)}`)}
+                    className="px-3 py-1 rounded-full bg-white/10 text-white/80 text-xs font-medium hover:bg-white/20 transition-colors border border-white/10"
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </motion.div>
             </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" className="rounded-xl" onClick={() => navigate("/cart")}>
-              <ShoppingCart className="size-4" />
-            </Button>
-            <Button variant="ghost" className="hidden sm:inline-flex text-sm font-medium" onClick={() => navigate("/auth")}>
-              Sign In
-            </Button>
-            <Button className="text-sm font-semibold px-5 gradient-primary text-white shadow-glow hover:shadow-card-hover transition-all hover:scale-[1.02] active:scale-[0.98] rounded-xl" onClick={() => navigate("/auth")}>
-              Get Started
-            </Button>
+
+            {/* Right illustrations */}
+            <div className="hidden lg:flex items-center gap-4 shrink-0">
+              {/* Mother & baby */}
+              <div className="w-20 h-24 rounded-2xl bg-white/10 backdrop-blur-sm flex flex-col items-center justify-center border border-white/10 p-3">
+                <svg viewBox="0 0 60 60" fill="none" className="w-12 h-12">
+                  <circle cx="30" cy="14" r="9" fill="rgba(255,255,255,0.6)" />
+                  <path d="M16 42 C16 30 44 30 44 42 L44 52 L16 52 Z" fill="rgba(255,255,255,0.4)" />
+                  <circle cx="42" cy="30" r="6" fill="rgba(255,255,255,0.3)" />
+                </svg>
+              </div>
+              {/* Medicine/shield */}
+              <div className="w-24 h-28 rounded-2xl bg-white/10 backdrop-blur-sm flex flex-col items-center justify-center border border-white/10 p-3">
+                <svg viewBox="0 0 80 80" fill="none" className="w-16 h-16">
+                  <path d="M40 8 L60 20 L60 45 C60 60 40 72 40 72 C40 72 20 60 20 45 L20 20 Z" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.4)" strokeWidth="1.5" />
+                  <path d="M35 40 L40 35 L45 40 L40 45 Z" fill="rgba(96,165,250,0.8)" />
+                  <rect x="37" y="30" width="6" height="20" rx="3" fill="rgba(96,165,250,0.6)" />
+                </svg>
+              </div>
+            </div>
           </div>
         </div>
-      </header>
-
-      {/* ── Hero ── */}
-      <section ref={heroRef} className="relative overflow-hidden">
-        <div className="absolute inset-0 gradient-primary opacity-[0.03]" />
-        <div className="pointer-events-none absolute -right-32 top-0 h-[700px] w-[700px] rounded-full bg-primary/[0.1] blur-[120px] animate-float" />
-        <div className="pointer-events-none absolute -left-32 top-40 h-[500px] w-[500px] rounded-full bg-primary/[0.06] blur-[100px] animate-float-delayed" />
-        <div className="pointer-events-none absolute right-1/4 bottom-0 h-[400px] w-[400px] rounded-full bg-emerald-500/[0.05] blur-[80px]" />
-        <div className="absolute inset-0 opacity-[0.015]" style={{ backgroundImage: "radial-gradient(circle, oklch(0.42 0.09 170) 1px, transparent 1px)", backgroundSize: "32px 32px" }} />
-
-        <motion.div
-          style={{ y: heroY, opacity: heroOpacity }}
-          initial="hidden"
-          animate="visible"
-          variants={stagger}
-          className="relative mx-auto max-w-7xl px-6 pb-24 pt-20 sm:pt-28 lg:pt-36"
-        >
-          <div className="max-w-3xl">
-            <motion.div variants={fadeUp} className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-2 text-xs font-semibold text-primary backdrop-blur-sm">
-              <Sparkles className="size-3.5" />
-              Licensed and Verified Online Pharmacy
-              <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-            </motion.div>
-            <motion.h1 variants={fadeUpDelay} className="text-4xl font-extrabold leading-[1.08] tracking-tight sm:text-5xl lg:text-7xl">
-              Your Trusted Local Pharmacy,<br className="hidden sm:block" />
-              <span className="text-gradient">Now Online</span>
-            </motion.h1>
-            <motion.p variants={fadeUpDelay} className="mt-6 max-w-xl text-lg leading-relaxed text-muted-foreground sm:text-xl">
-              Order genuine medicines, wellness products, and healthcare essentials
-              from a pharmacy you can trust. Fast delivery, fair prices, and
-              pharmacist-backed guidance — all from one place.
-            </motion.p>
-            <motion.div variants={fadeUpDelay} className="mt-8 flex flex-wrap gap-3">
-              <Button size="lg" className="text-sm font-semibold px-8 h-12 gradient-primary text-white shadow-glow hover:shadow-card-hover transition-all hover:scale-[1.02] active:scale-[0.98] rounded-xl" onClick={() => navigate("/products")}>
-                Shop Medicines
-                <ArrowRight className="ml-1.5 size-4" />
-              </Button>
-              <Button
-                size="lg"
-                variant="outline"
-                className="text-sm font-semibold px-8 h-12 border-border/60 hover:border-primary/30 hover:bg-primary/[0.03] transition-all rounded-xl gap-2"
-                onClick={() => navigate("/account/prescriptions")}
-              >
-                <Upload className="size-4" />
-                Upload Prescription
-              </Button>
-              <Button
-                size="lg"
-                variant="outline"
-                className="text-sm font-semibold px-8 h-12 border-green-600/60 text-green-700 hover:border-green-500 hover:bg-green-50 hover:text-green-700 transition-all rounded-xl gap-2"
-                onClick={async () => {
-                  const phone = deliveryConfig?.storeWhatsApp || deliveryConfig?.storePhone || "919876543210";
-                  const message = generateEnquiryMessage({ enquiryType: "General Enquiry" });
-                  try {
-                    await logWhatsApp({
-                      type: "enquiry",
-                      message,
-                      summary: "General enquiry from homepage",
-                    });
-                  } catch {
-                    // Log failure silently — WhatsApp should still open
-                  }
-                  openWhatsApp(phone, message);
-                }}
-              >
-                <MessageCircle className="size-4" />
-                WhatsApp Enquiry
-              </Button>
-            </motion.div>
-
-            <motion.div variants={fadeUpDelay} className="mt-12 flex flex-wrap items-center gap-6 text-xs text-muted-foreground">
-              <div className="flex items-center gap-2">
-                <div className="flex -space-x-1">
-                  {["bg-primary/20", "bg-primary/30", "bg-primary/40"].map((bg, i) => (
-                    <div key={i} className={`size-6 rounded-full ${bg} border-2 border-background`} />
-                  ))}
-                </div>
-                <span className="ml-1 font-medium">10,000+ happy customers</span>
-              </div>
-              <div className="h-4 w-px bg-border" />
-              <div className="flex items-center gap-1">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <Star key={i} className="size-3.5 fill-amber-400 text-amber-400" />
-                ))}
-                <span className="ml-1 font-medium">4.9/5 rating</span>
-              </div>
-              <div className="h-4 w-px bg-border" />
-              <div className="flex items-center gap-1.5">
-                <Shield className="size-3.5 text-primary" />
-                <span className="font-medium">100% Genuine</span>
-              </div>
-            </motion.div>
-          </div>
-        </motion.div>
       </section>
 
       {/* ── Trust bar ── */}
