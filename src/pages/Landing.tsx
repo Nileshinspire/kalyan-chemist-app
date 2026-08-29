@@ -257,7 +257,7 @@ export default function Landing() {
           <button
             type="button"
             onClick={() => navigate("/upload-prescription")}
-            className="inline-flex items-center gap-3 rounded-xl border border-border/60 bg-card hover:bg-accent/40 px-4 py-3 sm:px-5 sm:py-3.5 transition-all duration-300 group cursor-pointer shadow-sm hover:shadow-md -ml-1"
+            className="inline-flex items-center gap-3 rounded-xl border border-border/60 bg-card hover:bg-accent/40 px-4 py-3 sm:px-5 sm:py-3.5 transition-all duration-300 group cursor-pointer shadow-sm hover:shadow-md -ml-4 sm:-ml-6"
           >
             <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary/15 transition-colors">
               <Upload className="size-4" />
