@@ -260,7 +260,7 @@ export default function Landing() {
             className="inline-flex items-center gap-3 rounded-xl border border-border/60 bg-card hover:bg-accent/40 px-4 py-3 sm:px-5 sm:py-3.5 transition-all duration-300 group cursor-pointer shadow-sm hover:shadow-md -ml-4 sm:-ml-6"
           >
             <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary/15 transition-colors">
-              <Upload className="size-4" />
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="2" width="12" height="20" rx="2.5" /><line x1="10" y1="5" x2="14" y2="5" /><rect x="8.5" y="9" width="7" height="8.5" rx="1" /><line x1="10" y1="11.5" x2="14" y2="11.5" /><line x1="10" y1="13.5" x2="13" y2="13.5" /><line x1="10" y1="15.5" x2="12" y2="15.5" /><line x1="10.5" y1="7" x2="13.5" y2="7" strokeWidth="1.25" /></svg>
             </div>
             <div className="text-left">
               <h3 className="text-sm sm:text-base font-semibold text-foreground group-hover:text-primary transition-colors">
