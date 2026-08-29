@@ -44,168 +44,297 @@ const SPECIALTIES = [
   { key: "dentist", label: "Dentist" },
 ] as const;
 
-/* ─── Specialty Icons ─── */
+/* ─── Premium Medical Specialty Icons ─── */
 function SpecialtyIcon({ specialtyKey, className = "" }: { specialtyKey: string; className?: string }) {
-  const s = "none";
-  const sw = 1.5;
-  const cap = "round";
-  const join = "round";
+  const common = {
+    fill: "none" as const,
+    stroke: "currentColor",
+    strokeWidth: 1.5,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+  };
+  const svgProps = { ...common, viewBox: "0 0 24 24", className };
 
   const icons: Record<string, React.ReactNode> = {
+    /* General Physician — stethoscope with person silhouette */
     "general-physician": (
-      <svg viewBox="0 0 24 24" fill={s} stroke="currentColor" strokeWidth={sw} strokeLinecap={cap} strokeLinejoin={join} className={className}>
-        <circle cx="12" cy="8" r="4" />
-        <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
+      <svg {...svgProps}>
+        <path d="M16 4a3 3 0 1 0 0 6 3 3 0 0 0 0-6z" />
+        <path d="M12.5 10c1.5.3 3 1.5 3 4v1c0 1.1.9 2 2 2h1" />
+        <path d="M12 10c0 0-1.5-.5-3.5.5S7 14 7 16c0 2.5.9 4 2 5" />
+        <path d="M14 21h-4" />
+        <path d="M12 16v5" />
+        <path d="M5.5 14a1.5 1.5 0 0 0-1.5 1.5v.5h2v-.5a1.5 1.5 0 0 0-1.5-1.5z" />
       </svg>
     ),
+    /* Dermatology — skin cross-section layers */
     dermatology: (
-      <svg viewBox="0 0 24 24" fill={s} stroke="currentColor" strokeWidth={sw} strokeLinecap={cap} strokeLinejoin={join} className={className}>
-        <circle cx="12" cy="10" r="7" />
-        <path d="M12 17v4" />
-        <path d="M10 21h4" />
+      <svg {...svgProps}>
+        <path d="M3 7h18" />
+        <path d="M3 12h18" />
+        <path d="M3 17h18" />
+        <path d="M5 4c1 0 1.5 1 1.5 3" />
+        <path d="M10 4c1 0 1.5 1 1.5 3" />
+        <path d="M15 4c1 0 1.5 1 1.5 3" />
+        <path d="M3 20c2 0 3-1 4.5-1s2.5 1 4.5 1 2.5-1 4.5-1 2.5 1 4.5 1" />
+        <circle cx="7" cy="14.5" r="0.7" fill="currentColor" stroke="none" />
+        <circle cx="12" cy="14.5" r="0.7" fill="currentColor" stroke="none" />
+        <circle cx="17" cy="14.5" r="0.7" fill="currentColor" stroke="none" />
       </svg>
     ),
+    /* Obstetrics & Gynaecology — pregnant silhouette with baby */
     "obstetrics-gynaecology": (
-      <svg viewBox="0 0 24 24" fill={s} stroke="currentColor" strokeWidth={sw} strokeLinecap={cap} strokeLinejoin={join} className={className}>
-        <circle cx="12" cy="6" r="3" />
-        <path d="M12 9v3" />
-        <path d="M9 12c-2 0-4 1.5-4 4v1h14v-1c0-2.5-2-4-4-4" />
+      <svg {...svgProps}>
+        <circle cx="10" cy="4.5" r="2.5" />
+        <path d="M10 7v2" />
+        <path d="M7.5 9.5c-1 1-1.5 2.5-1.5 4v1.5c0 .8.7 1.5 1.5 1.5h4c.8 0 1.5-.7 1.5-1.5V13.5c0-1.5-.5-3-1.5-4" />
+        <path d="M10 11.5c1.8 0 3 1 3.5 2" />
+        <path d="M6 20h4" />
+        <path d="M17 12a3 3 0 1 0 0 6 3 3 0 0 0 0-6z" />
+        <path d="M15.5 15c.5-1.5 1.5-2 2.5-1.5" />
       </svg>
     ),
+    /* Orthopaedics — anatomical knee joint */
     orthopaedics: (
-      <svg viewBox="0 0 24 24" fill={s} stroke="currentColor" strokeWidth={sw} strokeLinecap={cap} strokeLinejoin={join} className={className}>
-        <path d="M7 4v16M17 4v16" />
-        <path d="M5 8h4M15 8h4M5 16h4M15 16h4" />
+      <svg {...svgProps}>
+        <path d="M9 2.5c0 2-1.5 3-1.5 5v1c0 1 1 2 2.5 2h4c1.5 0 2.5-1 2.5-2v-1c0-2-1.5-3-1.5-5" />
+        <path d="M10 11.5v3.5" />
+        <path d="M14 11.5v3.5" />
+        <ellipse cx="12" cy="14" rx="3" ry="1.2" />
+        <path d="M10 15.2v6.3" />
+        <path d="M14 15.2v6.3" />
+        <path d="M8.5 18h3" />
+        <path d="M12.5 18h3" />
       </svg>
     ),
+    /* ENT — ear with inner canal detail */
     ent: (
-      <svg viewBox="0 0 24 24" fill={s} stroke="currentColor" strokeWidth={sw} strokeLinecap={cap} strokeLinejoin={join} className={className}>
-        <path d="M16 12a4 4 0 0 1-8 0" />
-        <path d="M12 16v2" />
-        <path d="M8 8c0-2.2 1.8-4 4-4s4 1.8 4 4c0 1.5-.8 2.8-2 3.5L12 12l-2-.5C8.8 10.8 8 9.5 8 8" />
+      <svg {...svgProps}>
+        <path d="M15 4c3 0 5 2.5 5 6s-2 6-4 7.5c-1.2 1-2.5 2.5-2.5 4v1.5" />
+        <path d="M15 4c-3 0-5 2.5-5 6v2c0 1.5 1 2.5 2 2.5" />
+        <path d="M7 15c0 3 2 5 4 6.5" />
+        <path d="M10 9c.8 0 1.5.7 1.5 1.5S10.8 12 10 12" />
+        <path d="M13 10c1.5 1 2.5 3 2.5 5" />
       </svg>
     ),
+    /* Neurology — anatomical brain with gyri */
     neurology: (
-      <svg viewBox="0 0 24 24" fill={s} stroke="currentColor" strokeWidth={sw} strokeLinecap={cap} strokeLinejoin={join} className={className}>
-        <path d="M12 2C8 2 5 5 5 8.5c0 2 .8 3.5 2 4.5.5.4.8 1 .8 1.5v2a2 2 0 0 0 2 2h2.4a2 2 0 0 0 2-2v-2c0-.5.3-1.1.8-1.5 1.2-1 2-2.5 2-4.5C19 5 16 2 12 2" />
-        <path d="M10 19h4" />
+      <svg {...svgProps}>
+        <path d="M12 3C8.5 3 6 5.5 6 8.5c0 1.5.6 2.8 1.6 3.7.4.4.6.9.6 1.4v2c0 1 .8 1.8 1.8 1.8h4c1 0 1.8-.8 1.8-1.8v-2c0-.5.2-1 .6-1.4 1-.9 1.6-2.2 1.6-3.7C18 5.5 15.5 3 12 3z" />
+        <path d="M12 3v18" />
+        <path d="M9 5.5c-1.5.5-3 2-3.5 3.5" />
+        <path d="M15 5.5c1.5.5 3 2 3.5 3.5" />
+        <path d="M8 12c1 .8 2 1 4 1s3-.2 4-1" />
       </svg>
     ),
+    /* Cardiology — anatomical heart with vessels */
     cardiology: (
-      <svg viewBox="0 0 24 24" fill={s} stroke="currentColor" strokeWidth={sw} strokeLinecap={cap} strokeLinejoin={join} className={className}>
-        <path d="M12 21C12 21 4 15 4 9.5C4 6.5 6.5 4 9 4c1.5 0 2.5.8 3 2 .5-1.2 1.5-2 3-2 2.5 0 5 2.5 5 5.5C20 15 12 21 12 21z" />
-        <path d="M8 10h2.5l1.5 2 2.5-4L16 10h2" />
+      <svg {...svgProps}>
+        <path d="M12 21s-7-4.5-7-10c0-3 2.2-5.5 5-5.5 1.8 0 2.8 1 3.3 2" />
+        <path d="M12 21s7-4.5 7-10c0-3-2.2-5.5-5-5.5-1.8 0-2.8 1-3.3 2" />
+        <path d="M8.5 7.5L6 5" />
+        <path d="M15.5 7.5L18 5" />
+        <path d="M12 5V3" />
+        <path d="M9 14l1.5 1.5L14 12" />
       </svg>
     ),
+    /* Urology — kidney with ureter */
     urology: (
-      <svg viewBox="0 0 24 24" fill={s} stroke="currentColor" strokeWidth={sw} strokeLinecap={cap} strokeLinejoin={join} className={className}>
-        <path d="M12 4c-2 0-4 2-4 5 0 2 1 3 2 4l2 3 2-3c1-1 2-2 2-4 0-3-2-5-4-5" />
-        <path d="M9 17h6M12 17v3" />
+      <svg {...svgProps}>
+        <path d="M8 5c-3.5.5-5 3-5 6.5 0 2.5 1 4 2.5 5C7 18 8 20 8 22" />
+        <path d="M16 5c3.5.5 5 3 5 6.5 0 2.5-1 4-2.5 5C17 18 16 20 16 22" />
+        <path d="M8 5c2 1 3 3 4 7 1-4 2-6 4-7" />
+        <path d="M10 17c1-1 1-2 2-3.5 1 1.5 1 2.5 2 3.5" />
       </svg>
     ),
+    /* Gastroenterology — stomach */
     gastroenterology: (
-      <svg viewBox="0 0 24 24" fill={s} stroke="currentColor" strokeWidth={sw} strokeLinecap={cap} strokeLinejoin={join} className={className}>
-        <path d="M8 4c0 0 1-1 4-1s4 1 4 1" />
-        <path d="M7 6c0 3 1 5 2 6.5C10 14 11 16 11 18v3" />
-        <path d="M17 6c0 3-1 5-2 6.5-1 1.5-2 3.5-2 5.5v3" />
-        <path d="M9 21h6" />
+      <svg {...svgProps}>
+        <path d="M9 3v2" />
+        <path d="M15 3v2" />
+        <path d="M9 5c-4 0-6 3-6 7s2 5 4 6c1 .5 2 1.5 2 3v1" />
+        <path d="M15 5c4 0 6 3 6 7s-2 5-4 6c-1 .5-2 1.5-2 3v1" />
+        <path d="M9 5h6" />
+        <path d="M7 12h10" />
+        <path d="M12 18v3" />
       </svg>
     ),
+    /* Psychiatry — brain with calm/mind symbol */
     psychiatry: (
-      <svg viewBox="0 0 24 24" fill={s} stroke="currentColor" strokeWidth={sw} strokeLinecap={cap} strokeLinejoin={join} className={className}>
-        <circle cx="12" cy="10" r="6" />
-        <path d="M12 16v4M9 20h6" />
+      <svg {...svgProps}>
+        <path d="M12 3C8.5 3 6 5.5 6 8.5c0 1.5.6 2.8 1.6 3.7.4.4.6.9.6 1.4v2.4c0 1 .8 1.8 1.8 1.8h4c1 0 1.8-.8 1.8-1.8v-2.4c0-.5.2-1 .6-1.4 1-.9 1.6-2.2 1.6-3.7C18 5.5 15.5 3 12 3z" />
+        <path d="M9.5 17.5c.5 1.5 1 2.5 2.5 3.5 1.5-1 2-2 2.5-3.5" />
+        <path d="M8 8.5c1 .5 2.5.8 4 .8s3-.3 4-.8" />
+        <path d="M10 11h4" />
       </svg>
     ),
+    /* Paediatrics — small child with heart */
     paediatrics: (
-      <svg viewBox="0 0 24 24" fill={s} stroke="currentColor" strokeWidth={sw} strokeLinecap={cap} strokeLinejoin={join} className={className}>
-        <circle cx="12" cy="7" r="4" />
-        <path d="M9 15c-1.5 0-3 1-3 3v1h12v-1c0-2-1.5-3-3-3" />
+      <svg {...svgProps}>
+        <circle cx="12" cy="5.5" r="3" />
+        <path d="M9 10c-1.5.5-2.5 2-2.5 4v1c0 .8.7 1.5 1.5 1.5h.5" />
+        <path d="M15 10c1.5.5 2.5 2 2.5 4v1c0 .8-.7 1.5-1.5 1.5h-.5" />
+        <path d="M12 10c-1 1.5-1.5 3-1.5 4v3.5h3V14c0-1-.5-2.5-1.5-4z" />
+        <path d="M12 13.5l-.8.8a1.1 1.1 0 0 0 1.6 0l-.8-.8z" />
       </svg>
     ),
+    /* Pulmonology — anatomical lungs */
     pulmonology: (
-      <svg viewBox="0 0 24 24" fill={s} stroke="currentColor" strokeWidth={sw} strokeLinecap={cap} strokeLinejoin={join} className={className}>
+      <svg {...svgProps}>
         <path d="M12 3v12" />
-        <path d="M12 15c-3 0-5 2-5 5s2 1 4 0c1-.5 1-1 1-1" />
-        <path d="M12 15c3 0 5 2 5 5s-2 1-4 0c-1-.5-1-1-1-1" />
+        <path d="M12 3c-4 0-7 3-7 7 0 2 .5 3.5 2 5 1 .8 2 2.5 2 4.5v2" />
+        <path d="M12 3c4 0 7 3 7 7 0 2-.5 3.5-2 5-1 .8-2 2.5-2 4.5v2" />
+        <path d="M5 10c1 0 2 .5 3 2" />
+        <path d="M19 10c-1 0-2 .5-3 2" />
+        <path d="M9 15c1-.5 2-.5 3 0" />
+        <path d="M12 15c1-.5 2-.5 3 0" />
       </svg>
     ),
+    /* Endocrinology — thyroid butterfly gland */
     endocrinology: (
-      <svg viewBox="0 0 24 24" fill={s} stroke="currentColor" strokeWidth={sw} strokeLinecap={cap} strokeLinejoin={join} className={className}>
-        <path d="M12 4c-1 0-2 .5-2 2v4c0 1.5 1 2 2 2s2-.5 2-2V6c0-1.5-1-2-2-2" />
-        <path d="M12 12v4M8 18h8" />
+      <svg {...svgProps}>
+        <path d="M9 3c-2 0-3.5 1.5-3.5 4 0 2 1 3 2 4 .5.5.5 1.5.5 2v2c0 1 .8 2 2 2h2c1.2 0 2-1 2-2v-2c0-.5 0-1.5.5-2 1-1 2-2 2-4 0-2.5-1.5-4-3.5-4" />
+        <path d="M12 3v2" />
+        <path d="M9 10h6" />
+        <path d="M10 17h4" />
       </svg>
     ),
+    /* Nephrology — kidney pair with ureters */
     nephrology: (
-      <svg viewBox="0 0 24 24" fill={s} stroke="currentColor" strokeWidth={sw} strokeLinecap={cap} strokeLinejoin={join} className={className}>
-        <path d="M8 6c-2 0-4 2-4 5s1 4 3 5c1 1 2 3 2 5h2c0-2 1-4 2-5 1-1 2-3 3-5s0-5-2-5" />
-        <path d="M12 4v3" />
+      <svg {...svgProps}>
+        <path d="M7 6c-3 0-4.5 2.5-4.5 5.5S4 16 6 17.5c1 .8 1.5 2 1.5 3.5v1" />
+        <path d="M17 6c3 0 4.5 2.5 4.5 5.5S20 16 18 17.5c-1 .8-1.5 2-1.5 3.5v1" />
+        <path d="M7 6c2 .8 3 3 3 6" />
+        <path d="M17 6c-2 .8-3 3-3 6" />
+        <path d="M10 12c1 1.5 1 4 2 5.5" />
+        <path d="M14 12c-1 1.5-1 4-2 5.5" />
+        <path d="M9 22h6" />
       </svg>
     ),
+    /* Neurosurgery — brain with surgical crosshair */
     neurosurgery: (
-      <svg viewBox="0 0 24 24" fill={s} stroke="currentColor" strokeWidth={sw} strokeLinecap={cap} strokeLinejoin={join} className={className}>
-        <path d="M12 2C8.5 2 5.5 5 5.5 8c0 1.8.8 3.2 1.8 4.2.4.4.7 1 .7 1.5v2.8a2 2 0 0 0 2 2h3.4a2 2 0 0 0 2-2v-2.8c0-.5.3-1.1.7-1.5 1-1 1.8-2.4 1.8-4.2C18.5 5 15.5 2 12 2" />
-        <path d="M15 18h3M16.5 16.5v3" />
+      <svg {...svgProps}>
+        <path d="M12 3C8.5 3 6 5.5 6 8.5c0 1.5.6 2.8 1.6 3.7.4.4.6.9.6 1.4v2.4c0 1 .8 1.8 1.8 1.8h4c1 0 1.8-.8 1.8-1.8v-2.4c0-.5.2-1 .6-1.4 1-.9 1.6-2.2 1.6-3.7C18 5.5 15.5 3 12 3z" />
+        <path d="M12 3v18" />
+        <path d="M9 5.5c-1.5.5-3 2-3.5 3.5" />
+        <path d="M15 5.5c1.5.5 3 2 3.5 3.5" />
+        <circle cx="12" cy="10" r="1.5" />
       </svg>
     ),
+    /* Rheumatology — hand joints / finger bones */
     rheumatology: (
-      <svg viewBox="0 0 24 24" fill={s} stroke="currentColor" strokeWidth={sw} strokeLinecap={cap} strokeLinejoin={join} className={className}>
-        <path d="M12 4c-3 0-5 2-5 5 0 2 1 3 2 4l3 4 3-4c1-1 2-2 2-4 0-3-2-5-5-5" />
-        <path d="M12 9v3M8 20h8" />
+      <svg {...svgProps}>
+        <path d="M8 2v6" />
+        <path d="M12 2v7" />
+        <path d="M16 2v5" />
+        <path d="M6 8h4v4H6z" />
+        <path d="M10 9h4v4h-4z" />
+        <path d="M14 7h4v5h-4z" />
+        <path d="M8 12v4c0 1.5 1 3 2.5 4" />
+        <path d="M12 13v3c0 1.5 1 3 2.5 4" />
+        <path d="M16 12v2c0 1.5-1 3-2 4" />
+        <circle cx="8" cy="5" r="0.7" fill="currentColor" stroke="none" />
+        <circle cx="12" cy="5" r="0.7" fill="currentColor" stroke="none" />
+        <circle cx="16" cy="4.5" r="0.7" fill="currentColor" stroke="none" />
       </svg>
     ),
+    /* Ophthalmology — detailed eye with iris */
     ophthalmology: (
-      <svg viewBox="0 0 24 24" fill={s} stroke="currentColor" strokeWidth={sw} strokeLinecap={cap} strokeLinejoin={join} className={className}>
-        <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7S2 12 2 12" />
-        <circle cx="12" cy="12" r="3" />
-      </svg>
-    ),
-    "surgical-gastroenterology": (
-      <svg viewBox="0 0 24 24" fill={s} stroke="currentColor" strokeWidth={sw} strokeLinecap={cap} strokeLinejoin={join} className={className}>
-        <path d="M8 4c0 0 1-1 4-1s4 1 4 1" />
-        <path d="M7 6c0 3 1 5 2 6.5C10 14 11 16 11 18v3" />
-        <path d="M17 6c0 3-1 5-2 6.5-1 1.5-2 3.5-2 5.5v3M9 21h6" />
-        <path d="M18 4l-4 8" />
-      </svg>
-    ),
-    "infectious-disease": (
-      <svg viewBox="0 0 24 24" fill={s} stroke="currentColor" strokeWidth={sw} strokeLinecap={cap} strokeLinejoin={join} className={className}>
+      <svg {...svgProps}>
+        <path d="M2 12s4-8 10-8 10 8 10 8-4 8-10 8S2 12 2 12z" />
         <circle cx="12" cy="12" r="4" />
-        <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
+        <circle cx="12" cy="12" r="2" />
+        <circle cx="12" cy="12" r="0.8" fill="currentColor" stroke="none" />
+        <path d="M4.5 9.5l2 1" />
+        <path d="M17.5 9.5l2 1" />
+        <path d="M4.5 14.5l2-1" />
+        <path d="M17.5 14.5l2-1" />
       </svg>
     ),
+    /* Surgical Gastroenterology — stomach with scalpel */
+    "surgical-gastroenterology": (
+      <svg {...svgProps}>
+        <path d="M9 5c-3.5 0-5.5 2.5-5.5 6s2 4.5 4 5.5c1 .5 1.5 1.5 1.5 3v1" />
+        <path d="M15 5c3.5 0 5.5 2.5 5.5 6s-2 4.5-4 5.5c-1 .5-1.5 1.5-1.5 3v1" />
+        <path d="M9 5h6" />
+        <path d="M7 11h10" />
+        <path d="M18.5 2.5l-3 3" />
+        <path d="M15.5 5.5l2-2 1.5 1.5-2 2" />
+        <path d="M12 18v3" />
+      </svg>
+    ),
+    /* Infectious Disease — virus/microorganism */
+    "infectious-disease": (
+      <svg {...svgProps}>
+        <circle cx="12" cy="12" r="4.5" />
+        <path d="M12 3v3" />
+        <path d="M12 18v3" />
+        <path d="M3 12h3" />
+        <path d="M18 12h3" />
+        <path d="M5.5 5.5l2 2" />
+        <path d="M16.5 16.5l2 2" />
+        <path d="M5.5 18.5l2-2" />
+        <path d="M16.5 7.5l2-2" />
+        <path d="M10 10.5c.5.8.5 1.7 0 2.5" />
+        <path d="M14 10.5c-.5.8-.5 1.7 0 2.5" />
+      </svg>
+    ),
+    /* General & Laparoscopic Surgery — surgical scissors + laparoscope */
     "general-laparoscopic-surgery": (
-      <svg viewBox="0 0 24 24" fill={s} stroke="currentColor" strokeWidth={sw} strokeLinecap={cap} strokeLinejoin={join} className={className}>
-        <path d="M14.5 3.5l6 6-10 10H4.5v-6l10-10" />
-        <path d="M4.5 19.5h15" />
+      <svg {...svgProps}>
+        <path d="M4 4l5 8" />
+        <path d="M4 12l5-4" />
+        <circle cx="4" cy="3" r="1.5" />
+        <circle cx="4" cy="13" r="1.5" />
+        <path d="M20 4l-5 8" />
+        <path d="M20 12l-5-4" />
+        <circle cx="20" cy="3" r="1.5" />
+        <circle cx="20" cy="13" r="1.5" />
+        <path d="M12 7v10" />
+        <circle cx="12" cy="6" r="1" />
+        <path d="M10 6h4" />
       </svg>
     ),
+    /* Psychology — brain with thought bubble */
     psychology: (
-      <svg viewBox="0 0 24 24" fill={s} stroke="currentColor" strokeWidth={sw} strokeLinecap={cap} strokeLinejoin={join} className={className}>
-        <circle cx="12" cy="8" r="5" />
-        <path d="M12 13v3M9 17h6" />
+      <svg {...svgProps}>
+        <path d="M12 3C8.5 3 6 5.5 6 8.5c0 1.5.6 2.8 1.6 3.7.4.4.6.9.6 1.4v2.4c0 1 .8 1.8 1.8 1.8h4c1 0 1.8-.8 1.8-1.8v-2.4c0-.5.2-1 .6-1.4 1-.9 1.6-2.2 1.6-3.7C18 5.5 15.5 3 12 3z" />
+        <path d="M12 3v18" />
+        <path d="M9 5c-1.5.5-2.5 1.5-3 3" />
+        <path d="M15 5c1.5.5 2.5 1.5 3 3" />
+        <circle cx="10" cy="18" r="0.7" fill="currentColor" stroke="none" />
+        <circle cx="12.5" cy="19.5" r="0.5" fill="currentColor" stroke="none" />
+        <circle cx="14" cy="21" r="0.3" fill="currentColor" stroke="none" />
       </svg>
     ),
+    /* Medical Oncology — cancer ribbon with medical cross */
     "medical-oncology": (
-      <svg viewBox="0 0 24 24" fill={s} stroke="currentColor" strokeWidth={sw} strokeLinecap={cap} strokeLinejoin={join} className={className}>
-        <path d="M12 3l2.5 5.5L20 9.5l-4 4 1 5.5L12 16.5 7 19l1-5.5-4-4 5.5-1z" />
+      <svg {...svgProps}>
+        <path d="M12 3l-5 9h3l-3 9 8-11h-3.5z" />
+        <path d="M10 11h4" />
+        <path d="M12 9v4" />
       </svg>
     ),
+    /* Diabetology — blood drop with glucose */
     diabetology: (
-      <svg viewBox="0 0 24 24" fill={s} stroke="currentColor" strokeWidth={sw} strokeLinecap={cap} strokeLinejoin={join} className={className}>
-        <path d="M12 3c-1.5 0-3 1.5-3 4 0 2 1 3.5 3 6 2-2.5 3-4 3-6 0-2.5-1.5-4-3-4" />
-        <path d="M12 17v4M10 21h4" />
+      <svg {...svgProps}>
+        <path d="M12 3c-3 3.5-5 6-5 9a5 5 0 0 0 10 0c0-3-2-5.5-5-9z" />
+        <path d="M9 13.5c0 1.6 1.3 3 3 3s3-1.4 3-3" />
+        <path d="M12 10v2.5" />
+        <path d="M10.5 12h3" />
       </svg>
     ),
+    /* Dentist — detailed tooth with roots */
     dentist: (
-      <svg viewBox="0 0 24 24" fill={s} stroke="currentColor" strokeWidth={sw} strokeLinecap={cap} strokeLinejoin={join} className={className}>
-        <path d="M8 3c-2 0-3.5 1-3.5 3 0 2 1 3.5 1.5 5.5.5 2.5.5 4.5 0 7-.3 1.5 1 2.5 2 1.5.8-.8 1.5-2.5 2-4.5.3-1 .7-1.5 1-1.5s.7.5 1 1.5c.5 2 1.2 3.7 2 4.5 1 1 2.3 0 2-1.5-.5-2.5-.5-4.5 0-7 .5-2 1.5-3.5 1.5-5.5 0-2-1.5-3-3.5-3" />
+      <svg {...svgProps}>
+        <path d="M8 2.5c-3 0-5 2-5 4.5 0 2 1 3.5 2 5.5.8 1.5 1 3.5.8 5.5-.1.8.5 1.5 1.2 1.2.6-.3 1.2-1.5 1.8-3 .5-1.2 1-2 1.2-2s.7.8 1.2 2c.6 1.5 1.2 2.7 1.8 3 .7.3 1.3-.4 1.2-1.2-.2-2 0-4 .8-5.5 1-2 2-3.5 2-5.5 0-2.5-2-4.5-5-4.5" />
+        <path d="M8 8h8" />
       </svg>
     ),
   };
 
   return icons[specialtyKey] || (
-    <svg viewBox="0 0 24 24" fill={s} stroke="currentColor" strokeWidth={sw} strokeLinecap={cap} strokeLinejoin={join} className={className}>
+    <svg {...svgProps}>
       <circle cx="12" cy="12" r="9" />
       <path d="M12 8v4l2 2" />
     </svg>
