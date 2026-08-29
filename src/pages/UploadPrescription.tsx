@@ -23,7 +23,7 @@ const REQUIREMENTS = [
   { icon: Calendar, label: "Date of Prescription" },
   { icon: User, label: "Patient Details" },
   { icon: Pill, label: "Medicine Details" },
-  { icon: HardDrive, label: "Maximum File Size" },
+  { icon: HardDrive, label: "Maximum File Size: 10 MB", description: "Maximum file size allowed: 10 MB" },
 ] as const;
 
 export default function UploadPrescription() {
@@ -49,7 +49,7 @@ export default function UploadPrescription() {
 
       // Validate file size (10MB max)
       if (file.size > 10 * 1024 * 1024) {
-        toast.error("File size must be under 10MB.");
+        toast.error("File size must be 10 MB or less.");
         return;
       }
 
@@ -241,6 +241,11 @@ export default function UploadPrescription() {
                     <span className="text-xs font-medium text-foreground leading-tight">
                       {req.label}
                     </span>
+                    {"description" in req && (
+                      <span className="text-[10px] text-muted-foreground leading-tight">
+                        {req.description}
+                      </span>
+                    )}
                   </div>
                 );
               })}
