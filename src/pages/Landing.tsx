@@ -253,20 +253,20 @@ export default function Landing() {
 
       {/* ── Quick Function: Upload Prescription ── */}
       <section className="bg-background">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 -mt-4 relative z-30">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 py-6 sm:py-8">
           <button
             type="button"
             onClick={() => navigate("/upload-prescription")}
-            className="w-full flex items-center gap-5 rounded-2xl border border-border/60 bg-card hover:bg-accent/40 px-6 py-5 sm:py-6 transition-all duration-300 group cursor-pointer shadow-sm hover:shadow-md"
+            className="inline-flex items-center gap-4 rounded-2xl border border-border/60 bg-card hover:bg-accent/40 px-5 py-4 sm:px-6 sm:py-5 transition-all duration-300 group cursor-pointer shadow-sm hover:shadow-md"
           >
-            <div className="flex size-14 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary group-hover:bg-primary/15 transition-colors">
-              <Upload className="size-6" />
+            <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary group-hover:bg-primary/15 transition-colors">
+              <Upload className="size-5" />
             </div>
-            <div className="flex-1 text-left">
-              <h3 className="text-base sm:text-lg font-semibold text-foreground group-hover:text-primary transition-colors">
+            <div className="text-left">
+              <h3 className="text-sm sm:text-base font-semibold text-foreground group-hover:text-primary transition-colors">
                 Upload Prescription
               </h3>
-              <p className="text-sm text-muted-foreground mt-0.5">
+              <p className="text-xs text-muted-foreground mt-0.5">
                 Upload your prescription easily
               </p>
             </div>
