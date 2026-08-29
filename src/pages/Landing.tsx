@@ -257,10 +257,10 @@ export default function Landing() {
           <button
             type="button"
             onClick={() => navigate("/upload-prescription")}
-            className="inline-flex items-center gap-4 rounded-2xl border border-border/60 bg-card hover:bg-accent/40 px-5 py-4 sm:px-6 sm:py-5 transition-all duration-300 group cursor-pointer shadow-sm hover:shadow-md"
+            className="inline-flex items-center gap-3 rounded-xl border border-border/60 bg-card hover:bg-accent/40 px-4 py-3 sm:px-5 sm:py-3.5 transition-all duration-300 group cursor-pointer shadow-sm hover:shadow-md -ml-1"
           >
-            <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary group-hover:bg-primary/15 transition-colors">
-              <Upload className="size-5" />
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary/15 transition-colors">
+              <Upload className="size-4" />
             </div>
             <div className="text-left">
               <h3 className="text-sm sm:text-base font-semibold text-foreground group-hover:text-primary transition-colors">
@@ -270,7 +270,7 @@ export default function Landing() {
                 Upload your prescription easily
               </p>
             </div>
-            <ArrowRight className="size-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all shrink-0" />
+            <ArrowRight className="size-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all shrink-0" />
           </button>
         </div>
       </section>
