@@ -111,7 +111,7 @@ function HeroCategoryNav() {
   return (
     <div className="relative" style={{ background: '#0a3d2e' }}>
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
-        <div className="flex items-center gap-0 overflow-x-auto scrollbar-none">
+        <div className="flex items-center gap-0 overflow-x-auto scrollbar-none pr-4">
           {HERO_CATEGORIES.map((cat) => {
             const isActive = currentNavKey === cat.key;
             return (
