@@ -568,6 +568,74 @@ const schema = defineSchema(
     .index("by_timestamp", ["timestamp"])
     .index("by_admin", ["adminId"])
     .index("by_category", ["category"]),
+    // ── Doctor Appointments System ──
+    doctors: defineTable({
+      name: v.string(),
+      specialty: v.string(),
+      qualification: v.optional(v.string()),
+      experience: v.optional(v.string()),
+      consultationFee: v.number(),
+      profilePhoto: v.optional(v.string()),
+      clinicName: v.optional(v.string()),
+      clinicAddress: v.optional(v.string()),
+      city: v.optional(v.string()),
+      state: v.optional(v.string()),
+      pincode: v.optional(v.string()),
+      aboutDoctor: v.optional(v.string()),
+      languagesSpoken: v.optional(v.array(v.string())),
+      consultationType: v.optional(v.array(v.string())),
+      availableDays: v.optional(v.array(v.string())),
+      availableTimeFrom: v.optional(v.string()),
+      availableTimeTo: v.optional(v.string()),
+      appointmentDuration: v.optional(v.number()),
+      maxPatientsPerSlot: v.optional(v.number()),
+      contactPhone: v.optional(v.string()),
+      contactEmail: v.optional(v.string()),
+      isActive: v.boolean(),
+      createdAt: v.number(),
+      updatedAt: v.number(),
+    })
+      .index("by_specialty", ["specialty"])
+      .index("by_isActive", ["isActive"])
+      .index("by_specialty_active", ["specialty", "isActive"])
+      .index("by_createdAt", ["createdAt"]),
+
+    doctor_appointments: defineTable({
+      doctorId: v.id("doctors"),
+      doctorName: v.string(),
+      specialty: v.string(),
+      clinicName: v.optional(v.string()),
+      consultationFee: v.number(),
+      userId: v.id("users"),
+      customerName: v.string(),
+      customerEmail: v.optional(v.string()),
+      customerPhone: v.string(),
+      appointmentDate: v.string(),
+      appointmentTime: v.string(),
+      consultationType: v.optional(v.string()),
+      bookingDate: v.number(),
+      status: v.union(
+        v.literal("pending"),
+        v.literal("confirmed"),
+        v.literal("completed"),
+        v.literal("cancelled"),
+      ),
+      paymentStatus: v.optional(v.union(
+        v.literal("pending"),
+        v.literal("paid"),
+        v.literal("failed"),
+        v.literal("refunded"),
+      )),
+      notes: v.optional(v.string()),
+      createdAt: v.number(),
+      updatedAt: v.number(),
+    })
+      .index("by_doctor", ["doctorId"])
+      .index("by_user", ["userId"])
+      .index("by_status", ["status"])
+      .index("by_doctor_date", ["doctorId", "appointmentDate"])
+      .index("by_createdAt", ["createdAt"]),
+
     // Store settings
     storeSettings: defineTable({
     storeName: v.string(),

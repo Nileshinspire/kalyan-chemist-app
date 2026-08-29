@@ -25,6 +25,7 @@ import {
   Truck,
   MessageCircle,
   FileCheck2,
+  Stethoscope,
   CalendarClock,
   History,
 } from "lucide-react";
@@ -44,6 +45,8 @@ const NAV_ITEMS = [
   { label: "Reports", path: "/admin/reports", icon: BarChart3 },
   { label: "Delivery Settings", path: "/admin/delivery", icon: Truck },
   { label: "WhatsApp Enquiries", path: "/admin/whatsapp", icon: MessageCircle },
+  { label: "Doctors", path: "/admin/doctors", icon: Stethoscope },
+  { label: "Appointments", path: "/admin/appointments", icon: CalendarClock },
   { label: "Settings", path: "/admin/settings", icon: Settings },
   { label: "Activity Log", path: "/admin/activity", icon: History },
 ];

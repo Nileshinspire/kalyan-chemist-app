@@ -59,6 +59,10 @@ const AccountWishlist = lazy(() => import("./pages/Wishlist"));
 const AccountNotifications = lazy(() => import("./pages/account/AccountNotifications"));
 const UploadPrescription = lazy(() => import("./pages/UploadPrescription"));
 const DoctorAppointment = lazy(() => import("./pages/DoctorAppointment"));
+const DoctorDetails = lazy(() => import("./pages/DoctorDetails"));
+const AdminDoctors = lazy(() => import("./pages/admin/AdminDoctors"));
+const AdminAppointments = lazy(() => import("./pages/admin/AdminAppointments"));
+const AccountAppointments = lazy(() => import("./pages/account/AccountAppointments"));
 const AccountTrackOrder = lazy(() => import("./pages/account/AccountTrackOrder"));
 const AccountHelpSupport = lazy(() => import("./pages/account/AccountHelpSupport"));
 
@@ -303,9 +307,14 @@ function AnimatedRoutes() {
         <Route
           path="/doctor-appointment"
           element={
-            <RequireAuth>
-                <DoctorAppointment />
-              </RequireAuth>
+            <DoctorAppointment />
+            
+          }
+        />
+        <Route
+          path="/doctors/:id"
+          element={
+            <DoctorDetails />
             
           }
         />
@@ -326,6 +335,7 @@ function AnimatedRoutes() {
           <Route path="orders" element={<Suspense fallback={<RouteLoading />}><AccountOrders /></Suspense>} />
           <Route path="orders/:id" element={<Suspense fallback={<RouteLoading />}><OrderDetail /></Suspense>} />
           <Route path="prescriptions" element={<Suspense fallback={<RouteLoading />}><AccountPrescriptions /></Suspense>} />
+          <Route path="appointments" element={<Suspense fallback={<RouteLoading />}><AccountAppointments /></Suspense>} />
           <Route path="wishlist" element={<Suspense fallback={<RouteLoading />}><AccountWishlist /></Suspense>} />
           <Route path="notifications" element={<Suspense fallback={<RouteLoading />}><AccountNotifications /></Suspense>} />
           <Route path="track-order" element={<Suspense fallback={<RouteLoading />}><AccountTrackOrder /></Suspense>} />
@@ -464,6 +474,24 @@ function AnimatedRoutes() {
                 <Suspense fallback={<RouteLoading />}>
                   <AdminSettings />
                 </Suspense>
+              </RequireAuth>
+            
+          }
+        />
+        <Route
+          path="/admin/doctors"
+          element={
+            <RequireAuth adminOnly>
+                <AdminDoctors />
+              </RequireAuth>
+            
+          }
+        />
+        <Route
+          path="/admin/appointments"
+          element={
+            <RequireAuth adminOnly>
+                <AdminAppointments />
               </RequireAuth>
             
           }
