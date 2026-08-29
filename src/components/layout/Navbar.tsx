@@ -421,7 +421,7 @@ const Navbar = memo(function Navbar() {
           ═══════════════════════════════════════════════════════ */}
       <nav className="hidden md:block" style={{ background: '#0a3d2e' }}>
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="flex items-center gap-0 overflow-x-auto scrollbar-none pr-4">
+          <div className="flex items-center gap-0 overflow-x-auto scrollbar-none pr-6">
             {CATEGORY_NAV_ITEMS.map((cat) => {
               const currentNavKey = searchParams.get("nav") || "";
               const isCurrentCategory = currentNavKey === cat.key;
