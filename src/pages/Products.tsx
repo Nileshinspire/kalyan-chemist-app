@@ -80,6 +80,29 @@ export default function Products() {
   const allCategories = useQuery(api.categories.list);
   const allBrands = useQuery(api.publicBrands.list);
 
+  // Local interaction helpers — writes to URL via setSearchParams so the
+  // sidebar categories stay in sync without bidirectional sync effects.
+  const setSelectedCat = (slug: string) => {
+    const p = new URLSearchParams();
+    if (slug) p.set('category', slug);
+    if (searchQuery) p.set('search', searchQuery);
+    if (selectedBrandSlug) p.set('brand', selectedBrandSlug);
+    if (sortBy !== 'relevance') p.set('sort', sortBy);
+    if (prescriptionFilter) p.set('rx', prescriptionFilter);
+    if (stockFilter) p.set('stock', stockFilter);
+    setSearchParams(p, { replace: true });
+  };
+  const setSelectedBrand = (slug: string) => {
+    const p = new URLSearchParams();
+    if (selectedCategorySlug) p.set('category', selectedCategorySlug);
+    if (slug) p.set('brand', slug);
+    if (searchQuery) p.set('search', searchQuery);
+    if (sortBy !== 'relevance') p.set('sort', sortBy);
+    if (prescriptionFilter) p.set('rx', prescriptionFilter);
+    if (stockFilter) p.set('stock', stockFilter);
+    setSearchParams(p, { replace: true });
+  };
+
   const selectedCategoryId = allCategories?.find((c) => c.slug === selectedCategorySlug)?._id;
   const selectedBrandId = allBrands?.find((b) => b.slug === selectedBrandSlug)?._id;
 
@@ -99,24 +122,7 @@ export default function Products() {
     sortBy: sortBy as any,
   });
 
-  // Sync state → URL only on user interactions (not on external navigation)
-  // Skip the initial render since URL already matches state
-  const isInitialMount = useRef(true);
-  useEffect(() => {
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      return;
-    }
-    const params = new URLSearchParams();
-    if (navKey) params.set("nav", navKey);
-    if (searchQuery) params.set("search", searchQuery);
-    if (selectedCategorySlug) params.set("category", selectedCategorySlug);
-    if (selectedBrandSlug) params.set("brand", selectedBrandSlug);
-    if (sortBy !== "relevance") params.set("sort", sortBy);
-    if (prescriptionFilter) params.set("rx", prescriptionFilter);
-    if (stockFilter) params.set("stock", stockFilter);
-    setSearchParams(params, { replace: true });
-  }, [searchQuery, selectedCategorySlug, selectedBrandSlug, sortBy, prescriptionFilter, stockFilter, navKey, setSearchParams]);
+
 
   // Close autocomplete on outside click
   useEffect(() => {
@@ -157,7 +163,7 @@ export default function Products() {
     setSortBy("relevance");
     setPrescriptionFilter("");
     setStockFilter("");
-    setSearchParams({}, { replace: true });
+    setSearchParams(new URLSearchParams(), { replace: true });
   };
 
   const hasActiveFilters = searchQuery || selectedCategorySlug || selectedBrandSlug || prescriptionFilter || stockFilter;
@@ -251,17 +257,16 @@ export default function Products() {
                 {/* Categories */}
                 <div>
                   <h3 className="text-sm font-bold text-foreground mb-3">Categories</h3>
-                  <div className="space-y-0.5">
-                    <button
-                      className={`w-full text-left px-3 py-2.5 rounded-xl text-sm transition-all duration-200 ${
-                        !selectedCategorySlug
-                          ? "bg-primary/10 text-primary font-semibold shadow-sm"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                      }`}
-                      onClick={() => setSelectedCategorySlug("")}
-                    >
-                      All Categories
-                    </button>
+                  <div className="space-y-0.5">                      <button
+                        className={`w-full text-left px-3 py-2.5 rounded-xl text-sm transition-all duration-200 ${
+                          !selectedCategorySlug
+                            ? "bg-primary/10 text-primary font-semibold shadow-sm"
+                            : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                        }`}
+                        onClick={() => setSelectedCat("")}
+                      >
+                        All Categories
+                      </button>
                     {allCategories?.map((cat) => (
                       <button
                         key={cat._id}
@@ -270,7 +275,7 @@ export default function Products() {
                             ? "bg-primary/10 text-primary font-semibold shadow-sm"
                             : "text-muted-foreground hover:bg-muted hover:text-foreground"
                         }`}
-                        onClick={() => setSelectedCategorySlug(selectedCategorySlug === cat.slug ? "" : cat.slug)}
+                        onClick={() => setSelectedCat(selectedCategorySlug === cat.slug ? "" : cat.slug)}
                       >
                         <span className="truncate">{cat.name}</span>
                         <Badge variant="secondary" className="text-[10px] shrink-0 ml-2">{cat.productCount}</Badge>
@@ -290,7 +295,7 @@ export default function Products() {
                             ? "bg-primary/10 text-primary font-semibold shadow-sm"
                             : "text-muted-foreground hover:bg-muted hover:text-foreground"
                         }`}
-                        onClick={() => setSelectedBrandSlug("")}
+                        onClick={() => setSelectedBrand("")}
                       >
                         All Brands
                       </button>
@@ -302,7 +307,7 @@ export default function Products() {
                               ? "bg-primary/10 text-primary font-semibold shadow-sm"
                               : "text-muted-foreground hover:bg-muted hover:text-foreground"
                           }`}
-                          onClick={() => setSelectedBrandSlug(selectedBrandSlug === brand.slug ? "" : brand.slug)}
+                          onClick={() => setSelectedBrand(selectedBrandSlug === brand.slug ? "" : brand.slug)}
                         >
                           {brand.name}
                         </button>

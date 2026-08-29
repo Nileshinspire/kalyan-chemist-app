@@ -1,5 +1,8 @@
 import { useState, useEffect, memo, useCallback } from "react";
 import { useNavigate, useLocation, useSearchParams } from "react-router";
+
+// Preload the Products chunk on category hover so there's no Suspense flash on navigation
+const preloadProducts = () => import("@/pages/Products.tsx");
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -426,6 +429,7 @@ const Navbar = memo(function Navbar() {
                 <button
                   type="button"
                   key={cat.key}
+                  onMouseEnter={preloadProducts}
                   onClick={() => handleCategoryNav(cat.slug, cat.key)}
                   className="relative px-3 lg:px-4 py-2.5 text-xs lg:text-sm font-medium whitespace-nowrap transition-all duration-200 shrink-0 cursor-pointer"
                   style={{ color: '#FFFFFF' }}

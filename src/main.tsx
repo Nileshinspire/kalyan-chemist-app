@@ -8,7 +8,6 @@ import { ConvexReactClient } from "convex/react";
 import React, { StrictMode, useEffect, lazy, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Route, Routes, useLocation } from "react-router";
-import { motion } from "framer-motion";
 import ScrollRestorer from "@/components/ScrollRestorer";
 import { PageErrorBoundary } from "@/components/PageErrorBoundary";
 import "./index.css";
@@ -77,19 +76,6 @@ function RouteLoading() {
         </p>
       </div>
     </div>
-  );
-}
-
-/** Wrapper that adds a subtle fade-in animation to page transitions */
-function PageTransition({ children }: { children: React.ReactNode }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 4 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.15, ease: "easeOut" }}
-    >
-      {children}
-    </motion.div>
   );
 }
 
@@ -191,143 +177,127 @@ function AnimatedRoutes() {
         <Route
           path="/"
           element={
-            <PageTransition>
-              <Landing />
-            </PageTransition>
+            <Landing />
+            
           }
         />
         <Route
           path="/auth"
           element={
-            <PageTransition>
-              <Auth />
-            </PageTransition>
+            <Auth />
+            
           }
         />
         <Route
           path="/login"
           element={
-            <PageTransition>
-              <Login />
-            </PageTransition>
+            <Login />
+            
           }
         />
         <Route
           path="/register"
           element={
-            <PageTransition>
-              <Register />
-            </PageTransition>
+            <Register />
+            
           }
         />
         <Route
           path="/admin/login"
           element={
-            <PageTransition>
-              <AdminLogin />
-            </PageTransition>
+            <AdminLogin />
+            
           }
         />
         <Route
           path="/dashboard"
           element={
-            <PageTransition>
-              <RequireAuth>
+            <RequireAuth>
                 <Dashboard />
               </RequireAuth>
-            </PageTransition>
+            
           }
         />
         <Route
           path="/products"
           element={
-            <PageTransition>
-              <Products />
-            </PageTransition>
+            <Products />
+            
           }
         />
         <Route
           path="/categories"
           element={
-            <PageTransition>
-              <CategoriesPage />
-            </PageTransition>
+            <CategoriesPage />
+            
           }
         />
         <Route
           path="/brands"
           element={
-            <PageTransition>
-              <BrandsPage />
-            </PageTransition>
+            <BrandsPage />
+            
           }
         />
         <Route
           path="/products/:slug"
           element={
-            <PageTransition>
-              <ProductDetail />
-            </PageTransition>
+            <ProductDetail />
+            
           }
         />
         <Route
           path="/cart"
           element={
-            <PageTransition>
-              <Cart />
-            </PageTransition>
+            <Cart />
+            
           }
         />
         <Route
           path="/wishlist"
           element={
-            <PageTransition>
-              <RequireAuth>
+            <RequireAuth>
                 <Wishlist />
               </RequireAuth>
-            </PageTransition>
+            
           }
         />
         <Route
           path="/checkout"
           element={
-            <PageTransition>
-              <RequireAuth>
+            <RequireAuth>
                 <Checkout />
               </RequireAuth>
-            </PageTransition>
+            
           }
         />
         <Route
           path="/orders"
           element={
-            <PageTransition>
-              <RequireAuth>
+            <RequireAuth>
                 <Orders />
               </RequireAuth>
-            </PageTransition>
+            
           }
         />
         <Route
           path="/orders/:id"
           element={
-            <PageTransition>
-              <RequireAuth>
+            <RequireAuth>
                 <OrderDetail />
               </RequireAuth>
-            </PageTransition>
+            
           }
         />
         <Route
           path="/account"
           element={
-            <PageTransition>
-              <RequireAuth>
+            <RequireAuth>
                 <Suspense fallback={<RouteLoading />}>
                   <AccountLayout />
                 </Suspense>
               </RequireAuth>
-            </PageTransition>
+            
           }
         >
           <Route index element={<Suspense fallback={<RouteLoading />}><AccountOverview /></Suspense>} />
@@ -344,173 +314,156 @@ function AnimatedRoutes() {
         <Route
           path="/admin"
           element={
-            <PageTransition>
-              <RequireAuth adminOnly>
+            <RequireAuth adminOnly>
                 <AdminDashboard />
               </RequireAuth>
-            </PageTransition>
+            
           }
         />
         <Route
           path="/admin/products"
           element={
-            <PageTransition>
-              <RequireAuth adminOnly>
+            <RequireAuth adminOnly>
                 <AdminProducts />
               </RequireAuth>
-            </PageTransition>
+            
           }
         />
         <Route
           path="/admin/categories"
           element={
-            <PageTransition>
-              <RequireAuth adminOnly>
+            <RequireAuth adminOnly>
                 <AdminCategories />
               </RequireAuth>
-            </PageTransition>
+            
           }
         />
         <Route
           path="/admin/brands"
           element={
-            <PageTransition>
-              <RequireAuth adminOnly>
+            <RequireAuth adminOnly>
                 <AdminBrands />
               </RequireAuth>
-            </PageTransition>
+            
           }
         />
         <Route
           path="/admin/inventory"
           element={
-            <PageTransition>
-              <RequireAuth adminOnly>
+            <RequireAuth adminOnly>
                 <AdminInventory />
               </RequireAuth>
-            </PageTransition>
+            
           }
         />
         <Route
           path="/admin/orders"
           element={
-            <PageTransition>
-              <RequireAuth adminOnly>
+            <RequireAuth adminOnly>
                 <AdminOrders />
               </RequireAuth>
-            </PageTransition>
+            
           }
         />
         <Route
           path="/admin/reviews"
           element={
-            <PageTransition>
-              <RequireAuth adminOnly>
+            <RequireAuth adminOnly>
                 <AdminReviews />
               </RequireAuth>
-            </PageTransition>
+            
           }
         />
         <Route
           path="/admin/coupons"
           element={
-            <PageTransition>
-              <RequireAuth adminOnly>
+            <RequireAuth adminOnly>
                 <AdminCoupons />
               </RequireAuth>
-            </PageTransition>
+            
           }
         />
         <Route
           path="/admin/users"
           element={
-            <PageTransition>
-              <RequireAuth adminOnly>
+            <RequireAuth adminOnly>
                 <AdminUsers />
               </RequireAuth>
-            </PageTransition>
+            
           }
         />
         <Route
           path="/admin/reports"
           element={
-            <PageTransition>
-              <RequireAuth adminOnly>
+            <RequireAuth adminOnly>
                 <AdminReports />
               </RequireAuth>
-            </PageTransition>
+            
           }
         />
         <Route
           path="/admin/delivery"
           element={
-            <PageTransition>
-              <RequireAuth adminOnly>
+            <RequireAuth adminOnly>
                 <AdminDeliverySettings />
               </RequireAuth>
-            </PageTransition>
+            
           }
         />
         <Route
           path="/admin/prescriptions"
           element={
-            <PageTransition>
-              <RequireAuth adminOnly>
+            <RequireAuth adminOnly>
                 <AdminPrescriptions />
               </RequireAuth>
-            </PageTransition>
+            
           }
         />
         <Route
           path="/admin/whatsapp"
           element={
-            <PageTransition>
-              <RequireAuth adminOnly>
+            <RequireAuth adminOnly>
                 <AdminWhatsApp />
               </RequireAuth>
-            </PageTransition>
+            
           }
         />
         <Route
           path="/admin/expiring"
           element={
-            <PageTransition>
-              <RequireAuth adminOnly>
+            <RequireAuth adminOnly>
                 <AdminExpiringMedicines />
               </RequireAuth>
-            </PageTransition>
+            
           }
         />
         <Route
           path="/admin/settings"
           element={
-            <PageTransition>
-              <RequireAuth adminOnly>
+            <RequireAuth adminOnly>
                 <Suspense fallback={<RouteLoading />}>
                   <AdminSettings />
                 </Suspense>
               </RequireAuth>
-            </PageTransition>
+            
           }
         />
         <Route
           path="/admin/activity"
           element={
-            <PageTransition>
-              <RequireAuth adminOnly>
+            <RequireAuth adminOnly>
                 <Suspense fallback={<RouteLoading />}>
                   <AdminActivityLog />
                 </Suspense>
               </RequireAuth>
-            </PageTransition>
+            
           }
         />
         <Route
           path="*"
           element={
-            <PageTransition>
-              <NotFound />
-            </PageTransition>
+            <NotFound />
+            
           }
         />
       </Routes>
