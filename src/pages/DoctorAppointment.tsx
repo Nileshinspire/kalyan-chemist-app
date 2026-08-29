@@ -46,293 +46,384 @@ const SPECIALTIES = [
 
 /* ─── Premium Medical Specialty Icons ─── */
 function SpecialtyIcon({ specialtyKey, className = "" }: { specialtyKey: string; className?: string }) {
+  /* All icons: viewBox 0 0 48 48, flat fills, ONE obvious main object per specialty */
   const icons: Record<string, React.ReactNode> = {
-    /* General Physician — stethoscope */
+    /* 1. General Physician — stethoscope */
     "general-physician": (
       <svg viewBox="0 0 48 48" className={className}>
-        <rect x="16" y="6" width="16" height="6" rx="3" fill="#4A90D9" />
-        <rect x="22" y="12" width="4" height="10" fill="#5BA0E8" />
-        <circle cx="24" cy="26" r="6" fill="#4A90D9" />
-        <circle cx="24" cy="26" r="3" fill="#3A7BC8" />
-        <rect x="23" y="32" width="2" height="8" fill="#5BA0E8" />
-        <rect x="18" y="40" width="12" height="3" rx="1.5" fill="#4A90D9" />
-        <circle cx="16" cy="9" r="2" fill="#6CB0F0" />
-        <circle cx="32" cy="9" r="2" fill="#6CB0F0" />
+        {/* ear pieces */}
+        <circle cx="14" cy="10" r="3" fill="#4A8FD9" />
+        <circle cx="34" cy="10" r="3" fill="#4A8FD9" />
+        {/* tubing */}
+        <path d="M14 13v4c0 4 4 8 10 8s10-4 10-8v-4" fill="none" stroke="#4A8FD9" strokeWidth="3" strokeLinecap="round" />
+        {/* chest piece */}
+        <circle cx="24" cy="28" r="5" fill="#3A7BC8" />
+        <circle cx="24" cy="28" r="2.5" fill="#5BA0E8" />
+        {/* tube to chest piece */}
+        <line x1="24" y1="22" x2="24" y2="23" stroke="#4A8FD9" strokeWidth="3" strokeLinecap="round" />
       </svg>
     ),
-    /* Dermatology — skin layers */
+
+    /* 2. Dermatology — face/skin profile */
     dermatology: (
       <svg viewBox="0 0 48 48" className={className}>
-        <rect x="6" y="6" width="36" height="8" rx="4" fill="#F5C6A0" />
-        <rect x="6" y="14" width="36" height="8" rx="2" fill="#E8A882" />
-        <rect x="6" y="22" width="36" height="8" rx="2" fill="#D4907A" />
-        <rect x="6" y="30" width="36" height="8" rx="2" fill="#C47862" />
-        <circle cx="14" cy="10" r="1.5" fill="#FFF5EE" />
-        <circle cx="24" cy="10" r="1" fill="#FFF5EE" />
-        <circle cx="34" cy="10" r="1.5" fill="#FFF5EE" />
-        <circle cx="12" cy="18" r="1" fill="#E8C0A8" />
-        <circle cx="24" cy="18" r="1.5" fill="#E8C0A8" />
-        <circle cx="36" cy="18" r="1" fill="#E8C0A8" />
+        {/* face shape */}
+        <ellipse cx="24" cy="22" rx="14" ry="16" fill="#F2C9A3" />
+        {/* cheek glow */}
+        <ellipse cx="16" cy="26" rx="3" ry="2" fill="#F0B890" opacity="0.6" />
+        <ellipse cx="32" cy="26" rx="3" ry="2" fill="#F0B890" opacity="0.6" />
+        {/* eye */}
+        <ellipse cx="19" cy="20" rx="2" ry="1.2" fill="#504040" />
+        <ellipse cx="29" cy="20" rx="2" ry="1.2" fill="#504040" />
+        {/* lips */}
+        <path d="M21 30c1.5 1 4.5 1 6 0" fill="none" stroke="#D08868" strokeWidth="1.5" strokeLinecap="round" />
+        {/* small sparkle on skin */}
+        <circle cx="33" cy="16" r="1.5" fill="#FFF" opacity="0.7" />
+        <circle cx="35" cy="14" r="0.8" fill="#FFF" opacity="0.5" />
       </svg>
     ),
-    /* Obstetrics & Gynaecology — mother and baby */
+
+    /* 3. Obstetrics & Gynaecology — uterus/maternal */
     "obstetrics-gynaecology": (
       <svg viewBox="0 0 48 48" className={className}>
-        <circle cx="20" cy="10" r="5" fill="#E8A0B8" />
-        <path d="M14 18c0 0 0 14 6 16h0c4-2 4-12 4-16" fill="#D4809E" />
-        <path d="M12 18c-2 2-4 6-4 10 0 4 2 8 6 10l8-2" fill="#E8A0B8" />
-        <path d="M24 18c-1 1-1.5 4 0 6" fill="none" stroke="#C06080" strokeWidth="1.5" strokeLinecap="round" />
-        <path d="M26 24c2 2 3 6 3 9" fill="none" stroke="#D4809E" strokeWidth="2" strokeLinecap="round" />
-        <path d="M32 30c1.5 1.5 2 4 1 6" fill="none" stroke="#D4809E" strokeWidth="2" strokeLinecap="round" />
-        <circle cx="32" cy="26" r="3" fill="#F0C8D8" />
-        <path d="M29 30c-0.5 3-1 7 0 9" fill="none" stroke="#E8A0B8" strokeWidth="2" strokeLinecap="round" />
+        {/* uterus body */}
+        <path d="M14 10v12c0 6 4 10 10 14 6-4 10-8 10-14V10" fill="none" stroke="#D88098" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+        {/* fallopian tubes */}
+        <path d="M14 10c-4-1-8 0-10 3" fill="none" stroke="#D88098" strokeWidth="2.5" strokeLinecap="round" />
+        <path d="M34 10c4-1 8 0 10 3" fill="none" stroke="#D88098" strokeWidth="2.5" strokeLinecap="round" />
+        {/* small baby silhouette inside */}
+        <circle cx="24" cy="26" r="3" fill="#E8A0B8" />
+        <path d="M21 30c0 0 1 4 3 5s3-5 3-5" fill="#E8A0B8" />
+        {/* heart accent */}
+        <path d="M23 14l-1.5-1.5a1.2 1.2 0 0 1 2 0 1.2 1.2 0 0 1 2 0L24 14.5" fill="#E86888" />
       </svg>
     ),
-    /* Orthopaedics — bone joint */
+
+    /* 4. Orthopaedics — single bone */
     orthopaedics: (
       <svg viewBox="0 0 48 48" className={className}>
-        <rect x="16" y="4" width="6" height="18" rx="3" fill="#F0E8D8" />
-        <rect x="26" y="4" width="6" height="18" rx="3" fill="#E8DCC8" />
-        <ellipse cx="21" cy="22" rx="8" ry="4" fill="#F0E8D8" />
-        <ellipse cx="21" cy="24" rx="8" ry="4" fill="#E8DCC8" />
-        <rect x="14" y="26" width="6" height="18" rx="3" fill="#F0E8D8" />
-        <rect x="28" y="26" width="6" height="18" rx="3" fill="#E8DCC8" />
-        <ellipse cx="17" cy="24" rx="4" ry="2" fill="#D8CCA0" />
-        <ellipse cx="31" cy="24" rx="4" ry="2" fill="#D8CCA0" />
+        {/* bone shaft */}
+        <rect x="18" y="14" width="12" height="20" rx="5" fill="#F0E8D8" />
+        {/* top knobs */}
+        <ellipse cx="16" cy="14" rx="6" ry="5" fill="#F0E8D8" />
+        <ellipse cx="32" cy="14" rx="6" ry="5" fill="#E8DCC8" />
+        {/* bottom knobs */}
+        <ellipse cx="16" cy="34" rx="6" ry="5" fill="#F0E8D8" />
+        <ellipse cx="32" cy="34" rx="6" ry="5" fill="#E8DCC8" />
+        {/* subtle highlight */}
+        <ellipse cx="22" cy="20" rx="2" ry="6" fill="#FFF" opacity="0.3" />
       </svg>
     ),
-    /* ENT — ear */
+
+    /* 5. ENT — ear */
     ent: (
       <svg viewBox="0 0 48 48" className={className}>
+        {/* outer ear shape */}
         <path d="M30 8c8 0 12 6 12 14s-4 14-8 16c-2 1-4 2-4 4" fill="#F0C8A0" />
         <path d="M30 8c-6 0-10 6-10 14v4c0 4 2 6 5 6" fill="#E8B888" />
-        <path d="M20 26c0 6 4 12 10 16" fill="#F0C8A0" />
-        <path d="M24 18c2 0 4 2 4 4s-2 4-4 4" fill="#D49868" />
+        {/* inner ear detail */}
+        <path d="M24 18c2 0 4 2 4 4s-2 4-4 4" fill="none" stroke="#D49868" strokeWidth="2" strokeLinecap="round" />
         <path d="M28 18c3 2 5 6 5 10" fill="none" stroke="#D49868" strokeWidth="2" strokeLinecap="round" />
-        <path d="M30 8c-4 2-6 8-6 14" fill="none" stroke="#D49868" strokeWidth="1.5" strokeLinecap="round" />
+        {/* ear canal hint */}
+        <path d="M26 24c1 1 1.5 2.5 1.5 4" fill="none" stroke="#C08050" strokeWidth="1.5" strokeLinecap="round" />
       </svg>
     ),
-    /* Neurology — brain */
+
+    /* 6. Neurology — brain */
     neurology: (
       <svg viewBox="0 0 48 48" className={className}>
-        <path d="M24 6C16 6 10 12 10 20c0 4 2 8 5 10 1 1 2 2 2 4v4h14v-4c0-2 1-3 2-4 3-2 5-6 5-10C38 12 32 6 24 6z" fill="#F0A8B0" />
-        <path d="M24 6v38" fill="none" stroke="#D88898" strokeWidth="1.5" strokeLinecap="round" />
-        <path d="M18 10c-4 2-7 6-8 10" fill="none" stroke="#D88898" strokeWidth="1.5" strokeLinecap="round" />
-        <path d="M30 10c4 2 7 6 8 10" fill="none" stroke="#D88898" strokeWidth="1.5" strokeLinecap="round" />
-        <path d="M12 22c2 2 6 3 12 3s10-1 12-3" fill="none" stroke="#D88898" strokeWidth="1.5" strokeLinecap="round" />
-        <path d="M14 16c3 1 6 1.5 10 1.5s7-.5 10-1.5" fill="none" stroke="#C87888" strokeWidth="1" strokeLinecap="round" />
+        {/* brain shape */}
+        <path d="M24 8C17 8 12 13 12 20c0 3 1 6 3 8 1 1 1.5 2 1.5 3.5v3c0 1 .8 1.5 1.5 1.5h12c.7 0 1.5-.5 1.5-1.5v-3c0-1.5.5-2.5 1.5-3.5 2-2 3-5 3-8C36 13 31 8 24 8z" fill="#F0A8B0" />
+        {/* midline */}
+        <path d="M24 8v34" fill="none" stroke="#D88898" strokeWidth="1.5" strokeLinecap="round" />
+        {/* left fold */}
+        <path d="M16 14c-2 3-3 6-3.5 9" fill="none" stroke="#D88898" strokeWidth="1.5" strokeLinecap="round" />
+        {/* right fold */}
+        <path d="M32 14c2 3 3 6 3.5 9" fill="none" stroke="#D88898" strokeWidth="1.5" strokeLinecap="round" />
+        {/* horizontal fold */}
+        <path d="M14 20c3 2 7 3 10 3s7-1 10-3" fill="none" stroke="#C87888" strokeWidth="1" strokeLinecap="round" />
       </svg>
     ),
-    /* Cardiology — anatomical heart */
+
+    /* 7. Cardiology — anatomical heart */
     cardiology: (
       <svg viewBox="0 0 48 48" className={className}>
-        <path d="M24 42s-14-8-14-20c0-6 4-10 8-10 3 0 5 2 6 5 1-3 3-5 6-5 4 0 8 4 8 10 0 12-14 20-14 20z" fill="#E84040" />
-        <path d="M24 42s-14-8-14-20c0-6 4-10 8-10 3 0 5 2 6 5" fill="#D03030" />
-        <path d="M18 18l-6-6" stroke="#C02020" strokeWidth="2" strokeLinecap="round" />
-        <path d="M30 18l6-6" stroke="#C02020" strokeWidth="2" strokeLinecap="round" />
-        <path d="M24 18V12" stroke="#C02020" strokeWidth="2" strokeLinecap="round" />
-        <path d="M18 28l4 4 6-6" stroke="#FFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+        {/* heart shape — anatomical not love-heart */}
+        <path d="M24 42S10 34 10 22c0-6 4-10 8-10 2.5 0 4.5 1.5 6 4 1.5-2.5 3.5-4 6-4 4 0 8 4 8 10 0 12-14 20-14 20z" fill="#E84040" />
+        {/* darker left half */}
+        <path d="M24 42S10 34 10 22c0-6 4-10 8-10 2.5 0 4.5 1.5 6 4" fill="#D03030" />
+        {/* aorta vessel at top */}
+        <path d="M22 12c-3-1-6-1-8 1" fill="none" stroke="#C02020" strokeWidth="2" strokeLinecap="round" />
+        <path d="M26 12c3-1 6-1 8 1" fill="none" stroke="#C02020" strokeWidth="2" strokeLinecap="round" />
+        <path d="M24 12V8" stroke="#C02020" strokeWidth="2" strokeLinecap="round" />
       </svg>
     ),
-    /* Urology — kidney */
+
+    /* 8. Urology — bladder */
     urology: (
       <svg viewBox="0 0 48 48" className={className}>
-        <path d="M16 10c-8 1-12 8-12 16 0 6 2 10 6 12 2 1 3 3 3 5" fill="#C04050" />
-        <path d="M32 10c8 1 12 8 12 16 0 6-2 10-6 12-2 1-3 3-3 5" fill="#A83848" />
-        <path d="M16 10c4 2 6 8 8 16 2-8 4-14 8-16" fill="#D86070" />
-        <path d="M20 32c2-2 3-5 4-8 1 3 2 6 4 8" fill="#B84050" />
-        <path d="M18 42h12" fill="none" stroke="#A03040" strokeWidth="2" strokeLinecap="round" />
+        {/* ureters coming in */}
+        <path d="M16 8c2 4 4 8 6 14" fill="none" stroke="#6A9FD8" strokeWidth="2.5" strokeLinecap="round" />
+        <path d="M32 8c-2 4-4 8-6 14" fill="none" stroke="#6A9FD8" strokeWidth="2.5" strokeLinecap="round" />
+        {/* bladder body */}
+        <ellipse cx="24" cy="28" rx="12" ry="10" fill="#6A9FD8" />
+        <ellipse cx="24" cy="28" rx="8" ry="6" fill="#5890C8" />
+        {/* urethra */}
+        <line x1="24" y1="38" x2="24" y2="44" stroke="#6A9FD8" strokeWidth="2.5" strokeLinecap="round" />
       </svg>
     ),
-    /* Gastroenterology — stomach */
+
+    /* 9. Gastroenterology — stomach */
     gastroenterology: (
       <svg viewBox="0 0 48 48" className={className}>
-        <path d="M20 6v4" stroke="#E89868" strokeWidth="2" strokeLinecap="round" />
-        <path d="M28 6v4" stroke="#E89868" strokeWidth="2" strokeLinecap="round" />
-        <path d="M20 10c-8 0-14 6-14 16s4 10 8 12c2 1 4 3 4 6v2" fill="#F0C090" />
-        <path d="M28 10c8 0 14 6 14 16s-4 10-8 12c-2 1-4 3-4 6v2" fill="#E8B080" />
-        <path d="M20 10h8" fill="none" stroke="#D89868" strokeWidth="1.5" strokeLinecap="round" />
-        <path d="M14 22h20" fill="none" stroke="#D89868" strokeWidth="1.5" strokeLinecap="round" />
-        <path d="M24 38v4" stroke="#D89868" strokeWidth="2" strokeLinecap="round" />
+        {/* esophagus */}
+        <path d="M20 6v6" stroke="#E09060" strokeWidth="3" strokeLinecap="round" />
+        {/* stomach body — natural curved sac shape */}
+        <path d="M20 12c-8 1-14 7-14 16s4 10 8 12c2 1 3 3 3 5" fill="#F0C090" />
+        <path d="M20 12c0 0 2 4 4 8 2-4 4-8 4-8 8-1 14 5 14 16s-4 10-8 12c-2 1-3 3-3 5" fill="#E8B080" />
+        {/* stomach fold lines */}
+        <path d="M14 24c4 1 8 1 12 0" fill="none" stroke="#D89868" strokeWidth="1.5" strokeLinecap="round" />
+        <path d="M16 30c3 1 6 1 10 0" fill="none" stroke="#D89868" strokeWidth="1" strokeLinecap="round" />
       </svg>
     ),
-    /* Psychiatry — brain with peaceful expression */
+
+    /* 10. Psychiatry — head with brain */
     psychiatry: (
       <svg viewBox="0 0 48 48" className={className}>
-        <path d="M24 6C16 6 10 12 10 20c0 4 2 8 5 10 1 1 2 2 2 4v4h14v-4c0-2 1-3 2-4 3-2 5-6 5-10C38 12 32 6 24 6z" fill="#D8A8C8" />
-        <path d="M18 20c2 1 5 1.5 6 1.5s4-.5 6-1.5" fill="none" stroke="#B888A8" strokeWidth="1.5" strokeLinecap="round" />
-        <path d="M16 26h16" fill="none" stroke="#B888A8" strokeWidth="1.5" strokeLinecap="round" />
-        <path d="M20 32c1 3 2 5 4 7 2-2 3-4 4-7" fill="none" stroke="#B888A8" strokeWidth="1.5" strokeLinecap="round" />
-        <path d="M20 12c-3 2-5 5-6 8" fill="none" stroke="#B888A8" strokeWidth="1" strokeLinecap="round" />
-        <path d="M28 12c3 2 5 5 6 8" fill="none" stroke="#B888A8" strokeWidth="1" strokeLinecap="round" />
+        {/* head silhouette */}
+        <circle cx="24" cy="18" r="12" fill="#D8A8C8" />
+        {/* brain visible inside head */}
+        <path d="M18 12c-2 1-4 4-4 6" fill="none" stroke="#B888A8" strokeWidth="1.5" strokeLinecap="round" />
+        <path d="M30 12c2 1 4 4 4 6" fill="none" stroke="#B888A8" strokeWidth="1.5" strokeLinecap="round" />
+        <path d="M24 10v2" stroke="#B888A8" strokeWidth="1" strokeLinecap="round" />
+        {/* calm expression */}
+        <path d="M20 20c1 1 3 1 4 1s3 0 4-1" fill="none" stroke="#A07090" strokeWidth="1.5" strokeLinecap="round" />
+        {/* thought bubbles */}
+        <circle cx="16" cy="32" r="1.5" fill="#D8A8C8" opacity="0.5" />
+        <circle cx="12" cy="36" r="2" fill="#D8A8C8" opacity="0.4" />
+        <circle cx="10" cy="41" r="2.5" fill="#D8A8C8" opacity="0.3" />
       </svg>
     ),
-    /* Paediatrics — child figure */
+
+    /* 11. Paediatrics — child */
     paediatrics: (
       <svg viewBox="0 0 48 48" className={className}>
-        <circle cx="24" cy="12" r="6" fill="#F0C8A0" />
-        <path d="M18 22c0 0-1 10 6 12h0c5-2 6-12 6-12" fill="#60B8F0" />
-        <path d="M14 22c-2 3-4 8-4 12 0 3 2 6 4 7" fill="#60B8F0" />
-        <path d="M34 22c2 3 4 8 4 12 0 3-2 6-4 7" fill="#58A8E0" />
-        <path d="M18 38l-2 6" stroke="#F0C8A0" strokeWidth="3" strokeLinecap="round" />
-        <path d="M30 38l2 6" stroke="#F0C8A0" strokeWidth="3" strokeLinecap="round" />
-        <circle cx="21" cy="11" r="1" fill="#504040" />
-        <circle cx="27" cy="11" r="1" fill="#504040" />
-        <path d="M22 14c0.5 1 1.5 1.5 2 1.5s1.5-.5 2-1.5" fill="none" stroke="#D08868" strokeWidth="1" strokeLinecap="round" />
+        {/* head */}
+        <circle cx="24" cy="12" r="7" fill="#F0C8A0" />
+        {/* body */}
+        <path d="M17 22c0 0-1 12 7 14s7-14 7-14" fill="#58B0E8" />
+        {/* arms */}
+        <path d="M17 24c-3 2-5 6-5 8" fill="none" stroke="#F0C8A0" strokeWidth="3" strokeLinecap="round" />
+        <path d="M31 24c3 2 5 6 5 8" fill="none" stroke="#F0C8A0" strokeWidth="3" strokeLinecap="round" />
+        {/* legs */}
+        <path d="M21 36l-1 8" stroke="#F0C8A0" strokeWidth="3" strokeLinecap="round" />
+        <path d="M27 36l1 8" stroke="#F0C8A0" strokeWidth="3" strokeLinecap="round" />
+        {/* eyes */}
+        <circle cx="21" cy="11" r="1" fill="#404040" />
+        <circle cx="27" cy="11" r="1" fill="#404040" />
+        {/* smile */}
+        <path d="M22 15c.5 1 1.5 1.5 2 1.5s1.5-.5 2-1.5" fill="none" stroke="#D08868" strokeWidth="1" strokeLinecap="round" />
       </svg>
     ),
-    /* Pulmonology — lungs */
+
+    /* 12. Pulmonology — lungs */
     pulmonology: (
       <svg viewBox="0 0 48 48" className={className}>
-        <path d="M24 6v18" stroke="#58A8D0" strokeWidth="3" strokeLinecap="round" />
-        <path d="M24 6c-8 0-14 6-14 14 0 4 1 7 4 10 2 2 4 5 4 10v4" fill="#80C8E8" />
-        <path d="M24 6c8 0 14 6 14 14 0 4-1 7-4 10-2 2-4 5-4 10v4" fill="#70B8D8" />
-        <path d="M10 18c2 0 4 1 6 4" fill="none" stroke="#58A8D0" strokeWidth="1.5" strokeLinecap="round" />
-        <path d="M38 18c-2 0-4 1-6 4" fill="none" stroke="#58A8D0" strokeWidth="1.5" strokeLinecap="round" />
-        <path d="M18 28c2-1 4-1 6 0" fill="none" stroke="#58A8D0" strokeWidth="1.5" strokeLinecap="round" />
-        <path d="M24 28c2-1 4-1 6 0" fill="none" stroke="#58A8D0" strokeWidth="1.5" strokeLinecap="round" />
+        {/* trachea */}
+        <rect x="22" y="6" width="4" height="16" rx="2" fill="#70B8D8" />
+        {/* left lung */}
+        <path d="M22 16c-8 0-14 6-14 14 0 4 2 8 5 10 2 1 4 3 4 5" fill="#80C8E8" />
+        {/* right lung */}
+        <path d="M26 16c8 0 14 6 14 14 0 4-2 8-5 10-2 1-4 3-4 5" fill="#70B8D8" />
+        {/* bronchi inside lungs */}
+        <path d="M22 22l-6 6" fill="none" stroke="#58A0C8" strokeWidth="1.5" strokeLinecap="round" />
+        <path d="M26 22l6 6" fill="none" stroke="#58A0C8" strokeWidth="1.5" strokeLinecap="round" />
       </svg>
     ),
-    /* Endocrinology — thyroid gland */
+
+    /* 13. Endocrinology — thyroid */
     endocrinology: (
       <svg viewBox="0 0 48 48" className={className}>
-        <path d="M18 8c-4 0-8 4-8 10s2 8 4 10c1 1 2 3 2 6v2h16v-2c0-3 1-5 2-6 2-2 4-6 4-10s-4-10-8-10" fill="#E8B870" />
-        <path d="M24 8v4" stroke="#D0A060" strokeWidth="2" strokeLinecap="round" />
-        <path d="M18 18h12" fill="none" stroke="#D0A060" strokeWidth="1.5" strokeLinecap="round" />
-        <path d="M20 30h8" fill="none" stroke="#D0A060" strokeWidth="1.5" strokeLinecap="round" />
-        <circle cx="18" cy="14" r="2" fill="#D8A858" />
-        <circle cx="30" cy="14" r="2" fill="#D8A858" />
+        {/* trachea */}
+        <rect x="22" y="6" width="4" height="10" rx="2" fill="#D0A868" />
+        {/* thyroid butterfly shape */}
+        <path d="M24 16c-2 0-4 2-4 6 0 4 3 8 4 10 1-2 4-6 4-10 0-4-2-6-4-6z" fill="#E8B870" />
+        {/* left lobe */}
+        <path d="M20 16c-4 0-8 4-8 8s4 6 8 8" fill="#E8B870" />
+        {/* right lobe */}
+        <path d="M28 16c4 0 8 4 8 8s-4 6-8 8" fill="#D8A858" />
+        {/* isthmus connection */}
+        <path d="M20 20h8" fill="none" stroke="#C89848" strokeWidth="2" strokeLinecap="round" />
       </svg>
     ),
-    /* Nephrology — paired kidneys */
+
+    /* 14. Nephrology — two kidneys */
     nephrology: (
       <svg viewBox="0 0 48 48" className={className}>
-        <path d="M14 12c-6 0-10 6-10 14s2 8 4 10c1 1 2 2 2 4" fill="#C04858" />
-        <path d="M34 12c6 0 10 6 10 14s-2 8-4 10c-1 1-2 2-2 4" fill="#A83848" />
-        <path d="M14 12c4 2 6 8 8 16 2-8 4-14 8-16" fill="#D86070" />
-        <path d="M18 34c1-2 2-5 3-8 1 3 2 6 3 8" fill="#B84050" />
-        <path d="M16 42h16" fill="none" stroke="#A03040" strokeWidth="2" strokeLinecap="round" />
+        {/* left kidney */}
+        <path d="M14 14c-6 0-10 5-10 12s4 10 8 12" fill="#C04858" />
+        <path d="M14 14c2 3 3 8 4 14" fill="#D86070" />
+        {/* right kidney */}
+        <path d="M34 14c6 0 10 5 10 12s-4 10-8 12" fill="#A83848" />
+        <path d="M34 14c-2 3-3 8-4 14" fill="#C05060" />
+        {/* connecting vessels */}
+        <path d="M18 20h12" stroke="#883040" strokeWidth="2" strokeLinecap="round" />
+        <path d="M18 26h12" stroke="#883040" strokeWidth="2" strokeLinecap="round" />
       </svg>
     ),
-    /* Neurosurgery — brain + surgical marker */
+
+    /* 15. Neurosurgery — brain + crosshair */
     neurosurgery: (
       <svg viewBox="0 0 48 48" className={className}>
-        <path d="M24 6C16 6 10 12 10 20c0 4 2 8 5 10 1 1 2 2 2 4v4h14v-4c0-2 1-3 2-4 3-2 5-6 5-10C38 12 32 6 24 6z" fill="#F0A8B0" />
-        <path d="M24 6v38" fill="none" stroke="#D88898" strokeWidth="1" strokeLinecap="round" />
-        <circle cx="24" cy="20" r="3" fill="none" stroke="#E84040" strokeWidth="2" />
-        <line x1="24" y1="15" x2="24" y2="25" stroke="#E84040" strokeWidth="1.5" strokeLinecap="round" />
-        <line x1="19" y1="20" x2="29" y2="20" stroke="#E84040" strokeWidth="1.5" strokeLinecap="round" />
+        {/* brain */}
+        <path d="M24 8C17 8 12 13 12 20c0 3 1 6 3 8 1 1 1.5 2 1.5 3.5v3c0 1 .8 1.5 1.5 1.5h12c.7 0 1.5-.5 1.5-1.5v-3c0-1.5.5-2.5 1.5-3.5 2-2 3-5 3-8C36 13 31 8 24 8z" fill="#F0A8B0" />
+        <path d="M24 8v34" fill="none" stroke="#D88898" strokeWidth="1" strokeLinecap="round" />
+        {/* surgical crosshair target */}
+        <circle cx="24" cy="20" r="5" fill="none" stroke="#E84040" strokeWidth="2" />
+        <line x1="24" y1="13" x2="24" y2="27" stroke="#E84040" strokeWidth="1.5" strokeLinecap="round" />
+        <line x1="17" y1="20" x2="31" y2="20" stroke="#E84040" strokeWidth="1.5" strokeLinecap="round" />
       </svg>
     ),
-    /* Rheumatology — joint / hand bones */
+
+    /* 16. Rheumatology — joint with inflammation */
     rheumatology: (
       <svg viewBox="0 0 48 48" className={className}>
-        <rect x="18" y="4" width="4" height="10" rx="2" fill="#F0E8D8" />
-        <rect x="26" y="4" width="4" height="10" rx="2" fill="#E8DCC8" />
-        <ellipse cx="24" cy="16" rx="8" ry="5" fill="#F0E8D8" />
-        <circle cx="20" cy="14" r="2" fill="#E85050" />
-        <circle cx="28" cy="18" r="2" fill="#E85050" />
-        <rect x="16" y="22" width="5" height="14" rx="2.5" fill="#F0E8D8" />
-        <rect x="27" y="22" width="5" height="14" rx="2.5" fill="#E8DCC8" />
-        <circle cx="18" cy="16" r="1.5" fill="#E86060" opacity="0.5" />
-        <circle cx="30" cy="14" r="1.5" fill="#E86060" opacity="0.5" />
+        {/* upper bone */}
+        <rect x="19" y="4" width="10" height="14" rx="5" fill="#F0E8D8" />
+        {/* lower bone */}
+        <rect x="19" y="30" width="10" height="14" rx="5" fill="#F0E8D8" />
+        {/* joint area */}
+        <ellipse cx="24" cy="24" rx="10" ry="7" fill="#E8DCC8" />
+        {/* inflammation points (red spots) */}
+        <circle cx="20" cy="22" r="2.5" fill="#E85050" opacity="0.6" />
+        <circle cx="28" cy="26" r="2.5" fill="#E85050" opacity="0.6" />
+        <circle cx="24" cy="20" r="1.5" fill="#E86060" opacity="0.4" />
       </svg>
     ),
-    /* Ophthalmology — eye */
+
+    /* 17. Ophthalmology — eye */
     ophthalmology: (
       <svg viewBox="0 0 48 48" className={className}>
-        <path d="M4 24s8-16 20-16 20 16 20 16-8 16-20 16S4 24 4 24z" fill="#F8F8F8" />
-        <circle cx="24" cy="24" r="8" fill="#4A90D9" />
-        <circle cx="24" cy="24" r="5" fill="#2A60A0" />
-        <circle cx="24" cy="24" r="2.5" fill="#1A1A2E" />
-        <circle cx="22" cy="22" r="1" fill="#FFF" />
-        <path d="M4 24c4-8 10-14 20-14" fill="none" stroke="#D8C8B0" strokeWidth="1" strokeLinecap="round" />
-        <path d="M4 24c4 8 10 14 20 14" fill="none" stroke="#D8C8B0" strokeWidth="1" strokeLinecap="round" />
+        {/* eye white */}
+        <path d="M4 24s8-14 20-14 20 14 20 14-8 14-20 14S4 24 4 24z" fill="#F8F8F8" />
+        {/* iris */}
+        <circle cx="24" cy="24" r="9" fill="#4A90D9" />
+        {/* pupil */}
+        <circle cx="24" cy="24" r="5" fill="#1A1A2E" />
+        {/* light reflection */}
+        <circle cx="21" cy="21" r="1.5" fill="#FFF" />
+        {/* eyelid lines */}
+        <path d="M4 24c4-8 12-14 20-14" fill="none" stroke="#C8B8A0" strokeWidth="1.5" strokeLinecap="round" />
+        <path d="M4 24c4 8 12 14 20 14" fill="none" stroke="#C8B8A0" strokeWidth="1.5" strokeLinecap="round" />
       </svg>
     ),
-    /* Surgical Gastroenterology — stomach + scalpel */
+
+    /* 18. Surgical Gastroenterology — stomach + scalpel */
     "surgical-gastroenterology": (
       <svg viewBox="0 0 48 48" className={className}>
-        <path d="M20 10c-8 0-14 6-14 16s4 10 8 12c2 1 4 3 4 6v2" fill="#F0C090" />
-        <path d="M28 10c8 0 14 6 14 16s-4 10-8 12c-2 1-4 3-4 6v2" fill="#E8B080" />
-        <path d="M20 10h8" fill="none" stroke="#D89868" strokeWidth="1.5" strokeLinecap="round" />
-        <path d="M14 22h20" fill="none" stroke="#D89868" strokeWidth="1.5" strokeLinecap="round" />
-        <rect x="34" y="6" width="3" height="14" rx="1.5" fill="#808898" />
-        <path d="M35.5 20l-4 6" stroke="#808898" strokeWidth="2" strokeLinecap="round" />
-        <circle cx="30" cy="30" r="3" fill="none" stroke="#60A880" strokeWidth="1.5" />
-        <path d="M28 28l4 4" stroke="#60A880" strokeWidth="1.5" strokeLinecap="round" />
+        {/* stomach */}
+        <path d="M20 12c-8 1-14 7-14 16s4 10 8 12c2 1 3 3 3 5" fill="#F0C090" />
+        <path d="M20 12c0 0 2 4 4 8 2-4 4-8 4-8 8-1 14 5 14 16s-4 10-8 12c-2 1-3 3-3 5" fill="#E8B080" />
+        <path d="M14 24c4 1 8 1 12 0" fill="none" stroke="#D89868" strokeWidth="1.5" strokeLinecap="round" />
+        {/* scalpel overlay */}
+        <path d="M36 8l-6 8" stroke="#888898" strokeWidth="3" strokeLinecap="round" />
+        <path d="M30 16l-2 3" stroke="#888898" strokeWidth="2" strokeLinecap="round" />
       </svg>
     ),
-    /* Infectious Disease — virus */
+
+    /* 19. Infectious Disease — virus */
     "infectious-disease": (
       <svg viewBox="0 0 48 48" className={className}>
-        <circle cx="24" cy="24" r="8" fill="#80C870" />
-        <circle cx="24" cy="24" r="4" fill="#60A850" />
-        <circle cx="22" cy="22" r="1" fill="#408830" />
-        <circle cx="26" cy="22" r="1" fill="#408830" />
-        <circle cx="24" cy="26" r="1" fill="#408830" />
-        <path d="M24 8v5" stroke="#80C870" strokeWidth="3" strokeLinecap="round" />
-        <path d="M24 35v5" stroke="#80C870" strokeWidth="3" strokeLinecap="round" />
-        <path d="M8 24h5" stroke="#80C870" strokeWidth="3" strokeLinecap="round" />
-        <path d="M35 24h5" stroke="#80C870" strokeWidth="3" strokeLinecap="round" />
-        <path d="M12 12l4 4" stroke="#80C870" strokeWidth="3" strokeLinecap="round" />
-        <path d="M32 32l4 4" stroke="#80C870" strokeWidth="3" strokeLinecap="round" />
-        <path d="M12 36l4-4" stroke="#80C870" strokeWidth="3" strokeLinecap="round" />
-        <path d="M32 16l4-4" stroke="#80C870" strokeWidth="3" strokeLinecap="round" />
+        {/* virus body */}
+        <circle cx="24" cy="24" r="10" fill="#60A850" />
+        <circle cx="24" cy="24" r="5" fill="#488838" />
+        {/* surface proteins (spikes) */}
+        <circle cx="24" cy="10" r="2.5" fill="#60A850" />
+        <circle cx="24" cy="38" r="2.5" fill="#60A850" />
+        <circle cx="10" cy="24" r="2.5" fill="#60A850" />
+        <circle cx="38" cy="24" r="2.5" fill="#60A850" />
+        <circle cx="14" cy="14" r="2" fill="#60A850" />
+        <circle cx="34" cy="34" r="2" fill="#60A850" />
+        <circle cx="14" cy="34" r="2" fill="#60A850" />
+        <circle cx="34" cy="14" r="2" fill="#60A850" />
+        {/* spike stems */}
+        <line x1="24" y1="12" x2="24" y2="14" stroke="#60A850" strokeWidth="2" strokeLinecap="round" />
+        <line x1="24" y1="34" x2="24" y2="36" stroke="#60A850" strokeWidth="2" strokeLinecap="round" />
+        <line x1="12" y1="24" x2="14" y2="24" stroke="#60A850" strokeWidth="2" strokeLinecap="round" />
+        <line x1="34" y1="24" x2="36" y2="24" stroke="#60A850" strokeWidth="2" strokeLinecap="round" />
       </svg>
     ),
-    /* General & Laparoscopic Surgery — scalpel */
+
+    /* 20. General & Laparoscopic Surgery — scalpel */
     "general-laparoscopic-surgery": (
       <svg viewBox="0 0 48 48" className={className}>
-        <path d="M8 40l4-4" stroke="#888898" strokeWidth="3" strokeLinecap="round" />
-        <rect x="10" y="16" width="4" height="22" rx="2" fill="#888898" />
-        <path d="M12 16L36 4" stroke="#888898" strokeWidth="3" strokeLinecap="round" />
-        <path d="M36 4l6 2-2 6" fill="#A0A8B8" stroke="#888898" strokeWidth="1.5" strokeLinejoin="round" />
-        <circle cx="10" cy="42" r="2" fill="#E84040" />
-        <path d="M22 10l4 4" stroke="#60A880" strokeWidth="2" strokeLinecap="round" />
-        <path d="M18 14l4 4" stroke="#60A880" strokeWidth="2" strokeLinecap="round" />
+        {/* scalpel blade */}
+        <path d="M8 8l24 24" stroke="#9098A8" strokeWidth="4" strokeLinecap="round" />
+        <path d="M32 32l4 4" stroke="#9098A8" strokeWidth="3" strokeLinecap="round" />
+        {/* blade tip */}
+        <path d="M6 6l4 2-2 4" fill="#B0B8C8" stroke="#9098A8" strokeWidth="1.5" strokeLinejoin="round" />
+        {/* handle grip lines */}
+        <path d="M14 14l2 2" stroke="#606878" strokeWidth="2" strokeLinecap="round" />
+        <path d="M17 17l2 2" stroke="#606878" strokeWidth="2" strokeLinecap="round" />
+        <path d="M20 20l2 2" stroke="#606878" strokeWidth="2" strokeLinecap="round" />
       </svg>
     ),
-    /* Psychology — brain with thought */
+
+    /* 21. Psychology — brain with thought bubbles */
     psychology: (
       <svg viewBox="0 0 48 48" className={className}>
-        <path d="M24 6C16 6 10 12 10 20c0 4 2 8 5 10 1 1 2 2 2 4v4h14v-4c0-2 1-3 2-4 3-2 5-6 5-10C38 12 32 6 24 6z" fill="#B8D0E8" />
-        <path d="M24 6v38" fill="none" stroke="#98B8D8" strokeWidth="1" strokeLinecap="round" />
-        <path d="M16 12c-2 3-3 6-3 8" fill="none" stroke="#98B8D8" strokeWidth="1" strokeLinecap="round" />
-        <path d="M32 12c2 3 3 6 3 8" fill="none" stroke="#98B8D8" strokeWidth="1" strokeLinecap="round" />
-        <circle cx="18" cy="36" r="2" fill="#98B8D8" opacity="0.6" />
-        <circle cx="24" cy="40" r="1.5" fill="#98B8D8" opacity="0.4" />
-        <circle cx="28" cy="44" r="1" fill="#98B8D8" opacity="0.2" />
+        {/* brain */}
+        <path d="M24 10C18 10 14 14 14 20c0 2.5 1 5 2.5 7 1 1 1.5 2 1.5 3v2.5c0 .8.7 1.5 1.5 1.5h12c.8 0 1.5-.7 1.5-1.5V30c0-1 .5-2 1.5-3 1.5-2 2.5-4.5 2.5-7C34 14 30 10 24 10z" fill="#88B8E0" />
+        {/* midline */}
+        <path d="M24 10v25" fill="none" stroke="#6898C8" strokeWidth="1" strokeLinecap="round" />
+        {/* thought bubbles */}
+        <circle cx="14" cy="38" r="2" fill="#88B8E0" opacity="0.6" />
+        <circle cx="10" cy="42" r="2.5" fill="#88B8E0" opacity="0.4" />
+        <circle cx="6" cy="46" r="1.5" fill="#88B8E0" opacity="0.2" />
       </svg>
     ),
-    /* Medical Oncology — ribbon + cross */
+
+    /* 22. Medical Oncology — cancer ribbon */
     "medical-oncology": (
       <svg viewBox="0 0 48 48" className={className}>
-        <path d="M24 6l-10 20h6l-6 14 16-22h-6l8-12z" fill="#E88898" />
-        <path d="M24 6l-10 20h6" fill="#D06878" />
-        <path d="M22 24h4" stroke="#FFF" strokeWidth="2" strokeLinecap="round" />
-        <path d="M24 22v4" stroke="#FFF" strokeWidth="2" strokeLinecap="round" />
+        {/* awareness ribbon */}
+        <path d="M16 18l8-10 8 10" fill="none" stroke="#E88898" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M16 18c-2 4-4 8-4 12 0 4 4 6 8 4l4-4" fill="none" stroke="#E88898" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M32 18c2 4 4 8 4 12 0 4-4 6-8 4l-4-4" fill="none" stroke="#D06878" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+        {/* medical cross inside */}
+        <path d="M22 28h4" stroke="#FFF" strokeWidth="2" strokeLinecap="round" />
+        <path d="M24 26v4" stroke="#FFF" strokeWidth="2" strokeLinecap="round" />
       </svg>
     ),
-    /* Diabetology — blood drop */
+
+    /* 23. Diabetology — glucometer */
     diabetology: (
       <svg viewBox="0 0 48 48" className={className}>
-        <path d="M24 6c-6 8-10 14-10 20a10 10 0 0 0 20 0c0-6-4-12-10-20z" fill="#E84040" />
-        <path d="M24 6c-6 8-10 14-10 20a10 10 0 0 0 10 10" fill="#D03030" />
-        <path d="M18 30c0 3.3 2.7 6 6 6" fill="none" stroke="#F08080" strokeWidth="1.5" strokeLinecap="round" />
-        <path d="M24 24v4" stroke="#FFF" strokeWidth="2" strokeLinecap="round" />
-        <path d="M22 28h4" stroke="#FFF" strokeWidth="2" strokeLinecap="round" />
-        <circle cx="20" cy="22" r="1.5" fill="#F08080" opacity="0.5" />
+        {/* meter body */}
+        <rect x="14" y="10" width="20" height="28" rx="4" fill="#5088C8" />
+        <rect x="14" y="10" width="10" height="28" rx="4" fill="#4078B8" />
+        {/* screen */}
+        <rect x="18" y="14" width="12" height="10" rx="2" fill="#C8E8D8" />
+        {/* glucose reading */}
+        <text x="24" y="22" textAnchor="middle" fontSize="7" fontWeight="bold" fill="#2A6838">120</text>
+        {/* test strip slot */}
+        <rect x="21" y="38" width="6" height="4" rx="1" fill="#F0C8A0" />
+        {/* test strip */}
+        <rect x="22" y="42" width="4" height="4" fill="#E8B888" />
       </svg>
     ),
-    /* Dentist — tooth */
+
+    /* 24. Dentist — tooth */
     dentist: (
       <svg viewBox="0 0 48 48" className={className}>
-        <path d="M16 6c-6 0-10 4-10 10 0 4 2 8 4 12 2 4 2 8 2 12 0 2 2 3 4 2 1-.5 3-3 4-6 1-2 2-3 4-3s3 1 4 3c1 3 3 5.5 4 6 2 1 4 0 4-2 0-4 0-8 2-12 2-4 4-8 4-12 0-6-4-10-10-10" fill="#F8F8F0" />
-        <path d="M16 6c-6 0-10 4-10 10 0 4 2 8 4 12 2 4 2 8 2 12 0 2 2 3 4 2" fill="#E8E8E0" />
-        <path d="M16 12h16" fill="none" stroke="#D8D0C0" strokeWidth="1.5" strokeLinecap="round" />
-        <circle cx="20" cy="9" r="0.8" fill="#F0F0E8" />
-        <circle cx="28" cy="9" r="0.8" fill="#F0F0E8" />
+        {/* tooth crown */}
+        <path d="M16 8c-6 0-10 4-10 10 0 4 2 8 4 12 1 2 2 5 2 8 0 1.5 1.5 2.5 3 1.5 1-.7 2.5-3 3-5 .5-1.5 1.5-2 3-2s2.5.5 3 2c.5 2 2 4.3 3 5 1.5 1 3 .5 3-1.5 0-3 1-6 2-8 2-4 4-8 4-12 0-6-4-10-10-10" fill="#F0F0E8" />
+        {/* root left */}
+        <path d="M18 32c0 3-1 6-2 9" fill="none" stroke="#E0D8C8" strokeWidth="2" strokeLinecap="round" />
+        {/* root right */}
+        <path d="M30 32c0 3 1 6 2 9" fill="none" stroke="#E0D8C8" strokeWidth="2" strokeLinecap="round" />
+        {/* gum line */}
+        <path d="M14 20c3 0 6 1 10 1s7-1 10-1" fill="none" stroke="#E8B0B0" strokeWidth="2" strokeLinecap="round" />
       </svg>
     ),
   };
