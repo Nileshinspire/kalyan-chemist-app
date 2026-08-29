@@ -192,7 +192,7 @@ export default function Landing() {
         </div>
 
         {/* Center: Heading + Search */}
-        <div className="relative z-20 mx-auto max-w-7xl px-4 sm:px-6 pt-8 md:pt-12 pb-6 md:pb-12">
+        <div className="relative z-20 mx-auto max-w-7xl px-4 sm:px-6 pt-8 md:pt-12 pb-4 md:pb-8">
           <div className="flex flex-col items-center text-center max-w-2xl mx-auto">
             <motion.h1
               initial={{ opacity: 0, y: 12 }}
