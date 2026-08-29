@@ -57,6 +57,7 @@ const AccountOrders = lazy(() => import("./pages/account/AccountOrders"));
 const AccountPrescriptions = lazy(() => import("./pages/account/AccountPrescriptions"));
 const AccountWishlist = lazy(() => import("./pages/Wishlist"));
 const AccountNotifications = lazy(() => import("./pages/account/AccountNotifications"));
+const UploadPrescription = lazy(() => import("./pages/UploadPrescription"));
 const AccountTrackOrder = lazy(() => import("./pages/account/AccountTrackOrder"));
 const AccountHelpSupport = lazy(() => import("./pages/account/AccountHelpSupport"));
 
@@ -285,6 +286,15 @@ function AnimatedRoutes() {
           element={
             <RequireAuth>
                 <OrderDetail />
+              </RequireAuth>
+            
+          }
+        />
+        <Route
+          path="/upload-prescription"
+          element={
+            <RequireAuth>
+                <UploadPrescription />
               </RequireAuth>
             
           }
