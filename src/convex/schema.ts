@@ -636,6 +636,81 @@ const schema = defineSchema(
       .index("by_doctor_date", ["doctorId", "appointmentDate"])
       .index("by_createdAt", ["createdAt"]),
 
+    // ── Lab Tests ──
+    lab_tests: defineTable({
+      categorySlug: v.string(),
+      categoryName: v.string(),
+      name: v.string(),
+      type: v.union(v.literal("single"), v.literal("package")),
+      description: v.string(),
+      detailedDescription: v.optional(v.string()),
+      includedTestIds: v.array(v.string()),
+      includedTestCount: v.number(),
+      originalPrice: v.number(),
+      discountedPrice: v.number(),
+      discountPercentage: v.number(),
+      reportTime: v.optional(v.string()),
+      sampleType: v.optional(v.string()),
+      fastingRequired: v.optional(v.boolean()),
+      homeCollectionAvailable: v.optional(v.boolean()),
+      serviceArea: v.optional(v.string()),
+      promotionalBadges: v.array(v.string()),
+      promotionalText: v.optional(v.string()),
+      active: v.boolean(),
+      createdAt: v.number(),
+      updatedAt: v.number(),
+    })
+      .index("by_category", ["categorySlug"])
+      .index("by_active", ["active"])
+      .index("by_type", ["type"])
+      .index("by_createdAt", ["createdAt"]),
+
+    // ── Lab Test Bookings ──
+    lab_bookings: defineTable({
+      userId: v.id("users"),
+      customerName: v.string(),
+      customerPhone: v.string(),
+      customerEmail: v.string(),
+      testId: v.id("lab_tests"),
+      testName: v.string(),
+      testType: v.union(v.literal("single"), v.literal("package")),
+      categorySlug: v.string(),
+      categoryName: v.string(),
+      includedTests: v.array(v.string()),
+      originalPrice: v.number(),
+      discountedPrice: v.number(),
+      finalAmount: v.number(),
+      collectionDate: v.string(),
+      timeSlot: v.string(),
+      collectionType: v.string(),
+      address: v.string(),
+      pincode: v.string(),
+      sampleType: v.optional(v.string()),
+      fastingRequired: v.optional(v.boolean()),
+      bookingStatus: v.union(
+        v.literal("pending"),
+        v.literal("confirmed"),
+        v.literal("sample_collection_scheduled"),
+        v.literal("sample_collected"),
+        v.literal("report_ready"),
+        v.literal("completed"),
+        v.literal("cancelled"),
+      ),
+      paymentStatus: v.union(
+        v.literal("pending"),
+        v.literal("paid"),
+        v.literal("failed"),
+        v.literal("refunded"),
+      ),
+      notes: v.optional(v.string()),
+      createdAt: v.number(),
+      updatedAt: v.number(),
+    })
+      .index("by_user", ["userId"])
+      .index("by_test", ["testId"])
+      .index("by_status", ["bookingStatus"])
+      .index("by_createdAt", ["createdAt"]),
+
     // Store settings
     storeSettings: defineTable({
     storeName: v.string(),

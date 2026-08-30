@@ -1,6 +1,8 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useNavigate, useParams } from "react-router";
-import { ArrowLeft, X, SlidersHorizontal, ShoppingCart, Check, FlaskConical, Beaker, Heart, Shield, Stethoscope, Pill, Activity } from "lucide-react";
+import { useQuery, useMutation } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { ArrowLeft, X, SlidersHorizontal, ShoppingCart, Check, FlaskConical, Beaker, Heart, Shield, Stethoscope, Pill, Activity, Calendar, MapPin, Clock, AlertTriangle, Loader2 } from "lucide-react";
 
 /* ── Types ── */
 interface IncludedTest {
@@ -19,6 +21,8 @@ interface LabTestItem {
   badges?: string[];
   promotionalText?: string;
   icon?: string;
+  _isFromDB?: boolean;
+  _convexId?: string;
 }
 interface CategoryData {
   id: string;
@@ -418,6 +422,37 @@ export default function LabTestCategory() {
     const id = SLUG_MAP[category];
     return ALL_CATEGORIES.find((c) => c.id === id) || null;
   }, [category]);
+  /* DB lab tests for this category */
+  const dbTests = useQuery(
+    api.labTests.listByCategory,
+    category ? { categorySlug: category } : "skip"
+  );
+
+  /* Merge DB tests with hardcoded data */
+  const mergedCategoryData = useMemo(() => {
+    if (!categoryData) return null;
+    const dbItems: LabTestItem[] = (dbTests || []).map((t) => ({
+      id: t._id,
+      name: t.name,
+      type: t.type,
+      includedTests: t.includedTestIds.map((id, i) => ({
+        name: t.includedTestIds[i],
+        description: "",
+      })),
+      includedTestCount: t.includedTestCount,
+      originalPrice: t.originalPrice,
+      discountedPrice: t.discountedPrice,
+      discountPercentage: t.discountPercentage,
+      badges: t.promotionalBadges.length > 0 ? t.promotionalBadges : undefined,
+      promotionalText: t.promotionalText,
+      _isFromDB: true,
+      _convexId: t._id,
+    }));
+    const allItems = [...dbItems, ...categoryData.items];
+    return { ...categoryData, items: allItems };
+  }, [categoryData, dbTests]);
+
+  const effectiveCategoryData = mergedCategoryData || categoryData;
 
   /* Filters */
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
@@ -426,6 +461,23 @@ export default function LabTestCategory() {
 
   /* Cart (local state since lab tests aren't products) */
   const [cartItems, setCartItems] = useState<Set<string>>(new Set());
+
+  /* Booking modal */
+  const [bookingTest, setBookingTest] = useState<LabTestItem | null>(null);
+  const [bookingDate, setBookingDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().split("T")[0];
+  });
+  const [bookingTime, setBookingTime] = useState("");
+  const [bookingType, setBookingType] = useState<"home" | "lab">("home");
+  const [bookingAddress, setBookingAddress] = useState("");
+  const [bookingPincode, setBookingPincode] = useState("");
+  const [bookingNotes, setBookingNotes] = useState("");
+  const [bookingError, setBookingError] = useState("");
+  const createBooking = useMutation(api.labTests.createBooking);
+
+
 
   const toggleTestFilter = useCallback((testName: string) => {
     setTestFilters((prev) => {
@@ -452,27 +504,27 @@ export default function LabTestCategory() {
 
   /* Compute unique "Must Have Tests" from category items */
   const availableTests = useMemo(() => {
-    if (!categoryData) return [];
+    if (!effectiveCategoryData) return [];
     const testMap = new Map<string, string>();
-    categoryData.items.forEach((item) => {
+    effectiveCategoryData.items.forEach((item) => {
       item.includedTests.forEach((t) => {
         if (!testMap.has(t.name)) testMap.set(t.name, t.description);
       });
     });
     return Array.from(testMap.entries()).map(([name, description]) => ({ name, description }));
-  }, [categoryData]);
+  }, [effectiveCategoryData]);
 
   /* Compute unique "Type of Tests" */
   const availableTypes = useMemo(() => {
-    if (!categoryData) return [];
-    const types = new Set(categoryData.items.map((i) => i.type));
+    if (!effectiveCategoryData) return [];
+    const types = new Set(effectiveCategoryData.items.map((i) => i.type));
     return Array.from(types);
-  }, [categoryData]);
+  }, [effectiveCategoryData]);
 
   /* Filtered items */
   const filteredItems = useMemo(() => {
-    if (!categoryData) return [];
-    let items = categoryData.items;
+    if (!effectiveCategoryData) return [];
+    let items = effectiveCategoryData.items;
 
     if (typeFilter) {
       items = items.filter((i) => i.type === typeFilter);
@@ -487,9 +539,9 @@ export default function LabTestCategory() {
     }
 
     return items;
-  }, [categoryData, typeFilter, testFilters]);
+  }, [effectiveCategoryData, typeFilter, testFilters]);
 
-  if (!categoryData) {
+  if (!effectiveCategoryData) {
     return (
       <div className="min-h-screen bg-gray-50">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 py-16 text-center">
@@ -501,6 +553,74 @@ export default function LabTestCategory() {
       </div>
     );
   }
+
+  /* Booking handlers */
+  /* Body scroll lock when modal open */
+  useEffect(() => {
+    if (bookingTest) {
+      document.body.style.overflow = "hidden";
+      return () => { document.body.style.overflow = ""; };
+    }
+  }, [bookingTest]);
+
+  const openBookingModal = useCallback((item: LabTestItem) => {
+    setBookingTest(item);
+    setBookingError("");
+    setBookingTime("");
+    setBookingAddress("");
+    setBookingPincode("");
+    setBookingNotes("");
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    setBookingDate(d.toISOString().split("T")[0]);
+  }, []);
+
+  const closeBookingModal = useCallback(() => {
+    setBookingTest(null);
+    setBookingError("");
+  }, []);
+
+  const handleBookingSubmit = useCallback(async () => {
+    if (!bookingTest) return;
+    if (!bookingDate || !bookingTime || !bookingAddress.trim() || !bookingPincode.trim()) {
+      setBookingError("Please fill in all required fields.");
+      return;
+    }
+    if (bookingPincode.trim().length < 6) {
+      setBookingError("Please enter a valid 6-digit pincode.");
+      return;
+    }
+    try {
+      const testId = bookingTest._convexId as any;
+      await createBooking({
+        testId,
+        collectionDate: bookingDate,
+        timeSlot: bookingTime,
+        collectionType: bookingType,
+        address: bookingAddress.trim(),
+        pincode: bookingPincode.trim(),
+        notes: bookingNotes.trim() || undefined,
+      });
+      setBookingTest(null);
+      setBookingError("");
+      setCartItems((prev) => {
+        const next = new Set(prev);
+        next.delete(bookingTest.id);
+        return next;
+      });
+    } catch (err: any) {
+      setBookingError(err?.message || "Failed to book. Please try again.");
+    }
+  }, [bookingTest, bookingDate, bookingTime, bookingType, bookingAddress, bookingPincode, bookingNotes, createBooking]);
+
+  const TIME_SLOTS = [
+    "07:00 AM - 09:00 AM",
+    "09:00 AM - 11:00 AM",
+    "11:00 AM - 01:00 PM",
+    "01:00 PM - 03:00 PM",
+    "03:00 PM - 05:00 PM",
+    "05:00 PM - 07:00 PM",
+  ];
 
   const sidebarContent = (
     <>
@@ -561,7 +681,7 @@ export default function LabTestCategory() {
         {/* Title */}
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
-            {categoryData.name} <span className="text-gray-400 font-normal">({filteredItems.length})</span>
+            {effectiveCategoryData.name} <span className="text-gray-400 font-normal">({filteredItems.length})</span>
           </h1>
           {/* Mobile filter button */}
           <button
@@ -683,7 +803,13 @@ export default function LabTestCategory() {
                           </div>
                         </div>
                         <button
-                          onClick={() => toggleCart(item.id)}
+                          onClick={() => {
+                            if (item._isFromDB && item._convexId) {
+                              openBookingModal(item);
+                            } else {
+                              toggleCart(item.id);
+                            }
+                          }}
                           className={`rounded-lg px-5 py-2.5 text-sm font-bold transition-colors ${
                             inCart
                               ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
@@ -719,6 +845,79 @@ export default function LabTestCategory() {
             <ShoppingCart className="size-5" />
             <span>{cartItems.size} item{cartItems.size > 1 ? "s" : ""}</span>
           </button>
+        </div>
+      )}
+
+      {/* Booking Modal */}
+      {bookingTest && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between rounded-t-2xl z-10">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">Book Test</h2>
+                <p className="text-sm text-gray-500 mt-0.5">{bookingTest.name}</p>
+              </div>
+              <button onClick={closeBookingModal} className="flex size-8 items-center justify-center rounded-lg hover:bg-gray-100 transition-colors">
+                <X className="size-5 text-gray-500" />
+              </button>
+            </div>
+            <div className="px-6 py-5 space-y-5">
+              <div className="rounded-xl bg-gray-50 p-4 flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-bold text-gray-900">{bookingTest.name}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{bookingTest.includedTestCount} test{bookingTest.includedTestCount > 1 ? "s" : ""} included</p>
+                </div>
+                <p className="text-lg font-extrabold text-[#0a3d2e]">₹{bookingTest.discountedPrice.toLocaleString("en-IN")}</p>
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-900 mb-2">Collection Type *</label>
+                <div className="flex gap-3">
+                  <button onClick={() => setBookingType("home")} className={`flex-1 rounded-xl border-2 px-4 py-3 text-sm font-medium transition-colors ${bookingType === "home" ? "border-[#0a3d2e] bg-[#0a3d2e]/5 text-[#0a3d2e]" : "border-gray-200 text-gray-600 hover:border-gray-300"}`}>
+                    <MapPin className="size-4 inline mr-1.5" />Home Collection
+                  </button>
+                  <button onClick={() => setBookingType("lab")} className={`flex-1 rounded-xl border-2 px-4 py-3 text-sm font-medium transition-colors ${bookingType === "lab" ? "border-[#0a3d2e] bg-[#0a3d2e]/5 text-[#0a3d2e]" : "border-gray-200 text-gray-600 hover:border-gray-300"}`}>
+                    <FlaskConical className="size-4 inline mr-1.5" />Visit Lab
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-900 mb-2"><Calendar className="size-4 inline mr-1.5" />Preferred Date *</label>
+                <input type="date" value={bookingDate} min={new Date(Date.now() + 86400000).toISOString().split("T")[0]} onChange={(e) => setBookingDate(e.target.value)} className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 focus:border-[#0a3d2e] focus:ring-1 focus:ring-[#0a3d2e] outline-none" />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-900 mb-2"><Clock className="size-4 inline mr-1.5" />Preferred Time Slot *</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {TIME_SLOTS.map((slot) => (
+                    <button key={slot} onClick={() => setBookingTime(slot)} className={`rounded-xl border-2 px-3 py-2.5 text-xs font-medium transition-colors ${bookingTime === slot ? "border-[#0a3d2e] bg-[#0a3d2e]/5 text-[#0a3d2e]" : "border-gray-200 text-gray-600 hover:border-gray-300"}`}>{slot}</button>
+                  ))}
+                </div>
+              </div>
+              {bookingType === "home" && (
+                <div>
+                  <label className="block text-sm font-bold text-gray-900 mb-2"><MapPin className="size-4 inline mr-1.5" />Collection Address *</label>
+                  <textarea value={bookingAddress} onChange={(e) => setBookingAddress(e.target.value)} placeholder="Enter full address with landmark" rows={3} className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[#0a3d2e] focus:ring-1 focus:ring-[#0a3d2e] outline-none resize-none" />
+                </div>
+              )}
+              <div>
+                <label className="block text-sm font-bold text-gray-900 mb-2">Pincode *</label>
+                <input type="text" value={bookingPincode} onChange={(e) => setBookingPincode(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="6-digit pincode" maxLength={6} className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[#0a3d2e] focus:ring-1 focus:ring-[#0a3d2e] outline-none" />
+              </div>
+              <div>
+                <label className="block text-sm font-bold text-gray-900 mb-2">Special Instructions (optional)</label>
+                <input type="text" value={bookingNotes} onChange={(e) => setBookingNotes(e.target.value)} placeholder="Any special instructions" className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[#0a3d2e] focus:ring-1 focus:ring-[#0a3d2e] outline-none" />
+              </div>
+              {bookingError && (
+                <div className="flex items-center gap-2 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 border border-red-200">
+                  <AlertTriangle className="size-4 shrink-0" />{bookingError}
+                </div>
+              )}
+            </div>
+            <div className="sticky bottom-0 bg-white border-t border-gray-100 px-6 py-4 rounded-b-2xl">
+              <button onClick={handleBookingSubmit} className="w-full rounded-xl bg-[#0a3d2e] py-3.5 text-sm font-bold text-white hover:bg-[#082f23] transition-colors flex items-center justify-center gap-2">
+                <Calendar className="size-4" />Confirm Booking — ₹{bookingTest.discountedPrice.toLocaleString("en-IN")}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
