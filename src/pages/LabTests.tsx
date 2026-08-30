@@ -984,12 +984,8 @@ export default function LabTests() {
               className="relative flex items-center gap-2.5 rounded-lg border border-gray-200 bg-white p-3 text-left transition-all duration-200 hover:shadow-md hover:border-gray-300 cursor-pointer group"
             >
               {/* Icon */}
-              <div className="relative size-10 shrink-0 flex items-center justify-center rounded-lg bg-gray-50">
+              <div className="size-10 shrink-0 flex items-center justify-center rounded-lg bg-gray-50">
                 <CategoryIcon id={cat.id} className="size-9" />
-                {/* Orange discount badge */}
-                <span className="absolute -bottom-1 -right-1 flex size-5 items-center justify-center rounded-full bg-[#F5A623] text-[7px] font-bold text-white shadow-sm">
-                  {cat.discountPercent}%
-                </span>
               </div>
 
               {/* Name */}
