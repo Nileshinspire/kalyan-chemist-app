@@ -294,6 +294,26 @@ export default function Landing() {
               </div>
               <ArrowRight className="size-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all shrink-0" />
             </button>
+
+            {/* Lab Tests */}
+            <button
+              type="button"
+              onClick={() => navigate("/lab-tests")}
+              className="inline-flex items-center gap-2.5 rounded-lg border border-border/60 bg-card hover:bg-accent/40 px-3 py-2.5 sm:px-4 sm:py-3 transition-all duration-300 group cursor-pointer shadow-sm hover:shadow-md"
+            >
+              <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary/15 transition-colors">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 3h6" /><path d="M10 3v7.4a2 2 0 0 1-.4 1.2L5 17a2 2 0 0 0 1.6 3h10.8a2 2 0 0 0 1.6-3l-4.6-5.4a2 2 0 0 1-.4-1.2V3" /><path d="M8.5 14h7" /><circle cx="11" cy="17" r="1" fill="currentColor" stroke="none" /><circle cx="14" cy="18" r="0.75" fill="currentColor" stroke="none" /></svg>
+              </div>
+              <div className="text-left">
+                <h3 className="text-sm sm:text-base font-semibold text-foreground group-hover:text-primary transition-colors">
+                  Lab Tests
+                </h3>
+                <p className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider text-primary/70 mt-0.5">
+                  Book Now
+                </p>
+              </div>
+              <ArrowRight className="size-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all shrink-0" />
+            </button>
           </div>
         </div>
       </section>

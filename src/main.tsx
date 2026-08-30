@@ -63,6 +63,7 @@ const DoctorDetails = lazy(() => import("./pages/DoctorDetails"));
 const AdminDoctors = lazy(() => import("./pages/admin/AdminDoctors"));
 const AdminAppointments = lazy(() => import("./pages/admin/AdminAppointments"));
 const AccountAppointments = lazy(() => import("./pages/account/AccountAppointments"));
+const LabTests = lazy(() => import("./pages/LabTests"));
 const AccountTrackOrder = lazy(() => import("./pages/account/AccountTrackOrder"));
 const AccountHelpSupport = lazy(() => import("./pages/account/AccountHelpSupport"));
 
@@ -308,6 +309,15 @@ function AnimatedRoutes() {
           path="/doctor-appointment"
           element={
             <DoctorAppointment />
+            
+          }
+        />
+        <Route
+          path="/lab-tests"
+          element={
+            <RequireAuth>
+                <LabTests />
+              </RequireAuth>
             
           }
         />
