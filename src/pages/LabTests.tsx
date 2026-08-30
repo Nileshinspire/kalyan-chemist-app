@@ -10,6 +10,7 @@ interface LabTest {
 interface HealthCategory {
   id: string;
   name: string;
+  slug: string;
   discountPercent: number;
   originalPrice: number;
   discountedPrice: number;
@@ -21,6 +22,7 @@ const CATEGORIES: HealthCategory[] = [
   {
     id: "full-body",
     name: "Full Body Checkup",
+    slug: "full-body",
     discountPercent: 40,
     originalPrice: 3999,
     discountedPrice: 2399,
@@ -43,6 +45,7 @@ const CATEGORIES: HealthCategory[] = [
   {
     id: "diabetes",
     name: "Diabetes",
+    slug: "diabetes",
     discountPercent: 35,
     originalPrice: 1499,
     discountedPrice: 974,
@@ -59,6 +62,7 @@ const CATEGORIES: HealthCategory[] = [
   {
     id: "heart",
     name: "Heart",
+    slug: "heart",
     discountPercent: 30,
     originalPrice: 2499,
     discountedPrice: 1749,
@@ -77,6 +81,7 @@ const CATEGORIES: HealthCategory[] = [
   {
     id: "blood",
     name: "Blood Studies",
+    slug: "blood",
     discountPercent: 25,
     originalPrice: 1299,
     discountedPrice: 974,
@@ -93,6 +98,7 @@ const CATEGORIES: HealthCategory[] = [
   {
     id: "vitamin",
     name: "Vitamin",
+    slug: "vitamin",
     discountPercent: 45,
     originalPrice: 1999,
     discountedPrice: 1099,
@@ -109,6 +115,7 @@ const CATEGORIES: HealthCategory[] = [
   {
     id: "thyroid",
     name: "Thyroid",
+    slug: "thyroid",
     discountPercent: 35,
     originalPrice: 1199,
     discountedPrice: 779,
@@ -124,6 +131,7 @@ const CATEGORIES: HealthCategory[] = [
   {
     id: "kidney",
     name: "Kidney",
+    slug: "kidney",
     discountPercent: 30,
     originalPrice: 1399,
     discountedPrice: 979,
@@ -140,6 +148,7 @@ const CATEGORIES: HealthCategory[] = [
   {
     id: "liver",
     name: "Liver",
+    slug: "liver",
     discountPercent: 30,
     originalPrice: 1399,
     discountedPrice: 979,
@@ -157,6 +166,7 @@ const CATEGORIES: HealthCategory[] = [
   {
     id: "womens-health",
     name: "Women's Health",
+    slug: "womens-health",
     discountPercent: 35,
     originalPrice: 2199,
     discountedPrice: 1429,
@@ -175,6 +185,7 @@ const CATEGORIES: HealthCategory[] = [
   {
     id: "senior-citizen",
     name: "Senior Citizen",
+    slug: "senior-citizen",
     discountPercent: 40,
     originalPrice: 2999,
     discountedPrice: 1799,
@@ -195,6 +206,7 @@ const CATEGORIES: HealthCategory[] = [
   {
     id: "tax-saver",
     name: "Tax Saver",
+    slug: "tax-saver",
     discountPercent: 50,
     originalPrice: 1999,
     discountedPrice: 999,
@@ -212,6 +224,7 @@ const CATEGORIES: HealthCategory[] = [
   {
     id: "fever",
     name: "Fever",
+    slug: "fever",
     discountPercent: 25,
     originalPrice: 899,
     discountedPrice: 674,
@@ -228,6 +241,7 @@ const CATEGORIES: HealthCategory[] = [
   {
     id: "hormone",
     name: "Hormone Screening",
+    slug: "hormone",
     discountPercent: 30,
     originalPrice: 1999,
     discountedPrice: 1399,
@@ -245,6 +259,7 @@ const CATEGORIES: HealthCategory[] = [
   {
     id: "hairfall",
     name: "Hairfall",
+    slug: "hairfall",
     discountPercent: 30,
     originalPrice: 1499,
     discountedPrice: 1049,
@@ -262,6 +277,7 @@ const CATEGORIES: HealthCategory[] = [
   {
     id: "dengue",
     name: "Dengue",
+    slug: "dengue",
     discountPercent: 20,
     originalPrice: 1299,
     discountedPrice: 1039,
@@ -278,6 +294,7 @@ const CATEGORIES: HealthCategory[] = [
   {
     id: "bone-joint",
     name: "Bone and Joint",
+    slug: "bone-joint",
     discountPercent: 25,
     originalPrice: 1699,
     discountedPrice: 1274,
@@ -295,6 +312,7 @@ const CATEGORIES: HealthCategory[] = [
   {
     id: "allergy",
     name: "Allergy",
+    slug: "allergy",
     discountPercent: 25,
     originalPrice: 1799,
     discountedPrice: 1349,
@@ -310,6 +328,7 @@ const CATEGORIES: HealthCategory[] = [
   {
     id: "sexual-wellness",
     name: "Sexual Wellness",
+    slug: "sexual-wellness",
     discountPercent: 30,
     originalPrice: 1999,
     discountedPrice: 1399,
@@ -326,6 +345,7 @@ const CATEGORIES: HealthCategory[] = [
   {
     id: "immunity",
     name: "Immunity",
+    slug: "immunity",
     discountPercent: 30,
     originalPrice: 1699,
     discountedPrice: 1189,
@@ -343,6 +363,7 @@ const CATEGORIES: HealthCategory[] = [
   {
     id: "fever-infection",
     name: "Fever and Infection",
+    slug: "fever-infection",
     discountPercent: 25,
     originalPrice: 1199,
     discountedPrice: 899,
@@ -359,6 +380,7 @@ const CATEGORIES: HealthCategory[] = [
   {
     id: "reproductive",
     name: "Reproductive & Fertility Tests",
+    slug: "reproductive",
     discountPercent: 35,
     originalPrice: 2499,
     discountedPrice: 1624,
@@ -377,6 +399,7 @@ const CATEGORIES: HealthCategory[] = [
   {
     id: "cancer-screening",
     name: "Cancer Screening",
+    slug: "cancer-screening",
     discountPercent: 25,
     originalPrice: 3499,
     discountedPrice: 2624,
@@ -393,6 +416,7 @@ const CATEGORIES: HealthCategory[] = [
   {
     id: "hepatitis",
     name: "Hepatitis Screening",
+    slug: "hepatitis",
     discountPercent: 30,
     originalPrice: 1999,
     discountedPrice: 1399,
@@ -409,6 +433,7 @@ const CATEGORIES: HealthCategory[] = [
   {
     id: "lungs",
     name: "Lungs",
+    slug: "lungs",
     discountPercent: 25,
     originalPrice: 1599,
     discountedPrice: 1199,
@@ -425,6 +450,7 @@ const CATEGORIES: HealthCategory[] = [
   {
     id: "weight",
     name: "Weight Management",
+    slug: "weight",
     discountPercent: 30,
     originalPrice: 1799,
     discountedPrice: 1259,
@@ -442,6 +468,7 @@ const CATEGORIES: HealthCategory[] = [
   {
     id: "iron",
     name: "Iron Studies",
+    slug: "iron",
     discountPercent: 35,
     originalPrice: 999,
     discountedPrice: 649,
@@ -458,6 +485,7 @@ const CATEGORIES: HealthCategory[] = [
   {
     id: "covid",
     name: "Covid 19",
+    slug: "covid",
     discountPercent: 20,
     originalPrice: 1499,
     discountedPrice: 1199,
@@ -474,6 +502,7 @@ const CATEGORIES: HealthCategory[] = [
   {
     id: "pcod",
     name: "PCOD Screening",
+    slug: "pcod",
     discountPercent: 30,
     originalPrice: 1999,
     discountedPrice: 1399,
@@ -492,6 +521,7 @@ const CATEGORIES: HealthCategory[] = [
   {
     id: "healthy-2024",
     name: "Healthy 2024",
+    slug: "healthy-2024",
     discountPercent: 45,
     originalPrice: 2999,
     discountedPrice: 1649,
@@ -894,6 +924,10 @@ export default function LabTests() {
 
   const handleClose = useCallback(() => setSelectedCategory(null), []);
 
+  const handleCategoryClick = useCallback((cat: HealthCategory) => {
+    navigate(`/lab-tests/${cat.slug}`);
+  }, [navigate]);
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 py-10 sm:py-14">
@@ -920,7 +954,7 @@ export default function LabTests() {
             <button
               key={cat.id}
               type="button"
-              onClick={() => setSelectedCategory(cat)}
+              onClick={() => handleCategoryClick(cat)}
               className="relative flex items-center gap-2.5 rounded-lg border border-gray-200 bg-white p-3 text-left transition-all duration-200 hover:shadow-md hover:border-gray-300 cursor-pointer group"
             >
               {/* Icon */}
