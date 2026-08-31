@@ -217,12 +217,25 @@ export default function AdminLabTests() {
       toast.error("Name and category are required");
       return;
     }
+    // Validate pricing
+    if (form.originalPrice < 0) {
+      toast.error("MRP must not be negative");
+      return;
+    }
+    if (form.discountedPrice > 0 && form.originalPrice > 0 && form.discountedPrice >= form.originalPrice) {
+      toast.error("Selling price must be less than MRP");
+      return;
+    }
+    if (form.reportGuaranteeHours !== undefined && form.reportGuaranteeHours < 0) {
+      toast.error("Report guarantee hours must not be negative");
+      return;
+    }
     try {
       const cat = LAB_CATEGORIES.find((c) => c.slug === form.categorySlug);
       const payload = {
         ...form,
         categoryName: cat?.name || form.categorySlug,
-        discountPercentage: form.originalPrice > 0
+        discountPercentage: form.originalPrice > 0 && form.discountedPrice > 0 && form.discountedPrice < form.originalPrice
           ? Math.round(((form.originalPrice - form.discountedPrice) / form.originalPrice) * 100)
           : 0,
       };
@@ -524,12 +537,17 @@ export default function AdminLabTests() {
                                   {t.type === "package" ? <Beaker className="size-4 text-primary" /> : <FlaskConical className="size-4 text-blue-500" />}
                                   <div>
                                     <p className="font-medium text-sm">{t.name}</p>
-                                    {t.promotionalBadges.length > 0 && (
-                                      <span className="text-[10px] text-amber-600">{t.promotionalBadges.join(", ")}</span>
-                                    )}
-                                    {t.promotionalText && (
-                                      <span className="text-[10px] text-green-600 ml-1">{t.promotionalText}</span>
-                                    )}
+                                    <div className="flex flex-wrap gap-1 mt-0.5">
+                                      {t.bestPriceEver && (
+                                        <span className="text-[10px] font-semibold text-amber-600">BEST PRICE EVER</span>
+                                      )}
+                                      {t.reportGuaranteeHours && t.reportGuaranteeHours > 0 && (
+                                        <span className="text-[10px] text-blue-600">{t.reportGuaranteeHours}h Report</span>
+                                      )}
+                                      {t.promotionalText && (
+                                        <span className="text-[10px] text-green-600">{t.promotionalText}</span>
+                                      )}
+                                    </div>
                                   </div>
                                 </div>
                               </TableCell>
@@ -537,8 +555,14 @@ export default function AdminLabTests() {
                                 <Badge variant="secondary" className="text-xs capitalize">{t.type}</Badge>
                               </TableCell>
                               <TableCell className="text-sm">{t.includedTestCount}</TableCell>
-                              <TableCell className="text-right text-sm text-muted-foreground line-through">₹{t.originalPrice.toLocaleString("en-IN")}</TableCell>
-                              <TableCell className="text-right text-sm font-bold">₹{t.discountedPrice.toLocaleString("en-IN")}</TableCell>
+                              <TableCell className="text-right text-sm text-muted-foreground">{t.originalPrice > 0 ? <span className="line-through">₹{t.originalPrice.toLocaleString("en-IN")}</span> : <span className="text-xs italic">—</span>}</TableCell>
+                              <TableCell className="text-right text-sm font-bold">{t.discountedPrice > 0 && t.discountedPrice < t.originalPrice ? (
+                                <>₹{t.discountedPrice.toLocaleString("en-IN")}</>
+                              ) : t.originalPrice > 0 ? (
+                                <>₹{t.originalPrice.toLocaleString("en-IN")}</>
+                              ) : (
+                                <span className="text-xs italic text-muted-foreground">No price</span>
+                              )}</TableCell>
                               <TableCell className="text-center">
                                 <Badge variant={t.active ? "default" : "secondary"} className={`text-xs ${t.active ? "bg-green-100 text-green-700" : ""}`}>
                                   {t.active ? "Active" : "Inactive"}
