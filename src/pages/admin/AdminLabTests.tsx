@@ -28,6 +28,8 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { PREDEFINED_LAB_TESTS, getPredefinedTests } from "@/data/predefinedLabTests";
+import { Settings } from "lucide-react";
 
 /* ── 29 Lab Test Categories ── */
 const LAB_CATEGORIES = [
@@ -166,19 +168,58 @@ export default function AdminLabTests() {
     return counts;
   }, [allTests]);
 
+  /* ── Predefined tests for selected category ── */
+  const predefinedTests = useMemo(() => {
+    if (!selectedCategory) return [];
+    return getPredefinedTests(selectedCategory);
+  }, [selectedCategory]);
+
+  /* ── Merged tests: predefined + DB records ── */
+  const mergedTests = useMemo(() => {
+    if (!selectedCatTests) return undefined;
+    const dbByName = new Map(selectedCatTests.map((t) => [t.name.toLowerCase(), t]));
+    const result: Array<{ db: any | null; predefined: { name: string; description: string } | null; isPredefined: boolean }> = [];
+    const seen = new Set<string>();
+
+    // Predefined tests first
+    for (const pt of predefinedTests) {
+      const key = pt.name.toLowerCase();
+      seen.add(key);
+      const dbRec = dbByName.get(key) || null;
+      result.push({ db: dbRec, predefined: pt, isPredefined: true });
+    }
+
+    // Any DB records not matching predefined (e.g. custom tests or packages)
+    for (const t of selectedCatTests) {
+      const key = t.name.toLowerCase();
+      if (!seen.has(key)) {
+        seen.add(key);
+        result.push({ db: t, predefined: null, isPredefined: false });
+      }
+    }
+
+    return result;
+  }, [selectedCatTests, predefinedTests]);
+
   /* ── Filtered tests within selected category ── */
   const filteredTests = useMemo(() => {
-    if (!selectedCatTests) return undefined;
-    let items = selectedCatTests;
+    if (!mergedTests) return undefined;
+    let items = mergedTests;
     if (typeFilter) {
-      items = items.filter((t) => t.type === typeFilter);
+      items = items.filter((item) => {
+        if (item.db) return item.db.type === typeFilter;
+        return typeFilter === "single"; // predefined are always single
+      });
     }
     if (search) {
       const s = search.toLowerCase();
-      items = items.filter((t) => t.name.toLowerCase().includes(s));
+      items = items.filter((item) => {
+        const name = item.db?.name || item.predefined?.name || "";
+        return name.toLowerCase().includes(s);
+      });
     }
     return items;
-  }, [selectedCatTests, typeFilter, search]);
+  }, [mergedTests, typeFilter, search]);
 
   /* ── Handlers ── */
   const openCreate = useCallback((preselectedSlug?: string) => {
@@ -371,7 +412,7 @@ export default function AdminLabTests() {
                     <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded-full min-w-[22px] text-center ${
                       isSelected ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"
                     }`}>
-                      {count}
+                      {PREDEFINED_LAB_TESTS.find((c) => c.slug === cat.slug)?.tests.length || 0}
                     </span>
                   </button>
                 );
@@ -425,7 +466,7 @@ export default function AdminLabTests() {
                       }`}
                     >
                       <span>{cat.name}</span>
-                      <span className="text-[11px] text-muted-foreground">{count}</span>
+                      <span className="text-[11px] text-muted-foreground">{PREDEFINED_LAB_TESTS.find((c) => c.slug === cat.slug)?.tests.length || 0}</span>
                     </button>
                   );
                 })}
@@ -451,7 +492,7 @@ export default function AdminLabTests() {
                   <div>
                     <h2 className="text-base font-bold">{selectedCatName}</h2>
                     <p className="text-xs text-muted-foreground">
-                      {filteredTests?.length ?? 0} test{filteredTests?.length !== 1 ? "s" : ""} found
+                      {predefinedTests.length} predefined tests • {selectedCatTests?.filter((t) => t.type === "single").length ?? 0} configured
                     </p>
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
@@ -496,12 +537,12 @@ export default function AdminLabTests() {
                       <h3 className="text-base font-semibold">
                         {search || typeFilter
                           ? "No tests match your filters"
-                          : `No tests/packages added to ${selectedCatName} yet`}
+                          : `No predefined tests for ${selectedCatName}`}
                       </h3>
                       <p className="text-sm text-muted-foreground mt-1">
                         {search || typeFilter
                           ? "Try adjusting your search or filters."
-                          : "Click \"Add Test\" to create the first one."}
+                          : "You can still create custom tests using the Add Test button."}
                       </p>
                     </div>
                   ) : (
@@ -519,64 +560,117 @@ export default function AdminLabTests() {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {filteredTests.map((t) => (
-                            <TableRow key={t._id}>
-                              <TableCell>
-                                <div className="flex items-center gap-2">
-                                  {t.type === "package" ? <Beaker className="size-4 text-primary" /> : <FlaskConical className="size-4 text-blue-500" />}
-                                  <div>
-                                    <p className="font-medium text-sm">{t.name}</p>
-                                    <div className="flex flex-wrap gap-1 mt-0.5">
-                                      {t.bestPriceEver && (
-                                        <span className="text-[10px] font-semibold text-amber-600">BEST PRICE EVER</span>
+                          {filteredTests.map((item, idx) => {
+                            const t = item.db;
+                            const pt = item.predefined;
+                            const name = t?.name || pt?.name || "";
+                            const desc = pt?.description || "";
+                            return (
+                              <TableRow key={t?._id || `predefined-${idx}`}>
+                                <TableCell>
+                                  <div className="flex items-center gap-2">
+                                    {t ? (
+                                      t.type === "package" ? <Beaker className="size-4 text-primary" /> : <FlaskConical className="size-4 text-blue-500" />
+                                    ) : (
+                                      <FlaskConical className="size-4 text-muted-foreground" />
+                                    )}
+                                    <div>
+                                      <p className="font-medium text-sm">{name}</p>
+                                      {desc && (
+                                        <p className="text-[11px] text-muted-foreground mt-0.5 max-w-[280px] truncate" title={desc}>{desc}</p>
                                       )}
-                                      {t.reportGuaranteeHours && t.reportGuaranteeHours > 0 && (
-                                        <span className="text-[10px] text-blue-600">{t.reportGuaranteeHours}h Report</span>
-                                      )}
-                                      {t.promotionalText && (
-                                        <span className="text-[10px] text-green-600">{t.promotionalText}</span>
+                                      {t && (
+                                        <div className="flex flex-wrap gap-1 mt-0.5">
+                                          {t.bestPriceEver && (
+                                            <span className="text-[10px] font-semibold text-amber-600">BEST PRICE EVER</span>
+                                          )}
+                                          {t.reportGuaranteeHours && t.reportGuaranteeHours > 0 && (
+                                            <span className="text-[10px] text-blue-600">{t.reportGuaranteeHours}h Report</span>
+                                          )}
+                                          {t.promotionalText && (
+                                            <span className="text-[10px] text-green-600">{t.promotionalText}</span>
+                                          )}
+                                        </div>
                                       )}
                                     </div>
                                   </div>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <Badge variant="secondary" className="text-xs capitalize">{t.type}</Badge>
-                              </TableCell>
-                              <TableCell className="text-sm">{t.includedTestCount}</TableCell>
-                              <TableCell className="text-right text-sm text-muted-foreground">{t.originalPrice > 0 ? <span className="line-through">₹{t.originalPrice.toLocaleString("en-IN")}</span> : <span className="text-xs italic">—</span>}</TableCell>
-                              <TableCell className="text-right text-sm font-bold">{t.discountedPrice > 0 && t.discountedPrice < t.originalPrice ? (
-                                <>₹{t.discountedPrice.toLocaleString("en-IN")}</>
-                              ) : t.originalPrice > 0 ? (
-                                <>₹{t.originalPrice.toLocaleString("en-IN")}</>
-                              ) : (
-                                <span className="text-xs italic text-muted-foreground">No price</span>
-                              )}</TableCell>
-                              <TableCell className="text-center">
-                                <Badge variant={t.active ? "default" : "secondary"} className={`text-xs ${t.active ? "bg-green-100 text-green-700" : ""}`}>
-                                  {t.active ? "Active" : "Inactive"}
-                                </Badge>
-                              </TableCell>
-                              <TableCell className="text-right">
-                                <div className="flex items-center justify-end gap-1">
-                                  <Button variant="ghost" size="icon" className="size-8" onClick={() => openEdit(t)}>
-                                    <Pencil className="size-3.5" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-8 text-xs"
-                                    onClick={() => handleToggleActive(t._id)}
-                                  >
-                                    {t.active ? "Deactivate" : "Activate"}
-                                  </Button>
-                                  <Button variant="ghost" size="icon" className="size-8 text-destructive" onClick={() => setDeleteId(t._id)}>
-                                    <Trash2 className="size-3.5" />
-                                  </Button>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          ))}
+                                </TableCell>
+                                <TableCell>
+                                  {t ? (
+                                    <Badge variant="secondary" className="text-xs capitalize">{t.type}</Badge>
+                                  ) : (
+                                    <Badge variant="outline" className="text-xs text-muted-foreground">Single</Badge>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-sm">{t?.includedTestCount ?? "—"}</TableCell>
+                                <TableCell className="text-right text-sm text-muted-foreground">
+                                  {t && t.originalPrice > 0 ? <span className="line-through">₹{t.originalPrice.toLocaleString("en-IN")}</span> : <span className="text-xs italic">—</span>}
+                                </TableCell>
+                                <TableCell className="text-right text-sm font-bold">
+                                  {t && t.discountedPrice > 0 && t.discountedPrice < t.originalPrice ? (
+                                    <>₹{t.discountedPrice.toLocaleString("en-IN")}</>
+                                  ) : t && t.originalPrice > 0 ? (
+                                    <>₹{t.originalPrice.toLocaleString("en-IN")}</>
+                                  ) : (
+                                    <span className="text-xs italic text-muted-foreground">Not configured</span>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-center">
+                                  {t ? (
+                                    <Badge variant={t.active ? "default" : "secondary"} className={`text-xs ${t.active ? "bg-green-100 text-green-700" : ""}`}>
+                                      {t.active ? "Active" : "Inactive"}
+                                    </Badge>
+                                  ) : (
+                                    <Badge variant="outline" className="text-xs text-muted-foreground border-dashed">Not set up</Badge>
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <div className="flex items-center justify-end gap-1">
+                                    {t ? (
+                                      <>
+                                        <Button variant="ghost" size="icon" className="size-8" onClick={() => openEdit(t)}>
+                                          <Pencil className="size-3.5" />
+                                        </Button>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="h-8 text-xs"
+                                          onClick={() => handleToggleActive(t._id)}
+                                        >
+                                          {t.active ? "Deactivate" : "Activate"}
+                                        </Button>
+                                        <Button variant="ghost" size="icon" className="size-8 text-destructive" onClick={() => setDeleteId(t._id)}>
+                                          <Trash2 className="size-3.5" />
+                                        </Button>
+                                      </>
+                                    ) : (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-8 text-xs text-primary"
+                                        onClick={() => {
+                                          const cat = LAB_CATEGORIES.find((c) => c.slug === selectedCategory);
+                                          setEditingId(null);
+                                          setForm({
+                                            ...DEFAULT_FORM,
+                                            categorySlug: selectedCategory,
+                                            categoryName: cat?.name || "",
+                                            name: pt?.name || "",
+                                            description: pt?.description || "",
+                                            type: "single",
+                                            active: false,
+                                          });
+                                          setFormOpen(true);
+                                        }}
+                                      >
+                                        <Settings className="size-3 mr-1" /> Configure
+                                      </Button>
+                                    )}
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
                         </TableBody>
                       </Table>
                     </div>
@@ -680,7 +774,7 @@ export default function AdminLabTests() {
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editingId ? "Edit Lab Test" : "Add Lab Test"}</DialogTitle>
+            <DialogTitle>{editingId ? "Edit Lab Test" : form.name && !editingId && form.categorySlug && predefinedTests.some((p) => p.name === form.name) ? "Configure Test" : "Add Lab Test"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="grid grid-cols-2 gap-4">
