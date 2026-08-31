@@ -591,6 +591,20 @@ export default function LabTestCategory() {
           </button>
         </div>
 
+        {/* All Tests indicator */}
+        <div className="mb-5">
+          <button
+            onClick={() => setTypeFilters(new Set())}
+            className={`inline-flex items-center rounded-full px-4 py-1.5 text-sm font-semibold transition-colors ${
+              typeFilters.size === 0
+                ? "bg-[#0a3d2e] text-white shadow-sm"
+                : "bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700"
+            }`}
+          >
+            All Tests
+          </button>
+        </div>
+
         <div className="flex gap-8">
           {/* Desktop sidebar */}
           <aside className="hidden lg:block w-[240px] shrink-0">
