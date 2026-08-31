@@ -58,6 +58,8 @@ const AccountPrescriptions = lazy(() => import("./pages/account/AccountPrescript
 const AccountWishlist = lazy(() => import("./pages/Wishlist"));
 const AccountNotifications = lazy(() => import("./pages/account/AccountNotifications"));
 const AccountLabReports = lazy(() => import("./pages/account/AccountLabReports"));
+const AccountLabTests = lazy(() => import("./pages/account/AccountLabTests"));
+const AccountDoctorAppointments = lazy(() => import("./pages/account/AccountDoctorAppointments"));
 const UploadPrescription = lazy(() => import("./pages/UploadPrescription"));
 const DoctorAppointment = lazy(() => import("./pages/DoctorAppointment"));
 const DoctorDetails = lazy(() => import("./pages/DoctorDetails"));
@@ -371,6 +373,8 @@ function AnimatedRoutes() {
           <Route path="wishlist" element={<Suspense fallback={<RouteLoading />}><AccountWishlist /></Suspense>} />
           <Route path="notifications" element={<Suspense fallback={<RouteLoading />}><AccountNotifications /></Suspense>} />
           <Route path="lab-reports" element={<Suspense fallback={<RouteLoading />}><AccountLabReports /></Suspense>} />
+          <Route path="my-lab-tests" element={<Suspense fallback={<RouteLoading />}><AccountLabTests /></Suspense>} />
+          <Route path="my-appointments" element={<Suspense fallback={<RouteLoading />}><AccountDoctorAppointments /></Suspense>} />
           <Route path="track-order" element={<Suspense fallback={<RouteLoading />}><AccountTrackOrder /></Suspense>} />
           <Route path="help-support" element={<Suspense fallback={<RouteLoading />}><AccountHelpSupport /></Suspense>} />
         </Route>
