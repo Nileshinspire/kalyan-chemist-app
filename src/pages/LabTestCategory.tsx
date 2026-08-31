@@ -340,7 +340,7 @@ export default function LabTestCategory() {
   }, [categoryData, dbTests]);
 
   /* Filters */
-  const [typeFilter, setTypeFilter] = useState<string | null>(null);
+  const [typeFilters, setTypeFilters] = useState<Set<string>>(new Set());
   const [testFilters, setTestFilters] = useState<Set<string>>(new Set());
   const [filterOpen, setFilterOpen] = useState(false);
 
@@ -374,7 +374,7 @@ export default function LabTestCategory() {
   }, []);
 
   const clearAllFilters = useCallback(() => {
-    setTypeFilter(null);
+    setTypeFilters(new Set());
     setTestFilters(new Set());
   }, []);
 
@@ -399,15 +399,26 @@ export default function LabTestCategory() {
     return Array.from(testMap.entries()).map(([name, description]) => ({ name, description }));
   }, [effectiveCategoryData]);
 
-  /* Type filter is now always shown (Single Tests + Package Tests) */
+  /* Toggle a type filter checkbox */
+  const toggleTypeFilter = useCallback((type: string) => {
+    setTypeFilters((prev) => {
+      const next = new Set(prev);
+      if (next.has(type)) next.delete(type);
+      else next.add(type);
+      return next;
+    });
+  }, []);
+
+  const isAllTab = typeFilters.size === 0;
 
   /* Filtered items */
   const filteredItems = useMemo(() => {
     if (!effectiveCategoryData) return [];
     let items = effectiveCategoryData.items;
 
-    if (typeFilter) {
-      items = items.filter((i) => i.type === typeFilter);
+    // If typeFilters has entries, show only those types; otherwise show all
+    if (typeFilters.size > 0) {
+      items = items.filter((i) => typeFilters.has(i.type));
     }
 
     if (testFilters.size > 0) {
@@ -419,7 +430,7 @@ export default function LabTestCategory() {
     }
 
     return items;
-  }, [effectiveCategoryData, typeFilter, testFilters]);
+  }, [effectiveCategoryData, typeFilters, testFilters]);
 
   if (!effectiveCategoryData) {
     return (
@@ -511,12 +522,8 @@ export default function LabTestCategory() {
           <label className="flex items-center gap-2.5 cursor-pointer">
             <input
               type="checkbox"
-              checked={!typeFilter || typeFilter === "single"}
-              onChange={() => {
-                if (typeFilter === "single") setTypeFilter(null);
-                else if (typeFilter === "package") setTypeFilter(null);
-                else setTypeFilter("single");
-              }}
+              checked={typeFilters.has("single")}
+              onChange={() => toggleTypeFilter("single")}
               className="size-4 rounded border-gray-300 text-[#0a3d2e] accent-[#0a3d2e]"
             />
             <span className="text-sm text-gray-700">Single Tests</span>
@@ -524,12 +531,8 @@ export default function LabTestCategory() {
           <label className="flex items-center gap-2.5 cursor-pointer">
             <input
               type="checkbox"
-              checked={!typeFilter || typeFilter === "package"}
-              onChange={() => {
-                if (typeFilter === "package") setTypeFilter(null);
-                else if (typeFilter === "single") setTypeFilter(null);
-                else setTypeFilter("package");
-              }}
+              checked={typeFilters.has("package")}
+              onChange={() => toggleTypeFilter("package")}
               className="size-4 rounded border-gray-300 text-[#0a3d2e] accent-[#0a3d2e]"
             />
             <span className="text-sm text-gray-700">Package Tests</span>
@@ -586,13 +589,47 @@ export default function LabTestCategory() {
           </button>
         </div>
 
+        {/* Test Type Tabs */}
+        <div className="mb-6 flex items-center gap-2 border-b border-gray-200">
+          <button
+            onClick={() => setTypeFilters(new Set())}
+            className={`px-4 py-2.5 text-sm font-semibold transition-colors border-b-2 -mb-px ${
+              typeFilters.size === 0
+                ? "border-[#0a3d2e] text-[#0a3d2e]"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+            }`}
+          >
+            All Tests
+          </button>
+          <button
+            onClick={() => setTypeFilters(new Set(["single"]))}
+            className={`px-4 py-2.5 text-sm font-semibold transition-colors border-b-2 -mb-px ${
+              typeFilters.size === 1 && typeFilters.has("single")
+                ? "border-[#0a3d2e] text-[#0a3d2e]"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+            }`}
+          >
+            Single Tests
+          </button>
+          <button
+            onClick={() => setTypeFilters(new Set(["package"]))}
+            className={`px-4 py-2.5 text-sm font-semibold transition-colors border-b-2 -mb-px ${
+              typeFilters.size === 1 && typeFilters.has("package")
+                ? "border-[#0a3d2e] text-[#0a3d2e]"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+            }`}
+          >
+            Packages
+          </button>
+        </div>
+
         <div className="flex gap-8">
           {/* Desktop sidebar */}
           <aside className="hidden lg:block w-[240px] shrink-0">
             <div className="sticky top-24 rounded-xl border border-gray-200 bg-white p-5">
               <div className="mb-4 flex items-center justify-between">
                 <h3 className="text-sm font-bold text-gray-900">Filters</h3>
-                {(typeFilter || testFilters.size > 0) && (
+                {(typeFilters.size > 0 || testFilters.size > 0) && (
                   <button onClick={clearAllFilters} className="text-xs font-semibold text-[#0a3d2e] hover:underline">
                     Clear All
                   </button>
@@ -605,7 +642,7 @@ export default function LabTestCategory() {
           {/* Mobile filter drawer */}
           <FilterDrawer open={filterOpen} onClose={() => setFilterOpen(false)}>
             <div className="mb-4 flex items-center justify-between">
-              {(typeFilter || testFilters.size > 0) && (
+              {(typeFilters.size > 0 || testFilters.size > 0) && (
                 <button onClick={clearAllFilters} className="text-xs font-semibold text-[#0a3d2e] hover:underline">
                   Clear All
                 </button>
@@ -626,11 +663,11 @@ export default function LabTestCategory() {
               <div className="rounded-xl border border-dashed border-gray-300 bg-white p-12 text-center">
                 <FlaskConical className="mx-auto size-10 text-gray-300 mb-3" />
                 <p className="text-sm text-gray-500">
-                  {typeFilter || testFilters.size > 0
+                  {typeFilters.size > 0 || testFilters.size > 0
                     ? "No tests match your selected filters."
                     : "No lab tests available in this category yet."}
                 </p>
-                {(typeFilter || testFilters.size > 0) && (
+                {(typeFilters.size > 0 || testFilters.size > 0) && (
                   <button onClick={clearAllFilters} className="mt-3 text-sm font-semibold text-[#0a3d2e] hover:underline">
                     Clear Filters
                   </button>
