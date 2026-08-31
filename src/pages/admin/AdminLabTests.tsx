@@ -116,8 +116,16 @@ export default function AdminLabTests() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(DEFAULT_FORM);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [newTestId, setNewTestId] = useState("");
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [newCustomTestName, setNewCustomTestName] = useState("");
+
+  /* ── Available single tests for package creation ── */
+  const availablePackageTests = useQuery(
+    api.labTests.adminList,
+    formOpen && form.type === "package" && form.categorySlug
+      ? { categorySlug: form.categorySlug, type: "single" }
+      : "skip"
+  );
 
   /* ── Bookings tab state ── */
   const [statusFilter, setStatusFilter] = useState("");
@@ -289,25 +297,6 @@ export default function AdminLabTests() {
       toast.error(e.message || "Failed to update");
     }
   }, [updatePaymentStatus]);
-
-  const addTestId = useCallback(() => {
-    if (newTestId.trim()) {
-      setForm((f) => ({
-        ...f,
-        includedTestIds: [...f.includedTestIds, newTestId.trim()],
-        includedTestCount: f.includedTestIds.length + 1,
-      }));
-      setNewTestId("");
-    }
-  }, [newTestId]);
-
-  const removeTestId = useCallback((idx: number) => {
-    setForm((f) => ({
-      ...f,
-      includedTestIds: f.includedTestIds.filter((_, i) => i !== idx),
-      includedTestCount: Math.max(0, f.includedTestIds.length - 1),
-    }));
-  }, []);
 
   const calcDiscount = useMemo(() => {
     if (form.originalPrice > 0 && form.discountedPrice > 0) {
@@ -723,18 +712,97 @@ export default function AdminLabTests() {
               <textarea value={form.detailedDescription} onChange={(e) => setForm((f) => ({ ...f, detailedDescription: e.target.value }))} placeholder="Detailed description..." className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm min-h-[80px]" />
             </div>
             {form.type === "package" && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Included Tests ({form.includedTestIds.length})</label>
-                <div className="flex gap-2">
-                  <Input value={newTestId} onChange={(e) => setNewTestId(e.target.value)} placeholder="Add test name" onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addTestId())} />
-                  <Button type="button" variant="outline" onClick={addTestId}>Add</Button>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium">Included Tests ({form.includedTestIds.length})</label>
+                  {availablePackageTests && availablePackageTests.length > 0 && (
+                    <span className="text-[11px] text-muted-foreground">
+                      Select from {availablePackageTests.length} available single test{availablePackageTests.length !== 1 ? 's' : ''} in this category
+                    </span>
+                  )}
                 </div>
+                {/* Checkbox selection from existing tests */}
+                {availablePackageTests && availablePackageTests.length > 0 ? (
+                  <div className="rounded-lg border border-border/60 bg-muted/20 p-3 max-h-[200px] overflow-y-auto space-y-1">
+                    {availablePackageTests.map((t) => {
+                      const isSelected = form.includedTestIds.includes(t.name);
+                      return (
+                        <label
+                          key={t._id}
+                          className={`flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm cursor-pointer transition-colors ${
+                            isSelected
+                              ? 'bg-primary/10 text-primary border border-primary/20'
+                              : 'hover:bg-muted/50 border border-transparent'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => {
+                              if (isSelected) {
+                                setForm((f) => ({
+                                  ...f,
+                                  includedTestIds: f.includedTestIds.filter((id) => id !== t.name),
+                                  includedTestCount: Math.max(0, f.includedTestIds.filter((id) => id !== t.name).length),
+                                }));
+                              } else {
+                                setForm((f) => ({
+                                  ...f,
+                                  includedTestIds: [...f.includedTestIds, t.name],
+                                  includedTestCount: f.includedTestIds.length + 1,
+                                }));
+                              }
+                            }}
+                            className="accent-[#0a3d2e] size-4"
+                          />
+                          <span className="flex-1 truncate">{t.name}</span>
+                          <Badge variant={t.active ? 'default' : 'secondary'} className={`text-[10px] ${t.active ? 'bg-green-100 text-green-700' : ''}`}>
+                            {t.active ? 'Active' : 'Inactive'}
+                          </Badge>
+                        </label>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground italic py-2">
+                    {form.categorySlug ? 'No single tests found in this category yet. Create single tests first, or add custom test names below.' : 'Select a category first to see available tests.'}
+                  </p>
+                )}
+                {/* Manual custom test entry */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-muted-foreground">Or add a custom test name</label>
+                  <div className="flex gap-2">
+                    <Input value={newCustomTestName} onChange={(e) => setNewCustomTestName(e.target.value)} placeholder="Custom test name" onKeyDown={(e) => {
+                      if (e.key === 'Enter' && newCustomTestName.trim()) {
+                        e.preventDefault();
+                        if (!form.includedTestIds.includes(newCustomTestName.trim())) {
+                          setForm((f) => ({ ...f, includedTestIds: [...f.includedTestIds, newCustomTestName.trim()], includedTestCount: f.includedTestIds.length + 1 }));
+                        }
+                        setNewCustomTestName('');
+                      }
+                    }} />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        if (newCustomTestName.trim() && !form.includedTestIds.includes(newCustomTestName.trim())) {
+                          setForm((f) => ({ ...f, includedTestIds: [...f.includedTestIds, newCustomTestName.trim()], includedTestCount: f.includedTestIds.length + 1 }));
+                          setNewCustomTestName('');
+                        }
+                      }}
+                    >Add</Button>
+                  </div>
+                </div>
+                {/* Selected tests chips */}
                 {form.includedTestIds.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mt-2">
+                  <div className="flex flex-wrap gap-1.5">
                     {form.includedTestIds.map((id, idx) => (
                       <Badge key={idx} variant="secondary" className="gap-1 pr-1">
                         {id}
-                        <button onClick={() => removeTestId(idx)} className="ml-1 rounded-full hover:bg-muted p-0.5"><Trash2 className="size-2.5" /></button>
+                        <button onClick={() => {
+                          const newIds = form.includedTestIds.filter((_, i) => i !== idx);
+                          setForm((f) => ({ ...f, includedTestIds: newIds, includedTestCount: newIds.length }));
+                        }} className="ml-1 rounded-full hover:bg-muted p-0.5"><Trash2 className="size-2.5" /></button>
                       </Badge>
                     ))}
                   </div>
