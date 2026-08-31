@@ -660,7 +660,16 @@ export default function LabTestCategory() {
                   return (
                     <div
                       key={item.id}
-                      className="flex flex-col rounded-xl border border-gray-200 bg-white px-3 py-2.5 transition-all hover:shadow-md hover:border-gray-300"
+                      className="flex flex-col rounded-xl border border-gray-200 bg-white px-3 py-2.5 transition-all hover:shadow-md hover:border-gray-300 cursor-pointer"
+                      onClick={(e) => {
+                        if (
+                          item._isFromDB &&
+                          item._convexId &&
+                          !(e.target as HTMLElement).closest('button')
+                        ) {
+                          navigate(`/lab-tests/test/${item._convexId}`);
+                        }
+                      }}
                     >
                       {/* Header row: icon + name */}
                       <div className="flex items-start gap-2.5 mb-1.5">
@@ -737,7 +746,8 @@ export default function LabTestCategory() {
                           })()}
                         </div>
                         <button
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             if (item._isFromDB && item._convexId && item.basePrice > 0) {
                               openBookingModal(item);
                             }

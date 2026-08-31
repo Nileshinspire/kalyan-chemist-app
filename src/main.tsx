@@ -66,6 +66,7 @@ const AccountAppointments = lazy(() => import("./pages/account/AccountAppointmen
 const LabTests = lazy(() => import("./pages/LabTests"));
 const AccountTrackOrder = lazy(() => import("./pages/account/AccountTrackOrder"));
 const LabTestCategory = lazy(() => import("./pages/LabTestCategory"));
+const LabTestDetail = lazy(() => import("./pages/LabTestDetail"));
 const AdminLabTests = lazy(() => import("./pages/admin/AdminLabTests"));
 const AccountHelpSupport = lazy(() => import("./pages/account/AccountHelpSupport"));
 
@@ -319,6 +320,15 @@ function AnimatedRoutes() {
           element={
             <RequireAuth>
                 <LabTests />
+              </RequireAuth>
+            
+          }
+        />
+        <Route
+          path="/lab-tests/test/:testId"
+          element={
+            <RequireAuth>
+                <LabTestDetail />
               </RequireAuth>
             
           }
