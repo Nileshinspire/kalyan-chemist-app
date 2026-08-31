@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -22,7 +22,10 @@ import {
   FileText,
   Info,
   CheckCircle2,
+  X,
+  Loader2,
 } from "lucide-react";
+import { toast } from "sonner";
 
 /* ── FAQ item ── */
 interface FAQ {
@@ -165,6 +168,100 @@ export default function LabTestDetail() {
 
   /* ── Booking mutation ── */
   const createBooking = useMutation(api.labTests.createBooking);
+
+  /* ── Booking modal state ── */
+  const [bookingOpen, setBookingOpen] = useState(false);
+  const [bookingType, setBookingType] = useState<"home" | "lab">("home");
+  const [bookingDate, setBookingDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().split("T")[0];
+  });
+  const [bookingTime, setBookingTime] = useState("");
+  const [bookingAddress, setBookingAddress] = useState("");
+  const [bookingPincode, setBookingPincode] = useState("");
+  const [bookingNotes, setBookingNotes] = useState("");
+  const [bookingError, setBookingError] = useState("");
+  const [bookingSubmitting, setBookingSubmitting] = useState(false);
+  const [bookingSuccess, setBookingSuccess] = useState<{
+    bookingId: string;
+    testName: string;
+  } | null>(null);
+
+  const TIME_SLOTS = [
+    "07:00 AM - 09:00 AM",
+    "09:00 AM - 11:00 AM",
+    "11:00 AM - 01:00 PM",
+    "01:00 PM - 03:00 PM",
+    "03:00 PM - 05:00 PM",
+    "05:00 PM - 07:00 PM",
+  ];
+
+  const openBookingModal = () => {
+    setBookingOpen(true);
+    setBookingError("");
+    setBookingTime("");
+    setBookingAddress("");
+    setBookingPincode("");
+    setBookingNotes("");
+    setBookingSuccess(null);
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    setBookingDate(d.toISOString().split("T")[0]);
+  };
+
+  const closeBookingModal = () => {
+    setBookingOpen(false);
+    setBookingError("");
+    setBookingSuccess(null);
+  };
+
+  const handleBookingSubmit = async () => {
+    if (!test) return;
+    const isHomeCollection = bookingType === "home";
+    if (!bookingDate || !bookingTime) {
+      setBookingError("Please select a date and time slot.");
+      return;
+    }
+    if (isHomeCollection && !bookingAddress.trim()) {
+      setBookingError("Please enter your collection address.");
+      return;
+    }
+    if (!bookingPincode.trim() || bookingPincode.trim().length < 6) {
+      setBookingError("Please enter a valid 6-digit pincode.");
+      return;
+    }
+    setBookingSubmitting(true);
+    setBookingError("");
+    try {
+      await createBooking({
+        testId: test._id,
+        collectionDate: bookingDate,
+        timeSlot: bookingTime,
+        collectionType: bookingType,
+        address: bookingType === "home" ? bookingAddress.trim() : "Lab Visit",
+        pincode: bookingPincode.trim(),
+        notes: bookingNotes.trim() || undefined,
+      });
+      setBookingSuccess({
+        bookingId: test._id,
+        testName: test.name,
+      });
+      toast.success("Booking confirmed!");
+    } catch (err: any) {
+      setBookingError(err?.message || "Failed to book. Please try again.");
+    } finally {
+      setBookingSubmitting(false);
+    }
+  };
+
+  /* Lock body scroll when booking modal open */
+  useEffect(() => {
+    if (bookingOpen) {
+      document.body.style.overflow = "hidden";
+      return () => { document.body.style.overflow = ""; };
+    }
+  }, [bookingOpen]);
 
   /* ── Loading state ── */
   if (test === undefined) {
@@ -322,9 +419,7 @@ export default function LabTestDetail() {
                   <button
                     onClick={() => {
                       if (validPrice) {
-                        navigate(
-                          `/lab-tests/${test.categorySlug}?book=${test._id}`,
-                        );
+                        openBookingModal();
                       }
                     }}
                     disabled={!validPrice}
@@ -693,6 +788,146 @@ export default function LabTestDetail() {
           </div>
         </div>
       </div>
+
+      {/* ═══════════════════════════════════════════════
+          BOOKING MODAL
+          ═══════════════════════════════════════════════ */}
+      {bookingOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between rounded-t-2xl z-10">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">Book Test</h2>
+                <p className="text-sm text-gray-500 mt-0.5">{test.name}</p>
+              </div>
+              <button onClick={closeBookingModal} className="flex size-8 items-center justify-center rounded-lg hover:bg-gray-100 transition-colors">
+                <X className="size-5 text-gray-500" />
+              </button>
+            </div>
+
+            {bookingSuccess ? (
+              /* ── Success State ── */
+              <div className="px-6 py-12 text-center">
+                <div className="mx-auto size-16 rounded-full bg-green-50 flex items-center justify-center mb-4">
+                  <CheckCircle2 className="size-8 text-green-600" />
+                </div>
+                <h3 className="text-lg font-bold text-gray-900 mb-2">Booking Confirmed</h3>
+                <p className="text-sm text-gray-500 mb-1">{bookingSuccess.testName}</p>
+                <p className="text-xs text-gray-400 mb-6">We will send you a confirmation with further details.</p>
+                <div className="flex gap-3 justify-center">
+                  <button
+                    onClick={() => {
+                      closeBookingModal();
+                      navigate("/account/lab-tests");
+                    }}
+                    className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    View My Bookings
+                  </button>
+                  <button
+                    onClick={closeBookingModal}
+                    className="rounded-xl bg-[#0a3d2e] px-5 py-2.5 text-sm font-bold text-white hover:bg-[#082f23] transition-colors"
+                  >
+                    Done
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* ── Booking Form ── */
+              <div className="px-6 py-5 space-y-5">
+                {/* Test summary */}
+                <div className="rounded-xl bg-gray-50 p-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-bold text-gray-900">{test.name}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{test.includedTestCount} test{test.includedTestCount > 1 ? "s" : ""} included</p>
+                  </div>
+                  {test.originalPrice > 0 ? (
+                    <p className="text-lg font-extrabold text-[#0a3d2e]">
+                      ₹{(hasDiscount ? test.discountedPrice : test.originalPrice).toLocaleString("en-IN")}
+                    </p>
+                  ) : (
+                    <p className="text-sm text-gray-400 italic">Price not available</p>
+                  )}
+                </div>
+
+                {/* Collection Type */}
+                <div>
+                  <label className="block text-sm font-bold text-gray-900 mb-2">Collection Type *</label>
+                  <div className="flex gap-3">
+                    <button onClick={() => setBookingType("home")} className={`flex-1 rounded-xl border-2 px-4 py-3 text-sm font-medium transition-colors ${bookingType === "home" ? "border-[#0a3d2e] bg-[#0a3d2e]/5 text-[#0a3d2e]" : "border-gray-200 text-gray-600 hover:border-gray-300"}`}>
+                      <Home className="size-4 inline mr-1.5" />Home Collection
+                    </button>
+                    <button onClick={() => setBookingType("lab")} className={`flex-1 rounded-xl border-2 px-4 py-3 text-sm font-medium transition-colors ${bookingType === "lab" ? "border-[#0a3d2e] bg-[#0a3d2e]/5 text-[#0a3d2e]" : "border-gray-200 text-gray-600 hover:border-gray-300"}`}>
+                      <FlaskConical className="size-4 inline mr-1.5" />Visit Lab
+                    </button>
+                  </div>
+                </div>
+
+                {/* Date */}
+                <div>
+                  <label className="block text-sm font-bold text-gray-900 mb-2"><Calendar className="size-4 inline mr-1.5" />Preferred Date *</label>
+                  <input type="date" value={bookingDate} min={new Date(Date.now() + 86400000).toISOString().split("T")[0]} onChange={(e) => setBookingDate(e.target.value)} className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 focus:border-[#0a3d2e] focus:ring-1 focus:ring-[#0a3d2e] outline-none" />
+                </div>
+
+                {/* Time Slots */}
+                <div>
+                  <label className="block text-sm font-bold text-gray-900 mb-2"><Clock className="size-4 inline mr-1.5" />Preferred Time Slot *</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {TIME_SLOTS.map((slot) => (
+                      <button key={slot} onClick={() => setBookingTime(slot)} className={`rounded-xl border-2 px-3 py-2.5 text-xs font-medium transition-colors ${bookingTime === slot ? "border-[#0a3d2e] bg-[#0a3d2e]/5 text-[#0a3d2e]" : "border-gray-200 text-gray-600 hover:border-gray-300"}`}>{slot}</button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Address (home only) */}
+                {bookingType === "home" && (
+                  <div>
+                    <label className="block text-sm font-bold text-gray-900 mb-2"><MapPin className="size-4 inline mr-1.5" />Collection Address *</label>
+                    <textarea value={bookingAddress} onChange={(e) => setBookingAddress(e.target.value)} placeholder="Enter full address with landmark" rows={3} className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[#0a3d2e] focus:ring-1 focus:ring-[#0a3d2e] outline-none resize-none" />
+                  </div>
+                )}
+
+                {/* Pincode */}
+                <div>
+                  <label className="block text-sm font-bold text-gray-900 mb-2">Pincode *</label>
+                  <input type="text" value={bookingPincode} onChange={(e) => setBookingPincode(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="6-digit pincode" maxLength={6} className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[#0a3d2e] focus:ring-1 focus:ring-[#0a3d2e] outline-none" />
+                </div>
+
+                {/* Notes */}
+                <div>
+                  <label className="block text-sm font-bold text-gray-900 mb-2">Special Instructions (optional)</label>
+                  <input type="text" value={bookingNotes} onChange={(e) => setBookingNotes(e.target.value)} placeholder="Any special instructions" className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[#0a3d2e] focus:ring-1 focus:ring-[#0a3d2e] outline-none" />
+                </div>
+
+                {/* Error */}
+                {bookingError && (
+                  <div className="flex items-center gap-2 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700 border border-red-200">
+                    <AlertTriangle className="size-4 shrink-0" />{bookingError}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Footer */}
+            {!bookingSuccess && (
+              <div className="sticky bottom-0 bg-white border-t border-gray-100 px-6 py-4 rounded-b-2xl">
+                <button
+                  onClick={handleBookingSubmit}
+                  disabled={bookingSubmitting || !bookingDate || !bookingTime || (bookingType === "home" && !bookingAddress.trim()) || !bookingPincode.trim()}
+                  className="w-full rounded-xl bg-[#0a3d2e] py-3.5 text-sm font-bold text-white hover:bg-[#082f23] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {bookingSubmitting ? (
+                    <><Loader2 className="size-4 animate-spin" /> Processing…</>
+                  ) : (
+                    <><Calendar className="size-4" /> Confirm Booking{test.originalPrice > 0 ? ` — ₹${(hasDiscount ? test.discountedPrice : test.originalPrice).toLocaleString("en-IN")}` : ""}</>
+                  )}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
