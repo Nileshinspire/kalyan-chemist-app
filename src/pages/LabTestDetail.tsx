@@ -815,11 +815,10 @@ export default function LabTestDetail() {
                 <h3 className="text-lg font-bold text-gray-900 mb-2">Booking Confirmed</h3>
                 <p className="text-sm text-gray-500 mb-1">{bookingSuccess.testName}</p>
                 <p className="text-xs text-gray-400 mb-6">We will send you a confirmation with further details.</p>
-                <div className="flex gap-3 justify-center">
-                  <button
+                <div className="flex gap-3 justify-center">                    <button
                     onClick={() => {
                       closeBookingModal();
-                      navigate("/account/lab-tests");
+                      navigate("/account/my-lab-tests");
                     }}
                     className="rounded-xl border border-gray-200 px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
                   >
