@@ -75,7 +75,7 @@ function buildFAQs(
     faqs.push({
       question: "When will I receive my report?",
       answer:
-        "Reports are typically available within 24–48 hours. You can view and download your digital report from your account.",
+        "Reports are generally made available according to the configured turnaround time after sample collection. Once your report is uploaded and ready, you can view and download it from your account.",
     });
   }
   faqs.push({

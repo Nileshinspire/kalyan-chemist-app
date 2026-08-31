@@ -16,6 +16,7 @@ import {
   X,
   Truck,
   Headphones,
+  FlaskConical,
 } from "lucide-react";
 import { ArrowLeft } from "lucide-react";
 import { useState } from "react";
@@ -27,6 +28,7 @@ const NAV_ITEMS = [
   { to: "/account/orders", label: "My Orders", icon: ClipboardList },
   { to: "/account/track-order", label: "Track Order", icon: Truck },
   { to: "/account/prescriptions", label: "Prescriptions", icon: Pill },
+  { to: "/account/lab-reports", label: "Lab Reports", icon: FlaskConical },
   { to: "/account/wishlist", label: "Wishlist", icon: Heart },
   { to: "/account/notifications", label: "Notifications", icon: Bell },
   { to: "/account/help-support", label: "Help & Support", icon: Headphones },

@@ -705,6 +705,15 @@ const schema = defineSchema(
         v.literal("refunded"),
       ),
       notes: v.optional(v.string()),
+      // Report management
+      reportStatus: v.optional(v.union(
+        v.literal("pending"),
+        v.literal("processing"),
+        v.literal("ready"),
+      )),
+      reportFileId: v.optional(v.string()),
+      reportFileName: v.optional(v.string()),
+      reportUploadedAt: v.optional(v.number()),
       createdAt: v.number(),
       updatedAt: v.number(),
     })

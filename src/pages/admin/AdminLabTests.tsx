@@ -1,6 +1,7 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import type { Id } from "@/convex/_generated/dataModel";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -105,6 +106,131 @@ const DEFAULT_FORM = {
   reportGuaranteeHours: 0,
   active: true,
 };
+
+/* ── Report Management Section (used inside booking detail dialog) ── */
+function ReportSection({ booking, onUpdate }: { booking: Record<string, unknown>; onUpdate: (updates: Record<string, unknown>) => void }) {
+  const generateUploadUrl = useMutation(api.labTests.generateReportUploadUrl);
+  const uploadReport = useMutation(api.labTests.uploadReport);
+  const updateReportStatus = useMutation(api.labTests.updateReportStatus);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState("");
+
+  const reportStatus = (booking.reportStatus as string) || "pending";
+  const reportFileId = booking.reportFileId as string | undefined;
+  const reportFileName = booking.reportFileName as string | undefined;
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setError("");
+
+    const allowedTypes = ["application/pdf", "image/jpeg", "image/png"];
+    if (!allowedTypes.includes(file.type)) {
+      setError("Please upload a valid PDF, JPG, or PNG file.");
+      return;
+    }
+    if (file.size > 20 * 1024 * 1024) {
+      setError("File size must be less than 20MB.");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const uploadUrl = await generateUploadUrl();
+      const response = await fetch(uploadUrl, {
+        method: "POST",
+        headers: { "Content-Type": file.type },
+        body: file,
+      });
+      const { storageId } = await response.json();
+
+      await uploadReport({
+        bookingId: booking._id as Id<"lab_bookings">,
+        fileId: storageId as string,
+        fileName: file.name,
+      });
+
+      onUpdate({
+        reportFileId: storageId,
+        reportFileName: file.name,
+        reportStatus: "ready",
+        reportUploadedAt: Date.now(),
+      });
+    } catch (err) {
+      setError("Upload failed. Please try again.");
+      console.error(err);
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleStatusChange = async (status: string) => {
+    try {
+      await updateReportStatus({
+        bookingId: booking._id as Id<"lab_bookings">,
+        reportStatus: status as "pending" | "processing" | "ready",
+      });
+      onUpdate({ reportStatus: status });
+    } catch (err) {
+      setError("Failed to update status.");
+      console.error(err);
+    }
+  };
+
+  const statusColor: Record<string, string> = {
+    pending: "bg-yellow-100 text-yellow-700 border-yellow-200",
+    processing: "bg-blue-100 text-blue-700 border-blue-200",
+    ready: "bg-green-100 text-green-700 border-green-200",
+  };
+
+  return (
+    <div className="rounded-lg border p-3 text-sm space-y-3">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium">Report Status</span>
+        <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold border ${statusColor[reportStatus] || statusColor.pending}`}>
+          {reportStatus === "pending" ? "Report Pending" : reportStatus === "processing" ? "Report Processing" : "Report Ready"}
+        </span>
+      </div>
+
+      {reportFileName && (
+        <p className="text-xs text-muted-foreground">Current file: {reportFileName}</p>
+      )}
+
+      <div className="flex gap-2">
+        <select
+          value={reportStatus}
+          onChange={(e) => handleStatusChange(e.target.value)}
+          className="flex-1 rounded-lg border border-border bg-background px-2 py-1.5 text-xs"
+        >
+          <option value="pending">Report Pending</option>
+          <option value="processing">Report Processing</option>
+          <option value="ready">Report Ready</option>
+        </select>
+      </div>
+
+      <div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".pdf,.jpg,.jpeg,.png"
+          onChange={handleUpload}
+          className="hidden"
+        />
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading}
+          className="w-full rounded-lg border border-dashed border-primary/40 bg-primary/5 px-4 py-2.5 text-xs font-medium text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
+        >
+          {uploading ? "Uploading…" : reportFileId ? "Replace Report" : "Upload Report"}
+        </button>
+      </div>
+
+      {error && <p className="text-xs text-destructive">{error}</p>}
+    </div>
+  );
+}
 
 export default function AdminLabTests() {
   const { user } = useAuth();
@@ -1045,6 +1171,15 @@ export default function AdminLabTests() {
                     </select>
                   </div>
                 </div>
+              </div>
+
+              {/* Report Management */}
+              <div>
+                <h4 className="text-xs font-semibold uppercase text-muted-foreground mb-2">Report Management</h4>
+                <ReportSection
+                  booking={detailBooking}
+                  onUpdate={(updated) => setDetailBooking({ ...detailBooking, ...updated })}
+                />
               </div>
             </div>
           )}

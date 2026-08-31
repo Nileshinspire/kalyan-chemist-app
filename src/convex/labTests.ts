@@ -287,3 +287,117 @@ export const updatePaymentStatus = mutation({
     });
   },
 });
+
+/* ═══════════════════════════════════════════════════
+   REPORT MANAGEMENT
+   ═══════════════════════════════════════════════════ */
+
+/* ── ADMIN: Generate upload URL for report file ── */
+export const generateReportUploadUrl = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+    const user = await ctx.db.get(userId);
+    if (user?.role !== "admin") throw new Error("Not authorized");
+    return await ctx.storage.generateUploadUrl();
+  },
+});
+
+/* ── ADMIN: Upload report for a booking ── */
+export const uploadReport = mutation({
+  args: {
+    bookingId: v.id("lab_bookings"),
+    fileId: v.string(),
+    fileName: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+    const user = await ctx.db.get(userId);
+    if (user?.role !== "admin") throw new Error("Not authorized");
+
+    const booking = await ctx.db.get(args.bookingId);
+    if (!booking) throw new Error("Booking not found");
+
+    await ctx.db.patch(args.bookingId, {
+      reportFileId: args.fileId,
+      reportFileName: args.fileName,
+      reportStatus: "ready",
+      reportUploadedAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+/* ── ADMIN: Update report status ── */
+export const updateReportStatus = mutation({
+  args: {
+    bookingId: v.id("lab_bookings"),
+    reportStatus: v.union(
+      v.literal("pending"),
+      v.literal("processing"),
+      v.literal("ready"),
+    ),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+    const user = await ctx.db.get(userId);
+    if (user?.role !== "admin") throw new Error("Not authorized");
+
+    const booking = await ctx.db.get(args.bookingId);
+    if (!booking) throw new Error("Booking not found");
+
+    const update: Record<string, unknown> = {
+      reportStatus: args.reportStatus,
+      updatedAt: Date.now(),
+    };
+
+    // If marking as pending/processing, clear report file
+    if (args.reportStatus !== "ready") {
+      update.reportFileId = undefined;
+      update.reportFileName = undefined;
+      update.reportUploadedAt = undefined;
+    }
+
+    await ctx.db.patch(args.bookingId, update);
+  },
+});
+
+/* ── CUSTOMER: Get my lab bookings with report info ── */
+export const myBookingsWithReports = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return [];
+    return await ctx.db
+      .query("lab_bookings")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .order("desc")
+      .collect();
+  },
+});
+
+/* ── CUSTOMER: Get signed report URL ── */
+export const getReportUrl = query({
+  args: { bookingId: v.id("lab_bookings") },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return null;
+
+    const booking = await ctx.db.get(args.bookingId);
+    if (!booking) return null;
+
+    // Only allow owner or admin
+    if (booking.userId !== userId) {
+      const user = await ctx.db.get(userId);
+      if (user?.role !== "admin") return null;
+    }
+
+    if (!booking.reportFileId) return null;
+
+    const url = await ctx.storage.getUrl(booking.reportFileId);
+    return url;
+  },
+});
