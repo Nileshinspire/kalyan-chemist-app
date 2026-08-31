@@ -343,7 +343,6 @@ export default function LabTestCategory() {
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
   const [testFilters, setTestFilters] = useState<Set<string>>(new Set());
   const [filterOpen, setFilterOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<"all" | "single" | "package">("all");
 
   /* Cart (local state since lab tests aren't products) */
   const [cartItems, setCartItems] = useState<Set<string>>(new Set());
@@ -400,24 +399,12 @@ export default function LabTestCategory() {
     return Array.from(testMap.entries()).map(([name, description]) => ({ name, description }));
   }, [effectiveCategoryData]);
 
-  /* Compute unique "Type of Tests" */
-  const availableTypes = useMemo(() => {
-    if (!effectiveCategoryData) return [];
-    const types = new Set(effectiveCategoryData.items.map((i) => i.type));
-    return Array.from(types);
-  }, [effectiveCategoryData]);
+  /* Type filter is now always shown (Single Tests + Package Tests) */
 
   /* Filtered items */
   const filteredItems = useMemo(() => {
     if (!effectiveCategoryData) return [];
     let items = effectiveCategoryData.items;
-
-    // Single Tests / Packages tab filter
-    if (viewMode === "single") {
-      items = items.filter((i) => i.type === "single");
-    } else if (viewMode === "package") {
-      items = items.filter((i) => i.type === "package");
-    }
 
     if (typeFilter) {
       items = items.filter((i) => i.type === typeFilter);
@@ -432,7 +419,7 @@ export default function LabTestCategory() {
     }
 
     return items;
-  }, [effectiveCategoryData, typeFilter, testFilters, viewMode]);
+  }, [effectiveCategoryData, typeFilter, testFilters]);
 
   if (!effectiveCategoryData) {
     return (
@@ -518,24 +505,37 @@ export default function LabTestCategory() {
   const sidebarContent = (
     <>
       {/* Type of Tests */}
-      {availableTypes.length > 0 && (
-        <div className="mb-6">
-          <h4 className="mb-3 text-sm font-bold text-gray-900">Type of Tests</h4>
-          <div className="space-y-2">
-            {availableTypes.map((t) => (
-              <label key={t} className="flex items-center gap-2.5 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={typeFilter === t}
-                  onChange={() => setTypeFilter(typeFilter === t ? null : t)}
-                  className="size-4 rounded border-gray-300 text-[#0a3d2e] accent-[#0a3d2e]"
-                />
-                <span className="text-sm text-gray-700 capitalize">{t === "package" ? "Health Packages" : "Single Tests"}</span>
-              </label>
-            ))}
-          </div>
+      <div className="mb-6">
+        <h4 className="mb-3 text-sm font-bold text-gray-900">Type of Tests</h4>
+        <div className="space-y-2">
+          <label className="flex items-center gap-2.5 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={!typeFilter || typeFilter === "single"}
+              onChange={() => {
+                if (typeFilter === "single") setTypeFilter(null);
+                else if (typeFilter === "package") setTypeFilter(null);
+                else setTypeFilter("single");
+              }}
+              className="size-4 rounded border-gray-300 text-[#0a3d2e] accent-[#0a3d2e]"
+            />
+            <span className="text-sm text-gray-700">Single Tests</span>
+          </label>
+          <label className="flex items-center gap-2.5 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={!typeFilter || typeFilter === "package"}
+              onChange={() => {
+                if (typeFilter === "package") setTypeFilter(null);
+                else if (typeFilter === "single") setTypeFilter(null);
+                else setTypeFilter("package");
+              }}
+              className="size-4 rounded border-gray-300 text-[#0a3d2e] accent-[#0a3d2e]"
+            />
+            <span className="text-sm text-gray-700">Package Tests</span>
+          </label>
         </div>
-      )}
+      </div>
 
       {/* Must Have Tests */}
       {availableTests.length > 0 && (
@@ -574,13 +574,7 @@ export default function LabTestCategory() {
         {/* Title */}
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
-            {effectiveCategoryData.name}
-            <span className="text-gray-400 font-normal ml-2">
-              ({viewMode === "package" ? filteredItems.length : viewMode === "single" ? filteredItems.length : effectiveCategoryData.items.filter((i) => i.type === "single").length} active test{(viewMode === "single" || viewMode === "all") && effectiveCategoryData.items.filter((i) => i.type === "single").length !== 1 ? "s" : ""})
-              {effectiveCategoryData.items.filter((i) => i.type === "package").length > 0 && (
-                <> + {effectiveCategoryData.items.filter((i) => i.type === "package").length} package{effectiveCategoryData.items.filter((i) => i.type === "package").length !== 1 ? "s" : ""}</>
-              )}
-            </span>
+            {effectiveCategoryData.name} <span className="text-gray-400 font-normal">({filteredItems.length})</span>
           </h1>
           {/* Mobile filter button */}
           <button
@@ -590,34 +584,6 @@ export default function LabTestCategory() {
             <SlidersHorizontal className="size-4" />
             Filters
           </button>
-        </div>
-
-        {/* Single Tests / Packages Tab Toggle */}
-        <div className="mb-5">
-          <div className="inline-flex rounded-xl bg-gray-100 p-1 gap-1">
-            {[
-              { value: "all" as const, label: "All Tests", count: effectiveCategoryData?.items.length ?? 0 },
-              { value: "single" as const, label: "Single Tests", count: effectiveCategoryData?.items.filter((i) => i.type === "single").length ?? 0 },
-              { value: "package" as const, label: "Packages", count: effectiveCategoryData?.items.filter((i) => i.type === "package").length ?? 0 },
-            ].map((tab) => (
-              <button
-                key={tab.value}
-                onClick={() => setViewMode(tab.value)}
-                className={`rounded-lg px-5 py-2.5 text-sm font-semibold transition-all duration-200 ${
-                  viewMode === tab.value
-                    ? "bg-white text-[#0a3d2e] shadow-sm border border-gray-200"
-                    : "text-gray-500 hover:text-gray-700"
-                }`}
-              >
-                {tab.label}
-                <span className={`ml-1.5 text-[11px] font-medium ${
-                  viewMode === tab.value ? "text-[#0a3d2e]/60" : "text-gray-400"
-                }`}>
-                  ({tab.count})
-                </span>
-              </button>
-            ))}
-          </div>
         </div>
 
         <div className="flex gap-8">
@@ -662,11 +628,7 @@ export default function LabTestCategory() {
                 <p className="text-sm text-gray-500">
                   {typeFilter || testFilters.size > 0
                     ? "No tests match your selected filters."
-                    : viewMode === "package"
-                      ? "No package available for this category yet."
-                      : viewMode === "single"
-                        ? "No single tests available yet. Admin needs to configure tests first."
-                        : "No lab tests available in this category yet."}
+                    : "No lab tests available in this category yet."}
                 </p>
                 {(typeFilter || testFilters.size > 0) && (
                   <button onClick={clearAllFilters} className="mt-3 text-sm font-semibold text-[#0a3d2e] hover:underline">
