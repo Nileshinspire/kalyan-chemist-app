@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams, useSearchParams } from "react-router";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { ArrowLeft, X, SlidersHorizontal, ShoppingCart, Check, FlaskConical, Beaker, Heart, Shield, Stethoscope, Pill, Activity, Calendar, MapPin, Clock, AlertTriangle, Loader2 } from "lucide-react";
@@ -304,6 +304,7 @@ function FilterDrawer({
 export default function LabTestCategory() {
   const { category } = useParams<{ category: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const categoryData = useMemo(() => {
     if (!category) return null;
@@ -473,11 +474,16 @@ export default function LabTestCategory() {
 
   const handleBookingSubmit = useCallback(async () => {
     if (!bookingTest) return;
-    if (!bookingDate || !bookingTime || !bookingAddress.trim() || !bookingPincode.trim()) {
-      setBookingError("Please fill in all required fields.");
+    const isHomeCollection = bookingType === "home";
+    if (!bookingDate || !bookingTime) {
+      setBookingError("Please select a date and time slot.");
       return;
     }
-    if (bookingPincode.trim().length < 6) {
+    if (isHomeCollection && !bookingAddress.trim()) {
+      setBookingError("Please enter your collection address.");
+      return;
+    }
+    if (!bookingPincode.trim() || bookingPincode.trim().length < 6) {
       setBookingError("Please enter a valid 6-digit pincode.");
       return;
     }
@@ -488,7 +494,7 @@ export default function LabTestCategory() {
         collectionDate: bookingDate,
         timeSlot: bookingTime,
         collectionType: bookingType,
-        address: bookingAddress.trim(),
+        address: bookingType === "home" ? bookingAddress.trim() : "Lab Visit",
         pincode: bookingPincode.trim(),
         notes: bookingNotes.trim() || undefined,
       });
@@ -503,6 +509,20 @@ export default function LabTestCategory() {
       setBookingError(err?.message || "Failed to book. Please try again.");
     }
   }, [bookingTest, bookingDate, bookingTime, bookingType, bookingAddress, bookingPincode, bookingNotes, createBooking]);
+
+  /* ── Auto-open booking modal when navigated with ?book= param ── */
+  const bookTestId = searchParams.get("book");
+  useEffect(() => {
+    if (!bookTestId || !dbTests) return;
+    const match = effectiveCategoryData?.items.find(
+      (item) => item._convexId === bookTestId,
+    );
+    if (match && match._isFromDB && match.basePrice > 0 && !bookingTest) {
+      openBookingModal(match);
+      // Clean up the URL param so reopening doesn't auto-trigger again
+      setSearchParams({}, { replace: true });
+    }
+  }, [bookTestId, dbTests, effectiveCategoryData, bookingTest]);
 
   const TIME_SLOTS = [
     "07:00 AM - 09:00 AM",
@@ -862,7 +882,7 @@ export default function LabTestCategory() {
               )}
             </div>
             <div className="sticky bottom-0 bg-white border-t border-gray-100 px-6 py-4 rounded-b-2xl">
-              <button onClick={handleBookingSubmit} disabled={!bookingDate || !bookingTime || !bookingAddress.trim() || !bookingPincode.trim()} className="w-full rounded-xl bg-[#0a3d2e] py-3.5 text-sm font-bold text-white hover:bg-[#082f23] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+              <button onClick={handleBookingSubmit} disabled={!bookingDate || !bookingTime || (bookingType === "home" && !bookingAddress.trim()) || !bookingPincode.trim()} className="w-full rounded-xl bg-[#0a3d2e] py-3.5 text-sm font-bold text-white hover:bg-[#082f23] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
                 <Calendar className="size-4" />Confirm Booking{bookingTest.basePrice > 0 ? ` — ₹${(bookingTest.discountedPrice && bookingTest.discountedPrice > 0 && bookingTest.discountedPrice < bookingTest.basePrice ? bookingTest.discountedPrice : bookingTest.basePrice).toLocaleString("en-IN")}` : ""}
               </button>
             </div>
