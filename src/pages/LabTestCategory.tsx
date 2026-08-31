@@ -399,17 +399,17 @@ export default function LabTestCategory() {
     return Array.from(testMap.entries()).map(([name, description]) => ({ name, description }));
   }, [effectiveCategoryData]);
 
-  /* Toggle a type filter checkbox */
+  /* Toggle type filter — mutually exclusive radio behavior */
   const toggleTypeFilter = useCallback((type: string) => {
     setTypeFilters((prev) => {
-      const next = new Set(prev);
-      if (next.has(type)) next.delete(type);
-      else next.add(type);
-      return next;
+      if (prev.has(type)) {
+        // Clicking the already-selected type deselects it → return to All Tests
+        return new Set();
+      }
+      // Selecting a type replaces any other selected type
+      return new Set([type]);
     });
   }, []);
-
-  const isAllTab = typeFilters.size === 0;
 
   /* Filtered items */
   const filteredItems = useMemo(() => {
@@ -515,25 +515,27 @@ export default function LabTestCategory() {
 
   const sidebarContent = (
     <>
-      {/* Type of Tests */}
+      {/* Type of Tests — mutually exclusive radio behavior */}
       <div className="mb-6">
         <h4 className="mb-3 text-sm font-bold text-gray-900">Type of Tests</h4>
         <div className="space-y-2">
           <label className="flex items-center gap-2.5 cursor-pointer">
             <input
-              type="checkbox"
+              type="radio"
+              name="testType"
               checked={typeFilters.has("single")}
               onChange={() => toggleTypeFilter("single")}
-              className="size-4 rounded border-gray-300 text-[#0a3d2e] accent-[#0a3d2e]"
+              className="size-4 border-gray-300 text-[#0a3d2e] accent-[#0a3d2e]"
             />
             <span className="text-sm text-gray-700">Single Tests</span>
           </label>
           <label className="flex items-center gap-2.5 cursor-pointer">
             <input
-              type="checkbox"
+              type="radio"
+              name="testType"
               checked={typeFilters.has("package")}
               onChange={() => toggleTypeFilter("package")}
-              className="size-4 rounded border-gray-300 text-[#0a3d2e] accent-[#0a3d2e]"
+              className="size-4 border-gray-300 text-[#0a3d2e] accent-[#0a3d2e]"
             />
             <span className="text-sm text-gray-700">Package Tests</span>
           </label>
@@ -586,40 +588,6 @@ export default function LabTestCategory() {
           >
             <SlidersHorizontal className="size-4" />
             Filters
-          </button>
-        </div>
-
-        {/* Test Type Tabs */}
-        <div className="mb-6 flex items-center gap-2 border-b border-gray-200">
-          <button
-            onClick={() => setTypeFilters(new Set())}
-            className={`px-4 py-2.5 text-sm font-semibold transition-colors border-b-2 -mb-px ${
-              typeFilters.size === 0
-                ? "border-[#0a3d2e] text-[#0a3d2e]"
-                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-            }`}
-          >
-            All Tests
-          </button>
-          <button
-            onClick={() => setTypeFilters(new Set(["single"]))}
-            className={`px-4 py-2.5 text-sm font-semibold transition-colors border-b-2 -mb-px ${
-              typeFilters.size === 1 && typeFilters.has("single")
-                ? "border-[#0a3d2e] text-[#0a3d2e]"
-                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-            }`}
-          >
-            Single Tests
-          </button>
-          <button
-            onClick={() => setTypeFilters(new Set(["package"]))}
-            className={`px-4 py-2.5 text-sm font-semibold transition-colors border-b-2 -mb-px ${
-              typeFilters.size === 1 && typeFilters.has("package")
-                ? "border-[#0a3d2e] text-[#0a3d2e]"
-                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-            }`}
-          >
-            Packages
           </button>
         </div>
 
