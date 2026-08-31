@@ -227,15 +227,13 @@ export default function AdminLabTests() {
 
   /* Create Complete Package — auto-includes all ACTIVE single tests in category */
   const handleCreateCompletePackage = useCallback(() => {
-    if (!selectedCategory || !selectedCatTests) return;
+    if (!selectedCategory) return;
     const cat = LAB_CATEGORIES.find((c) => c.slug === selectedCategory);
     const catName = cat?.name || selectedCategory;
-    // Get all ACTIVE single tests in this category
-    const activeSingles = selectedCatTests.filter(
-      (t) => t.type === "single" && t.active
-    );
-    if (activeSingles.length === 0) {
-      toast.error("No active tests in this category. Activate at least one test first.");
+    // Get ALL predefined tests in this category (regardless of Active/Inactive status)
+    const allPredefined = getPredefinedTests(selectedCategory);
+    if (allPredefined.length === 0) {
+      toast.error("No predefined tests found for this category.");
       return;
     }
     setEditingId(null);
@@ -245,13 +243,13 @@ export default function AdminLabTests() {
       categoryName: catName,
       name: `Complete ${catName} Package`,
       type: "package",
-      description: `Comprehensive package including all ${activeSingles.length} active ${catName} tests.`,
-      includedTestIds: activeSingles.map((t) => t.name),
-      includedTestCount: activeSingles.length,
+      description: `Comprehensive package including all ${allPredefined.length} ${catName} tests.`,
+      includedTestIds: allPredefined.map((t) => t.name),
+      includedTestCount: allPredefined.length,
       active: false,
     });
     setFormOpen(true);
-  }, [selectedCategory, selectedCatTests]);
+  }, [selectedCategory]);
 
   const openEdit = useCallback((test: any) => {
     setEditingId(test._id);
