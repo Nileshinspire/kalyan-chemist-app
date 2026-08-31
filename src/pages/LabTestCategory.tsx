@@ -591,19 +591,17 @@ export default function LabTestCategory() {
           </button>
         </div>
 
-        {/* All Tests indicator */}
-        <div className="mb-5">
-          <button
-            onClick={() => setTypeFilters(new Set())}
-            className={`inline-flex items-center rounded-full px-4 py-1.5 text-sm font-semibold transition-colors ${
-              typeFilters.size === 0
-                ? "bg-[#0a3d2e] text-white shadow-sm"
-                : "bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700"
-            }`}
-          >
-            All Tests
-          </button>
-        </div>
+        {/* All Tests indicator — only visible when no type filter is active */}
+        {typeFilters.size === 0 && (
+          <div className="mb-5">
+            <button
+              onClick={() => setTypeFilters(new Set())}
+              className="inline-flex items-center rounded-full bg-[#0a3d2e] px-4 py-1.5 text-sm font-semibold text-white shadow-sm transition-colors"
+            >
+              All Tests
+            </button>
+          </div>
+        )}
 
         <div className="flex gap-8">
           {/* Desktop sidebar */}
