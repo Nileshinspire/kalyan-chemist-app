@@ -656,6 +656,8 @@ const schema = defineSchema(
       serviceArea: v.optional(v.string()),
       promotionalBadges: v.array(v.string()),
       promotionalText: v.optional(v.string()),
+      bestPriceEver: v.optional(v.boolean()),
+      reportGuaranteeHours: v.optional(v.number()),
       active: v.boolean(),
       createdAt: v.number(),
       updatedAt: v.number(),

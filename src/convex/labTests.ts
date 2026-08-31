@@ -74,6 +74,8 @@ export const create = mutation({
     serviceArea: v.optional(v.string()),
     promotionalBadges: v.array(v.string()),
     promotionalText: v.optional(v.string()),
+    bestPriceEver: v.optional(v.boolean()),
+    reportGuaranteeHours: v.optional(v.number()),
     active: v.boolean(),
   },
   handler: async (ctx, args) => {
@@ -108,6 +110,8 @@ export const update = mutation({
     serviceArea: v.optional(v.string()),
     promotionalBadges: v.optional(v.array(v.string())),
     promotionalText: v.optional(v.string()),
+    bestPriceEver: v.optional(v.boolean()),
+    reportGuaranteeHours: v.optional(v.number()),
     active: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {

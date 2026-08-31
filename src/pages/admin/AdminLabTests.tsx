@@ -99,6 +99,8 @@ const DEFAULT_FORM = {
   serviceArea: "",
   promotionalBadges: [] as string[],
   promotionalText: "",
+  bestPriceEver: false,
+  reportGuaranteeHours: 0,
   active: true,
 };
 
@@ -203,6 +205,8 @@ export default function AdminLabTests() {
       serviceArea: test.serviceArea || "",
       promotionalBadges: test.promotionalBadges || [],
       promotionalText: test.promotionalText || "",
+      bestPriceEver: test.bestPriceEver || false,
+      reportGuaranteeHours: test.reportGuaranteeHours || 0,
       active: test.active,
     });
     setFormOpen(true);
@@ -754,11 +758,18 @@ export default function AdminLabTests() {
             <div className="space-y-2">
               <label className="text-sm font-medium">Promotional Text</label>
               <Input value={form.promotionalText} onChange={(e) => setForm((f) => ({ ...f, promotionalText: e.target.value }))} placeholder="e.g. BEST PRICE EVER!" />
-            </div>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={form.active} onChange={(e) => setForm((f) => ({ ...f, active: e.target.checked }))} className="accent-[#0a3d2e]" />
-              Active
-            </label>
+            </div>              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={form.bestPriceEver} onChange={(e) => setForm((f) => ({ ...f, bestPriceEver: e.target.checked }))} className="accent-[#0a3d2e]" />
+                Best Price Ever
+              </label>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Report Guarantee (Hours)</label>
+                <Input type="number" value={form.reportGuaranteeHours || ""} onChange={(e) => setForm((f) => ({ ...f, reportGuaranteeHours: Number(e.target.value) }))} placeholder="e.g. 10, 24, 48" />
+              </div>
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={form.active} onChange={(e) => setForm((f) => ({ ...f, active: e.target.checked }))} className="accent-[#0a3d2e]" />
+                Active
+              </label>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setFormOpen(false)}>Cancel</Button>
