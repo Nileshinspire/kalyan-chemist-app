@@ -176,7 +176,7 @@ export default function OrderDetail() {
       <Navbar />
       <main className="flex-1 mx-auto max-w-4xl w-full px-4 sm:px-6 py-8">
         <Button variant="ghost" size="sm" className="mb-6 gap-1.5 text-sm text-muted-foreground" onClick={() => navigate(isAccountContext ? "/account/orders" : "/orders")}>
-          <ArrowLeft className="size-4" /> {isAccountContext ? "My Orders" : "All Orders"}
+          <ArrowLeft className="size-4" /> Back to {isAccountContext ? "My Orders" : "All Orders"}
         </Button>
 
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>

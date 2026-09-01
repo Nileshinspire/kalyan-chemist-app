@@ -450,7 +450,7 @@ export default function ProductDetail() {
           onClick={() => navigate(backTo)}
         >
           <ArrowLeft className="size-4" />
-          Back
+          Back to Products
         </Button>
 
         {/* Bought recently indicator — clickable */}

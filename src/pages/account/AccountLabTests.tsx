@@ -373,9 +373,6 @@ export default function AccountLabTests() {
   if (bookings.length === 0) {
     return (
       <div className="space-y-4">
-        <button onClick={() => navigate("/account")} className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
-          <ArrowLeft className="size-4" /> Back to Account
-        </button>
         <div>
           <h1 className="text-xl font-bold text-foreground">My Lab Tests</h1>
           <p className="text-sm text-muted-foreground mt-1">Track your lab test bookings and reports</p>
@@ -399,10 +396,6 @@ export default function AccountLabTests() {
 
   return (
     <div className="space-y-4">
-      <button onClick={() => navigate("/account")} className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
-        <ArrowLeft className="size-4" /> Back to Account
-      </button>
-
       <div>
         <h1 className="text-xl font-bold text-foreground">My Lab Tests</h1>
         <p className="text-sm text-muted-foreground mt-1">Track your lab test bookings and reports</p>

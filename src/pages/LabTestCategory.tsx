@@ -593,7 +593,7 @@ export default function LabTestCategory() {
           className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-700 transition-colors mb-4"
         >
           <ArrowLeft className="size-4" />
-          Back to Health Check
+          Back to Lab Tests
         </button>
 
         {/* Title */}

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router";
-import { ArrowLeft, X, Check } from "lucide-react";
+import { X, Check } from "lucide-react";
 
 /* ── Category Data ── */
 interface LabTest {
@@ -957,15 +957,6 @@ export default function LabTests() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 py-10 sm:py-14">
-        {/* Back */}
-        <button
-          onClick={() => navigate("/")}
-          className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-700 transition-colors mb-6"
-        >
-          <ArrowLeft className="size-4" />
-          Back to Home
-        </button>
-
         {/* Title */}
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 mb-2">
           Doctor Created Health Check

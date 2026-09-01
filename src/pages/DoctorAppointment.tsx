@@ -600,14 +600,6 @@ export default function DoctorAppointment() {
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8 sm:py-12">
-        <button
-          onClick={() => navigate("/")}
-          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors mb-8 cursor-pointer"
-        >
-          <ArrowLeft className="size-4" />
-          Back to Home
-        </button>
-
         {/* Browse by Specialties */}
         <section>
           <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-1">

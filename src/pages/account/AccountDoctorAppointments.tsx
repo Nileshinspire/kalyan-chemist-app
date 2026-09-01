@@ -125,9 +125,6 @@ export default function AccountDoctorAppointments() {
   if (appointments.length === 0) {
     return (
       <div className="space-y-4">
-        <button onClick={() => navigate("/account")} className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
-          <ArrowLeft className="size-4" /> Back to Account
-        </button>
         <div>
           <h1 className="text-xl font-bold text-foreground">My Doctor Appointments</h1>
           <p className="text-sm text-muted-foreground mt-1">View and manage your doctor appointments</p>
@@ -150,10 +147,6 @@ export default function AccountDoctorAppointments() {
 
   return (
     <div className="space-y-4">
-      <button onClick={() => navigate("/account")} className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
-        <ArrowLeft className="size-4" /> Back to Account
-      </button>
-
       <div>
         <h1 className="text-xl font-bold text-foreground">My Doctor Appointments</h1>
         <p className="text-sm text-muted-foreground mt-1">View and manage your doctor appointments</p>
