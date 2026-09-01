@@ -725,6 +725,60 @@ const schema = defineSchema(
       .index("by_status", ["bookingStatus"])
       .index("by_createdAt", ["createdAt"]),
 
+    // ── Regular Medicines (for Medicine Refill feature) ──
+    regular_medicines: defineTable({
+      userId: v.id("users"),
+      productId: v.id("products"),
+      // Customer-provided quantity preference
+      suggestedQuantity: v.number(),
+      // Optional notes from customer
+      notes: v.optional(v.string()),
+      // Source: 'manual' = customer saved, 'auto' = derived from order history
+      source: v.union(v.literal("manual"), v.literal("auto")),
+      createdAt: v.number(),
+      updatedAt: v.number(),
+    })
+      .index("by_user", ["userId"])
+      .index("by_user_product", ["userId", "productId"]),
+
+    // ── Refill Requests (customer-initiated refill to cart) ──
+    refill_requests: defineTable({
+      userId: v.id("users"),
+      // Medicines in this refill request
+      medicines: v.array(
+        v.object({
+          productId: v.id("products"),
+          productName: v.string(),
+          quantity: v.number(),
+          unitPrice: v.number(),
+          prescriptionRequired: v.boolean(),
+          available: v.boolean(),
+        })
+      ),
+      totalAmount: v.number(),
+      // Status: scheduled, due_soon, pending_verification, confirmed, processed, completed
+      status: v.union(
+        v.literal("scheduled"),
+        v.literal("due_soon"),
+        v.literal("pending_verification"),
+        v.literal("confirmed"),
+        v.literal("processed"),
+        v.literal("completed"),
+      ),
+      // Optional linked reminder
+      reminderId: v.optional(v.id("refill_reminders")),
+      // Admin notes
+      adminNotes: v.optional(v.string()),
+      // If linked to an order after checkout
+      orderId: v.optional(v.id("orders")),
+      createdAt: v.number(),
+      updatedAt: v.number(),
+    })
+      .index("by_user", ["userId"])
+      .index("by_status", ["status"])
+      .index("by_user_status", ["userId", "status"])
+      .index("by_createdAt", ["createdAt"]),
+
     // Store settings
     storeSettings: defineTable({
     storeName: v.string(),

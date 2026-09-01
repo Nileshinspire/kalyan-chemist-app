@@ -72,6 +72,8 @@ const LabTestCategory = lazy(() => import("./pages/LabTestCategory"));
 const LabTestDetail = lazy(() => import("./pages/LabTestDetail"));
 const AdminLabTests = lazy(() => import("./pages/admin/AdminLabTests"));
 const AccountHelpSupport = lazy(() => import("./pages/account/AccountHelpSupport"));
+const MedicineRefill = lazy(() => import("./pages/MedicineRefill"));
+const AdminRefills = lazy(() => import("./pages/admin/AdminRefills"));
 
 /** Animated loading skeleton for route transitions */
 function RouteLoading() {
@@ -319,6 +321,15 @@ function AnimatedRoutes() {
           }
         />
         <Route
+          path="/refill"
+          element={
+            <RequireAuth>
+                <MedicineRefill />
+              </RequireAuth>
+            
+          }
+        />
+        <Route
           path="/lab-tests"
           element={
             <RequireAuth>
@@ -377,6 +388,7 @@ function AnimatedRoutes() {
           <Route path="my-appointments" element={<Suspense fallback={<RouteLoading />}><AccountDoctorAppointments /></Suspense>} />
           <Route path="track-order" element={<Suspense fallback={<RouteLoading />}><AccountTrackOrder /></Suspense>} />
           <Route path="help-support" element={<Suspense fallback={<RouteLoading />}><AccountHelpSupport /></Suspense>} />
+          <Route path="refill" element={<Suspense fallback={<RouteLoading />}><MedicineRefill /></Suspense>} />
         </Route>
         <Route
           path="/admin"
@@ -529,6 +541,15 @@ function AnimatedRoutes() {
           element={
             <RequireAuth adminOnly>
                 <AdminLabTests />
+              </RequireAuth>
+            
+          }
+        />
+        <Route
+          path="/admin/refills"
+          element={
+            <RequireAuth adminOnly>
+                <AdminRefills />
               </RequireAuth>
             
           }
