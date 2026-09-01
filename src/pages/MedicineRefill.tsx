@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -40,11 +40,16 @@ export default function MedicineRefill() {
     [{ label: "Home", href: "/" }, { label: "Medicine Refill" }]
   );
 
+  // Store latest trail in a ref so async handlers always read the current value
+  const trailRef = useRef(trail);
+  trailRef.current = trail;
+
   /** Navigate to cart with the Medicine Refill breadcrumb trail */
-  const navigateToCart = () => {
-    const cartTrail = trail.length > 0 ? trail : [{ label: "Medicine Refill", href: "/refill" }];
+  const navigateToCart = useCallback(() => {
+    const currentTrail = trailRef.current;
+    const cartTrail = currentTrail.length > 0 ? currentTrail : [{ label: "Medicine Refill", href: "/refill" }];
     navigate("/cart", { state: { breadcrumbTrail: [...cartTrail, { label: "Shopping Cart" }] } });
-  };
+  }, [navigate]);
 
   // Backend data
   const regularMedicines = useQuery(api.refills.listRegularMedicines);
