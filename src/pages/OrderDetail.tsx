@@ -1,6 +1,7 @@
 import { useParams, useNavigate, useLocation } from "react-router";
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { useIsInsideAccountLayout } from "@/context/AccountLayoutContext";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
@@ -51,6 +52,8 @@ export default function OrderDetail() {
   const navigate = useNavigate();
   const location = useLocation();
   const isAccountContext = location.pathname.startsWith("/account/orders/");
+  const insideAccountLayout = useIsInsideAccountLayout();
+  const showChrome = !insideAccountLayout;
 
   const order = useQuery(api.orders.getById, id ? { orderId: id as any } : "skip");
   const tracking = useQuery(api.orders.getTracking, id ? { orderId: id as any } : "skip");
@@ -144,11 +147,11 @@ export default function OrderDetail() {
   if (order === undefined) {
     return (
       <div className="min-h-screen flex flex-col bg-background">
-        <Navbar />
+        {showChrome && <Navbar />}
         <main className="flex-1 flex items-center justify-center">
           <Loader2 className="size-6 animate-spin text-muted-foreground" />
         </main>
-        <Footer />
+        {showChrome && <Footer />}
       </div>
     );
   }
@@ -156,13 +159,13 @@ export default function OrderDetail() {
   if (!order) {
     return (
       <div className="min-h-screen flex flex-col bg-background">
-        <Navbar />
+        {showChrome && <Navbar />}
         <main className="flex-1 flex flex-col items-center justify-center text-center px-4">
           <Package className="size-12 text-muted-foreground/30 mb-4" />
           <h2 className="text-xl font-bold">Order not found</h2>
           <Button className="mt-4 gradient-primary text-white" onClick={() => navigate("/orders")}>View Orders</Button>
         </main>
-        <Footer />
+        {showChrome && <Footer />}
       </div>
     );
   }
@@ -173,7 +176,7 @@ export default function OrderDetail() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <Navbar />
+      {showChrome && <Navbar />}
       <main className="flex-1 mx-auto max-w-4xl w-full px-4 sm:px-6 py-8">
         <Breadcrumb items={isAccountContext ? [
           { label: "Account", href: "/account" },
@@ -502,7 +505,7 @@ export default function OrderDetail() {
           </div>
         </motion.div>
       </main>
-      <Footer />
+      {showChrome && <Footer />}
     </div>
   );
 }

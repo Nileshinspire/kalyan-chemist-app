@@ -2,6 +2,7 @@ import { useNavigate } from "react-router";
 import { useAuth } from "@/context/AuthContext";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { useIsInsideAccountLayout } from "@/context/AccountLayoutContext";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
@@ -23,6 +24,8 @@ import { toast } from "sonner";
 export default function Wishlist() {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
+  const insideAccountLayout = useIsInsideAccountLayout();
+  const showChrome = !insideAccountLayout;
 
   const wishlistItems = useQuery(api.wishlist.list);
   const toggleWishlist = useMutation(api.wishlist.toggle);
@@ -60,7 +63,7 @@ export default function Wishlist() {
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen flex flex-col bg-background">
-        <Navbar />
+        {showChrome && <Navbar />}
         <main className="flex-1 flex flex-col items-center justify-center text-center px-4">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
@@ -82,7 +85,7 @@ export default function Wishlist() {
             </Button>
           </motion.div>
         </main>
-        <Footer />
+        {showChrome && <Footer />}
       </div>
     );
   }
@@ -91,11 +94,11 @@ export default function Wishlist() {
   if (wishlistItems === undefined) {
     return (
       <div className="min-h-screen flex flex-col bg-background">
-        <Navbar />
+        {showChrome && <Navbar />}
         <main className="flex-1 flex items-center justify-center">
           <Loader2 className="size-6 animate-spin text-muted-foreground" />
         </main>
-        <Footer />
+        {showChrome && <Footer />}
       </div>
     );
   }
@@ -104,7 +107,7 @@ export default function Wishlist() {
   if (wishlistItems.length === 0) {
     return (
       <div className="min-h-screen flex flex-col bg-background">
-        <Navbar />
+        {showChrome && <Navbar />}
         <main className="flex-1 flex flex-col items-center justify-center text-center px-4">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
@@ -126,14 +129,14 @@ export default function Wishlist() {
             </Button>
           </motion.div>
         </main>
-        <Footer />
+        {showChrome && <Footer />}
       </div>
     );
   }
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
-      <Navbar />
+      {showChrome && <Navbar />}
       <main className="flex-1 mx-auto max-w-7xl w-full px-4 sm:px-6 py-8">
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
           <div className="mb-6">
@@ -262,7 +265,7 @@ export default function Wishlist() {
           </div>
         </motion.div>
       </main>
-      <Footer />
+      {showChrome && <Footer />}
     </div>
   );
 }

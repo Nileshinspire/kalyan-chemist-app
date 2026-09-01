@@ -1,5 +1,6 @@
 import { NavLink, Outlet } from "react-router";
 import { useAuth } from "@/context/AuthContext";
+import { AccountLayoutProvider } from "@/context/AccountLayoutContext";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
@@ -137,7 +138,9 @@ export default function AccountLayout() {
 
           {/* Content Area */}
           <div className="flex-1 min-w-0">
-            <Outlet />
+            <AccountLayoutProvider>
+              <Outlet />
+            </AccountLayoutProvider>
           </div>
         </div>
       </main>
