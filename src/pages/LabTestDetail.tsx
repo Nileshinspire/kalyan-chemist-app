@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { useSetBreadcrumb } from "@/hooks/useBreadcrumb";
 import {
   Clock,
   FlaskConical,
@@ -154,6 +155,16 @@ export default function LabTestDetail() {
   const test = useQuery(
     api.labTests.get,
     testId ? { id: testId as Id<"lab_tests"> } : "skip",
+  );
+
+  /* ── Breadcrumb trail ── */
+  useSetBreadcrumb(
+    { label: test?.name || "Test Detail" },
+    [
+      { label: "Lab Tests", href: "/lab-tests" },
+      { label: test?.categoryName || "Category", href: test ? `/lab-tests/${test.categorySlug}` : undefined },
+      { label: test?.name || "Test Detail" },
+    ]
   );
 
   /* ── Fetch related packages in same category ── */

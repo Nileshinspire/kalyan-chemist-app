@@ -1,5 +1,6 @@
-import { useNavigate } from "react-router";
+import { useNavigate, useLocation } from "react-router";
 import { useAuth } from "@/context/AuthContext";
+import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import Navbar from "@/components/layout/Navbar";
@@ -194,6 +195,10 @@ export default function Cart() {
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
       <main className="flex-1 mx-auto max-w-7xl w-full px-4 sm:px-6 py-8">
+        <Breadcrumb items={[
+          { label: "Home", href: "/" },
+          { label: "Shopping Cart" },
+        ]} />
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
           <div className="flex items-center justify-between mb-6">
             <div>

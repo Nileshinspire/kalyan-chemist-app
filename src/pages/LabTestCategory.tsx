@@ -4,6 +4,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { X, SlidersHorizontal, ShoppingCart, Check, FlaskConical, Beaker, Heart, Shield, Stethoscope, Pill, Activity, Calendar, MapPin, Clock, AlertTriangle, Loader2 } from "lucide-react";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
+import { useSetBreadcrumb } from "@/hooks/useBreadcrumb";
 
 /* ── Types ── */
 interface IncludedTest {
@@ -305,6 +306,13 @@ function FilterDrawer({
 export default function LabTestCategory() {
   const { category } = useParams<{ category: string }>();
   const navigate = useNavigate();
+
+  /* ── Breadcrumb trail ── */
+  const categoryName = category?.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ") || "Category";
+  useSetBreadcrumb(
+    { label: categoryName },
+    [{ label: "Lab Tests", href: "/lab-tests" }, { label: categoryName }]
+  );
   const [searchParams, setSearchParams] = useSearchParams();
 
   const categoryData = useMemo(() => {

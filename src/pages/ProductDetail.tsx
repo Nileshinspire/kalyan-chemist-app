@@ -59,6 +59,8 @@ import {
   Lock,
 } from "lucide-react";
 import { useState, useCallback } from "react";
+import { useSetBreadcrumb, getBreadcrumbState } from "@/hooks/useBreadcrumb";
+import { useNavigation } from "@/context/NavigationContext";
 import {
   Dialog,
   DialogContent,
@@ -259,6 +261,16 @@ export default function ProductDetail() {
   const product = useQuery(
     api.products.getBySlug,
     slug ? { slug } : "skip"
+  );
+
+  /* ── Breadcrumb trail ── */
+  useSetBreadcrumb(
+    { label: product?.name || "Product" },
+    [
+      { label: "Home", href: "/" },
+      { label: "Products", href: "/products" },
+      { label: product?.name || "Product" },
+    ]
   );
 
   const boughtCount = useQuery(

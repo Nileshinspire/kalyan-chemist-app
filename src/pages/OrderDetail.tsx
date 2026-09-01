@@ -2,6 +2,7 @@ import { useParams, useNavigate, useLocation } from "react-router";
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useIsInsideAccountLayout } from "@/context/AccountLayoutContext";
+import { useSetBreadcrumb } from "@/hooks/useBreadcrumb";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
@@ -51,6 +52,13 @@ export default function OrderDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const isAccountContextForBc = location.pathname.startsWith("/account/orders/");
+  useSetBreadcrumb(
+    { label: "Order Details" },
+    isAccountContextForBc
+      ? [{ label: "Account", href: "/account" }, { label: "My Orders", href: "/account/orders" }, { label: "Order Details" }]
+      : [{ label: "Home", href: "/" }, { label: "My Orders", href: "/orders" }, { label: "Order Details" }]
+  );
   const isAccountContext = location.pathname.startsWith("/account/orders/");
   const insideAccountLayout = useIsInsideAccountLayout();
   const showChrome = !insideAccountLayout;

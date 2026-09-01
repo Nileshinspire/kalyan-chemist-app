@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
+import { useSetBreadcrumb } from "@/hooks/useBreadcrumb";
 import {
   MapPin,
   Clock,
@@ -47,6 +48,17 @@ export default function DoctorDetails() {
   const [booking, setBooking] = useState(false);
 
   const doctor = useQuery(api.doctors.getDoctor, id ? { doctorId: id as any } : "skip");
+
+  /* ── Breadcrumb trail ── */
+  useSetBreadcrumb(
+    { label: doctor?.name || "Doctor Details" },
+    [
+      { label: "Find Doctors", href: "/doctor-appointment" },
+      { label: doctor?.specialty || "Specialty", href: "/doctor-appointment" },
+      { label: doctor?.name || "Doctor Details" },
+    ]
+  );
+
   const slots = useQuery(
     api.doctors.getAvailableSlots,
     id ? { doctorId: id as any, date: toDateStr(selectedDate) } : "skip"

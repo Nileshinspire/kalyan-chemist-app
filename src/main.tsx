@@ -1,6 +1,7 @@
 import "@vly-ai/integrations";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/context/AuthContext";
+import { NavigationProvider } from "@/context/NavigationContext";
 import { RequireAuth } from "@/components/RequireAuth";
 import { VlyToolbar } from "../vly-toolbar-readonly.tsx";
 import { ConvexAuthProvider } from "@convex-dev/auth/react";
@@ -594,13 +595,15 @@ createRoot(document.getElementById("root")!).render(
       <ConvexAuthProvider client={convex}>
       <AuthProvider>
         <BrowserRouter>
-          <ScrollRestorer />
-          <RouteSyncer />
-          <PageErrorBoundary>
-            <Suspense fallback={<RouteLoading />}>
-              <AnimatedRoutes />
-            </Suspense>
-          </PageErrorBoundary>
+          <NavigationProvider>
+            <ScrollRestorer />
+            <RouteSyncer />
+            <PageErrorBoundary>
+              <Suspense fallback={<RouteLoading />}>
+                <AnimatedRoutes />
+              </Suspense>
+            </PageErrorBoundary>
+          </NavigationProvider>
         </BrowserRouter>
         <Toaster />
       </AuthProvider>

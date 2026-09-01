@@ -4,6 +4,7 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useNavigate } from "react-router";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
+import { useSetBreadcrumb } from "@/hooks/useBreadcrumb";
 import {
   FlaskConical,
   Calendar,
@@ -357,6 +358,10 @@ function PayNowButton({ booking, amount }: { booking: any; amount: number }) {
 
 export default function AccountLabTests() {
   const navigate = useNavigate();
+  useSetBreadcrumb(
+    { label: "My Lab Tests" },
+    [{ label: "Account", href: "/account" }, { label: "My Lab Tests" }]
+  );
   const bookings = useQuery(api.labTests.myBookingsWithReports);
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
 

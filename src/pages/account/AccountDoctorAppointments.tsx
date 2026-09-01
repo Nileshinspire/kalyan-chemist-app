@@ -3,6 +3,7 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useNavigate } from "react-router";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
+import { useSetBreadcrumb } from "@/hooks/useBreadcrumb";
 import {
   Stethoscope,
   Calendar,
@@ -111,6 +112,10 @@ function StatusTracker({ status }: { status: string }) {
 
 export default function AccountDoctorAppointments() {
   const navigate = useNavigate();
+  useSetBreadcrumb(
+    { label: "My Appointments" },
+    [{ label: "Account", href: "/account" }, { label: "My Appointments" }]
+  );
   const appointments = useQuery(api.appointments.myAppointments);
   const [selectedApt, setSelectedApt] = useState<any>(null);
 

@@ -3,6 +3,8 @@ import { useNavigate } from "react-router";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useAuth } from "@/context/AuthContext";
+import { useNavigation } from "@/context/NavigationContext";
+import { useSetBreadcrumb } from "@/hooks/useBreadcrumb";
 import type { Id } from "@/convex/_generated/dataModel";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
@@ -31,6 +33,17 @@ import {
 export default function MedicineRefill() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { trail } = useNavigation();
+  useSetBreadcrumb(
+    { label: "Medicine Refill" },
+    [{ label: "Home", href: "/" }, { label: "Medicine Refill" }]
+  );
+
+  /** Navigate to cart with the Medicine Refill breadcrumb trail */
+  const navigateToCart = () => {
+    const cartTrail = trail.length > 0 ? trail : [{ label: "Medicine Refill", href: "/refill" }];
+    navigate("/cart", { state: { breadcrumbTrail: [...cartTrail, { label: "Shopping Cart" }] } });
+  };
 
   // Backend data
   const regularMedicines = useQuery(api.refills.listRegularMedicines);
@@ -154,7 +167,7 @@ export default function MedicineRefill() {
     try {
       await addToCart({ items: [{ productId: productId as any, quantity }] });
       toast.success("Added to cart");
-      navigate("/cart");
+      navigateToCart();
     } catch (error: any) {
       toast.error(error.message || "Failed to add to cart");
     }
@@ -204,7 +217,7 @@ export default function MedicineRefill() {
 
         await createRefillRequest({ medicines, totalAmount });
         setSelectedForRefill(new Set());
-        navigate("/cart");
+        navigateToCart();
       }
     } catch (error: any) {
       toast.error(error.message || "Failed to add to cart");
@@ -243,7 +256,7 @@ export default function MedicineRefill() {
         );
 
         await createRefillRequest({ medicines, totalAmount });
-        navigate("/cart");
+        navigateToCart();
       }
     } catch (error: any) {
       toast.error(error.message || "Failed to add to cart");

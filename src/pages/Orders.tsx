@@ -6,6 +6,7 @@ import Footer from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { useSetBreadcrumb } from "@/hooks/useBreadcrumb";
 import { motion } from "framer-motion";
 import { ClipboardList, Package, Loader2, ArrowRight, RefreshCw } from "lucide-react";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
@@ -26,6 +27,10 @@ const STATUS_LABELS: Record<string, string> = {
 
 export default function Orders() {
   const navigate = useNavigate();
+  useSetBreadcrumb(
+    { label: "My Orders" },
+    [{ label: "Home", href: "/" }, { label: "My Orders" }]
+  );
   const orders = useQuery(api.orders.list);
   const reorder = useMutation(api.orders.reorder);
 
