@@ -1,6 +1,7 @@
 import { useNavigate, useLocation } from "react-router";
 import { useAuth } from "@/context/AuthContext";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
+import { useSetBreadcrumb } from "@/hooks/useBreadcrumb";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import Navbar from "@/components/layout/Navbar";
@@ -36,6 +37,12 @@ import { generateCartMessage, openWhatsApp } from "@/lib/whatsapp";
 export default function Cart() {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
+
+  // Context-aware breadcrumb: reads incoming trail from location.state
+  useSetBreadcrumb(
+    { label: "Shopping Cart" },
+    [{ label: "Home", href: "/" }, { label: "Shopping Cart" }]
+  );
 
   const cartItems = useQuery(api.cart.list);
   const updateQuantity = useMutation(api.cart.updateQuantity);
