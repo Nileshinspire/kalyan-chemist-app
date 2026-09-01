@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useLocation, useNavigate } from "react-router";
+import { NavLink, Outlet } from "react-router";
 import { useAuth } from "@/context/AuthContext";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
@@ -19,7 +19,6 @@ import {
   FlaskConical,
   Stethoscope,
 } from "lucide-react";
-import { ArrowLeft } from "lucide-react";
 import { useState } from "react";
 
 const NAV_ITEMS = [
@@ -39,8 +38,7 @@ const NAV_ITEMS = [
 export default function AccountLayout() {
   const { logout } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const location = useLocation();
-  const navigate = useNavigate();
+
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -139,16 +137,6 @@ export default function AccountLayout() {
 
           {/* Content Area */}
           <div className="flex-1 min-w-0">
-            {location.pathname !== "/account" && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="mb-4 gap-1.5 text-muted-foreground rounded-xl"
-                onClick={() => navigate("/account")}
-              >
-                <ArrowLeft className="size-4" /> Back to Account
-              </Button>
-            )}
             <Outlet />
           </div>
         </div>

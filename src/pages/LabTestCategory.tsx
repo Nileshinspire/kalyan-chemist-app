@@ -2,7 +2,8 @@ import { useState, useMemo, useCallback, useEffect } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { ArrowLeft, X, SlidersHorizontal, ShoppingCart, Check, FlaskConical, Beaker, Heart, Shield, Stethoscope, Pill, Activity, Calendar, MapPin, Clock, AlertTriangle, Loader2 } from "lucide-react";
+import { X, SlidersHorizontal, ShoppingCart, Check, FlaskConical, Beaker, Heart, Shield, Stethoscope, Pill, Activity, Calendar, MapPin, Clock, AlertTriangle, Loader2 } from "lucide-react";
+import { Breadcrumb } from "@/components/ui/breadcrumb";
 
 /* ── Types ── */
 interface IncludedTest {
@@ -587,14 +588,10 @@ export default function LabTestCategory() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8 sm:py-10">
-        {/* Back */}
-        <button
-          onClick={() => navigate("/lab-tests")}
-          className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-700 transition-colors mb-4"
-        >
-          <ArrowLeft className="size-4" />
-          Back to Lab Tests
-        </button>
+        <Breadcrumb items={[
+          { label: "Lab Tests", href: "/lab-tests" },
+          { label: effectiveCategoryData.name },
+        ]} />
 
         {/* Title */}
         <div className="flex items-center justify-between mb-6">

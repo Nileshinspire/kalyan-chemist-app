@@ -24,6 +24,7 @@ import {
   SheetDescription,
 } from "@/components/ui/sheet";
 import { motion } from "framer-motion";
+import { Breadcrumb } from "@/components/ui/breadcrumb";
 import {
   ArrowLeft,
   ShoppingCart,
@@ -443,15 +444,11 @@ export default function ProductDetail() {
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
       <main className="flex-1 mx-auto max-w-7xl w-full px-4 sm:px-6 py-8">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="mb-6 gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors rounded-xl"
-          onClick={() => navigate(backTo)}
-        >
-          <ArrowLeft className="size-4" />
-          Back to Products
-        </Button>
+        <Breadcrumb items={[
+          { label: "Home", href: "/" },
+          { label: "Products", href: "/products" },
+          { label: product?.name || "Product" },
+        ]} />
 
         {/* Bought recently indicator — clickable */}
         {totalSold > 0 && (

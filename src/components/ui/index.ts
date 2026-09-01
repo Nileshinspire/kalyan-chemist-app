@@ -40,7 +40,7 @@ export { AspectRatio } from "./aspect-ratio"; // ~1KB - Maintain aspect ratios
 // ============================================================================
 
 // Navigation
-export { Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbPage, BreadcrumbSeparator, BreadcrumbEllipsis } from "./breadcrumb"; // ~4KB
+export { Breadcrumb } from "./breadcrumb"; export type { BreadcrumbItem } from "./breadcrumb"; // ~4KB
 export { Tabs, TabsList, TabsTrigger, TabsContent } from "./tabs"; // ~5KB - Tab navigation
 export { NavigationMenu, NavigationMenuList, NavigationMenuItem, NavigationMenuTrigger, NavigationMenuContent, NavigationMenuLink, NavigationMenuIndicator, NavigationMenuViewport, navigationMenuTriggerStyle } from "./navigation-menu"; // ~8KB
 

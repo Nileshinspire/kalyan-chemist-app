@@ -8,8 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { motion } from "framer-motion";
+import { Breadcrumb } from "@/components/ui/breadcrumb";
 import {
-  ArrowLeft,
   Package,
   Loader2,
   CheckCircle2,
@@ -175,9 +175,14 @@ export default function OrderDetail() {
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
       <main className="flex-1 mx-auto max-w-4xl w-full px-4 sm:px-6 py-8">
-        <Button variant="ghost" size="sm" className="mb-6 gap-1.5 text-sm text-muted-foreground" onClick={() => navigate(isAccountContext ? "/account/orders" : "/orders")}>
-          <ArrowLeft className="size-4" /> Back to {isAccountContext ? "My Orders" : "All Orders"}
-        </Button>
+        <Breadcrumb items={isAccountContext ? [
+          { label: "Account", href: "/account" },
+          { label: "My Orders", href: "/account/orders" },
+          { label: `Order #${order.invoiceNumber || order._id.slice(-6).toUpperCase()}` },
+        ] : [
+          { label: "My Orders", href: "/orders" },
+          { label: `Order #${order.invoiceNumber || order._id.slice(-6).toUpperCase()}` },
+        ]} />
 
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
           <div className="flex items-center justify-between mb-6 flex-wrap gap-3">

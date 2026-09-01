@@ -3,7 +3,6 @@ import { useNavigate, useSearchParams } from "react-router";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import {
-  ArrowLeft,
   ArrowRight,
   CalendarDays,
   MapPin,
@@ -15,6 +14,7 @@ import {
   User,
   Stethoscope,
 } from "lucide-react";
+import { Breadcrumb } from "@/components/ui/breadcrumb";
 
 /* ─── Shared Specialties Data (same as Admin) ─── */
 const SPECIALTIES = [
@@ -541,13 +541,10 @@ export default function DoctorAppointment() {
     return (
       <div className="min-h-screen bg-background">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8 sm:py-12">
-          <button
-            onClick={handleBackToSpecialties}
-            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors mb-6 cursor-pointer"
-          >
-            <ArrowLeft className="size-4" />
-            Back to Specialties
-          </button>
+          <Breadcrumb items={[
+            { label: "Find Doctors", href: "/doctor-appointment" },
+            { label: specialtyLabel },
+          ]} />
 
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
             <div>

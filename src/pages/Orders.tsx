@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { motion } from "framer-motion";
-import { ArrowLeft, ClipboardList, Package, Loader2, ArrowRight, RefreshCw } from "lucide-react";
+import { ClipboardList, Package, Loader2, ArrowRight, RefreshCw } from "lucide-react";
+import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { formatCurrency, getStatusColor } from "@/lib/auth-utils";
 import { toast } from "sonner";
 
@@ -55,9 +56,10 @@ export default function Orders() {
       <Navbar />
       <main className="flex-1 mx-auto max-w-4xl w-full px-4 sm:px-6 py-8">
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-          <Button variant="ghost" size="sm" className="mb-4 gap-1.5 text-muted-foreground rounded-xl" onClick={() => navigate("/dashboard")}>
-            <ArrowLeft className="size-4" /> Back to Dashboard
-          </Button>
+          <Breadcrumb items={[
+            { label: "Account", href: "/account" },
+            { label: "My Orders" },
+          ]} />
           <div className="inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary mb-3">
             <ClipboardList className="size-3" /> Order History
           </div>

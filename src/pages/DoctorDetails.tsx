@@ -13,8 +13,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { Breadcrumb } from "@/components/ui/breadcrumb";
 import {
-  ArrowLeft,
   MapPin,
   Clock,
   Calendar,
@@ -111,13 +111,10 @@ export default function DoctorDetails() {
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-4xl px-4 sm:px-6 py-8 sm:py-12">
-        <button
-          onClick={() => navigate("/doctor-appointment")}
-          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors mb-6 cursor-pointer"
-        >
-          <ArrowLeft className="size-4" />
-          Back to Find Doctors
-        </button>
+        <Breadcrumb items={[
+          { label: "Find Doctors", href: "/doctor-appointment" },
+          { label: doctor.name },
+        ]} />
 
         {/* Doctor Profile Card */}
         <Card className="border-border/60 overflow-hidden">

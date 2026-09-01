@@ -4,7 +4,6 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import {
-  ArrowLeft,
   Clock,
   FlaskConical,
   AlertTriangle,
@@ -26,6 +25,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { Breadcrumb } from "@/components/ui/breadcrumb";
 
 /* ── FAQ item ── */
 interface FAQ {
@@ -315,15 +315,11 @@ export default function LabTestDetail() {
     <div className="min-h-screen bg-gray-50">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 py-6 sm:py-10">
         {/* ── Breadcrumb ── */}
-        <button
-          onClick={() =>
-            navigate(`/lab-tests/${test.categorySlug}`)
-          }
-          className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-700 transition-colors mb-6"
-        >
-          <ArrowLeft className="size-4" />
-          Back to {test.categoryName}
-        </button>
+        <Breadcrumb items={[
+          { label: "Lab Tests", href: "/lab-tests" },
+          { label: String(test.categoryName), href: `/lab-tests/${test.categorySlug}` },
+          { label: test.name },
+        ]} />
 
         {/* ── Two-Column Layout ── */}
         <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">

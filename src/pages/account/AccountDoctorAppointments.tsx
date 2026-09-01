@@ -2,8 +2,8 @@ import { useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useNavigate } from "react-router";
+import { Breadcrumb } from "@/components/ui/breadcrumb";
 import {
-  ArrowLeft,
   Stethoscope,
   Calendar,
   Clock,
@@ -235,9 +235,11 @@ function AppointmentCard({ appointment, onClick }: { appointment: any; onClick: 
 function AppointmentDetail({ appointment, onBack }: { appointment: any; onBack: () => void }) {
   return (
     <div className="space-y-4">
-      <button onClick={onBack} className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
-        <ArrowLeft className="size-4" /> Back to My Appointments
-      </button>
+      <Breadcrumb items={[
+        { label: "Account", href: "/account" },
+        { label: "My Appointments", href: "/account/my-appointments" },
+        { label: String(appointment.doctorName) },
+      ]} />
 
       {/* Header */}
       <div className="rounded-xl border border-border/60 bg-card p-5">
