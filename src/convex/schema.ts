@@ -705,6 +705,9 @@ const schema = defineSchema(
         v.literal("refunded"),
       ),
       notes: v.optional(v.string()),
+      // Payment tracking
+      razorpayOrderId: v.optional(v.string()),
+      razorpayPaymentId: v.optional(v.string()),
       // Report management
       reportStatus: v.optional(v.union(
         v.literal("pending"),

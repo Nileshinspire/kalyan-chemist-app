@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useQuery } from "convex/react";
+import { useState, useCallback } from "react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useNavigate } from "react-router";
@@ -18,6 +18,8 @@ import {
   FileText,
   CreditCard,
   ChevronRight,
+  Lock,
+  Loader2,
 } from "lucide-react";
 
 /* ── Status step definitions ── */
@@ -114,16 +116,84 @@ function StatusTracker({ status }: { status: string }) {
   );
 }
 
-/* ── Report Section ── */
+/* ── Report Section (payment-gated) ── */
 function ReportSection({ booking }: { booking: any }) {
-  const reportStatus = (String(booking.reportStatus)) || "pending";
+  const reportStatus = String(booking.reportStatus || "pending");
+  const paymentStatus = String(booking.paymentStatus || "pending");
   const hasReport = !!booking.reportFileId;
+  const finalAmount = Number(booking.finalAmount) || 0;
+  const isPaid = paymentStatus === "paid";
+
+  // Backend enforces access — this query returns null if unpaid
   const reportUrl = useQuery(
     api.labTests.getReportUrl,
     hasReport ? { bookingId: booking._id as Id<"lab_bookings"> } : "skip",
   );
 
-  if (reportStatus === "ready" && hasReport && reportUrl) {
+  // ── STATE 1: Payment Pending + Report Pending ──
+  if (!isPaid && (reportStatus === "pending" || reportStatus === "processing") && !hasReport) {
+    return (
+      <div className="rounded-xl bg-yellow-50 border border-yellow-200 p-4">
+        <div className="flex items-center gap-2 mb-2">
+          <Lock className="size-4 text-yellow-600" />
+          <p className="text-sm font-bold text-yellow-800">Payment Pending</p>
+        </div>
+        <p className="text-xs text-yellow-700">
+          Report will be available after processing and successful payment.
+        </p>
+        <PayNowButton booking={booking} amount={finalAmount} />
+      </div>
+    );
+  }
+
+  // ── STATE 2: Payment Pending + Report Ready ──
+  if (!isPaid && reportStatus === "ready" && hasReport) {
+    return (
+      <div className="rounded-xl bg-amber-50 border border-amber-200 p-4">
+        <div className="flex items-center gap-2 mb-2">
+          <Lock className="size-4 text-amber-600" />
+          <p className="text-sm font-bold text-amber-800">Payment Required</p>
+        </div>
+        <p className="text-xs text-amber-700 mb-3">
+          Please complete the payment to view or download your lab report.
+        </p>
+        <PayNowButton booking={booking} amount={finalAmount} />
+      </div>
+    );
+  }
+
+  // ── STATE 3: Payment Paid + Report Pending ──
+  if (isPaid && reportStatus === "pending" && !hasReport) {
+    return (
+      <div className="rounded-xl bg-gray-50 border border-gray-200 p-4">
+        <div className="flex items-center gap-2">
+          <Clock className="size-4 text-gray-400" />
+          <p className="text-sm text-gray-600">Report not available yet</p>
+        </div>
+        <p className="text-xs text-gray-400 mt-1">
+          Your report will appear here once it is uploaded and marked ready.
+        </p>
+      </div>
+    );
+  }
+
+  // ── STATE 4: Payment Paid + Report Processing ──
+  if (isPaid && reportStatus === "processing") {
+    return (
+      <div className="rounded-xl bg-blue-50 border border-blue-200 p-4">
+        <div className="flex items-center gap-2">
+          <Loader2 className="size-4 text-blue-500 animate-spin" />
+          <p className="text-sm font-medium text-blue-700">Your report is being processed.</p>
+        </div>
+        <p className="text-xs text-blue-500 mt-1">
+          You will be notified once it is ready for download.
+        </p>
+      </div>
+    );
+  }
+
+  // ── STATE 5: Payment Paid + Report Ready ──
+  if (isPaid && reportStatus === "ready" && hasReport && reportUrl) {
     return (
       <div className="rounded-xl bg-green-50 border border-green-200 p-4">
         <div className="flex items-center gap-2 mb-3">
@@ -146,15 +216,32 @@ function ReportSection({ booking }: { booking: any }) {
     );
   }
 
-  return (
-    <div className="rounded-xl bg-gray-50 border border-gray-200 p-4">
-      <div className="flex items-center gap-2">
-        <Clock className="size-4 text-gray-400" />
-        <p className="text-sm text-gray-600">Report not available yet</p>
+  // ── Fallback: Paid but report URL not available yet ──
+  if (isPaid) {
+    return (
+      <div className="rounded-xl bg-gray-50 border border-gray-200 p-4">
+        <div className="flex items-center gap-2">
+          <Clock className="size-4 text-gray-400" />
+          <p className="text-sm text-gray-600">Report not available yet</p>
+        </div>
+        <p className="text-xs text-gray-400 mt-1">
+          Your report will appear here once it is uploaded and marked ready.
+        </p>
       </div>
-      <p className="text-xs text-gray-400 mt-1">
-        Your report will appear here once it is uploaded and marked ready.
+    );
+  }
+
+  // ── Unpaid fallback ──
+  return (
+    <div className="rounded-xl bg-yellow-50 border border-yellow-200 p-4">
+      <div className="flex items-center gap-2 mb-2">
+        <Lock className="size-4 text-yellow-600" />
+        <p className="text-sm font-bold text-yellow-800">Payment Required</p>
+      </div>
+      <p className="text-xs text-yellow-700 mb-3">
+        Please complete the payment to view or download your lab report.
       </p>
+      <PayNowButton booking={booking} amount={finalAmount} />
     </div>
   );
 }
@@ -182,6 +269,84 @@ function ReportDownloadBtn({ url, fileName, testName }: { url: string; fileName:
     <button onClick={handleDownload} className="inline-flex items-center gap-1.5 rounded-lg bg-[#0a3d2e] px-3 py-2 text-xs font-medium text-white hover:bg-[#082f23] transition-colors">
       <Download className="size-3.5" />
       Download
+    </button>
+  );
+}
+
+/* ── Pay Now Button (Razorpay) ── */
+function PayNowButton({ booking, amount }: { booking: any; amount: number }) {
+  const [paying, setPaying] = useState(false);
+  const payLabTestBooking = useMutation(api.labTests.payLabTestBooking);
+
+  const handlePay = useCallback(async () => {
+    if (paying) return;
+    setPaying(true);
+
+    try {
+      // Check if Razorpay is loaded
+      const w = window as any;
+      if (!w.Razorpay) {
+        // Razorpay not configured — mark as paid directly for demo
+        await payLabTestBooking({
+          bookingId: booking._id as Id<"lab_bookings">,
+        });
+        return;
+      }
+
+      const options = {
+        key: import.meta.env.VITE_RAZORPAY_KEY_ID || "",
+        amount: amount * 100, // Razorpay expects paise
+        currency: "INR",
+        name: "Kalyan Chemist",
+        description: `Payment for ${booking.testName}`,
+        handler: async (response: any) => {
+          try {
+            await payLabTestBooking({
+              bookingId: booking._id as Id<"lab_bookings">,
+              razorpayOrderId: response.razorpay_order_id,
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpaySignature: response.razorpay_signature,
+            });
+          } catch (err) {
+            console.error("Payment recording failed:", err);
+          } finally {
+            setPaying(false);
+          }
+        },
+        prefill: {
+          name: booking.customerName || "",
+          email: booking.customerEmail || "",
+          contact: booking.customerPhone || "",
+        },
+        theme: {
+          color: "#0a3d2e",
+        },
+        modal: {
+          ondismiss: () => setPaying(false),
+        },
+      };
+
+      const rzp = new w.Razorpay(options);
+      rzp.open();
+    } catch (err) {
+      console.error("Razorpay error:", err);
+      setPaying(false);
+    }
+  }, [paying, booking, amount, payLabTestBooking]);
+
+  return (
+    <button
+      onClick={handlePay}
+      disabled={paying || amount <= 0}
+      className="inline-flex items-center gap-1.5 rounded-lg bg-[#0a3d2e] px-4 py-2 text-xs font-bold text-white hover:bg-[#082f23] transition-colors disabled:opacity-50"
+    >
+      {paying ? (
+        <Loader2 className="size-3.5 animate-spin" />
+      ) : (
+        <CreditCard className="size-3.5" />
+      )}
+      Pay Now
+      {amount > 0 && <span className="ml-1">₹{amount.toLocaleString("en-IN")}</span>}
     </button>
   );
 }

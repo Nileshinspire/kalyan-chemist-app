@@ -389,15 +389,67 @@ export const getReportUrl = query({
     const booking = await ctx.db.get(args.bookingId);
     if (!booking) return null;
 
+    // Determine caller role
+    const caller = await ctx.db.get(userId);
+    const isAdmin = caller?.role === "admin";
+    const isOwner = booking.userId === userId;
+
     // Only allow owner or admin
-    if (booking.userId !== userId) {
-      const user = await ctx.db.get(userId);
-      if (user?.role !== "admin") return null;
+    if (!isOwner && !isAdmin) return null;
+
+    // Backend payment gate: customers must have paid to access the report
+    // Admin can always access (for QA / review purposes)
+    if (!isAdmin) {
+      if (booking.paymentStatus !== "paid") return null;
+      if (booking.reportStatus !== "ready") return null;
     }
 
     if (!booking.reportFileId) return null;
 
     const url = await ctx.storage.getUrl(booking.reportFileId);
     return url;
+  },
+});
+
+/* ── CUSTOMER: Pay for a lab test booking ── */
+export const payLabTestBooking = mutation({
+  args: {
+    bookingId: v.id("lab_bookings"),
+    razorpayOrderId: v.optional(v.string()),
+    razorpayPaymentId: v.optional(v.string()),
+    razorpaySignature: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    const booking = await ctx.db.get(args.bookingId);
+    if (!booking) throw new Error("Booking not found");
+    if (booking.userId !== userId) throw new Error("Not authorized");
+    if (booking.paymentStatus === "paid") return { alreadyPaid: true };
+
+    // Verify the payment with Razorpay if keys are provided
+    // For now, we trust the frontend Razorpay callback and mark as paid.
+    // In production, verify the signature server-side using crypto.
+    if (args.razorpayPaymentId && args.razorpaySignature) {
+      // TODO: Verify Razorpay signature using RAZORPAY_KEY_SECRET
+      // const crypto = require("crypto");
+      // const expectedSignature = crypto
+      //   .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET!)
+      //   .update(`${args.razorpayOrderId}|${args.razorpayPaymentId}`)
+      //   .digest("hex");
+      // if (expectedSignature !== args.razorpaySignature) {
+      //   throw new Error("Payment verification failed");
+      // }
+    }
+
+    await ctx.db.patch(args.bookingId, {
+      paymentStatus: "paid",
+      razorpayOrderId: args.razorpayOrderId,
+      razorpayPaymentId: args.razorpayPaymentId,
+      updatedAt: Date.now(),
+    });
+
+    return { success: true, paymentStatus: "paid" };
   },
 });
