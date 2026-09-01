@@ -28,6 +28,7 @@ import {
   ArrowRight,
   Package,
   Stethoscope,
+  Loader2,
 } from "lucide-react";
 
 export default function MedicineRefill() {
@@ -163,13 +164,25 @@ export default function MedicineRefill() {
     }
   };
 
+  const [refillingId, setRefillingId] = useState<string | null>(null);
+
   const handleRefillNow = async (productId: Id<"products">, quantity: number) => {
+    if (refillingId) return; // prevent double-click
     try {
-      await addToCart({ items: [{ productId: productId as any, quantity }] });
-      toast.success("Added to cart");
-      navigateToCart();
+      setRefillingId(productId as string);
+      const results = await addToCart({ items: [{ productId: productId as any, quantity }] });
+      const added = results.some((r: any) => r.success);
+      if (added) {
+        toast.success("Added to cart");
+        navigateToCart();
+      } else {
+        const failed = results.find((r: any) => !r.success);
+        toast.error(failed?.error || "Unable to add this medicine to your cart. Please try again.");
+      }
     } catch (error: any) {
-      toast.error(error.message || "Failed to add to cart");
+      toast.error(error.message || "Unable to add this medicine to your cart. Please try again.");
+    } finally {
+      setRefillingId(null);
     }
   };
 
@@ -485,9 +498,13 @@ export default function MedicineRefill() {
                                     onClick={() =>
                                       handleRefillNow(item.productId, item.suggestedQuantity || 1)
                                     }
-                                    disabled={!isAvailable}
+                                    disabled={!isAvailable || refillingId === (item.productId as string)}
                                   >
-                                    <ShoppingCart className="size-3 mr-1" />
+                                    {refillingId === (item.productId as string) ? (
+                                      <Loader2 className="size-3 mr-1 animate-spin" />
+                                    ) : (
+                                      <ShoppingCart className="size-3 mr-1" />
+                                    )}
                                     Refill Now
                                   </Button>
                                   <Button
@@ -609,9 +626,13 @@ export default function MedicineRefill() {
                                   size="sm"
                                   className="h-8 text-xs gradient-primary text-white"
                                   onClick={() => handleRefillNow(item.productId as Id<"products">, 1)}
-                                  disabled={!isAvailable}
+                                  disabled={!isAvailable || refillingId === (item.productId as string)}
                                 >
-                                  <ShoppingCart className="size-3 mr-1" />
+                                  {refillingId === (item.productId as string) ? (
+                                    <Loader2 className="size-3 mr-1 animate-spin" />
+                                  ) : (
+                                    <ShoppingCart className="size-3 mr-1" />
+                                  )}
                                   Refill Now
                                 </Button>
                               </div>
@@ -683,7 +704,11 @@ export default function MedicineRefill() {
                                 size="sm"
                                 className="h-8 text-xs gradient-primary text-white"
                                 onClick={() => handleRefillNow(reminder.productId, 1)}
+                                disabled={refillingId === (reminder.productId as string)}
                               >
+                                {refillingId === (reminder.productId as string) ? (
+                                  <Loader2 className="size-3 mr-1 animate-spin" />
+                                ) : null}
                                 Refill Now
                               </Button>
                             )}
