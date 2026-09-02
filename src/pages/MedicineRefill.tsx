@@ -172,9 +172,9 @@ export default function MedicineRefill() {
       const added = results.some((r: any) => r.success);
       if (added) {
         toast.success("Added to cart");
-        // Defer navigation out of React 18 automatic batching so it is not
-        // swallowed by the setRefillingId(null) state update in the finally block.
-        requestAnimationFrame(() => {
+        // Microtask escapes React 18 automatic batching so the navigation
+        // is not swallowed by the setRefillingId(null) update in finally.
+        queueMicrotask(() => {
           navigateRef.current("/cart", {
             state: {
               breadcrumbTrail: [
