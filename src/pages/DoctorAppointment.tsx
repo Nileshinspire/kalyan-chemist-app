@@ -513,8 +513,9 @@ export default function DoctorAppointment() {
   });
 
   const handleSpecialtyClick = (key: string) => {
-    navigate(`/doctor-appointment?specialty=${encodeURIComponent(key)}&view=doctors`);
     setDoctorSearch("");
+    // Navigate with replace to avoid duplicate history entries when switching specialties
+    navigate(`/doctor-appointment?specialty=${encodeURIComponent(key)}&view=doctors`, { replace: false });
   };
 
   const handleDoctorClick = (doctorId: string) => {
@@ -522,8 +523,8 @@ export default function DoctorAppointment() {
   };
 
   const handleBackToSpecialties = () => {
-    navigate("/doctor-appointment");
     setDoctorSearch("");
+    navigate("/doctor-appointment");
   };
 
   const handleSubmit = (e: React.FormEvent) => {

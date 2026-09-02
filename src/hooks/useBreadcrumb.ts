@@ -25,10 +25,16 @@ export function useSetBreadcrumb(
 
     if (incomingTrail && incomingTrail.length > 0) {
       // Build trail: incoming parent items + current page (non-clickable)
-      const trail = [
-        ...incomingTrail.map((item) => ({ ...item })), // clone to avoid mutation
-        { label: currentItem.label }, // current page is always non-clickable
-      ];
+      // Avoid duplicates: if the incoming trail already ends with the current page label,
+      // don't append it again.
+      const lastIncoming = incomingTrail[incomingTrail.length - 1];
+      const hasCurrentPage = lastIncoming && lastIncoming.label === currentItem.label;
+      const trail = hasCurrentPage
+        ? incomingTrail.map((item) => ({ ...item })) // clone to avoid mutation
+        : [
+            ...incomingTrail.map((item) => ({ ...item })),
+            { label: currentItem.label },
+          ];
       setTrail(trail);
     } else if (fallback && fallback.length > 0) {
       // No incoming trail — use fallback (direct URL access)

@@ -1,9 +1,8 @@
-import { useState, useMemo, useCallback, useRef } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useAuth } from "@/context/AuthContext";
-import { useNavigation } from "@/context/NavigationContext";
 import { useSetBreadcrumb } from "@/hooks/useBreadcrumb";
 import type { Id } from "@/convex/_generated/dataModel";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
@@ -34,21 +33,26 @@ import {
 export default function MedicineRefill() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { trail } = useNavigation();
+
   useSetBreadcrumb(
     { label: "Medicine Refill" },
     [{ label: "Home", href: "/" }, { label: "Medicine Refill" }]
   );
 
-  // Store latest trail in a ref so async handlers always read the current value
-  const trailRef = useRef(trail);
-  trailRef.current = trail;
-
   /** Navigate to cart with the Medicine Refill breadcrumb trail */
   const navigateToCart = useCallback(() => {
-    const currentTrail = trailRef.current;
-    const cartTrail = currentTrail.length > 0 ? currentTrail : [{ label: "Medicine Refill", href: "/refill" }];
-    navigate("/cart", { state: { breadcrumbTrail: [...cartTrail, { label: "Shopping Cart" }] } });
+    // Use setTimeout to ensure navigation fires after Convex mutation
+    // triggers reactive re-renders and React state batching completes
+    setTimeout(() => {
+      navigate("/cart", {
+        state: {
+          breadcrumbTrail: [
+            { label: "Medicine Refill", href: "/refill" },
+            { label: "Shopping Cart" },
+          ],
+        },
+      });
+    }, 50);
   }, [navigate]);
 
   // Backend data
