@@ -41,6 +41,7 @@ const STATUS_COLORS: Record<string, string> = {
 export default function AdminRefills() {
   const [activeTab, setActiveTab] = useState("all");
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
+  const [selectedReminder, setSelectedReminder] = useState<any>(null);
 
   const allRequests = useQuery(api.adminRefills.listAll);
   const statusCounts = useQuery(api.adminRefills.getStatusCounts) as Record<string, number> | undefined;
@@ -377,27 +378,161 @@ export default function AdminRefills() {
                   return (
                     <Card
                       key={reminder._id}
-                      className={`border-border/60 ${isDue ? "border-amber-300 bg-amber-50/30" : ""}`}
+                      className={`border-border/60 cursor-pointer hover:shadow-md transition-all ${
+                        isDue ? "border-amber-300 bg-amber-50/30" : ""
+                      } ${
+                        selectedReminder?._id === reminder._id ? "border-primary ring-1 ring-primary/20" : ""
+                      }`}
+                      onClick={() =>
+                        setSelectedReminder(
+                          selectedReminder?._id === reminder._id ? null : reminder
+                        )
+                      }
                     >
-                      <CardContent className="p-3 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className={`flex size-8 items-center justify-center rounded-lg ${isDue ? "bg-amber-100 text-amber-600" : "bg-violet-100 text-violet-600"}`}>
-                            <CalendarClock className="size-4" />
+                      <CardContent className="p-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className={`flex size-8 items-center justify-center rounded-lg ${isDue ? "bg-amber-100 text-amber-600" : "bg-violet-100 text-violet-600"}`}>
+                              <CalendarClock className="size-4" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-foreground">
+                                {customer?.name || "Customer"} → {product?.name || "Medicine"}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                Every {reminder.intervalDays} days · Next:{" "}
+                                {isDue ? "Due now" : nextDate.toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                              </p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="text-sm font-medium text-foreground">
-                              {customer?.name || "Customer"} → {product?.name || "Medicine"}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              Every {reminder.intervalDays} days · Next:{" "}
-                              {isDue ? "Due now" : nextDate.toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
-                            </p>
-                          </div>
+                          {isDue && (
+                            <Badge className="bg-amber-100 text-amber-700 text-[10px]">
+                              Due
+                            </Badge>
+                          )}
                         </div>
-                        {isDue && (
-                          <Badge className="bg-amber-100 text-amber-700 text-[10px]">
-                            Due
-                          </Badge>
+
+                        {/* Expanded Reminder Details */}
+                        {selectedReminder?._id === reminder._id && (
+                          <div className="mt-4 pt-4 border-t border-border/60 space-y-4">
+                            {/* Customer Info */}
+                            <div>
+                              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                                Customer
+                              </h4>
+                              <div className="flex items-center gap-4 text-sm">
+                                <span className="flex items-center gap-1">
+                                  <User className="size-3.5 text-muted-foreground" />
+                                  {customer?.name || "—"}
+                                </span>
+                                <span className="text-muted-foreground">
+                                  {customer?.phone || "—"}
+                                </span>
+                                <span className="text-muted-foreground">
+                                  {customer?.email || "—"}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Medicine Info */}
+                            <div>
+                              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                                Medicine
+                              </h4>
+                              <div className="bg-muted/30 rounded-lg p-3">
+                                <p className="text-sm font-medium text-foreground">
+                                  {product?.name || "—"}
+                                </p>
+                                <div className="flex items-center gap-3 mt-1">
+                                  {product?.strength && (
+                                    <span className="text-xs text-muted-foreground">
+                                      Strength: {product.strength}
+                                    </span>
+                                  )}
+                                  {product?.dosage && (
+                                    <span className="text-xs text-muted-foreground">
+                                      Dosage: {product.dosage}
+                                    </span>
+                                  )}
+                                  {product?.form && (
+                                    <span className="text-xs text-muted-foreground">
+                                      Form: {product.form}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-3 mt-1">
+                                  {product?.price != null && (
+                                    <span className="text-xs font-semibold text-foreground">
+                                      Price: {formatCurrency(product.price)}
+                                    </span>
+                                  )}
+                                  {product?.stockQuantity != null && (
+                                    <Badge
+                                      variant="outline"
+                                      className={`text-[10px] ${
+                                        product.stockQuantity === 0
+                                          ? "border-red-300 text-red-600"
+                                          : "border-green-300 text-green-600"
+                                      }`}
+                                    >
+                                      {product.stockQuantity === 0 ? "Out of Stock" : `In Stock (${product.stockQuantity})`}
+                                    </Badge>
+                                  )}
+                                  {product?.prescriptionRequired && (
+                                    <Badge variant="outline" className="text-[10px] border-orange-300 text-orange-600">
+                                      Rx Required
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Reminder Details */}
+                            <div>
+                              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                                Reminder Details
+                              </h4>
+                              <div className="grid grid-cols-2 gap-2 text-sm">
+                                <div>
+                                  <span className="text-muted-foreground">Frequency: </span>
+                                  <span className="text-foreground">
+                                    Every {reminder.intervalDays} days
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Next reminder: </span>
+                                  <span className="text-foreground">
+                                    {isDue
+                                      ? "Due now"
+                                      : nextDate.toLocaleDateString("en-IN", {
+                                          day: "numeric",
+                                          month: "short",
+                                          year: "numeric",
+                                        })}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Status: </span>
+                                  <span className="text-foreground flex items-center gap-1">
+                                    <Clock className="size-3" />
+                                    {reminder.isActive ? "Active" : "Inactive"}
+                                  </span>
+                                </div>
+                                {reminder.createdAt && (
+                                  <div>
+                                    <span className="text-muted-foreground">Created: </span>
+                                    <span className="text-foreground">
+                                      {new Date(reminder.createdAt).toLocaleDateString("en-IN", {
+                                        day: "numeric",
+                                        month: "short",
+                                        year: "numeric",
+                                      })}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
                         )}
                       </CardContent>
                     </Card>
