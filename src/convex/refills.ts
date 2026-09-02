@@ -413,7 +413,15 @@ export const getDeliveredOrderMedicines = query({
     }[] = [];
 
     for (const order of orders) {
-      if (order.status !== "delivered" && order.status !== "confirmed" && order.status !== "processing") {
+      if (
+        order.status !== "delivered" &&
+        order.status !== "confirmed" &&
+        order.status !== "processing"
+      ) {
+        continue;
+      }
+      // Skip orders with failed payment — they were never successfully completed
+      if (order.paymentStatus === "failed") {
         continue;
       }
       for (const item of order.items) {
@@ -463,7 +471,10 @@ export const getOrderHistory = query({
       .collect();
 
     const activeOrders = orders.filter(
-      (o) => o.status !== "cancelled" && o.status !== "refunded"
+      (o) =>
+        o.status !== "cancelled" &&
+        o.status !== "refunded" &&
+        o.paymentStatus !== "failed"
     );
 
     // Flatten all order items with their order metadata
