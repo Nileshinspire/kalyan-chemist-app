@@ -47,6 +47,7 @@ export default function MedicineRefill() {
   const deliveredOrders = useQuery(api.refills.getDeliveredOrderMedicines);
   const reminders = useQuery(api.refills.listReminders);
   const refillRequests = useQuery(api.refills.listMyRefillRequests);
+  const orderHistory = useQuery(api.refills.getOrderHistory);
 
   // Mutations
   const saveRegularMedicine = useMutation(api.refills.saveRegularMedicine);
@@ -64,6 +65,12 @@ export default function MedicineRefill() {
   const [reviewOpen, setReviewOpen] = useState(false);
   const [savingId, setSavingId] = useState<string | null>(null);
   const [addingToCart, setAddingToCart] = useState(false);
+  // Per-item quantity overrides for regular medicines (keyed by productId)
+  const [quantities, setQuantities] = useState<Record<string, number>>({});
+  const getQuantity = (productId: string, suggested: number) => quantities[productId] ?? suggested;
+  const setQuantity = (productId: string, qty: number) => setQuantities((p) => ({ ...p, [productId]: Math.max(1, qty) }));
+  // Previously-ordered section: which products are shown as regular candidates
+  const [previouslyOrderedExpanded, setPreviouslyOrderedExpanded] = useState(true);
 
   // Compute refill-due-soon based on order history
   const refillDueSoon = useMemo(() => {
@@ -301,13 +308,30 @@ export default function MedicineRefill() {
     }
   };
 
+  // Previously ordered: unique products from order history, excluding already-regular
+  const previouslyOrdered = useMemo(() => {
+    if (!orderHistory || !deliveredOrders) return [];
+    const regularIds = new Set(regularMedicines?.map((r) => r.productId) ?? []);
+    // Dedupe by productId, keeping latest order
+    const map = new Map<string, typeof orderHistory[number]>();
+    for (const h of orderHistory) {
+      const existing = map.get(h.productId);
+      if (!existing || h.orderDate > existing.orderDate) map.set(h.productId, h);
+    }
+    return Array.from(map.values())
+      .filter((h) => !regularIds.has(h.productId as Id<"products">))
+      .sort((a, b) => b.orderDate - a.orderDate);
+  }, [orderHistory, deliveredOrders, regularMedicines]);
+  const hasPreviouslyOrdered = previouslyOrdered.length > 0;
+
   const hasRegularMedicines = regularMedicines && regularMedicines.length > 0;
   const hasSuggestions = suggestions && suggestions.length > 0;
   const hasDueSoon = refillDueSoon.length > 0;
   const hasReminders = reminders && reminders.length > 0;
   const hasRefillHistory = refillRequests && refillRequests.length > 0;
+  const hasOrderHistory = orderHistory && orderHistory.length > 0;
 
-  const isLoading = regularMedicines === undefined || suggestions === undefined;
+  const isLoading = regularMedicines === undefined || suggestions === undefined || orderHistory === undefined;
 
   return (
     <div className="min-h-screen bg-background">
@@ -385,6 +409,132 @@ export default function MedicineRefill() {
                     </Button>
                   </CardContent>
                 </Card>
+              </section>
+            )}
+
+            {/* ── Previously Ordered Medicines ── */}
+            {hasPreviouslyOrdered && (
+              <section>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="flex size-8 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
+                      <Package className="size-4" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-semibold text-foreground">Previously Ordered</h2>
+                      <p className="text-sm text-muted-foreground">
+                        Medicines from your past orders — save as regular or refill now
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setPreviouslyOrderedExpanded(!previouslyOrderedExpanded)}
+                    className="text-xs font-medium text-primary hover:underline"
+                  >
+                    {previouslyOrderedExpanded ? "Show less" : `Show all (${previouslyOrdered.length})`}
+                  </button>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {(previouslyOrderedExpanded ? previouslyOrdered : previouslyOrdered.slice(0, 6)).map((item) => {
+                    // Look up live product data from deliveredOrders
+                    const liveData = deliveredOrders?.find((d) => d.productId === item.productId);
+                    const product = liveData?.product as any ?? null;
+                    if (!product) return null;
+                    const currentPrice = product.discountPrice || product.price;
+                    const isAvailable = product.isActive && product.stockQuantity > 0;
+                    const isPrescriptionRequired = product.prescriptionRequired;
+                    const isAlreadyRegular = regularMedicines?.some((r) => r.productId === item.productId);
+                    const lastOrderDate = new Date(item.orderDate);
+                    const daysAgo = Math.floor((Date.now() - item.orderDate) / (24 * 60 * 60 * 1000));
+
+                    return (
+                      <Card key={item.productId} className="border-border/60">
+                        <CardContent className="p-4">
+                          <div className="flex items-start gap-3">
+                            <div className="flex size-8 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 shrink-0">
+                              <Pill className="size-4" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h3 className="text-sm font-semibold text-foreground line-clamp-1">
+                                {product.name}
+                              </h3>
+                              {product.strength && (
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                  {product.strength}{product.form ? ` · ${product.form}` : ""}
+                                </p>
+                              )}
+                              <p className="text-[11px] text-muted-foreground mt-0.5">
+                                Last ordered: {daysAgo}d ago · Qty: {item.quantity}
+                              </p>
+                              <div className="flex items-center gap-2 mt-2">
+                                <span className="text-sm font-bold text-foreground">
+                                  {formatCurrency(currentPrice)}
+                                </span>
+                                {product.discountPrice && product.discountPrice < product.price && (
+                                  <span className="text-[11px] text-muted-foreground line-through">
+                                    {formatCurrency(product.price)}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-1.5 mt-1.5">
+                                {isPrescriptionRequired ? (
+                                  <Badge variant="outline" className="text-[9px] border-orange-300 text-orange-600 bg-orange-50">
+                                    Rx Required
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="text-[9px] border-green-300 text-green-600 bg-green-50">
+                                    OTC
+                                  </Badge>
+                                )}
+                                {!isAvailable && (
+                                  <Badge variant="outline" className="text-[9px] border-red-300 text-red-600 bg-red-50">
+                                    Unavailable
+                                  </Badge>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2 mt-3">
+                                {isAlreadyRegular ? (
+                                  <Badge variant="secondary" className="text-[10px]">
+                                    Already saved
+                                  </Badge>
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 text-[10px]"
+                                    onClick={() => handleSaveAsRegular(item.productId as Id<"products">, product.name)}
+                                    disabled={!isAvailable || savingId === item.productId}
+                                  >
+                                    {savingId === item.productId ? (
+                                      <RefreshCw className="size-3 mr-1 animate-spin" />
+                                    ) : (
+                                      <Pill className="size-3 mr-1" />
+                                    )}
+                                    Save as Regular
+                                  </Button>
+                                )}
+                                <Button
+                                  size="sm"
+                                  className="h-7 text-[10px] gradient-primary text-white"
+                                  onClick={() => handleRefillNow(item.productId as Id<"products">, item.quantity || 1)}
+                                  disabled={!isAvailable || refillingId === item.productId}
+                                >
+                                  {refillingId === item.productId ? (
+                                    <Loader2 className="size-3 mr-1 animate-spin" />
+                                  ) : (
+                                    <ShoppingCart className="size-3 mr-1" />
+                                  )}
+                                  Refill Now
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
               </section>
             )}
 
@@ -510,16 +660,35 @@ export default function MedicineRefill() {
                                   )}
                                 </div>
 
-                                <p className="text-xs text-muted-foreground mt-2">
-                                  Qty: {item.suggestedQuantity || 1}
-                                </p>
+                                <div className="flex items-center gap-2 mt-2">
+                                  <span className="text-xs text-muted-foreground">Qty:</span>
+                                  <button
+                                    type="button"
+                                    className="size-6 rounded border border-border/60 flex items-center justify-center text-xs font-bold hover:bg-muted transition-colors"
+                                    onClick={() => setQuantity(item.productId as string, getQuantity(item.productId as string, item.suggestedQuantity || 1) - 1)}
+                                    disabled={!isAvailable}
+                                  >
+                                    −
+                                  </button>
+                                  <span className="text-sm font-semibold text-foreground w-6 text-center">
+                                    {getQuantity(item.productId as string, item.suggestedQuantity || 1)}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    className="size-6 rounded border border-border/60 flex items-center justify-center text-xs font-bold hover:bg-muted transition-colors"
+                                    onClick={() => setQuantity(item.productId as string, getQuantity(item.productId as string, item.suggestedQuantity || 1) + 1)}
+                                    disabled={!isAvailable}
+                                  >
+                                    +
+                                  </button>
+                                </div>
 
                                 <div className="flex items-center gap-2 mt-3">
                                   <Button
                                     size="sm"
                                     className="flex-1 h-8 text-xs font-semibold gradient-primary text-white"
                                     onClick={() =>
-                                      handleRefillNow(item.productId, item.suggestedQuantity || 1)
+                                      handleRefillNow(item.productId, getQuantity(item.productId as string, item.suggestedQuantity || 1))
                                     }
                                     disabled={!isAvailable || refillingId === (item.productId as string)}
                                   >
@@ -791,7 +960,7 @@ export default function MedicineRefill() {
             </section>
 
             {/* ── Refill History ── */}
-            {hasRefillHistory && (
+            {(hasRefillHistory || hasOrderHistory) && (
               <section>
                 <div className="flex items-center gap-2 mb-4">
                   <div className="flex size-8 items-center justify-center rounded-lg bg-gray-100 text-gray-600">
@@ -800,12 +969,13 @@ export default function MedicineRefill() {
                   <div>
                     <h2 className="text-lg font-semibold text-foreground">Refill History</h2>
                     <p className="text-sm text-muted-foreground">
-                      Your previous refill activity
+                      Your previous order and refill activity
                     </p>
                   </div>
                 </div>
                 <div className="space-y-2">
-                  {refillRequests.slice(0, 5).map((req) => (
+                  {/* Show refill requests first */}
+                  {refillRequests?.slice(0, 5).map((req) => (
                     <Card key={req._id} className="border-border/60">
                       <CardContent className="p-3 flex items-center justify-between">
                         <div>
@@ -818,6 +988,7 @@ export default function MedicineRefill() {
                               month: "short",
                               year: "numeric",
                             })}
+                            {req.totalAmount > 0 && ` · ${formatCurrency(req.totalAmount)}`}
                           </p>
                         </div>
                         <Badge
@@ -825,6 +996,30 @@ export default function MedicineRefill() {
                           className="text-[10px]"
                         >
                           {req.status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+                        </Badge>
+                      </CardContent>
+                    </Card>
+                  ))}
+                  {/* Show recent order history entries */}
+                  {orderHistory?.slice(0, 8).map((h, idx) => (
+                    <Card key={`${h.orderId}-${h.productId}-${idx}`} className="border-border/60">
+                      <CardContent className="p-3 flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-foreground">{h.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(h.orderDate).toLocaleDateString("en-IN", {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                            })}
+                            {` · Qty: ${h.quantity} · ${formatCurrency(h.price)}`}
+                          </p>
+                        </div>
+                        <Badge
+                          variant={h.orderStatus === "delivered" ? "default" : "secondary"}
+                          className="text-[10px]"
+                        >
+                          {h.orderStatus.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
                         </Badge>
                       </CardContent>
                     </Card>

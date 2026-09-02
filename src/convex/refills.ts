@@ -448,3 +448,49 @@ export const getDeliveredOrderMedicines = query({
     return withProducts.filter((i) => i.product !== null && (i.product as any).isActive);
   },
 });
+
+// ── Get complete order history for a customer (all delivered/active orders) ──
+export const getOrderHistory = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) return [];
+
+    const orders = await ctx.db
+      .query("orders")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .order("desc")
+      .collect();
+
+    const activeOrders = orders.filter(
+      (o) => o.status !== "cancelled" && o.status !== "refunded"
+    );
+
+    // Flatten all order items with their order metadata
+    const history: {
+      orderId: string;
+      productId: string;
+      name: string;
+      price: number;
+      quantity: number;
+      orderDate: number;
+      orderStatus: string;
+    }[] = [];
+
+    for (const order of activeOrders) {
+      for (const item of order.items) {
+        history.push({
+          orderId: order._id,
+          productId: item.productId,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity,
+          orderDate: order.createdAt,
+          orderStatus: order.status,
+        });
+      }
+    }
+
+    return history;
+  },
+});
