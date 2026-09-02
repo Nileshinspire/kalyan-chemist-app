@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -39,21 +39,7 @@ export default function MedicineRefill() {
     [{ label: "Home", href: "/" }, { label: "Medicine Refill" }]
   );
 
-  /** Navigate to cart with the Medicine Refill breadcrumb trail */
-  const navigateToCart = useCallback(() => {
-    // Use setTimeout to ensure navigation fires after Convex mutation
-    // triggers reactive re-renders and React state batching completes
-    setTimeout(() => {
-      navigate("/cart", {
-        state: {
-          breadcrumbTrail: [
-            { label: "Medicine Refill", href: "/refill" },
-            { label: "Shopping Cart" },
-          ],
-        },
-      });
-    }, 50);
-  }, [navigate]);
+
 
   // Backend data
   const regularMedicines = useQuery(api.refills.listRegularMedicines);
@@ -183,7 +169,14 @@ export default function MedicineRefill() {
       const added = results.some((r: any) => r.success);
       if (added) {
         toast.success("Added to cart");
-        navigateToCart();
+        navigate("/cart", {
+          state: {
+            breadcrumbTrail: [
+              { label: "Medicine Refill", href: "/refill" },
+              { label: "Shopping Cart" },
+            ],
+          },
+        });
       } else {
         const failed = results.find((r: any) => !r.success);
         toast.error(failed?.error || "Unable to add this medicine to your cart. Please try again.");
@@ -239,7 +232,14 @@ export default function MedicineRefill() {
 
         await createRefillRequest({ medicines, totalAmount });
         setSelectedForRefill(new Set());
-        navigateToCart();
+        navigate("/cart", {
+          state: {
+            breadcrumbTrail: [
+              { label: "Medicine Refill", href: "/refill" },
+              { label: "Shopping Cart" },
+            ],
+          },
+        });
       }
     } catch (error: any) {
       toast.error(error.message || "Failed to add to cart");
@@ -278,7 +278,14 @@ export default function MedicineRefill() {
         );
 
         await createRefillRequest({ medicines, totalAmount });
-        navigateToCart();
+        navigate("/cart", {
+          state: {
+            breadcrumbTrail: [
+              { label: "Medicine Refill", href: "/refill" },
+              { label: "Shopping Cart" },
+            ],
+          },
+        });
       }
     } catch (error: any) {
       toast.error(error.message || "Failed to add to cart");
