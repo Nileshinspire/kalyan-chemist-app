@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useNavigate } from "react-router";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -161,6 +161,9 @@ export default function MedicineRefill() {
 
   const [refillingId, setRefillingId] = useState<string | null>(null);
 
+  const navigateRef = useRef(navigate);
+  navigateRef.current = navigate;
+
   const handleRefillNow = async (productId: Id<"products">, quantity: number) => {
     if (refillingId) return; // prevent double-click
     try {
@@ -169,13 +172,17 @@ export default function MedicineRefill() {
       const added = results.some((r: any) => r.success);
       if (added) {
         toast.success("Added to cart");
-        navigate("/cart", {
-          state: {
-            breadcrumbTrail: [
-              { label: "Medicine Refill", href: "/refill" },
-              { label: "Shopping Cart" },
-            ],
-          },
+        // Defer navigation out of React 18 automatic batching so it is not
+        // swallowed by the setRefillingId(null) state update in the finally block.
+        requestAnimationFrame(() => {
+          navigateRef.current("/cart", {
+            state: {
+              breadcrumbTrail: [
+                { label: "Medicine Refill", href: "/refill" },
+                { label: "Shopping Cart" },
+              ],
+            },
+          });
         });
       } else {
         const failed = results.find((r: any) => !r.success);

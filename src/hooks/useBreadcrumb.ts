@@ -19,6 +19,10 @@ export function useSetBreadcrumb(
   const location = useLocation();
   const { setTrail } = useNavigation();
 
+  // Stable key for the fallback so the effect only runs when the actual
+  // items change, not on every render (inline arrays create new refs).
+  const fallbackKey = fallback ? JSON.stringify(fallback) : "";
+
   useEffect(() => {
     const incomingTrail =
       (location.state as any)?.breadcrumbTrail as BreadcrumbItem[] | undefined;
@@ -43,7 +47,8 @@ export function useSetBreadcrumb(
       // No trail at all — clear (root page behavior)
       setTrail([]);
     }
-  }, [location.state, currentItem.label, fallback, setTrail]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state, currentItem.label, fallbackKey, setTrail]);
 }
 
 /**

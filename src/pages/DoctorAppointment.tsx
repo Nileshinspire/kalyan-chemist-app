@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -507,15 +507,21 @@ export default function DoctorAppointment() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [doctorSearch, setDoctorSearch] = useState("");
 
+  // Clear the doctor search whenever the active specialty or view changes,
+  // outside of click handlers, so it doesn't batch with navigate().
+  useEffect(() => {
+    setDoctorSearch("");
+  }, [activeSpecialty, activeView]);
+
   const doctors = useQuery(api.doctors.listDoctors, {
     specialty: activeView === "doctors" ? activeSpecialty : undefined,
     search: doctorSearch || undefined,
   });
 
   const handleSpecialtyClick = (key: string) => {
-    setDoctorSearch("");
-    // Navigate with replace to avoid duplicate history entries when switching specialties
-    navigate(`/doctor-appointment?specialty=${encodeURIComponent(key)}&view=doctors`, { replace: false });
+    // Navigate first — clear the search in a useEffect so the state
+    // update doesn't get batched with navigate and swallow the navigation.
+    navigate(`/doctor-appointment?specialty=${encodeURIComponent(key)}&view=doctors`);
   };
 
   const handleDoctorClick = (doctorId: string) => {
@@ -523,7 +529,6 @@ export default function DoctorAppointment() {
   };
 
   const handleBackToSpecialties = () => {
-    setDoctorSearch("");
     navigate("/doctor-appointment");
   };
 
