@@ -8,7 +8,7 @@ import { ConvexAuthProvider } from "@convex-dev/auth/react";
 import { ConvexReactClient } from "convex/react";
 import React, { StrictMode, useEffect, lazy, Suspense } from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter, Route, Routes, useLocation } from "react-router";
+import { HashRouter, Route, Routes, useLocation } from "react-router";
 import ScrollRestorer from "@/components/ScrollRestorer";
 import { PageErrorBoundary } from "@/components/PageErrorBoundary";
 import "./index.css";
@@ -594,7 +594,7 @@ createRoot(document.getElementById("root")!).render(
       </ToolbarErrorBoundary>
       <ConvexAuthProvider client={convex}>
       <AuthProvider>
-        <BrowserRouter>
+        <HashRouter>
           <NavigationProvider>
             <ScrollRestorer />
             <RouteSyncer />
@@ -604,7 +604,7 @@ createRoot(document.getElementById("root")!).render(
               </Suspense>
             </PageErrorBoundary>
           </NavigationProvider>
-        </BrowserRouter>
+        </HashRouter>
         <Toaster />
       </AuthProvider>
       </ConvexAuthProvider>
