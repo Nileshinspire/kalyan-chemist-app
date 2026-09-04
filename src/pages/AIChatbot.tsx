@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -7,22 +7,16 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import Navbar from "@/components/layout/Navbar";
-import Footer from "@/components/layout/Footer";
 import { toast } from "sonner";
 import {
-  MessageCircle,
   Send,
   Mic,
   MicOff,
-  Image,
   Plus,
   Trash2,
-  Phone,
-  ExternalLink,
   ShoppingCart,
   Package,
   RefreshCw,
-  Navigation,
   HelpCircle,
   Bot,
   User,
@@ -32,85 +26,179 @@ import {
   ArrowRight,
   ChevronLeft,
   Languages,
+  Pill,
+  Search,
+  ClipboardList,
+  Stethoscope,
+  ShieldCheck,
+  Clock,
+  MessageSquare,
+  Sparkles,
+  Phone,
 } from "lucide-react";
 import type { Id } from "@/convex/_generated/dataModel";
 
-// ─── Markdown-lite renderer (bold, links, lists) ───
+/* ────────────────────────────────────────────
+   RENDERING HELPERS
+   ──────────────────────────────────────────── */
+
+/** Markdown-lite: bold, links, bullets, line breaks */
 function renderMarkdown(text: string): React.ReactNode {
   const lines = text.split("\n");
   const elements: React.ReactNode[] = [];
 
   lines.forEach((line, idx) => {
-    // Bold text
-    let processed: React.ReactNode[] = [];
+    // Bold **text**
+    const parts: React.ReactNode[] = [];
     const boldRegex = /\*\*(.+?)\*\*/g;
-    let lastIndex = 0;
-    let match;
-    while ((match = boldRegex.exec(line)) !== null) {
-      if (match.index > lastIndex) {
-        processed.push(line.slice(lastIndex, match.index));
-      }
-      processed.push(<strong key={`b-${idx}-${match.index}`} className="font-semibold">{match[1]}</strong>);
-      lastIndex = match.index + match[0].length;
+    let lastIdx = 0;
+    let m: RegExpExecArray | null;
+    while ((m = boldRegex.exec(line)) !== null) {
+      if (m.index > lastIdx) parts.push(line.slice(lastIdx, m.index));
+      parts.push(
+        <strong key={`b-${idx}-${m.index}`} className="font-semibold text-foreground">
+          {m[1]}
+        </strong>,
+      );
+      lastIdx = m.index + m[0].length;
     }
-    if (lastIndex < line.length) {
-      processed.push(line.slice(lastIndex));
-    }
-    if (processed.length === 0) processed.push(line);
+    if (lastIdx < line.length) parts.push(line.slice(lastIdx));
+    if (parts.length === 0) parts.push(line);
 
     // Links [text](url)
-    processed = processed.map((p, pi) => {
+    const rendered = parts.map((p, pi) => {
       if (typeof p !== "string") return p;
-      const linkRegex = /\[(.+?)\]\((.+?)\)/g;
-      const parts: React.ReactNode[] = [];
-      let lLastIndex = 0;
-      let lMatch;
-      while ((lMatch = linkRegex.exec(p)) !== null) {
-        if (lMatch.index > lLastIndex) {
-          parts.push(p.slice(lLastIndex, lMatch.index));
-        }
-        parts.push(
+      const linkRe = /\[(.+?)\]\((.+?)\)/g;
+      const segs: React.ReactNode[] = [];
+      let li = 0;
+      let lm: RegExpExecArray | null;
+      while ((lm = linkRe.exec(p)) !== null) {
+        if (lm.index > li) segs.push(p.slice(li, lm.index));
+        segs.push(
           <a
-            key={`link-${idx}-${pi}-${lMatch.index}`}
-            href={lMatch[2]}
-            className="text-primary underline underline-offset-2 hover:text-primary/80"
+            key={`lk-${idx}-${pi}-${lm.index}`}
+            href={lm[2]}
+            className="text-[oklch(0.45_0.12_170)] underline underline-offset-2 decoration-[oklch(0.45_0.12_170)]/40 hover:decoration-[oklch(0.45_0.12_170)] transition-colors"
           >
-            {lMatch[1]}
-          </a>
+            {lm[1]}
+          </a>,
         );
-        lLastIndex = lMatch.index + lMatch[0].length;
+        li = lm.index + lm[0].length;
       }
-      if (lLastIndex < p.length) parts.push(p.slice(lLastIndex));
-      return parts.length > 0 ? parts : p;
+      if (li < p.length) segs.push(p.slice(li));
+      return segs.length ? segs : p;
     });
 
-    // Bullet points
+    // Bullet lines
     if (line.trim().startsWith("• ") || line.trim().startsWith("- ")) {
+      const content = line.trim().startsWith("• ") ? line.trim().slice(2) : line.trim().slice(2);
       elements.push(
-        <div key={`li-${idx}`} className="flex gap-2 ml-1">
-          <span className="text-primary mt-0.5 shrink-0">•</span>
-          <span>{processed.length === 1 && typeof processed[0] === "string" ? processed[0].slice(2) : processed}</span>
-        </div>
+        <div key={`li-${idx}`} className="flex gap-2 ml-0.5 py-[1px]">
+          <span className="text-[oklch(0.45_0.12_170)] mt-px shrink-0 text-xs">●</span>
+          <span className="text-[13px] leading-relaxed">{content.length > 2 ? rendered : content}</span>
+        </div>,
       );
     } else if (line.trim() === "") {
-      elements.push(<div key={`br-${idx}`} className="h-2" />);
+      elements.push(<div key={`br-${idx}`} className="h-1.5" />);
     } else {
-      elements.push(<div key={`p-${idx}`}>{processed}</div>);
+      elements.push(
+        <div key={`p-${idx}`} className="text-[13px] leading-relaxed">
+          {rendered}
+        </div>,
+      );
     }
   });
 
   return <>{elements}</>;
 }
 
-// ─── Quick suggestion chips ───
-const SUGGESTIONS = [
-  { icon: ShoppingCart, text: "Search medicines", prompt: "I want to search for medicines" },
-  { icon: Package, text: "Track my order", prompt: "Where is my order?" },
-  { icon: RefreshCw, text: "Refill medicines", prompt: "I want to refill my medicines" },
-  { icon: HelpCircle, text: "Get help", prompt: "What can you help me with?" },
+/* ────────────────────────────────────────────
+   SMART ACTION CHIPS (after assistant messages)
+   ──────────────────────────────────────────── */
+
+function extractActionChips(content: string): { label: string; action: string }[] {
+  const chips: { label: string; action: string }[] = [];
+  const lower = content.toLowerCase();
+
+  if (lower.includes("view product") || lower.includes("browse") || lower.includes("viewing product")) {
+    chips.push({ label: "Browse Products", action: "navigate:/products" });
+  }
+  if (lower.includes("add to cart") || lower.includes("add it to your cart")) {
+    chips.push({ label: "Go to Cart", action: "navigate:/cart" });
+  }
+  if (lower.includes("track") && (lower.includes("order") || lower.includes("delivery"))) {
+    chips.push({ label: "Track Order", action: "query:Where is my order?" });
+  }
+  if (lower.includes("refill")) {
+    chips.push({ label: "Refill Medicines", action: "navigate:/refill" });
+  }
+  if (lower.includes("pharmacist") || lower.includes("human support") || lower.includes("connect you")) {
+    chips.push({ label: "Talk to Pharmacist", action: "query:Connect me with a pharmacist" });
+  }
+  if (lower.includes("browse our catalogue")) {
+    chips.push({ label: "Browse Medicines", action: "navigate:/products" });
+  }
+  if (lower.includes("upload") && lower.includes("prescription")) {
+    chips.push({ label: "Upload Prescription", action: "navigate:/upload-prescription" });
+  }
+  return chips.slice(0, 3);
+}
+
+/* ────────────────────────────────────────────
+   STARTER ACTIONS
+   ──────────────────────────────────────────── */
+
+const STARTER_ACTIONS = [
+  {
+    icon: Search,
+    label: "Search Medicine",
+    subtitle: "Find any medicine or product",
+    prompt: "I want to search for medicines",
+    color: "from-blue-500/10 to-blue-600/5",
+    iconColor: "text-blue-600",
+  },
+  {
+    icon: ClipboardList,
+    label: "Track My Order",
+    subtitle: "Check order status & delivery",
+    prompt: "Where is my order?",
+    color: "from-emerald-500/10 to-emerald-600/5",
+    iconColor: "text-emerald-600",
+  },
+  {
+    icon: RefreshCw,
+    label: "Refill Medicine",
+    subtitle: "Reorder your regular medicines",
+    prompt: "I want to refill my medicines",
+    color: "from-violet-500/10 to-violet-600/5",
+    iconColor: "text-violet-600",
+  },
+  {
+    icon: Pill,
+    label: "Check Availability",
+    subtitle: "Is a product in stock?",
+    prompt: "Is this product available in stock?",
+    color: "from-amber-500/10 to-amber-600/5",
+    iconColor: "text-amber-600",
+  },
+  {
+    icon: HelpCircle,
+    label: "Help & Support",
+    subtitle: "Get help with the website",
+    prompt: "What can you help me with?",
+    color: "from-rose-500/10 to-rose-600/5",
+    iconColor: "text-rose-600",
+  },
+  {
+    icon: Stethoscope,
+    label: "Talk to Pharmacist",
+    subtitle: "Connect with our pharmacy team",
+    prompt: "Connect me with a pharmacist",
+    color: "from-teal-500/10 to-teal-600/5",
+    iconColor: "text-teal-600",
+  },
 ];
 
-// ─── Language options ───
 const LANGUAGES = [
   { code: "en", label: "English" },
   { code: "hi", label: "हिन्दी" },
@@ -118,67 +206,62 @@ const LANGUAGES = [
   { code: "hinglish", label: "Hinglish" },
 ];
 
-// ─── Voice recording hook ───
+/* ────────────────────────────────────────────
+   HOOKS
+   ──────────────────────────────────────────── */
+
 function useVoiceInput(onTranscript: (text: string) => void) {
   const [isListening, setIsListening] = useState(false);
   const [isSupported, setIsSupported] = useState(false);
   const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (SpeechRecognition) {
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (SR) {
       setIsSupported(true);
-      const recognition = new SpeechRecognition();
-      recognition.continuous = false;
-      recognition.interimResults = false;
-      recognition.lang = "en-IN";
-      recognition.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript;
-        onTranscript(transcript);
+      const r = new SR();
+      r.continuous = false;
+      r.interimResults = false;
+      r.lang = "en-IN";
+      r.onresult = (e: any) => {
+        onTranscript(e.results[0][0].transcript);
         setIsListening(false);
       };
-      recognition.onerror = () => setIsListening(false);
-      recognition.onend = () => setIsListening(false);
-      recognitionRef.current = recognition;
+      r.onerror = () => setIsListening(false);
+      r.onend = () => setIsListening(false);
+      recognitionRef.current = r;
     }
   }, [onTranscript]);
 
-  const toggleListening = useCallback(() => {
+  const toggle = useCallback(() => {
     if (!recognitionRef.current) return;
-    if (isListening) {
-      recognitionRef.current.stop();
-      setIsListening(false);
-    } else {
-      recognitionRef.current.start();
-      setIsListening(true);
-    }
+    isListening ? (recognitionRef.current.stop(), setIsListening(false)) : (recognitionRef.current.start(), setIsListening(true));
   }, [isListening]);
 
-  return { isListening, isSupported, toggleListening };
+  return { isListening, isSupported, toggle };
 }
 
-// ─── Text-to-speech hook ───
 function useTextToSpeech() {
   const [enabled, setEnabled] = useState(false);
-
-  const speak = useCallback((text: string) => {
-    if (!enabled || !("speechSynthesis" in window)) return;
-    window.speechSynthesis.cancel();
-    const clean = text.replace(/\*\*/g, "").replace(/\[.+?\]\(.+?\)/g, "").replace(/[•\-\n]+/g, ". ");
-    const utterance = new SpeechSynthesisUtterance(clean);
-    utterance.lang = "en-IN";
-    utterance.rate = 0.95;
-    window.speechSynthesis.speak(utterance);
-  }, [enabled]);
-
-  useEffect(() => {
-    return () => {
-      if ("speechSynthesis" in window) window.speechSynthesis.cancel();
-    };
-  }, []);
-
+  const speak = useCallback(
+    (text: string) => {
+      if (!enabled || !("speechSynthesis" in window)) return;
+      window.speechSynthesis.cancel();
+      const clean = text.replace(/\*\*/g, "").replace(/\[.+?\]\(.+?\)/g, "").replace(/[•\-]+/g, "").replace(/\n+/g, ". ");
+      const u = new SpeechSynthesisUtterance(clean);
+      u.lang = "en-IN";
+      u.rate = 0.95;
+      window.speechSynthesis.speak(u);
+    },
+    [enabled],
+  );
+  useEffect(() => () => { if ("speechSynthesis" in window) window.speechSynthesis.cancel(); }, []);
   return { enabled, setEnabled, speak };
 }
+
+/* ────────────────────────────────────────────
+   COMPONENT
+   ──────────────────────────────────────────── */
 
 export default function AIChatbot() {
   const navigate = useNavigate();
@@ -192,71 +275,65 @@ export default function AIChatbot() {
 
   const [activeConvId, setActiveConvId] = useState<Id<"chatbot_conversations"> | null>(null);
   const messages = useQuery(
-    activeConvId ? api.chatbot.getMessages : "skip" as any,
-    activeConvId ? { conversationId: activeConvId } : "skip" as any
+    activeConvId ? api.chatbot.getMessages : ("skip" as any),
+    activeConvId ? { conversationId: activeConvId } : ("skip" as any),
   );
 
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
+  const [showLangPicker, setShowLangPicker] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const { isListening, isSupported: voiceSupported, toggleListening } = useVoiceInput(
-    (text) => setInput(text)
-  );
-  const { enabled: ttsEnabled, setEnabled: setTtsEnabled, speak } = useTextToSpeech();
+  const { isListening, isSupported: voiceSupported, toggle: toggleVoice } = useVoiceInput((t) => setInput(t));
+  const { enabled: ttsOn, setEnabled: setTts, speak } = useTextToSpeech();
 
-  // Auto-scroll to bottom
+  /* Auto-scroll */
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, isTyping]);
 
-  // Speak latest assistant message
+  /* TTS for latest assistant message */
   useEffect(() => {
-    if (messages && messages.length > 0) {
+    if (messages?.length) {
       const last = messages[messages.length - 1];
-      if (last.role === "assistant") {
-        speak(last.content);
-      }
+      if (last.role === "assistant") speak(last.content);
     }
   }, [messages?.length]);
 
-  const handleSend = useCallback(async (text?: string) => {
-    const msg = (text || input).trim();
-    if (!msg || isTyping) return;
-    setInput("");
+  /* ── Send ── */
+  const handleSend = useCallback(
+    async (text?: string) => {
+      const msg = (text || input).trim();
+      if (!msg || isTyping) return;
+      setInput("");
+      setShowLangPicker(false);
 
-    let convId = activeConvId;
+      let convId = activeConvId;
+      if (!convId) {
+        try {
+          convId = await createConversation();
+          setActiveConvId(convId);
+        } catch {
+          toast.error("Failed to start conversation");
+          return;
+        }
+      }
 
-    // Create new conversation if needed
-    if (!convId) {
+      setIsTyping(true);
       try {
-        convId = await createConversation();
-        setActiveConvId(convId);
-      } catch {
-        toast.error("Failed to start conversation");
-        return;
+        const result = await sendMessage({ conversationId: convId, content: msg });
+        if (result.handoffTriggered) toast.info("Connecting you with a pharmacist…");
+      } catch (err: any) {
+        toast.error(err.message || "Failed to send message");
+      } finally {
+        setIsTyping(false);
+        inputRef.current?.focus();
       }
-    }
-
-    setIsTyping(true);
-    try {
-      const result = await sendMessage({
-        conversationId: convId,
-        content: msg,
-      });
-
-      if (result.handoffTriggered) {
-        toast.info("Connecting you with our support team…");
-      }
-    } catch (error: any) {
-      toast.error(error.message || "Failed to send message");
-    } finally {
-      setIsTyping(false);
-      inputRef.current?.focus();
-    }
-  }, [input, activeConvId, isTyping, createConversation, sendMessage]);
+    },
+    [input, activeConvId, isTyping, createConversation, sendMessage],
+  );
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -271,220 +348,269 @@ export default function AIChatbot() {
     inputRef.current?.focus();
   };
 
-  const handleDeleteConversation = async (convId: Id<"chatbot_conversations">) => {
+  const handleDelete = async (id: Id<"chatbot_conversations">) => {
     try {
-      await deleteConversation({ conversationId: convId });
-      if (activeConvId === convId) setActiveConvId(null);
+      await deleteConversation({ conversationId: id });
+      if (activeConvId === id) setActiveConvId(null);
       toast.success("Conversation deleted");
     } catch {
-      toast.error("Failed to delete conversation");
+      toast.error("Failed to delete");
     }
   };
 
-  const handleSelectConversation = (convId: Id<"chatbot_conversations">) => {
-    setActiveConvId(convId);
-    setShowSidebar(false);
+  /* ── Action chip click ── */
+  const handleChipAction = (action: string) => {
+    if (action.startsWith("navigate:")) {
+      navigate(action.slice("navigate:".length));
+    } else if (action.startsWith("query:")) {
+      handleSend(action.slice("query:".length));
+    }
   };
 
+  /* ── Conversation metadata ── */
+  const activeConv = activeConvId && conversations ? conversations.find((c) => c._id === activeConvId) : null;
+  const hasMessages = messages && messages.length > 0;
+  const showWelcome = !activeConvId && !hasMessages;
+
+  /* ────────────── NOT LOGGED IN ────────────── */
   if (!user) {
     return (
       <div className="min-h-screen flex flex-col bg-background">
         <Navbar />
-        <main className="flex-1 flex items-center justify-center px-4">
-          <Card className="max-w-md w-full p-8 text-center">
-            <Bot className="size-12 text-primary mx-auto mb-4" />
-            <h1 className="text-xl font-bold mb-2">AI Chatbot</h1>
-            <p className="text-sm text-muted-foreground mb-6">
-              Sign in to chat with our AI assistant for medicine search, order tracking, and support.
+        <main className="flex-1 flex items-center justify-center px-4 py-16">
+          <div className="max-w-sm w-full text-center">
+            <div className="mx-auto mb-6 flex size-16 items-center justify-center rounded-2xl bg-[oklch(0.96_0.03_170)] border border-[oklch(0.45_0.12_170)]/10">
+              <Bot className="size-7 text-[oklch(0.45_0.12_170)]" />
+            </div>
+            <h1 className="text-xl font-bold text-foreground">Kalyan Chemist AI</h1>
+            <p className="text-sm text-muted-foreground mt-2 mb-6 leading-relaxed">
+              Sign in to chat with your personal pharmacy assistant for medicine search, order tracking, and more.
             </p>
-            <Button className="gradient-primary text-white" onClick={() => navigate("/auth")}>
+            <Button className="gradient-primary text-white h-10 px-8 rounded-xl font-semibold" onClick={() => navigate("/auth")}>
               Sign In
             </Button>
-          </Card>
+          </div>
         </main>
-        <Footer />
       </div>
     );
   }
 
-  const activeConversation = activeConvId && conversations
-    ? conversations.find((c) => c._id === activeConvId)
-    : null;
-
+  /* ────────────── MAIN UI ────────────── */
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
 
       <div className="flex-1 flex overflow-hidden" style={{ height: "calc(100vh - 64px)" }}>
-        {/* ── Sidebar: Conversation History ── */}
+        {/* ═══════ SIDEBAR ═══════ */}
         <aside
           className={`
             ${showSidebar ? "translate-x-0" : "-translate-x-full"}
             lg:translate-x-0
             fixed lg:static inset-y-0 left-0 z-40
-            w-72 lg:w-80 bg-card border-r border-border/40
-            flex flex-col transition-transform duration-200
+            w-72 lg:w-[300px] bg-white border-r border-border/50
+            flex flex-col transition-transform duration-200 ease-out
             top-[64px] lg:top-0
           `}
         >
-          <div className="p-3 border-b border-border/40 flex items-center justify-between">
-            <h2 className="text-sm font-bold">Conversations</h2>
-            <div className="flex gap-1">
+          {/* Sidebar header */}
+          <div className="p-4 border-b border-border/40">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="flex size-8 items-center justify-center rounded-lg bg-[oklch(0.45_0.12_170)] text-white">
+                  <Bot className="size-4" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-bold text-foreground">Assistant</h2>
+                  <p className="text-[10px] text-muted-foreground">Conversation history</p>
+                </div>
+              </div>
               <Button
                 size="sm"
                 variant="ghost"
-                className="h-8 w-8 p-0 rounded-lg"
+                className="h-8 w-8 p-0 rounded-lg hover:bg-[oklch(0.45_0.12_170)]/5 text-muted-foreground"
                 onClick={handleNewChat}
                 title="New Chat"
               >
                 <Plus className="size-4" />
               </Button>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-8 w-8 p-0 rounded-lg lg:hidden"
-                onClick={() => setShowSidebar(false)}
-              >
-                <X className="size-4" />
-              </Button>
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-2 space-y-1">
+          {/* Conversation list */}
+          <div className="flex-1 overflow-y-auto p-2 space-y-0.5">
             {conversations && conversations.length === 0 && (
-              <p className="text-xs text-muted-foreground text-center py-8 px-4">
-                No conversations yet. Start chatting!
-              </p>
+              <div className="text-center py-12 px-4">
+                <MessageSquare className="size-8 text-muted-foreground/30 mx-auto mb-3" />
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  No conversations yet.
+                  <br />
+                  Start chatting to see history here.
+                </p>
+              </div>
             )}
             {conversations?.map((conv) => (
               <button
                 key={conv._id}
-                onClick={() => handleSelectConversation(conv._id)}
+                onClick={() => {
+                  setActiveConvId(conv._id);
+                  setShowSidebar(false);
+                }}
                 className={`
-                  w-full text-left p-3 rounded-xl text-sm transition-all
+                  w-full text-left p-3 rounded-xl text-sm transition-all duration-150 group
                   ${activeConvId === conv._id
-                    ? "bg-primary/10 text-primary font-medium"
-                    : "text-muted-foreground hover:bg-muted"
+                    ? "bg-[oklch(0.45_0.12_170)]/8 text-[oklch(0.45_0.12_170)] ring-1 ring-[oklch(0.45_0.12_170)]/15"
+                    : "text-muted-foreground hover:bg-muted/60"
                   }
                 `}
               >
                 <div className="flex items-start justify-between gap-2">
-                  <span className="truncate flex-1">{conv.title || "New conversation"}</span>
+                  <span className="truncate flex-1 font-medium text-[13px]">{conv.title || "New conversation"}</span>
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleDeleteConversation(conv._id);
+                      handleDelete(conv._id);
                     }}
-                    className="shrink-0 p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                    className="shrink-0 p-1 rounded-md opacity-0 group-hover:opacity-100 hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all"
                   >
                     <Trash2 className="size-3" />
                   </button>
                 </div>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="text-[10px]">{conv.messageCount} messages</span>
+                <div className="flex items-center gap-2 mt-1.5">
+                  <span className="text-[10px] text-muted-foreground/70">{conv.messageCount} messages</span>
                   {conv.handoffRequested && (
-                    <Badge variant="secondary" className="text-[9px] py-0 px-1.5 h-4">Handoff</Badge>
+                    <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-200/60">
+                      Handoff
+                    </span>
                   )}
                 </div>
               </button>
             ))}
           </div>
+
+          {/* Sidebar footer */}
+          <div className="p-3 border-t border-border/40">
+            <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-[oklch(0.45_0.12_170)]/[0.03]">
+              <ShieldCheck className="size-3.5 text-[oklch(0.45_0.12_170)] shrink-0" />
+              <p className="text-[10px] text-muted-foreground leading-relaxed">
+                Protected by Kalyan Chemist AI safety guidelines
+              </p>
+            </div>
+          </div>
         </aside>
 
-        {/* ── Mobile sidebar overlay ── */}
+        {/* Mobile overlay */}
         {showSidebar && (
-          <div
-            className="fixed inset-0 bg-black/40 z-30 lg:hidden top-[64px]"
-            onClick={() => setShowSidebar(false)}
-          />
+          <div className="fixed inset-0 bg-black/30 z-30 lg:hidden top-[64px] backdrop-blur-sm" onClick={() => setShowSidebar(false)} />
         )}
 
-        {/* ── Main Chat Area ── */}
-        <div className="flex-1 flex flex-col min-w-0">
-          {/* Chat header */}
-          <div className="h-14 shrink-0 border-b border-border/40 bg-card/60 backdrop-blur-sm flex items-center px-4 gap-3">
+        {/* ═══════ MAIN CHAT ═══════ */}
+        <div className="flex-1 flex flex-col min-w-0 bg-[oklch(0.985_0.005_170)]">
+          {/* ── Header ── */}
+          <div className="h-[60px] shrink-0 bg-white/80 backdrop-blur-md border-b border-border/40 flex items-center px-4 gap-3">
             <Button
               size="sm"
               variant="ghost"
-              className="h-8 w-8 p-0 rounded-lg lg:hidden"
+              className="h-8 w-8 p-0 rounded-lg lg:hidden text-muted-foreground"
               onClick={() => setShowSidebar(true)}
             >
               <ChevronLeft className="size-4" />
             </Button>
-            <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-              <Bot className="size-4" />
+
+            <div className="relative flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-[oklch(0.42_0.09_170)] to-[oklch(0.38_0.10_168)] text-white shadow-sm">
+              <Bot className="size-[18px]" />
+              <div className="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full bg-emerald-400 border-2 border-white" />
             </div>
+
             <div className="flex-1 min-w-0">
-              <h3 className="text-sm font-semibold truncate">
-                {activeConversation?.title || "Kalyan Chemist Assistant"}
-              </h3>
-              <p className="text-[10px] text-muted-foreground">
-                {isTyping ? "Typing…" : "Online"}
+              <h3 className="text-[13px] font-bold text-foreground leading-tight">Kalyan Chemist AI</h3>
+              <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">
+                {isTyping ? (
+                  <span className="text-[oklch(0.45_0.12_170)] font-medium">Thinking…</span>
+                ) : (
+                  "Your personal pharmacy assistant"
+                )}
               </p>
             </div>
-            <div className="flex items-center gap-1">
+
+            <div className="flex items-center gap-0.5">
               <Button
                 size="sm"
                 variant="ghost"
-                className="h-8 w-8 p-0 rounded-lg"
-                onClick={() => setTtsEnabled(!ttsEnabled)}
-                title={ttsEnabled ? "Disable voice output" : "Enable voice output"}
+                className="h-8 w-8 p-0 rounded-lg text-muted-foreground hover:text-foreground"
+                onClick={() => setTts(!ttsOn)}
+                title={ttsOn ? "Mute voice" : "Enable voice"}
               >
-                {ttsEnabled ? <Volume2 className="size-4" /> : <VolumeX className="size-4" />}
+                {ttsOn ? <Volume2 className="size-4" /> : <VolumeX className="size-4" />}
               </Button>
               <Button
                 size="sm"
                 variant="ghost"
-                className="h-8 w-8 p-0 rounded-lg"
+                className="h-8 w-8 p-0 rounded-lg text-muted-foreground hover:text-foreground"
                 onClick={handleNewChat}
-                title="New Chat"
+                title="New conversation"
               >
                 <Plus className="size-4" />
               </Button>
             </div>
           </div>
 
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto px-4 py-6">
-            <div className="max-w-2xl mx-auto space-y-4">
-              {/* Welcome screen / empty state */}
-              {!activeConvId && (!messages || messages.length === 0) && (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <div className="flex size-16 items-center justify-center rounded-2xl bg-primary/10 text-primary mb-4">
-                    <Bot className="size-8" />
+          {/* ── Messages Area ── */}
+          <div className="flex-1 overflow-y-auto">
+            <div className="max-w-[680px] mx-auto px-4 sm:px-6 py-6 space-y-5">
+
+              {/* ═══ WELCOME SCREEN ═══ */}
+              {showWelcome && (
+                <div className="flex flex-col items-center pt-8 sm:pt-16 text-center">
+                  {/* AI Avatar */}
+                  <div className="relative mb-5">
+                    <div className="flex size-[72px] items-center justify-center rounded-[22px] bg-gradient-to-br from-[oklch(0.42_0.09_170)] to-[oklch(0.35_0.08_172)] text-white shadow-lg shadow-[oklch(0.45_0.12_170)]/15">
+                      <Bot className="size-8" />
+                    </div>
+                    <div className="absolute -bottom-1 -right-1 size-5 rounded-full bg-emerald-400 border-[3px] border-[oklch(0.985_0.005_170)] flex items-center justify-center">
+                      <div className="size-1.5 rounded-full bg-white" />
+                    </div>
                   </div>
-                  <h2 className="text-xl font-bold mb-2">Kalyan Chemist Assistant</h2>
-                  <p className="text-sm text-muted-foreground max-w-md mb-8">
-                    I can help you search medicines, track orders, set up refills, and navigate the website.
-                    For medical advice, I'll connect you with our pharmacist.
+
+                  {/* Welcome text */}
+                  <h1 className="text-2xl sm:text-[28px] font-bold text-foreground tracking-tight">
+                    Hello! 👋
+                  </h1>
+                  <p className="text-[15px] text-muted-foreground mt-2 max-w-md leading-relaxed">
+                    I can help you find medicines, check availability, track orders, manage refills, and connect you with our pharmacy team.
                   </p>
 
-                  {/* Quick suggestions */}
-                  <div className="grid grid-cols-2 gap-3 w-full max-w-md">
-                    {SUGGESTIONS.map((sug) => (
+                  {/* Starter actions */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 w-full max-w-lg mt-8">
+                    {STARTER_ACTIONS.map((action) => (
                       <button
-                        key={sug.text}
-                        onClick={() => handleSend(sug.prompt)}
-                        className="flex items-center gap-3 p-3 rounded-xl border border-border/60 bg-card hover:bg-accent/40 text-left transition-all hover:shadow-md"
+                        key={action.label}
+                        onClick={() => handleSend(action.prompt)}
+                        className="group flex flex-col items-center gap-2 p-4 rounded-xl border border-border/50 bg-white hover:border-[oklch(0.45_0.12_170)]/20 hover:shadow-md hover:shadow-[oklch(0.45_0.12_170)]/5 transition-all duration-200 text-center"
                       >
-                        <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary shrink-0">
-                          <sug.icon className="size-4" />
+                        <div className={`flex size-10 items-center justify-center rounded-xl bg-gradient-to-br ${action.color} ${action.iconColor} group-hover:scale-105 transition-transform duration-200`}>
+                          <action.icon className="size-5" />
                         </div>
-                        <span className="text-sm font-medium">{sug.text}</span>
+                        <div>
+                          <p className="text-[13px] font-semibold text-foreground">{action.label}</p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5 leading-snug">{action.subtitle}</p>
+                        </div>
                       </button>
                     ))}
                   </div>
 
                   {/* Proactive suggestions */}
                   {proactiveSuggestions && proactiveSuggestions.length > 0 && (
-                    <div className="mt-6 w-full max-w-md">
-                      <p className="text-xs font-medium text-muted-foreground mb-2">Suggestions for you:</p>
+                    <div className="mt-8 w-full max-w-lg">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Sparkles className="size-3.5 text-[oklch(0.45_0.12_170)]" />
+                        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Suggested for you</p>
+                      </div>
                       <div className="space-y-2">
                         {proactiveSuggestions.map((sug, i) => (
                           <button
                             key={i}
                             onClick={() => handleSend(sug.replace(/\*\*/g, ""))}
-                            className="w-full text-left p-3 rounded-xl bg-primary/5 border border-primary/10 text-sm hover:bg-primary/10 transition-colors"
+                            className="w-full text-left p-3.5 rounded-xl bg-white border border-border/40 text-[13px] text-foreground hover:border-[oklch(0.45_0.12_170)]/20 hover:shadow-sm transition-all leading-relaxed"
                           >
                             {renderMarkdown(sug)}
                           </button>
@@ -492,75 +618,108 @@ export default function AIChatbot() {
                       </div>
                     </div>
                   )}
+
+                  {/* Trust line */}
+                  <p className="mt-10 text-[10px] text-muted-foreground/50 font-medium tracking-wide uppercase">
+                    Powered by Kalyan Chemist
+                  </p>
                 </div>
               )}
 
-              {/* Chat messages */}
-              {messages?.map((msg: any, i: number) => (
-                <div
-                  key={msg._id}
-                  className={`flex gap-3 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-                >
-                  {msg.role === "assistant" && (
-                    <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary mt-1">
-                      <Bot className="size-4" />
-                    </div>
-                  )}
+              {/* ═══ CHAT MESSAGES ═══ */}
+              {!showWelcome &&
+                messages?.map((msg: any, i: number) => {
+                  const isUser = msg.role === "user";
+                  const isAssistant = msg.role === "assistant";
+                  const actionChips = isAssistant ? extractActionChips(msg.content) : [];
 
-                  <div
-                    className={`
-                      max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed
-                      ${msg.role === "user"
-                        ? "bg-primary text-primary-foreground rounded-br-md"
-                        : "bg-card border border-border/60 rounded-bl-md"
-                      }
-                    `}
-                  >
-                    <div className={msg.role === "user" ? "" : "space-y-1"}>
-                      {renderMarkdown(msg.content)}
-                    </div>
-                    {msg.handoffTriggered && msg.role === "assistant" && (
-                      <div className="mt-3 pt-2 border-t border-border/40">
-                        <Badge className="text-[10px] bg-amber-100 text-amber-700 border-amber-200">
-                          🤝 Human support recommended
-                        </Badge>
+                  return (
+                    <div key={msg._id} className={`flex gap-2.5 ${isUser ? "justify-end" : "justify-start"} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
+                      {/* Assistant avatar */}
+                      {isAssistant && (
+                        <div className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[oklch(0.42_0.09_170)] to-[oklch(0.38_0.10_168)] text-white mt-0.5 shadow-sm">
+                          <Bot className="size-4" />
+                        </div>
+                      )}
+
+                      {/* Message bubble */}
+                      <div
+                        className={`
+                          max-w-[80%] sm:max-w-[75%] text-[13px]
+                          ${isUser
+                            ? "bg-[oklch(0.45_0.12_170)] text-white rounded-2xl rounded-br-lg px-4 py-3 shadow-sm"
+                            : "bg-white border border-border/50 rounded-2xl rounded-bl-lg px-4 py-3 shadow-sm"
+                          }
+                        `}
+                      >
+                        <div className={isAssistant ? "space-y-0.5" : ""}>
+                          {renderMarkdown(msg.content)}
+                        </div>
+
+                        {/* Handoff badge */}
+                        {isAssistant && msg.handoffTriggered && (
+                          <div className="mt-3 pt-2.5 border-t border-border/30">
+                            <div className="flex items-center gap-2 p-2.5 rounded-lg bg-amber-50/80 border border-amber-200/60">
+                              <Phone className="size-3.5 text-amber-600 shrink-0" />
+                              <span className="text-[11px] font-medium text-amber-700">Human support recommended</span>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Product results → browse button */}
+                        {isAssistant && msg.productIds && msg.productIds.length > 0 && (
+                          <div className="mt-3 pt-2.5 border-t border-border/30">
+                            <button
+                              onClick={() => navigate("/products")}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[oklch(0.45_0.12_170)]/8 text-[oklch(0.45_0.12_170)] text-[11px] font-semibold hover:bg-[oklch(0.45_0.12_170)]/15 transition-colors"
+                            >
+                              <ShoppingCart className="size-3" />
+                              Browse Products
+                              <ArrowRight className="size-3" />
+                            </button>
+                          </div>
+                        )}
                       </div>
-                    )}
-                    {msg.productIds && msg.productIds.length > 0 && msg.role === "assistant" && (
-                      <div className="mt-2 pt-2 border-t border-border/40">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 text-[11px] gap-1"
-                          onClick={() => navigate("/products")}
-                        >
-                          <ShoppingCart className="size-3" />
-                          Browse Products
-                          <ArrowRight className="size-3" />
-                        </Button>
-                      </div>
-                    )}
-                  </div>
 
-                  {msg.role === "user" && (
-                    <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground mt-1">
-                      <User className="size-4" />
+                      {/* User avatar */}
+                      {isUser && (
+                        <div className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-foreground/5 text-foreground/60 mt-0.5">
+                          <User className="size-4" />
+                        </div>
+                      )}
+
+                      {/* Action chips after assistant messages */}
+                      {isAssistant && actionChips.length > 0 && i === (messages?.length ?? 0) - 1 && (
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-wrap gap-1.5 mt-1.5 ml-0">
+                            {actionChips.map((chip) => (
+                              <button
+                                key={chip.label}
+                                onClick={() => handleChipAction(chip.action)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-border/50 text-[11px] font-medium text-muted-foreground hover:text-[oklch(0.45_0.12_170)] hover:border-[oklch(0.45_0.12_170)]/20 transition-all"
+                              >
+                                {chip.label}
+                                <ArrowRight className="size-2.5" />
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              ))}
+                  );
+                })}
 
-              {/* Typing indicator */}
+              {/* ═══ TYPING INDICATOR ═══ */}
               {isTyping && (
-                <div className="flex gap-3">
-                  <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <div className="flex gap-2.5 animate-in fade-in duration-200">
+                  <div className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[oklch(0.42_0.09_170)] to-[oklch(0.38_0.10_168)] text-white shadow-sm">
                     <Bot className="size-4" />
                   </div>
-                  <div className="bg-card border border-border/60 rounded-2xl rounded-bl-md px-4 py-3">
-                    <div className="flex gap-1.5">
-                      <div className="size-2 rounded-full bg-muted-foreground/40 animate-bounce" style={{ animationDelay: "0ms" }} />
-                      <div className="size-2 rounded-full bg-muted-foreground/40 animate-bounce" style={{ animationDelay: "150ms" }} />
-                      <div className="size-2 rounded-full bg-muted-foreground/40 animate-bounce" style={{ animationDelay: "300ms" }} />
+                  <div className="bg-white border border-border/50 rounded-2xl rounded-bl-lg px-4 py-3 shadow-sm">
+                    <div className="flex items-center gap-1">
+                      <div className="size-[6px] rounded-full bg-[oklch(0.45_0.12_170)]/40 animate-bounce" style={{ animationDelay: "0ms" }} />
+                      <div className="size-[6px] rounded-full bg-[oklch(0.45_0.12_170)]/40 animate-bounce" style={{ animationDelay: "120ms" }} />
+                      <div className="size-[6px] rounded-full bg-[oklch(0.45_0.12_170)]/40 animate-bounce" style={{ animationDelay: "240ms" }} />
                     </div>
                   </div>
                 </div>
@@ -570,10 +729,36 @@ export default function AIChatbot() {
             </div>
           </div>
 
-          {/* ── Input area ── */}
-          <div className="shrink-0 border-t border-border/40 bg-card/60 backdrop-blur-sm p-3">
-            <div className="max-w-2xl mx-auto">
-              <div className="flex items-center gap-2 bg-background border border-border/60 rounded-2xl px-3 py-2 focus-within:ring-2 focus-within:ring-primary/30 transition-all">
+          {/* ── Input Area ── */}
+          <div className="shrink-0 bg-white/80 backdrop-blur-md border-t border-border/40">
+            <div className="max-w-[680px] mx-auto px-4 sm:px-6 py-3">
+              {/* Language bar */}
+              {showLangPicker && (
+                <div className="flex items-center gap-1.5 mb-2.5 animate-in fade-in slide-in-from-bottom-1 duration-150">
+                  <Languages className="size-3 text-muted-foreground shrink-0" />
+                  {LANGUAGES.map((lang) => (
+                    <button
+                      key={lang.code}
+                      onClick={() => {
+                        const prompts: Record<string, string> = {
+                          en: "Hello, I need help",
+                          hi: "नमस्ते, मुझे मदद चाहिए",
+                          mr: "नमस्कार, मला मदत हवी आहे",
+                          hinglish: "Hello bhai, mujhe help chahiye",
+                        };
+                        handleSend(prompts[lang.code] || "Hello");
+                        setShowLangPicker(false);
+                      }}
+                      className="text-[11px] font-medium text-muted-foreground hover:text-[oklch(0.45_0.12_170)] px-2.5 py-1 rounded-full border border-border/50 hover:border-[oklch(0.45_0.12_170)]/25 hover:bg-[oklch(0.45_0.12_170)]/5 transition-all"
+                    >
+                      {lang.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Input row */}
+              <div className="flex items-center gap-2 bg-[oklch(0.985_0.005_170)] border border-border/60 rounded-2xl px-3 py-1.5 focus-within:ring-2 focus-within:ring-[oklch(0.45_0.12_170)]/15 focus-within:border-[oklch(0.45_0.12_170)]/30 transition-all duration-200">
                 <input
                   ref={inputRef}
                   type="text"
@@ -581,55 +766,62 @@ export default function AIChatbot() {
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
                   placeholder="Ask about medicines, orders, refills…"
-                  className="flex-1 bg-transparent text-sm outline-none placeholder-muted-foreground"
+                  className="flex-1 bg-transparent text-[13px] outline-none placeholder-muted-foreground/60 min-w-0"
                   disabled={isTyping}
                 />
 
-                {/* Voice input */}
+                {/* Voice */}
                 {voiceSupported && (
-                  <Button
-                    size="sm"
-                    variant={isListening ? "default" : "ghost"}
-                    className={`h-8 w-8 p-0 rounded-lg shrink-0 ${isListening ? "bg-red-500 text-white animate-pulse" : ""}`}
-                    onClick={toggleListening}
+                  <button
+                    onClick={toggleVoice}
+                    className={`
+                      flex size-8 items-center justify-center rounded-xl shrink-0 transition-all duration-200
+                      ${isListening
+                        ? "bg-red-500 text-white shadow-sm shadow-red-500/25 animate-pulse"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                      }
+                    `}
                     title="Voice input"
                   >
                     {isListening ? <MicOff className="size-4" /> : <Mic className="size-4" />}
-                  </Button>
+                  </button>
                 )}
 
-                {/* Send button */}
-                <Button
-                  size="sm"
-                  className="h-8 w-8 p-0 rounded-lg shrink-0 gradient-primary text-white"
+                {/* Language toggle */}
+                <button
+                  onClick={() => setShowLangPicker(!showLangPicker)}
+                  className={`
+                    flex size-8 items-center justify-center rounded-xl shrink-0 transition-all duration-200
+                    ${showLangPicker
+                      ? "bg-[oklch(0.45_0.12_170)]/10 text-[oklch(0.45_0.12_170)]"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                    }
+                  `}
+                  title="Change language"
+                >
+                  <Languages className="size-4" />
+                </button>
+
+                {/* Send */}
+                <button
                   onClick={() => handleSend()}
                   disabled={!input.trim() || isTyping}
+                  className={`
+                    flex size-8 items-center justify-center rounded-xl shrink-0 transition-all duration-200
+                    ${input.trim() && !isTyping
+                      ? "bg-gradient-to-br from-[oklch(0.42_0.09_170)] to-[oklch(0.38_0.10_168)] text-white shadow-sm shadow-[oklch(0.45_0.12_170)]/20 hover:shadow-md hover:shadow-[oklch(0.45_0.12_170)]/25 active:scale-95"
+                      : "bg-muted/40 text-muted-foreground/50 cursor-not-allowed"
+                    }
+                  `}
                 >
                   <Send className="size-4" />
-                </Button>
+                </button>
               </div>
 
-              {/* Language chips */}
-              <div className="flex items-center gap-2 mt-2 px-1">
-                <Languages className="size-3 text-muted-foreground" />
-                {LANGUAGES.map((lang) => (
-                  <button
-                    key={lang.code}
-                    onClick={() => {
-                      const prompts: Record<string, string> = {
-                        en: "Hello, I need help",
-                        hi: "नमस्ते, मुझे मदद चाहिए",
-                        mr: "नमस्कार, मला मदत हवी आहे",
-                        hinglish: "Hello bhai, mujhe help chahiye",
-                      };
-                      handleSend(prompts[lang.code] || "Hello");
-                    }}
-                    className="text-[10px] font-medium text-muted-foreground hover:text-primary px-2 py-0.5 rounded-full border border-border/40 hover:border-primary/30 transition-colors"
-                  >
-                    {lang.label}
-                  </button>
-                ))}
-              </div>
+              {/* Disclaimer */}
+              <p className="text-center text-[10px] text-muted-foreground/40 mt-2 leading-relaxed">
+                AI-powered assistant · For pharmacy information only · Not a substitute for medical advice
+              </p>
             </div>
           </div>
         </div>
