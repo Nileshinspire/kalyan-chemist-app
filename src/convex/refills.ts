@@ -404,7 +404,8 @@ export const getDeliveredOrderMedicines = query({
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
 
-    // Get all items from delivered orders
+    // Collect all order dates per product for average interval calculation
+    const productOrderDates: Record<string, number[]> = {};
     const items: {
       productId: string;
       name: string;
@@ -436,19 +437,62 @@ export const getDeliveredOrderMedicines = query({
             lastOrderDate: order.createdAt,
           });
         }
+        // Track all order dates for this product
+        if (!productOrderDates[item.productId]) {
+          productOrderDates[item.productId] = [];
+        }
+        productOrderDates[item.productId].push(order.createdAt);
       }
     }
 
-    // Get full product data and availability
+    // Get full product data and availability, plus smart interval info
     const withProducts = await Promise.all(
       items.map(async (item) => {
         const product = await ctx.db.get(item.productId as any);
+
+        // Calculate average reorder interval from order history
+        const dates = (productOrderDates[item.productId] || []).sort((a, b) => a - b);
+        let averageIntervalDays = 0;
+        let orderCount = dates.length;
+
+        if (dates.length >= 2) {
+          let totalGap = 0;
+          for (let i = 1; i < dates.length; i++) {
+            totalGap += dates[i] - dates[i - 1];
+          }
+          averageIntervalDays = Math.round(totalGap / (dates.length - 1) / (24 * 60 * 60 * 1000));
+        }
+
+        const daysSinceLastOrder = Math.floor(
+          (Date.now() - item.lastOrderDate) / (24 * 60 * 60 * 1000)
+        );
+
+        // Determine refill urgency based on average interval
+        let refillStatus: "due" | "soon" | "normal" = "normal";
+        let refillMessage = "";
+
+        if (orderCount >= 2 && averageIntervalDays > 0) {
+          if (daysSinceLastOrder >= averageIntervalDays) {
+            refillStatus = "due";
+            refillMessage = `Usually reordered around every ${averageIntervalDays} days`;
+          } else if (daysSinceLastOrder >= averageIntervalDays * 0.8) {
+            refillStatus = "soon";
+            refillMessage = `Usually reordered around every ${averageIntervalDays} days`;
+          }
+        } else if (daysSinceLastOrder >= 30) {
+          // Fallback for single-order products: suggest after 30 days
+          refillStatus = "soon";
+          refillMessage = "You ordered this over a month ago";
+        }
+
         return {
           ...item,
           product,
-          daysSinceLastOrder: Math.floor(
-            (Date.now() - item.lastOrderDate) / (24 * 60 * 60 * 1000)
-          ),
+          daysSinceLastOrder,
+          averageIntervalDays,
+          orderCount,
+          refillStatus,
+          refillMessage,
         };
       })
     );

@@ -72,11 +72,22 @@ export default function MedicineRefill() {
   // Previously-ordered section: which products are shown as regular candidates
   const [previouslyOrderedExpanded, setPreviouslyOrderedExpanded] = useState(true);
 
-  // Compute refill-due-soon based on order history
+  // Compute refill-due-soon based on smart order history analysis
   const refillDueSoon = useMemo(() => {
     if (!deliveredOrders) return [];
-    return deliveredOrders.filter((item) => item.daysSinceLastOrder >= 20);
+    return deliveredOrders.filter(
+      (item) => item.refillStatus === "due" || item.refillStatus === "soon"
+    );
   }, [deliveredOrders]);
+
+  const refillDueCount = useMemo(
+    () => refillDueSoon.filter((i) => i.refillStatus === "due").length,
+    [refillDueSoon]
+  );
+  const refillSoonCount = useMemo(
+    () => refillDueSoon.filter((i) => i.refillStatus === "soon").length,
+    [refillDueSoon]
+  );
 
   // Combine regular medicines with delivered orders for full view
   const allRegularItems = useMemo(() => {
@@ -371,7 +382,14 @@ export default function MedicineRefill() {
                   </div>
                   <div>
                     <h2 className="text-lg font-semibold text-foreground">Refill Due Soon</h2>
-                    <p className="text-sm text-muted-foreground">Your refill may be due soon</p>
+                    <p className="text-sm text-muted-foreground">
+                      {refillDueCount > 0 && refillSoonCount > 0
+                        ? `${refillDueCount} overdue, ${refillSoonCount} coming up soon`
+                        : refillDueCount > 0
+                          ? `${refillDueCount} medicine(s) may be overdue for refill`
+                          : `Your refill may be due soon`
+                      }
+                    </p>
                   </div>
                 </div>
                 <Card className="border-amber-200 bg-amber-50/50">
@@ -380,18 +398,39 @@ export default function MedicineRefill() {
                       {refillDueSoon.map((item) => (
                         <div key={item.productId} className="flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            <div className="flex size-8 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
+                            <div className={`flex size-8 items-center justify-center rounded-lg ${
+                              item.refillStatus === "due" ? "bg-red-100 text-red-600" : "bg-amber-100 text-amber-600"
+                            }`}>
                               <Pill className="size-4" />
                             </div>
                             <div>
                               <p className="text-sm font-medium text-foreground">
                                 {(item.product as any)?.name}
+                                {(item.product as any)?.strength ? ` ${(item.product as any).strength}` : ""}
                               </p>
-                              <p className="text-xs text-muted-foreground">
-                                Last ordered: {item.daysSinceLastOrder} days ago
+                              {item.refillMessage ? (
+                                <p className="text-xs text-muted-foreground">
+                                  {item.refillMessage}
+                                </p>
+                              ) : (
+                                <p className="text-xs text-muted-foreground">
+                                  Last ordered: {item.daysSinceLastOrder} days ago
+                                </p>
+                              )}
+                              <p className="text-[11px] text-muted-foreground/70">
+                                {item.daysSinceLastOrder} days since last order
+                                {item.averageIntervalDays > 0 && item.orderCount >= 2
+                                  ? ` · Average interval: ${item.averageIntervalDays} days`
+                                  : ""
+                                }
                               </p>
                             </div>
                           </div>
+                          {item.refillStatus === "due" && (
+                            <Badge variant="outline" className="text-[9px] border-red-300 text-red-600 bg-red-50 shrink-0">
+                              Overdue
+                            </Badge>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -477,7 +516,7 @@ export default function MedicineRefill() {
                                   </span>
                                 )}
                               </div>
-                              <div className="flex items-center gap-1.5 mt-1.5">
+                              <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                                 {isPrescriptionRequired ? (
                                   <Badge variant="outline" className="text-[9px] border-orange-300 text-orange-600 bg-orange-50">
                                     Rx Required
@@ -487,9 +526,23 @@ export default function MedicineRefill() {
                                     OTC
                                   </Badge>
                                 )}
-                                {!isAvailable && (
+                                {!isAvailable ? (
                                   <Badge variant="outline" className="text-[9px] border-red-300 text-red-600 bg-red-50">
                                     Unavailable
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="text-[9px] border-emerald-300 text-emerald-600 bg-emerald-50">
+                                    Available to Refill
+                                  </Badge>
+                                )}
+                                {liveData && (liveData as any).refillStatus === "due" && (
+                                  <Badge variant="outline" className="text-[9px] border-red-300 text-red-600 bg-red-50">
+                                    Refill Overdue
+                                  </Badge>
+                                )}
+                                {liveData && (liveData as any).refillStatus === "soon" && (
+                                  <Badge variant="outline" className="text-[9px] border-amber-300 text-amber-600 bg-amber-50">
+                                    Refill Due Soon
                                   </Badge>
                                 )}
                               </div>
@@ -643,7 +696,7 @@ export default function MedicineRefill() {
                                   )}
                                 </div>
 
-                                <div className="flex items-center gap-2 mt-2">
+                                <div className="flex items-center gap-2 mt-2 flex-wrap">
                                   {isPrescriptionRequired ? (
                                     <Badge variant="outline" className="text-[10px] border-orange-300 text-orange-600 bg-orange-50">
                                       Prescription Required
@@ -653,9 +706,13 @@ export default function MedicineRefill() {
                                       OTC
                                     </Badge>
                                   )}
-                                  {!isAvailable && (
+                                  {!isAvailable ? (
                                     <Badge variant="outline" className="text-[10px] border-red-300 text-red-600 bg-red-50">
-                                      Unavailable
+                                      Currently Unavailable
+                                    </Badge>
+                                  ) : (
+                                    <Badge variant="outline" className="text-[10px] border-emerald-300 text-emerald-600 bg-emerald-50">
+                                      Available to Refill
                                     </Badge>
                                   )}
                                 </div>
@@ -977,53 +1034,95 @@ export default function MedicineRefill() {
                   {/* Show refill requests first */}
                   {refillRequests?.slice(0, 5).map((req) => (
                     <Card key={req._id} className="border-border/60">
-                      <CardContent className="p-3 flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-medium text-foreground">
-                            {req.medicines.map((m) => m.productName).join(", ")}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {new Date(req.createdAt).toLocaleDateString("en-IN", {
-                              day: "numeric",
-                              month: "short",
-                              year: "numeric",
-                            })}
-                            {req.totalAmount > 0 && ` · ${formatCurrency(req.totalAmount)}`}
-                          </p>
+                      <CardContent className="p-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-foreground">
+                              {req.medicines.map((m) => m.productName).join(", ")}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {new Date(req.createdAt).toLocaleDateString("en-IN", {
+                                day: "numeric",
+                                month: "short",
+                                year: "numeric",
+                              })}
+                              {req.totalAmount > 0 && ` · ${formatCurrency(req.totalAmount)}`}
+                            </p>
+                          </div>
+                          <Badge
+                            variant={req.status === "completed" ? "default" : "secondary"}
+                            className="text-[10px] shrink-0"
+                          >
+                            {req.status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+                          </Badge>
                         </div>
-                        <Badge
-                          variant={req.status === "completed" ? "default" : "secondary"}
-                          className="text-[10px]"
-                        >
-                          {req.status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
-                        </Badge>
+                        {/* Show per-medicine detail for multi-item refills */}
+                        {req.medicines.length > 1 && (
+                          <div className="mt-2 space-y-1">
+                            {req.medicines.map((m, mi) => (
+                              <div key={mi} className="flex items-center justify-between text-[11px] text-muted-foreground">
+                                <span>{m.productName} × {m.quantity}</span>
+                                <span>{formatCurrency(m.unitPrice * m.quantity)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </CardContent>
                     </Card>
                   ))}
-                  {/* Show recent order history entries */}
-                  {orderHistory?.slice(0, 8).map((h, idx) => (
-                    <Card key={`${h.orderId}-${h.productId}-${idx}`} className="border-border/60">
-                      <CardContent className="p-3 flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-medium text-foreground">{h.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {new Date(h.orderDate).toLocaleDateString("en-IN", {
-                              day: "numeric",
-                              month: "short",
-                              year: "numeric",
-                            })}
-                            {` · Qty: ${h.quantity} · ${formatCurrency(h.price)}`}
-                          </p>
-                        </div>
-                        <Badge
-                          variant={h.orderStatus === "delivered" ? "default" : "secondary"}
-                          className="text-[10px]"
-                        >
-                          {h.orderStatus.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
-                        </Badge>
-                      </CardContent>
-                    </Card>
-                  ))}
+                  {/* Show recent order history entries grouped by order */}
+                  {(() => {
+                    // Group order history by orderId for cleaner display
+                    const grouped: Record<string, typeof orderHistory> = {};
+                    for (const h of orderHistory || []) {
+                      if (!grouped[h.orderId]) grouped[h.orderId] = [];
+                      grouped[h.orderId].push(h);
+                    }
+                    const orderIds = Object.keys(grouped).slice(0, 6);
+                    return orderIds.map((orderId) => {
+                      const entries = grouped[orderId];
+                      const first = entries[0];
+                      const totalAmount = entries.reduce((sum, e) => sum + e.price * e.quantity, 0);
+                      return (
+                        <Card key={orderId} className="border-border/60">
+                          <CardContent className="p-3">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-sm font-medium text-foreground">
+                                  {entries.length === 1 ? first.name : `${entries.length} items`}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {new Date(first.orderDate).toLocaleDateString("en-IN", {
+                                    day: "numeric",
+                                    month: "short",
+                                    year: "numeric",
+                                  })}
+                                  {totalAmount > 0 && ` · ${formatCurrency(totalAmount)}`}
+                                </p>
+                              </div>
+                              <Badge
+                                variant={first.orderStatus === "delivered" ? "default" : "secondary"}
+                                className="text-[10px] shrink-0"
+                              >
+                                {first.orderStatus.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
+                              </Badge>
+                            </div>
+                            {/* Show per-medicine detail for multi-item orders */}
+                            {entries.length > 1 && (
+                              <div className="mt-2 space-y-1">
+                                {entries.map((e, ei) => (
+                                  <div key={ei} className="flex items-center justify-between text-[11px] text-muted-foreground">
+                                    <span>{e.name} × {e.quantity}</span>
+                                    <span>{formatCurrency(e.price * e.quantity)}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      );
+                    });
+                  })()}
                 </div>
               </section>
             )}
