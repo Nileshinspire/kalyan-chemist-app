@@ -105,6 +105,11 @@ export default function MedicineRefill() {
   // Previously-ordered section: which products are shown as regular candidates
   const [previouslyOrderedExpanded, setPreviouslyOrderedExpanded] = useState(true);
 
+  // Expanded detail views
+  const [selectedHistoryItem, setSelectedHistoryItem] = useState<string | null>(null);
+  const [selectedReminderDetail, setSelectedReminderDetail] = useState<string | null>(null);
+  const [selectedOrderItem, setSelectedOrderItem] = useState<string | null>(null);
+
   // Compute refill-due-soon based on smart order history analysis
   const refillDueSoon = useMemo(() => {
     if (!deliveredOrders) return [];
@@ -1005,68 +1010,140 @@ export default function MedicineRefill() {
                     if (!product) return null;
                     const nextDate = new Date(reminder.nextReminderAt);
                     const isDue = reminder.nextReminderAt <= Date.now();
+                    const adminActions = (reminder as any).adminActions || [];
+                    const isExpanded = selectedReminderDetail === reminder._id;
+                    const isAlreadyOrdered = orderHistory?.some(
+                      (h) => h.productId === (reminder.productId as any)
+                    );
+                    const lastOrderEntry = orderHistory?.find(
+                      (h) => h.productId === (reminder.productId as any)
+                    );
 
                     return (
-                      <Card key={reminder._id} className={`border-border/60 ${isDue ? "border-amber-300 bg-amber-50/30" : ""}`}>
-                        <CardContent className="p-4 flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className={`flex size-8 items-center justify-center rounded-lg ${isDue ? "bg-amber-100 text-amber-600" : "bg-violet-100 text-violet-600"}`}>
-                              <CalendarClock className="size-4" />
+                      <Card
+                        key={reminder._id}
+                        className={`border-border/60 cursor-pointer hover:shadow-md transition-all ${
+                          isDue ? "border-amber-300 bg-amber-50/30" : ""
+                        } ${isExpanded ? "border-primary ring-1 ring-primary/20" : ""}`}
+                        onClick={() => setSelectedReminderDetail(isExpanded ? null : reminder._id)}
+                      >
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className={`flex size-8 items-center justify-center rounded-lg ${isDue ? "bg-amber-100 text-amber-600" : "bg-violet-100 text-violet-600"}`}>
+                                <CalendarClock className="size-4" />
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-foreground">
+                                  {product.name}
+                                  {product.strength ? ` ${product.strength}` : ""}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  Every {reminder.intervalDays} days · Next:{" "}
+                                  {isDue ? "Due now" : nextDate.toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                                </p>
+                              </div>
                             </div>
-                            <div>
-                              <p className="text-sm font-medium text-foreground">
-                                {product.name}
-                                {product.strength ? ` ${product.strength}` : ""}
-                              </p>
-                              <p className="text-xs text-muted-foreground">
-                                Every {reminder.intervalDays} days · Next:{" "}
-                                {isDue ? "Due now" : nextDate.toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {isDue && (
+                            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                              {isDue && (
+                                <Button
+                                  size="sm"
+                                  className="h-8 text-xs gradient-primary text-white"
+                                  onClick={() => handleRefillNow(reminder.productId, 1)}
+                                  disabled={refillingId === (reminder.productId as string)}
+                                >
+                                  {refillingId === (reminder.productId as string) ? (
+                                    <Loader2 className="size-3 mr-1 animate-spin" />
+                                  ) : null}
+                                  Refill Now
+                                </Button>
+                              )}
+                              {!isDue && (
+                                <div className="flex items-center gap-1">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 text-[10px]"
+                                    onClick={() => handlePostponeReminder(reminder._id, 3)}
+                                  >
+                                    +3d
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 text-[10px]"
+                                    onClick={() => handlePostponeReminder(reminder._id, 7)}
+                                  >
+                                    +7d
+                                  </Button>
+                                </div>
+                              )}
                               <Button
                                 size="sm"
-                                className="h-8 text-xs gradient-primary text-white"
-                                onClick={() => handleRefillNow(reminder.productId, 1)}
-                                disabled={refillingId === (reminder.productId as string)}
+                                variant="outline"
+                                className="h-8 w-8 p-0"
+                                onClick={() => handleRemoveReminder(reminder._id)}
                               >
-                                {refillingId === (reminder.productId as string) ? (
-                                  <Loader2 className="size-3 mr-1 animate-spin" />
-                                ) : null}
-                                Refill Now
+                                <Trash2 className="size-3.5 text-muted-foreground" />
                               </Button>
-                            )}
-                            {!isDue && (
-                              <div className="flex items-center gap-1">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-7 text-[10px]"
-                                  onClick={() => handlePostponeReminder(reminder._id, 3)}
-                                >
-                                  +3d
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-7 text-[10px]"
-                                  onClick={() => handlePostponeReminder(reminder._id, 7)}
-                                >
-                                  +7d
-                                </Button>
-                              </div>
-                            )}
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-8 w-8 p-0"
-                              onClick={() => handleRemoveReminder(reminder._id)}
-                            >
-                              <Trash2 className="size-3.5 text-muted-foreground" />
-                            </Button>
+                            </div>
                           </div>
+                          {/* Expanded Reminder Details */}
+                          {isExpanded && (
+                            <div className="mt-3 pt-3 border-t border-border/40 space-y-3">
+                              <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Reminder Details</h4>
+                              <div className="grid grid-cols-2 gap-2 text-[11px]">
+                                <div><span className="text-muted-foreground">Frequency: </span><span className="text-foreground">Every {reminder.intervalDays} days</span></div>
+                                <div><span className="text-muted-foreground">Next reminder: </span><span className="text-foreground">{isDue ? "Due now" : nextDate.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</span></div>
+                                <div><span className="text-muted-foreground">Created: </span><span className="text-foreground">{new Date(reminder.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</span></div>
+                                <div><span className="text-muted-foreground">Status: </span><span className="text-foreground">{reminder.isActive ? "Active" : "Paused"}</span></div>
+                                {reminder.lastReminderAt > reminder.createdAt && (
+                                  <div><span className="text-muted-foreground">Last reminder sent: </span><span className="text-foreground">{new Date(reminder.lastReminderAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</span></div>
+                                )}
+                                {lastOrderEntry && (
+                                  <div><span className="text-muted-foreground">Last ordered: </span><span className="text-foreground">{new Date(lastOrderEntry.orderDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</span></div>
+                                )}
+                              </div>
+                              {product.prescriptionRequired && (
+                                <Badge variant="outline" className="text-[9px] border-orange-300 text-orange-600 bg-orange-50">Rx Required</Badge>
+                              )}
+                              {product.strength && (
+                                <p className="text-[11px] text-muted-foreground">Strength: {product.strength}{product.form ? ` · ${product.form}` : ""}</p>
+                              )}
+                              {/* Admin Actions */}
+                              {adminActions.length > 0 && (
+                                <div>
+                                  <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Activity</h4>
+                                  <div className="space-y-1.5">
+                                    <div className="flex items-center gap-2 text-[11px]">
+                                      <div className="size-1.5 rounded-full bg-emerald-500" />
+                                      <span className="text-foreground font-medium">Reminder Created</span>
+                                      <span className="text-muted-foreground">{new Date(reminder.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</span>
+                                    </div>
+                                    {adminActions.map((a: any, ai: number) => (
+                                      <div key={ai} className="flex items-center gap-2 text-[11px]">
+                                        <div className={`size-1.5 rounded-full ${
+                                          a.action === "paused" ? "bg-amber-500"
+                                          : a.action === "resumed" ? "bg-emerald-500"
+                                          : a.action === "rescheduled" ? "bg-blue-500"
+                                          : "bg-red-500"
+                                        }`} />
+                                        <span className="text-foreground font-medium">
+                                          Reminder {a.action} by Admin
+                                        </span>
+                                        <span className="text-muted-foreground">
+                                          {new Date(a.timestamp).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                                        </span>
+                                        {a.detail && (
+                                          <span className="text-muted-foreground/70">· {a.detail}</span>
+                                        )}
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </CardContent>
                       </Card>
                     );
@@ -1130,7 +1207,13 @@ export default function MedicineRefill() {
                 <div className="space-y-2">
                   {/* Show refill requests first */}
                   {refillRequests?.slice(0, 5).map((req) => (
-                    <Card key={req._id} className="border-border/60">
+                    <Card
+                      key={req._id}
+                      className={`border-border/60 cursor-pointer hover:shadow-md transition-all ${
+                        selectedHistoryItem === req._id ? "border-primary ring-1 ring-primary/20" : ""
+                      }`}
+                      onClick={() => setSelectedHistoryItem(selectedHistoryItem === req._id ? null : req._id)}
+                    >
                       <CardContent className="p-3">
                         <div className="flex items-center justify-between">
                           <div>
@@ -1164,6 +1247,29 @@ export default function MedicineRefill() {
                             ))}
                           </div>
                         )}
+                        {/* Expanded Refill Details */}
+                        {selectedHistoryItem === req._id && (
+                          <div className="mt-3 pt-3 border-t border-border/40 space-y-3">
+                            <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Refill Details</h4>
+                            {req.medicines.map((m, mi) => (
+                              <div key={mi} className="bg-muted/30 rounded-lg p-3 space-y-1">
+                                <p className="text-sm font-medium text-foreground">{m.productName}</p>
+                                <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
+                                  <span>Qty: {m.quantity}</span>
+                                  <span>Price: {formatCurrency(m.unitPrice)}</span>
+                                  <span>Total: {formatCurrency(m.unitPrice * m.quantity)}</span>
+                                  <span>Prescription: {m.prescriptionRequired ? "Required" : "OTC"}</span>
+                                  <span>Available: {m.available ? "Yes" : "No"}</span>
+                                </div>
+                              </div>
+                            ))}
+                            <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
+                              <span>Total: {formatCurrency(req.totalAmount)}</span>
+                              <span>Created: {new Date(req.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</span>
+                              <span>Status: {req.status.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}</span>
+                            </div>
+                          </div>
+                        )}
                       </CardContent>
                     </Card>
                   ))}
@@ -1181,7 +1287,13 @@ export default function MedicineRefill() {
                       const first = entries[0];
                       const totalAmount = entries.reduce((sum, e) => sum + e.price * e.quantity, 0);
                       return (
-                        <Card key={orderId} className="border-border/60">
+                        <Card
+                          key={orderId}
+                          className={`border-border/60 cursor-pointer hover:shadow-md transition-all ${
+                            selectedOrderItem === orderId ? "border-primary ring-1 ring-primary/20" : ""
+                          }`}
+                          onClick={() => setSelectedOrderItem(selectedOrderItem === orderId ? null : orderId)}
+                        >
                           <CardContent className="p-3">
                             <div className="flex items-center justify-between">
                               <div>
@@ -1213,6 +1325,27 @@ export default function MedicineRefill() {
                                     <span>{formatCurrency(e.price * e.quantity)}</span>
                                   </div>
                                 ))}
+                              </div>
+                            )}
+                            {/* Expanded Order Details */}
+                            {selectedOrderItem === orderId && (
+                              <div className="mt-3 pt-3 border-t border-border/40 space-y-3">
+                                <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Order Details</h4>
+                                {entries.map((e, ei) => (
+                                  <div key={ei} className="bg-muted/30 rounded-lg p-3 space-y-1">
+                                    <p className="text-sm font-medium text-foreground">{e.name}</p>
+                                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
+                                      <span>Qty: {e.quantity}</span>
+                                      <span>Price: {formatCurrency(e.price)}</span>
+                                      <span>Total: {formatCurrency(e.price * e.quantity)}</span>
+                                    </div>
+                                  </div>
+                                ))}
+                                <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted-foreground">
+                                  <span>Order Date: {new Date(first.orderDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</span>
+                                  <span>Status: {first.orderStatus.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}</span>
+                                  <span>Total: {formatCurrency(totalAmount)}</span>
+                                </div>
                               </div>
                             )}
                           </CardContent>

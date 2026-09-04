@@ -196,7 +196,7 @@ export const listReminders = query({
     const withProducts = await Promise.all(
       reminders.map(async (r) => {
         const product = await ctx.db.get(r.productId);
-        return { ...r, product };
+        return { ...r, product, adminActions: r.adminActions || [] };
       })
     );
 
@@ -394,7 +394,7 @@ export const getReminderHistory = query({
         // and nextReminderAt is in the past (due)
         const hasBeenSent = r.lastReminderAt > r.createdAt;
         const isDue = r.nextReminderAt <= Date.now();
-        return { ...r, product, hasBeenSent, isDue };
+        return { ...r, product, hasBeenSent, isDue, adminActions: r.adminActions || [] };
       })
     );
 

@@ -166,7 +166,12 @@ export const pauseReminder = mutation({
     const reminder = await ctx.db.get(args.reminderId);
     if (!reminder) throw new Error("Reminder not found");
 
-    await ctx.db.patch(args.reminderId, { isActive: false });
+    const now = Date.now();
+    const existingActions = reminder.adminActions || [];
+    await ctx.db.patch(args.reminderId, {
+      isActive: false,
+      adminActions: [...existingActions, { action: "paused", timestamp: now }],
+    });
     return { success: true };
   },
 });
@@ -183,7 +188,12 @@ export const resumeReminder = mutation({
     const reminder = await ctx.db.get(args.reminderId);
     if (!reminder) throw new Error("Reminder not found");
 
-    await ctx.db.patch(args.reminderId, { isActive: true });
+    const now = Date.now();
+    const existingActions = reminder.adminActions || [];
+    await ctx.db.patch(args.reminderId, {
+      isActive: true,
+      adminActions: [...existingActions, { action: "resumed", timestamp: now }],
+    });
     return { success: true };
   },
 });
@@ -203,7 +213,18 @@ export const rescheduleReminder = mutation({
     const reminder = await ctx.db.get(args.reminderId);
     if (!reminder) throw new Error("Reminder not found");
 
-    await ctx.db.patch(args.reminderId, { nextReminderAt: args.nextReminderAt });
+    const now = Date.now();
+    const oldDate = new Date(reminder.nextReminderAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+    const newDate = new Date(args.nextReminderAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+    const existingActions = reminder.adminActions || [];
+    await ctx.db.patch(args.reminderId, {
+      nextReminderAt: args.nextReminderAt,
+      adminActions: [...existingActions, {
+        action: "rescheduled",
+        timestamp: now,
+        detail: `Next reminder changed from ${oldDate} to ${newDate}`,
+      }],
+    });
     return { success: true };
   },
 });
@@ -220,7 +241,12 @@ export const cancelReminder = mutation({
     const reminder = await ctx.db.get(args.reminderId);
     if (!reminder) throw new Error("Reminder not found");
 
-    await ctx.db.patch(args.reminderId, { isActive: false });
+    const now = Date.now();
+    const existingActions = reminder.adminActions || [];
+    await ctx.db.patch(args.reminderId, {
+      isActive: false,
+      adminActions: [...existingActions, { action: "cancelled", timestamp: now }],
+    });
     return { success: true };
   },
 });

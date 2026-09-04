@@ -348,6 +348,12 @@ const schema = defineSchema(
       nextReminderAt: v.number(),     // timestamp when next reminder fires
       isActive: v.boolean(),
       notes: v.optional(v.string()),   // e.g. "Take after breakfast"
+      // Audit trail of admin actions on this reminder
+      adminActions: v.optional(v.array(v.object({
+        action: v.string(),           // "paused", "resumed", "rescheduled", "cancelled"
+        timestamp: v.number(),
+        detail: v.optional(v.string()), // e.g. "Next reminder changed from 17 Sept to 20 Sept"
+      }))),
       createdAt: v.number(),
     })
       .index("by_user", ["userId"])
