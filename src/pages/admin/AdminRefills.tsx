@@ -1,27 +1,81 @@
 import { useState } from "react";
-import { useQuery } from "convex/react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/auth-utils";
+import { toast } from "sonner";
 import {
   Pill,
   Clock,
   User,
   CalendarClock,
+  Pause,
+  Play,
+  RefreshCw,
+  Trash2,
+  TrendingUp,
+  AlertTriangle,
+  CheckCircle,
 } from "lucide-react";
 
 export default function AdminRefills() {
   const [selectedReminder, setSelectedReminder] = useState<any>(null);
 
   const allReminders = useQuery(api.adminRefills.listAllReminders);
+  const insights = useQuery(api.adminRefills.getAdminInsights);
+
+  // Mutations
+  const pauseReminder = useMutation(api.adminRefills.pauseReminder);
+  const resumeReminder = useMutation(api.adminRefills.resumeReminder);
+  const rescheduleReminder = useMutation(api.adminRefills.rescheduleReminder);
+  const cancelReminder = useMutation(api.adminRefills.cancelReminder);
 
   const isLoading = allReminders === undefined;
   const activeReminders = allReminders?.filter((r) => r.isActive) ?? [];
   const sortedReminders = [...activeReminders].sort(
     (a, b) => a.nextReminderAt - b.nextReminderAt
   );
+
+  const handlePause = async (id: string) => {
+    try {
+      await pauseReminder({ reminderId: id as any });
+      toast.success("Reminder paused");
+    } catch (e: any) {
+      toast.error(e.message || "Failed to pause");
+    }
+  };
+
+  const handleResume = async (id: string) => {
+    try {
+      await resumeReminder({ reminderId: id as any });
+      toast.success("Reminder resumed");
+    } catch (e: any) {
+      toast.error(e.message || "Failed to resume");
+    }
+  };
+
+  const handleReschedule = async (id: string, daysFromNow: number) => {
+    try {
+      const nextAt = Date.now() + daysFromNow * 24 * 60 * 60 * 1000;
+      await rescheduleReminder({ reminderId: id as any, nextReminderAt: nextAt });
+      toast.success(`Rescheduled to ${daysFromNow} day(s) from now`);
+    } catch (e: any) {
+      toast.error(e.message || "Failed to reschedule");
+    }
+  };
+
+  const handleCancel = async (id: string) => {
+    try {
+      await cancelReminder({ reminderId: id as any });
+      toast.success("Reminder cancelled");
+      setSelectedReminder(null);
+    } catch (e: any) {
+      toast.error(e.message || "Failed to cancel");
+    }
+  };
 
   return (
     <AdminLayout>
@@ -33,6 +87,64 @@ export default function AdminRefills() {
             Monitor customer refill reminders
           </p>
         </div>
+
+        {/* Insights Cards */}
+        {insights && (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <Card className="border-border/60">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex size-9 items-center justify-center rounded-lg bg-violet-100 text-violet-600">
+                    <CalendarClock className="size-4" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-foreground">{insights.activeReminders}</p>
+                    <p className="text-xs text-muted-foreground">Active Reminders</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="border-border/60">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex size-9 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
+                    <Clock className="size-4" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-foreground">{insights.dueThisWeek}</p>
+                    <p className="text-xs text-muted-foreground">Due This Week</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="border-border/60">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex size-9 items-center justify-center rounded-lg bg-red-100 text-red-600">
+                    <AlertTriangle className="size-4" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-foreground">{insights.overdue}</p>
+                    <p className="text-xs text-muted-foreground">Overdue</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="border-border/60">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex size-9 items-center justify-center rounded-lg bg-emerald-100 text-emerald-600">
+                    <CheckCircle className="size-4" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-foreground">{insights.refilledAfterReminder}</p>
+                    <p className="text-xs text-muted-foreground">Refilled After Reminder</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
 
         {/* Upcoming Reminders */}
         <section>
@@ -238,7 +350,7 @@ export default function AdminRefills() {
                                 </span>
                                 <span className="text-foreground flex items-center gap-1">
                                   <Clock className="size-3" />
-                                  {reminder.isActive ? "Active" : "Inactive"}
+                                  {reminder.isActive ? "Active" : "Paused"}
                                 </span>
                               </div>
                               {reminder.createdAt && (
@@ -257,6 +369,78 @@ export default function AdminRefills() {
                                   </span>
                                 </div>
                               )}
+                            </div>
+                          </div>
+
+                          {/* Admin Actions */}
+                          <div>
+                            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                              Actions
+                            </h4>
+                            <div className="flex flex-wrap gap-2">
+                              {reminder.isActive ? (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-8 text-xs gap-1"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handlePause(reminder._id);
+                                  }}
+                                >
+                                  <Pause className="size-3" />
+                                  Pause
+                                </Button>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-8 text-xs gap-1"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleResume(reminder._id);
+                                  }}
+                                >
+                                  <Play className="size-3" />
+                                  Resume
+                                </Button>
+                              )}
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-8 text-xs gap-1"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleReschedule(reminder._id, 7);
+                                }}
+                              >
+                                <RefreshCw className="size-3" />
+                                +7 Days
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-8 text-xs gap-1"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleReschedule(reminder._id, 30);
+                                }}
+                              >
+                                <RefreshCw className="size-3" />
+                                +30 Days
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-8 text-xs gap-1 text-destructive hover:bg-destructive/5"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleCancel(reminder._id);
+                                }}
+                              >
+                                <Trash2 className="size-3" />
+                                Cancel
+                              </Button>
                             </div>
                           </div>
                         </div>

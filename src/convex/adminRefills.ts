@@ -153,3 +153,117 @@ export const listAllReminders = query({
     return withDetails;
   },
 });
+
+// ── Pause a reminder (admin) ──
+export const pauseReminder = mutation({
+  args: { reminderId: v.id("refill_reminders") },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
+    const user = await ctx.db.get(userId);
+    if (!user || user.role !== "admin") throw new Error("Not authorized");
+
+    const reminder = await ctx.db.get(args.reminderId);
+    if (!reminder) throw new Error("Reminder not found");
+
+    await ctx.db.patch(args.reminderId, { isActive: false });
+    return { success: true };
+  },
+});
+
+// ── Resume a reminder (admin) ──
+export const resumeReminder = mutation({
+  args: { reminderId: v.id("refill_reminders") },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
+    const user = await ctx.db.get(userId);
+    if (!user || user.role !== "admin") throw new Error("Not authorized");
+
+    const reminder = await ctx.db.get(args.reminderId);
+    if (!reminder) throw new Error("Reminder not found");
+
+    await ctx.db.patch(args.reminderId, { isActive: true });
+    return { success: true };
+  },
+});
+
+// ── Reschedule a reminder (admin) ──
+export const rescheduleReminder = mutation({
+  args: {
+    reminderId: v.id("refill_reminders"),
+    nextReminderAt: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
+    const user = await ctx.db.get(userId);
+    if (!user || user.role !== "admin") throw new Error("Not authorized");
+
+    const reminder = await ctx.db.get(args.reminderId);
+    if (!reminder) throw new Error("Reminder not found");
+
+    await ctx.db.patch(args.reminderId, { nextReminderAt: args.nextReminderAt });
+    return { success: true };
+  },
+});
+
+// ── Cancel a reminder (admin) ──
+export const cancelReminder = mutation({
+  args: { reminderId: v.id("refill_reminders") },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
+    const user = await ctx.db.get(userId);
+    if (!user || user.role !== "admin") throw new Error("Not authorized");
+
+    const reminder = await ctx.db.get(args.reminderId);
+    if (!reminder) throw new Error("Reminder not found");
+
+    await ctx.db.patch(args.reminderId, { isActive: false });
+    return { success: true };
+  },
+});
+
+// ── Admin insights: simple refill dashboard stats ──
+export const getAdminInsights = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
+    const user = await ctx.db.get(userId);
+    if (!user || user.role !== "admin") throw new Error("Not authorized");
+
+    const now = Date.now();
+    const weekMs = 7 * 24 * 60 * 60 * 1000;
+
+    const reminders = await ctx.db.query("refill_reminders").collect();
+    const refillRequests = await ctx.db.query("refill_requests").collect();
+
+    // Reminders due this week
+    const dueThisWeek = reminders.filter(
+      (r) => r.isActive && r.nextReminderAt >= now && r.nextReminderAt <= now + weekMs
+    ).length;
+
+    // Reminders currently overdue
+    const overdue = reminders.filter(
+      (r) => r.isActive && r.nextReminderAt <= now
+    ).length;
+
+    // Total active reminders
+    const activeReminders = reminders.filter((r) => r.isActive).length;
+
+    // Customers who refilled after a reminder (have a refill_request with reminderId)
+    const refilledAfterReminder = refillRequests.filter(
+      (r) => r.reminderId != null
+    ).length;
+
+    return {
+      dueThisWeek,
+      overdue,
+      activeReminders,
+      refilledAfterReminder,
+      totalRefillRequests: refillRequests.length,
+    };
+  },
+});

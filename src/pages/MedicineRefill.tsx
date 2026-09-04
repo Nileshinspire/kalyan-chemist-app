@@ -56,6 +56,39 @@ export default function MedicineRefill() {
   const removeReminder = useMutation(api.refills.removeReminder);
   const addToCart = useMutation(api.refills.addToCart);
   const createRefillRequest = useMutation(api.refills.createRefillRequest);
+  const postponeReminder = useMutation(api.refills.postponeReminder);
+  const reminderHistory = useQuery(api.refills.getReminderHistory);
+
+  // Per-medicine activity timeline built from existing data
+  const [timelineProductId, setTimelineProductId] = useState<string | null>(null);
+  const medicineTimeline = useMemo(() => {
+    if (!timelineProductId) return [];
+    const events: { type: string; label: string; date: number; detail?: string }[] = [];
+    // Orders
+    for (const h of orderHistory || []) {
+      if (h.productId !== timelineProductId) continue;
+      events.push({
+        type: "order",
+        label: h.orderStatus === "delivered" ? "Order Delivered" : "Order Placed",
+        date: h.orderDate,
+        detail: `Qty: ${h.quantity}`,
+      });
+    }
+    // Reminders
+    for (const r of reminders || []) {
+      if (r.productId !== (timelineProductId as any)) continue;
+      events.push({ type: "reminder_set", label: "Reminder Set", date: r.createdAt, detail: `Every ${r.intervalDays} days` });
+      if (r.lastReminderAt > r.createdAt) {
+        events.push({ type: "reminder_sent", label: "Reminder Sent", date: r.lastReminderAt });
+      }
+    }
+    // Refill requests containing this product
+    for (const req of refillRequests || []) {
+      if (!req.medicines.some((m) => m.productId === timelineProductId)) continue;
+      events.push({ type: "refill", label: "Customer Refilled", date: req.createdAt, detail: req.status });
+    }
+    return events.sort((a, b) => b.date - a.date);
+  }, [timelineProductId, orderHistory, reminders, refillRequests]);
 
   // UI state
   const [selectedForRefill, setSelectedForRefill] = useState<Set<Id<"products">>>(new Set());
@@ -174,6 +207,15 @@ export default function MedicineRefill() {
       toast.success("Reminder removed");
     } catch (error: any) {
       toast.error(error.message || "Failed to remove");
+    }
+  };
+
+  const handlePostponeReminder = async (id: Id<"refill_reminders">, extraDays: number) => {
+    try {
+      await postponeReminder({ reminderId: id, extraDays });
+      toast.success(`Reminder postponed by ${extraDays} days`);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to postpone");
     }
   };
 
@@ -767,7 +809,42 @@ export default function MedicineRefill() {
                                   >
                                     <Trash2 className="size-3.5 text-muted-foreground" />
                                   </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-8 w-8 p-0"
+                                    onClick={() =>
+                                      setTimelineProductId(
+                                        timelineProductId === (item.productId as string) ? null : (item.productId as string)
+                                      )
+                                    }
+                                    title="Activity"
+                                  >
+                                    <Clock className="size-3.5 text-muted-foreground" />
+                                  </Button>
                                 </div>
+
+                                {/* Inline Activity Timeline Toggle */}
+                                {medicineTimeline.length > 0 && timelineProductId === (item.productId as string) && (
+                                  <div className="mt-3 pt-3 border-t border-border/40 space-y-1.5">
+                                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Activity</p>
+                                    {medicineTimeline.slice(0, 5).map((evt, ei) => (
+                                      <div key={ei} className="flex items-center gap-2 text-[11px]">
+                                        <div className={`size-1.5 rounded-full ${
+                                          evt.type === "order" ? "bg-emerald-500"
+                                          : evt.type === "refill" ? "bg-blue-500"
+                                          : evt.type === "reminder_sent" ? "bg-amber-500"
+                                          : "bg-violet-500"
+                                        }`} />
+                                        <span className="text-foreground font-medium">{evt.label}</span>
+                                        <span className="text-muted-foreground">
+                                          {new Date(evt.date).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                                        </span>
+                                        {evt.detail && <span className="text-muted-foreground/70">· {evt.detail}</span>}
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
                             </div>
                           </CardContent>
@@ -961,6 +1038,26 @@ export default function MedicineRefill() {
                                 Refill Now
                               </Button>
                             )}
+                            {!isDue && (
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 text-[10px]"
+                                  onClick={() => handlePostponeReminder(reminder._id, 3)}
+                                >
+                                  +3d
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 text-[10px]"
+                                  onClick={() => handlePostponeReminder(reminder._id, 7)}
+                                >
+                                  +7d
+                                </Button>
+                              </div>
+                            )}
                             <Button
                               size="sm"
                               variant="outline"
@@ -1123,6 +1220,61 @@ export default function MedicineRefill() {
                       );
                     });
                   })()}
+                </div>
+              </section>
+            )}
+
+            {/* ── Reminder History ── */}
+            {reminderHistory && reminderHistory.length > 0 && (
+              <section>
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="flex size-8 items-center justify-center rounded-lg bg-indigo-100 text-indigo-600">
+                    <Bell className="size-4" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-semibold text-foreground">Reminder History</h2>
+                    <p className="text-sm text-muted-foreground">
+                      Past refill reminders that were sent
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  {reminderHistory.slice(0, 10).map((r) => {
+                    const product = r.product as any;
+                    if (!product) return null;
+                    return (
+                      <Card key={r._id} className="border-border/60">
+                        <CardContent className="p-3 flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="flex size-7 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
+                              <Bell className="size-3.5" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-foreground">
+                                {product.name}{product.strength ? ` ${product.strength}` : ""}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                Reminder sent: {new Date(r.lastReminderAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                                {r.isDue && " · Due now"}
+                              </p>
+                            </div>
+                          </div>
+                          {r.isDue ? (
+                            <Button
+                              size="sm"
+                              className="h-7 text-[10px] gradient-primary text-white"
+                              onClick={() => handleRefillNow(r.productId, 1)}
+                              disabled={refillingId === (r.productId as string)}
+                            >
+                              Refill Now
+                            </Button>
+                          ) : (
+                            <Badge variant="secondary" className="text-[10px]">Sent</Badge>
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
                 </div>
               </section>
             )}

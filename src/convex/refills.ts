@@ -272,6 +272,139 @@ export const removeReminder = mutation({
   },
 });
 
+// ── Postpone a reminder by N days (Remind Me Later) ──
+export const postponeReminder = mutation({
+  args: {
+    reminderId: v.id("refill_reminders"),
+    extraDays: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
+
+    const reminder = await ctx.db.get(args.reminderId);
+    if (!reminder || reminder.userId !== userId) {
+      throw new Error("Not found");
+    }
+
+    const newNext = Math.max(reminder.nextReminderAt, Date.now()) + args.extraDays * 24 * 60 * 60 * 1000;
+    await ctx.db.patch(args.reminderId, {
+      nextReminderAt: newNext,
+      lastReminderAt: Date.now(),
+    });
+
+    return { success: true, nextReminderAt: newNext };
+  },
+});
+
+// ── Get activity timeline for a specific medicine ──
+export const getActivityTimeline = query({
+  args: { productId: v.id("products") },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) return [];
+
+    const events: { type: string; label: string; date: number; detail?: string }[] = [];
+
+    // 1. Order history for this product
+    const orders = await ctx.db
+      .query("orders")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+
+    for (const order of orders) {
+      if (order.paymentStatus === "failed") continue;
+      const hasProduct = order.items.some((i) => i.productId === args.productId);
+      if (!hasProduct) continue;
+
+      const item = order.items.find((i) => i.productId === args.productId);
+      events.push({
+        type: "order",
+        label: order.status === "delivered" ? "Order Delivered" : "Order Placed",
+        date: order.createdAt,
+        detail: `Qty: ${item?.quantity ?? 1}`,
+      });
+    }
+
+    // 2. Refill requests for this product
+    const refillReqs = await ctx.db
+      .query("refill_requests")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+
+    for (const req of refillReqs) {
+      const hasProduct = req.medicines.some((m) => m.productId === args.productId);
+      if (!hasProduct) continue;
+      events.push({
+        type: "refill",
+        label: "Customer Refilled",
+        date: req.createdAt,
+        detail: req.status.replace(/_/g, " "),
+      });
+    }
+
+    // 3. Reminders for this product
+    const reminders = await ctx.db
+      .query("refill_reminders")
+      .withIndex("by_user_active", (q) =>
+        q.eq("userId", userId).eq("isActive", true)
+      )
+      .collect();
+
+    for (const r of reminders) {
+      if (r.productId !== args.productId) continue;
+      events.push({
+        type: "reminder_set",
+        label: "Reminder Set",
+        date: r.createdAt,
+        detail: `Every ${r.intervalDays} days`,
+      });
+      if (r.lastReminderAt > r.createdAt) {
+        events.push({
+          type: "reminder_sent",
+          label: "Reminder Sent",
+          date: r.lastReminderAt,
+        });
+      }
+    }
+
+    // Sort by date descending
+    return events.sort((a, b) => b.date - a.date);
+  },
+});
+
+// ── Get reminder history (past due reminders) ──
+export const getReminderHistory = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) return [];
+
+    const reminders = await ctx.db
+      .query("refill_reminders")
+      .withIndex("by_user_active", (q) =>
+        q.eq("userId", userId).eq("isActive", true)
+      )
+      .collect();
+
+    const withProducts = await Promise.all(
+      reminders.map(async (r) => {
+        const product = await ctx.db.get(r.productId);
+        // A reminder has been "sent" if lastReminderAt is after creation
+        // and nextReminderAt is in the past (due)
+        const hasBeenSent = r.lastReminderAt > r.createdAt;
+        const isDue = r.nextReminderAt <= Date.now();
+        return { ...r, product, hasBeenSent, isDue };
+      })
+    );
+
+    // Return reminders that have been sent at least once
+    return withProducts
+      .filter((r) => r.product !== null && r.hasBeenSent)
+      .sort((a, b) => b.lastReminderAt - a.lastReminderAt);
+  },
+});
+
 // ── Add selected medicines to cart (refill flow) ──
 export const addToCart = mutation({
   args: {
