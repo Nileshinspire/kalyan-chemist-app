@@ -313,6 +313,31 @@ export default function AdminRefills() {
                                   </Badge>
                                 )}
                               </div>
+
+                              {/* Inventory Status */}
+                              <div className="mt-3 pt-2 border-t border-border/40">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Inventory</span>
+                                  {product?.stockQuantity != null && (
+                                    <Badge
+                                      variant="outline"
+                                      className={`text-[10px] ${
+                                        product.stockQuantity === 0
+                                          ? "border-red-300 text-red-600 bg-red-50"
+                                          : product.stockQuantity <= 5
+                                            ? "border-amber-300 text-amber-600 bg-amber-50"
+                                            : "border-green-300 text-green-600 bg-green-50"
+                                      }`}
+                                    >
+                                      {product.stockQuantity === 0
+                                        ? "Out of Stock"
+                                        : product.stockQuantity <= 5
+                                          ? `Low Stock (${product.stockQuantity})`
+                                          : `Available (${product.stockQuantity})`}
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
                             </div>
                           </div>
 

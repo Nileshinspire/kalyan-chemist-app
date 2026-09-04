@@ -1019,18 +1019,33 @@ export default function MedicineRefill() {
                       (h) => h.productId === (reminder.productId as any)
                     );
 
+                    const isActive = reminder.isActive;
+                    const lastAdminAction = adminActions.length > 0 ? adminActions[adminActions.length - 1] : null;
+                    const adminStatus = !isActive && lastAdminAction
+                      ? lastAdminAction.action === "paused" ? "Paused by Admin"
+                      : lastAdminAction.action === "cancelled" ? "Cancelled by Admin"
+                      : lastAdminAction.action === "resumed" ? "Resumed by Admin"
+                      : ""
+                      : "";
+
                     return (
                       <Card
                         key={reminder._id}
                         className={`border-border/60 cursor-pointer hover:shadow-md transition-all ${
-                          isDue ? "border-amber-300 bg-amber-50/30" : ""
+                          !isActive ? "border-gray-300 bg-gray-50/30 opacity-80"
+                          : isDue ? "border-amber-300 bg-amber-50/30"
+                          : ""
                         } ${isExpanded ? "border-primary ring-1 ring-primary/20" : ""}`}
                         onClick={() => setSelectedReminderDetail(isExpanded ? null : reminder._id)}
                       >
                         <CardContent className="p-4">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                              <div className={`flex size-8 items-center justify-center rounded-lg ${isDue ? "bg-amber-100 text-amber-600" : "bg-violet-100 text-violet-600"}`}>
+                              <div className={`flex size-8 items-center justify-center rounded-lg ${
+                                !isActive ? "bg-gray-100 text-gray-500"
+                                : isDue ? "bg-amber-100 text-amber-600"
+                                : "bg-violet-100 text-violet-600"
+                              }`}>
                                 <CalendarClock className="size-4" />
                               </div>
                               <div>
@@ -1040,12 +1055,23 @@ export default function MedicineRefill() {
                                 </p>
                                 <p className="text-xs text-muted-foreground">
                                   Every {reminder.intervalDays} days · Next:{" "}
-                                  {isDue ? "Due now" : nextDate.toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                                  {!isActive ? "Stopped" : isDue ? "Due now" : nextDate.toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
                                 </p>
+                                {adminStatus && (
+                                  <Badge variant="outline" className="text-[9px] border-gray-300 text-gray-600 bg-gray-50 mt-1">
+                                    {adminStatus}
+                                    {lastAdminAction?.detail ? ` · ${lastAdminAction.detail}` : lastAdminAction?.timestamp ? ` · ${new Date(lastAdminAction.timestamp).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}` : ""}
+                                  </Badge>
+                                )}
+                                {!isActive && !adminStatus && (
+                                  <Badge variant="outline" className="text-[9px] border-gray-300 text-gray-600 bg-gray-50 mt-1">
+                                    Paused
+                                  </Badge>
+                                )}
                               </div>
                             </div>
                             <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                              {isDue && (
+                              {isActive && isDue && (
                                 <Button
                                   size="sm"
                                   className="h-8 text-xs gradient-primary text-white"
@@ -1058,7 +1084,7 @@ export default function MedicineRefill() {
                                   Refill Now
                                 </Button>
                               )}
-                              {!isDue && (
+                              {isActive && !isDue && (
                                 <div className="flex items-center gap-1">
                                   <Button
                                     size="sm"
@@ -1161,10 +1187,10 @@ export default function MedicineRefill() {
                     {regularMedicines.map((item) => {
                       const product = item.product as any;
                       if (!product) return null;
-                      const hasReminderForThis = reminders?.some(
-                        (r) => r.productId === item.productId
+                      const hasActiveReminder = reminders?.some(
+                        (r) => r.productId === item.productId && (r as any).isActive
                       );
-                      if (hasReminderForThis) return null;
+                      if (hasActiveReminder) return null;
 
                       return (
                         <Button
@@ -1375,11 +1401,19 @@ export default function MedicineRefill() {
                   {reminderHistory.slice(0, 10).map((r) => {
                     const product = r.product as any;
                     if (!product) return null;
+                    const histAdminActions = (r as any).adminActions || [];
+                    const histLastAction = histAdminActions.length > 0 ? histAdminActions[histAdminActions.length - 1] : null;
+                    const histStatus = !(r as any).isActive && histLastAction
+                      ? histLastAction.action === "paused" ? "Paused by Admin"
+                      : histLastAction.action === "cancelled" ? "Cancelled by Admin"
+                      : ""
+                      : (r as any).isActive ? "Active" : "Paused";
+
                     return (
                       <Card key={r._id} className="border-border/60">
                         <CardContent className="p-3 flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                            <div className="flex size-7 items-center justify-center rounded-lg bg-indigo-50 text-indigo-600">
+                            <div className={`flex size-7 items-center justify-center rounded-lg ${(r as any).isActive ? "bg-indigo-50 text-indigo-600" : "bg-gray-100 text-gray-500"}`}>
                               <Bell className="size-3.5" />
                             </div>
                             <div>
@@ -1388,11 +1422,14 @@ export default function MedicineRefill() {
                               </p>
                               <p className="text-xs text-muted-foreground">
                                 Reminder sent: {new Date(r.lastReminderAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
-                                {r.isDue && " · Due now"}
+                                {!(r as any).isActive ? " · Stopped" : r.isDue ? " · Due now" : ""}
                               </p>
+                              <Badge variant="outline" className="text-[9px] border-gray-300 text-gray-600 bg-gray-50 mt-1">
+                                {histStatus}
+                              </Badge>
                             </div>
                           </div>
-                          {r.isDue ? (
+                          {(r as any).isActive && r.isDue ? (
                             <Button
                               size="sm"
                               className="h-7 text-[10px] gradient-primary text-white"

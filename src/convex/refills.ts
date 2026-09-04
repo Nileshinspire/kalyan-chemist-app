@@ -179,18 +179,17 @@ export const getSuggestionsFromOrders = query({
   },
 });
 
-// ── Get refill reminders for current user ──
+// ── Get refill reminders for current user (ALL statuses) ──
 export const listReminders = query({
   args: {},
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) return [];
 
+    // Query ALL reminders (active, paused, cancelled) so customer can always see them
     const reminders = await ctx.db
       .query("refill_reminders")
-      .withIndex("by_user_active", (q) =>
-        q.eq("userId", userId).eq("isActive", true)
-      )
+      .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
 
     const withProducts = await Promise.all(
@@ -373,25 +372,22 @@ export const getActivityTimeline = query({
   },
 });
 
-// ── Get reminder history (past due reminders) ──
+// ── Get reminder history (all reminders, including inactive) ──
 export const getReminderHistory = query({
   args: {},
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) return [];
 
+    // Query ALL reminders so customer can see paused/cancelled ones
     const reminders = await ctx.db
       .query("refill_reminders")
-      .withIndex("by_user_active", (q) =>
-        q.eq("userId", userId).eq("isActive", true)
-      )
+      .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
 
     const withProducts = await Promise.all(
       reminders.map(async (r) => {
         const product = await ctx.db.get(r.productId);
-        // A reminder has been "sent" if lastReminderAt is after creation
-        // and nextReminderAt is in the past (due)
         const hasBeenSent = r.lastReminderAt > r.createdAt;
         const isDue = r.nextReminderAt <= Date.now();
         return { ...r, product, hasBeenSent, isDue, adminActions: r.adminActions || [] };
