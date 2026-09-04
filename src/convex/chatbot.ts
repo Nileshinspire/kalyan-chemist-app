@@ -24,12 +24,17 @@ function normalizeText(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]/g, "").trim();
 }
 
-// ─── Medical safety keywords ───
+// ─── Medical safety keywords (personal-advice only) ───
+// These represent decisions about the CUSTOMER's own treatment. General,
+// factual product-information questions (e.g. "what is Dolo 650 used for?")
+// are handled by the product_info intent and must NOT hit this list.
 const MEDICAL_SAFETY_TRIGGERS = [
-  "diagnos", "prescribe", "prescription", "dosage", "dose", "how much should i take",
-  "should i stop", "should i start", "side effect", "drug interaction", "replace",
-  "substitute", "instead of", "is it safe", "can i take", "which medicine for",
-  "what medicine for", "treat", "cure", "symptom",
+  "diagnos", "prescribe", "dosage", "dose", "how much should i take",
+  "how many should i take", "should i stop", "should i start", "should i take",
+  "should i continue", "side effect", "drug interaction", "replace", "substitute",
+  "instead of", "is it safe", "are there any side", "can i take", "can i use for",
+  "which medicine for", "what medicine for", "what should i take", "medicine for",
+  "treatment for", "treat", "cure", "symptom",
 ];
 
 const MEDICAL_SAFETY_REPLY =
@@ -38,50 +43,213 @@ const MEDICAL_SAFETY_REPLY =
   "Would you like me to connect you with our pharmacist support team?";
 
 // ─── Intent classification ───
+// Priority order matters: specific action/question checks must run BEFORE broad
+// keyword checks so real queries are answered directly instead of falling into
+// a generic bucket. The capability menu ("help") only fires for explicit
+// capability questions or genuinely unclear messages.
 function classifyIntent(text: string): string {
   const t = text.toLowerCase();
 
-  // Medical safety check first
+  // 0. Explicit capability question → the menu is the right answer here
+  if (/\b(what can you do|what do you do|what can i ask|what are your features|your capabilities|how do you work)\b/.test(t)) {
+    return "help";
+  }
+
+  // 1. Navigation commands — "open cart", "take me to my orders", "show lab tests"
+  if (/\b(open|show|take me|go to|goto|navigate)\b/.test(t) &&
+      /\b(cart|checkout|orders?|account|profile|prescriptions?|refill|wishlist|notifications?|appointment|doctor|lab tests?)\b/.test(t)) {
+    return "navigation";
+  }
+  // 1b. Prescription upload requests route to the existing prescription page
+  if (/\b(upload|send|share)\b/.test(t) && /\bprescription\b/.test(t)) {
+    return "navigation";
+  }
+
+  // 2. Doctor appointment booking
+  if (/\b(doctor|appointment|consultation)\b/.test(t) &&
+      /\b(book|booking|schedule|slot|how|kaise|kese|consult)\b/.test(t)) {
+    return "appointment_booking";
+  }
+
+  // 3. Lab test / package booking
+  if (/\b(lab test|lab tests|blood test|checkup|health package|lab package)\b/.test(t) &&
+      /\b(book|booking|how|kaise|kese|get|do|offer|available|have)\b/.test(t)) {
+    return "lab_booking";
+  }
+
+  // 4. How to order / buy / book medicines (incl. Hinglish)
+  //    (doctor/lab booking intents are handled above, so "book" here means medicines)
+  if (/\b(order|buy|purchase|kharid|book)\b/.test(t) && /\b(how|kaise|kese|process|steps|procedure)\b/.test(t)) {
+    return "how_to_order";
+  }
+  if (/\bhow (do|can) i (order|buy|get|purchase|book)\b/.test(t) || /\bmedicine kaise (order|kharid|book)/.test(t)) {
+    return "how_to_order";
+  }
+
+  // 5. Cancel / refund requests about an order → human support
+  if (/\b(cancel|refund|return)\b/.test(t) && /\border\b/.test(t)) {
+    return "complaint";
+  }
+
+  // 6. Order tracking — includes explicit order refs like "#A1B2C3"
+  if (/#[a-z0-9]{3,8}\b/.test(t) ||
+      /\b(track|where is my|order status|my order|shipped|dispatched|out for delivery|has my order|when will my order)\b/.test(t)) {
+    return "order_tracking";
+  }
+
+  // 7. Refill
+  if (/\b(refill|reorder|repeat prescription|when should i refill|which medicines are due|medicines due|refill due)\b/.test(t)) {
+    return "refill";
+  }
+
+  // 8. Availability — "Is Dolo 650 available?", "Do you have Brufen 400mg?"
+  if (/\b(available|availability|in stock|out of stock|stock|do you have|do u have|have you got)\b/.test(t)) {
+    return "availability";
+  }
+
+  // 9. Price — "What's the price of Crocin?", "How much is Dolo 650?"
+  if (/\b(price|cost|rate|mrp|charges|how much)\b/.test(t)) {
+    return "price";
+  }
+
+  // 10. Product INFORMATION — "What is Dolo 650 used for?", "Tell me about Brufen 400mg"
+  //     Checked BEFORE personal-medical safety so factual product questions get
+  //     real answers. Personal markers route treatment questions to safety instead.
+  const personalMarkers = /\b(my |i have|i am feeling|should i|for me)\b/.test(t);
+  const productInfoRe =
+    /\b(used for|uses of|use of|used to|composition of|tell me about|details (of|about|for)|information (about|on|of)|info (about|on|of)|what does .* (do|treat))\b/;
+  const whatIsRe = /\bwhat is (?!your\b|the\b|this\b|kalyan\b)[a-z0-9]/;
+  // Dosage questions are personal treatment decisions, even in "what is" form
+  const dosageQuestion = /\b(dosage|dose)\b/.test(t);
+  if (!personalMarkers && !dosageQuestion && (productInfoRe.test(t) || whatIsRe.test(t))) {
+    return "product_info";
+  }
+  // "Does X require prescription?" is a product attribute, not medical advice
+  if (/\b(prescription required|require[s]? prescription|need[s]? prescription|prescription needed)\b/.test(t)) {
+    return "product_info";
+  }
+
+  // 11. Personal medical advice → safety / pharmacist handoff
   if (MEDICAL_SAFETY_TRIGGERS.some((kw) => t.includes(kw))) {
     return "medical_question";
   }
 
-  // Order tracking
-  if (/\b(order|track|delivery|delivered|status|where is|shipment)\b/.test(t)) {
-    return "order_tracking";
-  }
-
-  // Refill
-  if (/\b(refill|reorder|repeat|previous.*order|again|last time)\b/.test(t)) {
-    return "refill";
-  }
-
-  // Product search
-  if (/\b(search|find|show|look for|available|price|cost|stock|buy|need|want|where)\b/.test(t)) {
+  // 12. Product search
+  if (/\b(search|find|show|look for|looking for|need|want|buy|get|get me)\b/.test(t)) {
     return "product_search";
   }
 
-  // Navigation
-  if (/\b(cart|checkout|account|profile|prescription|appointment|lab test|refill page)\b/.test(t)) {
-    return "navigation";
-  }
-
-  // Complaint / frustration
-  if (/\b(complaint|problem|issue|wrong|broken|terrible|worst|angry|frustrat|unaccept|refund|cancel)\b/.test(t)) {
+  // 13. Complaint / frustration
+  if (/\b(complaint|problem|issue|wrong|broken|terrible|worst|angry|frustrat|unaccept)\b/.test(t)) {
     return "complaint";
   }
 
-  // Greeting
-  if (/\b(hello|hi|hey|good morning|good evening|namaste)\b/.test(t)) {
+  // 14. Greeting
+  if (/\b(hello|hi|hey|good morning|good evening|good afternoon|namaste)\b/.test(t)) {
     return "greeting";
   }
 
-  // Help
-  if (/\b(help|how to|what can|what do you|features|guide|support)\b/.test(t)) {
+  // 15. Help
+  if (/\b(help|guide|support|features)\b/.test(t)) {
     return "help";
   }
 
+  // 16. Genuinely unclear → short clarifying question (handled in generateResponse)
   return "general";
+}
+
+// ─── Search-term extraction (strips question/stop words, keeps brand + strength) ───
+function extractSearchTerms(t: string): string {
+  return t
+    .replace(/\b(what|whats|which|is|are|was|the|a|an|of|for|about|tell|me|details|detail|information|info|composition|used|use|uses|does|do|did|you|u|your|have|has|had|get|give|show|price|prices|cost|rate|mrp|charges|how|much|many|available|availability|stock|in|on|at|please|can|could|would|will|i|my|it|its|this|that|there|medicine|medicines|product|products|item|items|brand|any|need|want|know|and|or|with|to|search|find|finds|looking|look|help|something|anything|seeking|check|checking)\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// ─── Shared product lookup (fuzzy, typo-tolerant) ───
+async function findProducts(
+  ctx: any,
+  searchTerms: string,
+  opts?: { includeOutOfStock?: boolean; limit?: number }
+): Promise<{ product: any; score: number }[]> {
+  const allProducts = await ctx.db.query("products").collect();
+  const searchWords = searchTerms.split(/\s+/).filter((w: string) => w.length > 1);
+  const includeOutOfStock = opts?.includeOutOfStock ?? false;
+  const limit = opts?.limit ?? 5;
+
+  return allProducts
+    .filter((p: any) => p.isActive && (includeOutOfStock || p.stockQuantity > 0))
+    .map((p: any) => {
+      const nameNorm = normalizeText(p.name);
+      const compNorm = normalizeText(p.composition || "");
+      let score = 0;
+
+      for (const word of searchWords) {
+        const wNorm = normalizeText(word);
+        if (nameNorm.includes(wNorm)) score += 10;
+        if (compNorm.includes(wNorm)) score += 8;
+        if (levenshtein(wNorm, nameNorm.substring(0, wNorm.length)) <= 2) score += 5;
+        for (const nameWord of nameNorm.split(/\s+/)) {
+          if (nameWord.startsWith(wNorm) || wNorm.startsWith(nameWord)) score += 3;
+        }
+      }
+      return { product: p, score };
+    })
+    .filter((item: any) => item.score > 0)
+    .sort((a: any, b: any) => b.score - a.score)
+    .slice(0, limit);
+}
+
+// ─── Context fallback: resolve products from the previous assistant message ───
+// Lets follow-ups like "how much is it?" / "is it available?" work without
+// forcing the customer to repeat the medicine name.
+async function resolveContextProducts(
+  ctx: any,
+  contextProductIds: string[] | undefined
+): Promise<{ product: any; score: number }[]> {
+  if (contextProductIds?.length) {
+    const docs = await Promise.all(
+      contextProductIds.slice(0, 3).map((id: string) => ctx.db.get(id as any))
+    );
+    return docs.filter(Boolean).map((p: any) => ({ product: p, score: 0 }));
+  }
+  return [];
+}
+
+// ─── Formatting helpers ───
+function priceLabel(p: any): string {
+  return p.discountPrice && p.discountPrice < p.price
+    ? `₹${p.discountPrice} (MRP ₹${p.price})`
+    : `₹${p.price}`;
+}
+
+function stockLabel(p: any): string {
+  return p.stockQuantity > 0 ? "In Stock" : "Out of Stock";
+}
+
+function trimText(s: string, max: number): string {
+  const clean = s.replace(/\s+/g, " ").trim();
+  if (clean.length <= max) return clean;
+  const cut = clean.lastIndexOf(" ", max);
+  return clean.slice(0, cut > 0 ? cut : max) + "…";
+}
+
+function formatOrder(o: any): string {
+  const statusEmoji: Record<string, string> = {
+    pending: "⏳", confirmed: "✅", processing: "📦", ready_for_dispatch: "🚚",
+    out_for_delivery: "🏍️", delivered: "🎉", cancelled: "❌",
+    refund_initiated: "🔄", refunded: "💰",
+  };
+  const items = o.items.map((i: any) => `${i.name} × ${i.quantity}`).join(", ");
+  const date = new Date(o.createdAt).toLocaleDateString("en-IN", {
+    day: "numeric", month: "short", year: "numeric",
+  });
+  const emoji = statusEmoji[o.status] || "❓";
+  return (
+    `• **Order #${o._id.slice(-6).toUpperCase()}** ${emoji} ${o.status.replace(/_/g, " ")}\n` +
+    `  ${items}\n` +
+    `  ₹${o.totalAmount} • ${date}`
+  );
 }
 
 // ─── Sentiment detection ───
@@ -113,7 +281,8 @@ async function generateResponse(
   ctx: any,
   intent: string,
   text: string,
-  userId: string
+  userId: string,
+  contextProductIds?: string[]
 ): Promise<{ content: string; productIds?: string[]; orderIds?: string[] }> {
   const t = text.toLowerCase();
 
@@ -150,66 +319,32 @@ async function generateResponse(
     }
 
     case "product_search": {
-      // Extract search query - remove common stop words
-      const searchTerms = t
-        .replace(/\b(search|find|show|look for|available|price|cost|stock|buy|need|want|where|is|the|a|an|for|me|of|in|to|please|can|i|do|you|have|get|give)\b/g, " ")
-        .replace(/\s+/g, " ")
-        .trim();
+      const searchTerms = extractSearchTerms(t);
 
+      // Ambiguous request like "I need medicine" → short clarifying question,
+      // not a capability list and not a empty-result error.
       if (!searchTerms || searchTerms.length < 2) {
         return {
           content:
-            "Please tell me what medicine or product you're looking for. For example:\n\n" +
-            "\"Find Dolo 650\"\n\"Search for Vitamin C\"\n\"Is Brufen available?\"",
+            'Sure — which medicine are you looking for? Just type its name (for example, "Dolo 650" or "Vitamin C") ' +
+            "and I'll check availability and price for you.",
         };
       }
 
-      // Search products in database
-      const allProducts = await ctx.db.query("products").collect();
-      const searchWords = searchTerms.split(/\s+/).filter((w: string) => w.length > 1);
-
-      const scored = allProducts
-        .filter((p: any) => p.isActive && p.stockQuantity > 0)
-        .map((p: any) => {
-          const nameNorm = normalizeText(p.name);
-          const compNorm = normalizeText(p.composition || "");
-          let score = 0;
-
-          for (const word of searchWords) {
-            const wNorm = normalizeText(word);
-            // Exact substring match in name
-            if (nameNorm.includes(wNorm)) score += 10;
-            // Exact substring match in composition
-            if (compNorm.includes(wNorm)) score += 8;
-            // Fuzzy match in name
-            if (levenshtein(wNorm, nameNorm.substring(0, wNorm.length)) <= 2) score += 5;
-            // Partial word match
-            for (const nameWord of nameNorm.split(/\s+/)) {
-              if (nameWord.startsWith(wNorm) || wNorm.startsWith(nameWord)) score += 3;
-            }
-          }
-          return { product: p, score };
-        })
-        .filter((item: any) => item.score > 0)
-        .sort((a: any, b: any) => b.score - a.score)
-        .slice(0, 5);
+      const scored = await findProducts(ctx, searchTerms, { includeOutOfStock: false, limit: 5 });
 
       if (scored.length === 0) {
-        // Also check unavailable products
-        const unavailable = allProducts
-          .filter((p: any) => p.isActive && p.stockQuantity === 0)
-          .filter((p: any) => {
-            const nameNorm = normalizeText(p.name);
-            return searchWords.some((w: string) => nameNorm.includes(normalizeText(w)));
-          });
-
+        // Also check out-of-stock products for the same terms
+        const unavailable = await findProducts(ctx, searchTerms, { includeOutOfStock: true, limit: 3 });
         if (unavailable.length > 0) {
-          const names = unavailable.slice(0, 3).map((p: any) => `• **${p.name}** (${p.manufacturer})`).join("\n");
+          const names = unavailable
+            .map(({ product: p }: any) => `• **${p.name}** (${p.manufacturer})`)
+            .join("\n");
           return {
             content:
               `I found the following products, but they are currently **out of stock**:\n\n${names}\n\n` +
-              "Would you like me to notify you when they become available? You can also browse similar products.",
-            productIds: unavailable.slice(0, 3).map((p: any) => p._id),
+              "You can tap **Notify Me** on the product page to be alerted when they're back.",
+            productIds: unavailable.map(({ product: p }: any) => p._id),
           };
         }
 
@@ -225,11 +360,8 @@ async function generateResponse(
 
       // Build response with product cards
       const productLines = scored.map(({ product: p }: any) => {
-        const price = p.discountPrice && p.discountPrice < p.price
-          ? `₹${p.discountPrice} (was ₹${p.price})`
-          : `₹${p.price}`;
         const rx = p.prescriptionRequired ? " 📋 Rx Required" : "";
-        return `• **${p.name}** — ${p.packSize} ${p.strength || ""} ${p.form || ""}\n  ${p.manufacturer} | ${price}${rx}\n  [View Product](#/products/${p.slug})`;
+        return `• **${p.name}** — ${p.packSize} ${p.strength || ""} ${p.form || ""}\n  ${p.manufacturer} | ${priceLabel(p)}${rx}\n  [View Product](#/products/${p.slug})`;
       });
 
       const content =
@@ -243,48 +375,245 @@ async function generateResponse(
       };
     }
 
+    // ── How to order medicines (the REAL Kalyan Chemist flow) ──
+    case "how_to_order": {
+      return {
+        content:
+          "Ordering medicines on Kalyan Chemist is simple:\n\n" +
+          "1. **Search** for your medicine in our catalogue.\n" +
+          "2. Open the product to check details, price and availability.\n" +
+          "3. Tap **Add to Cart**.\n" +
+          "4. Open your **Cart** and review quantities.\n" +
+          "5. Continue to **Checkout** and confirm your delivery address.\n" +
+          "6. Choose a payment option and **place your order**.\n\n" +
+          "For prescription-required medicines, our standard prescription verification applies before dispatch.\n\n" +
+          "[Search Medicines](#/products) · [Go to Cart](#/cart)",
+      };
+    }
+
+    // ── Doctor appointment booking (the REAL flow) ──
+    case "appointment_booking": {
+      return {
+        content:
+          "Booking a doctor appointment on Kalyan Chemist:\n\n" +
+          "1. Open **Doctor Appointment** and choose a category.\n" +
+          "2. Browse the available doctors in that category.\n" +
+          "3. Open a doctor's profile to see qualifications, fees and availability.\n" +
+          "4. Pick a convenient date and time slot.\n" +
+          "5. Confirm your details to complete the booking.\n\n" +
+          "[Book Appointment](#/doctor-appointment)",
+      };
+    }
+
+    // ── Lab test booking (the REAL flow) ──
+    case "lab_booking": {
+      return {
+        content:
+          "Booking a lab test or health package on Kalyan Chemist:\n\n" +
+          "1. Open **Lab Tests** and pick a category, or browse all tests.\n" +
+          "2. Choose a single test or a package and open its details.\n" +
+          "3. Review what's included, sample type and report time.\n" +
+          "4. Proceed to booking and complete payment.\n\n" +
+          "[Browse Lab Tests](#/lab-tests)",
+      };
+    }
+
+    // ── Specific product information, from real catalogue data ──
+    case "product_info": {
+      const terms = extractSearchTerms(t);
+      let found =
+        terms.length >= 2
+          ? await findProducts(ctx, terms, { includeOutOfStock: true, limit: 3 })
+          : [];
+      if (found.length === 0 && contextProductIds?.length) {
+        found = await resolveContextProducts(ctx, contextProductIds);
+      }
+
+      if (found.length === 0) {
+        return {
+          content:
+            "I couldn't find that product in our catalogue. Could you share the exact medicine name " +
+            '(for example, "Dolo 650" or "Brufen 400mg")? I can then share its details, price and availability.',
+        };
+      }
+
+      if (found.length > 1) {
+        const options = found
+          .map(({ product: p }: any) => `• **${p.name}** — ${priceLabel(p)} | ${stockLabel(p)}`)
+          .join("\n");
+        return {
+          content: `I found a few matching products:\n\n${options}\n\nWhich one would you like to know more about?`,
+        };
+      }
+
+      const p = found[0].product;
+      const category = p.categoryId ? await ctx.db.get(p.categoryId).catch(() => null) : null;
+
+      let info =
+        `Here's what I can tell you about **${p.name}**:\n\n` +
+        (p.composition ? `• **Composition:** ${p.composition}\n` : "") +
+        (p.manufacturer ? `• **Manufacturer:** ${p.manufacturer}\n` : "") +
+        (p.packSize ? `• **Pack size:** ${p.packSize}\n` : "") +
+        (p.strength || p.form ? `• **Form:** ${[p.strength, p.form].filter(Boolean).join(" · ")}\n` : "") +
+        (category ? `• **Category:** ${(category as any).name}\n` : "") +
+        `• **Price:** ${priceLabel(p)}\n` +
+        `• **Availability:** ${stockLabel(p)}\n` +
+        `• **Prescription:** ${p.prescriptionRequired ? "Required" : "Not required"}`;
+
+      if (p.description) info += `\n\n**About:** ${trimText(p.description, 260)}`;
+      if (p.benefits) info += `\n\n**As labelled:** ${trimText(p.benefits, 200)}`;
+
+      info +=
+        "\n\nThis is general product information from our catalogue, not medical advice. " +
+        "For personal guidance, please consult our pharmacist.";
+
+      return { content: info, productIds: [p._id] };
+    }
+
+    // ── Availability from real inventory ──
+    case "availability": {
+      const terms = extractSearchTerms(t);
+      let found =
+        terms.length >= 2
+          ? await findProducts(ctx, terms, { includeOutOfStock: true, limit: 4 })
+          : [];
+      if (found.length === 0 && contextProductIds?.length) {
+        found = await resolveContextProducts(ctx, contextProductIds);
+      }
+
+      if (found.length === 0) {
+        return {
+          content:
+            'I couldn\'t find that medicine in our catalogue. Please type the exact medicine name (e.g., "Dolo 650") ' +
+            "and I'll check availability for you.",
+        };
+      }
+
+      if (found.length > 1) {
+        const options = found
+          .map(({ product: p }: any) => `• **${p.name}** — ${priceLabel(p)} | ${stockLabel(p)}`)
+          .join("\n");
+        return {
+          content: `I found a few matching products:\n\n${options}\n\nWhich one would you like me to check?`,
+        };
+      }
+
+      const p = found[0].product;
+      if (p.stockQuantity > 0) {
+        return {
+          content:
+            `Yes, **${p.name}** is currently available.\n\n` +
+            `• **Price:** ${priceLabel(p)}\n` +
+            `• **Prescription:** ${p.prescriptionRequired ? "Required" : "Not required"}\n\n` +
+            `[View Product](#/products/${p.slug})`,
+          productIds: [p._id],
+        };
+      }
+      return {
+        content:
+          `**${p.name}** is currently **out of stock**.\n\n` +
+          `You can tap **Notify Me** on the product page to be alerted when it's back. ` +
+          `I can also help you find similar products in our catalogue.\n\n` +
+          `[View Product](#/products/${p.slug})`,
+        productIds: [p._id],
+      };
+    }
+
+    // ── Current price from real catalogue data ──
+    case "price": {
+      const terms = extractSearchTerms(t);
+      let found =
+        terms.length >= 2
+          ? await findProducts(ctx, terms, { includeOutOfStock: true, limit: 4 })
+          : [];
+      if (found.length === 0 && contextProductIds?.length) {
+        found = await resolveContextProducts(ctx, contextProductIds);
+      }
+
+      if (found.length === 0) {
+        return {
+          content:
+            'I couldn\'t find that product. Please share the medicine name (e.g., "Crocin Advance") ' +
+            "and I'll get its current price for you.",
+        };
+      }
+
+      if (found.length > 1) {
+        const options = found
+          .map(({ product: p }: any) => `• **${p.name}** — ${priceLabel(p)}`)
+          .join("\n");
+        return {
+          content: `Here are the matching products and prices:\n\n${options}\n\nWhich one would you like details for?`,
+        };
+      }
+
+      const p = found[0].product;
+      return {
+        content:
+          `**${p.name}** is ${priceLabel(p)}.\n\n` +
+          `• **Availability:** ${stockLabel(p)}\n\n` +
+          `[View Product](#/products/${p.slug})`,
+        productIds: [p._id],
+      };
+    }
+
     case "order_tracking": {
-      // Look up user's recent orders
       const orders = await ctx.db
         .query("orders")
         .withIndex("by_user", (q: any) => q.eq("userId", userId))
         .order("desc")
-        .take(5);
+        .take(20);
 
       if (orders.length === 0) {
         return {
           content:
-            "You don't have any orders yet. Would you like to browse our catalogue and place your first order?\n\n" +
+            "You don't have any orders yet. Once you place an order, I can show its live status right here.\n\n" +
             "[Browse Medicines](#/products)",
         };
       }
 
-      const statusEmoji: Record<string, string> = {
-        pending: "⏳",
-        confirmed: "✅",
-        processing: "📦",
-        ready_for_dispatch: "🚚",
-        out_for_delivery: "🏍️",
-        delivered: "🎉",
-        cancelled: "❌",
-        refund_initiated: "🔄",
-        refunded: "💰",
-      };
+      // Explicit order reference? e.g. "where is order #A1B2C3", "status of order 123456"
+      const refMatch =
+        text.match(/#\s?([a-zA-Z0-9]{3,8})\b/) ||
+        text.match(/order\s+(?:number\s+|no\.?\s*|id\s+)?([a-zA-Z0-9]{3,8})\b/i);
 
-      const orderLines = orders.map((o: any) => {
-        const items = o.items.map((i: any) => `${i.name} × ${i.quantity}`).join(", ");
-        const emoji = statusEmoji[o.status] || "❓";
-        const date = new Date(o.createdAt).toLocaleDateString("en-IN", {
-          day: "numeric", month: "short", year: "numeric",
-        });
-        return `• **Order #${o._id.slice(-6).toUpperCase()}** ${emoji} ${o.status.replace(/_/g, " ")}\n  ${items}\n  ₹${o.totalAmount} • ${date}`;
-      });
+      if (refMatch) {
+        const ref = refMatch[1].toUpperCase();
+        const matched = orders.find(
+          (o: any) =>
+            o._id.slice(-6).toUpperCase() === ref ||
+            o._id.toUpperCase().includes(ref) ||
+            (o.invoiceNumber || "").toUpperCase() === ref
+        );
+        if (!matched) {
+          return {
+            content:
+              `I couldn't find an order matching **${refMatch[1]}** in your account. ` +
+              'Please double-check the order number — or ask "Where is my order?" and I\'ll show your recent orders.',
+          };
+        }
+        return {
+          content: `Here's the latest on your order:\n\n${formatOrder(matched)}\n\n[View Order](#/orders/${matched._id})`,
+          orderIds: [matched._id],
+        };
+      }
 
+      // Single order → answer directly about THAT order
+      if (orders.length === 1) {
+        return {
+          content: `Here's the latest on your order:\n\n${formatOrder(orders[0])}\n\n[View Order](#/orders/${orders[0]._id})`,
+          orderIds: [orders[0]._id],
+        };
+      }
+
+      // Multiple orders → show recent ones and offer to drill into a specific one
+      const recent = orders.slice(0, 4);
       return {
         content:
-          `Here are your recent orders:\n\n${orderLines.join("\n\n")}\n\n` +
-          "Would you like details on a specific order?",
-        orderIds: orders.map((o: any) => o._id),
+          `You have ${orders.length} orders. Here are your most recent ones:\n\n` +
+          recent.map((o: any) => formatOrder(o)).join("\n\n") +
+          `\n\nAsk about a specific order number (e.g., "Where is order #${recent[0]._id.slice(-6).toUpperCase()}?") for full details.`,
+        orderIds: recent.map((o: any) => o._id),
       };
     }
 
@@ -402,15 +731,18 @@ async function generateResponse(
     }
 
     default: {
+      // Genuinely unclear message → short clarifying question, NOT a capability dump.
+      if (/\b(medicine|tablet|capsule|syrup|drug|pill)\b/.test(t)) {
+        return {
+          content:
+            'Sure — which medicine are you looking for? Just type its name (for example, "Dolo 650") ' +
+            "and I'll check availability and price for you.",
+        };
+      }
       return {
         content:
-          "I'm the Kalyan Chemist assistant! I can help you with:\n\n" +
-          "• 🔍 **Search medicines** — \"Find Dolo 650\"\n" +
-          "• 📦 **Track orders** — \"Where is my order?\"\n" +
-          "• 🔄 **Refill medicines** — \"Refill my medicines\"\n" +
-          "• 🧭 **Navigate** — \"Take me to my cart\"\n" +
-          "• 💊 **Check availability** — \"Is Vitamin C available?\"\n\n" +
-          "What can I help you with today?",
+          "I want to make sure I help you correctly. Could you tell me a bit more — for example, " +
+          "a medicine you're looking for, your order status, or a refill?",
       };
     }
   }
@@ -483,7 +815,14 @@ export const sendMessage = mutation({
         "💬 **WhatsApp:** Use the chat button on our website\n\n" +
         "Our team is available Mon–Sat, 8 AM – 10 PM.";
     } else {
-      const response = await generateResponse(ctx, intent, args.content, userId);
+      // Conversation context: remember the last products the assistant showed,
+      // so follow-ups like "how much is it?" resolve without repeating the name.
+      const lastProductMsg = recentMessages.find(
+        (m) => m.role === "assistant" && m.productIds && m.productIds.length > 0
+      ) as any;
+      const contextProductIds: string[] | undefined = lastProductMsg?.productIds;
+
+      const response = await generateResponse(ctx, intent, args.content, userId, contextProductIds);
       responseText = response.content;
       productIds = response.productIds;
       orderIds = response.orderIds;
