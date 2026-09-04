@@ -1301,9 +1301,23 @@ export default function MedicineRefill() {
                   ))}
                   {/* Show recent order history entries grouped by order */}
                   {(() => {
+                    // Build dedup set from refill requests to avoid showing the same
+                    // transaction twice (once as refill request, once as order)
+                    const refillProductDateKeys = new Set<string>();
+                    for (const req of refillRequests || []) {
+                      for (const m of req.medicines) {
+                        const dateKey = new Date(req.createdAt).toISOString().split("T")[0];
+                        refillProductDateKeys.add(`${m.productId}-${dateKey}`);
+                      }
+                    }
+                    // Filter order history: skip entries that overlap with a refill request
+                    const filteredHistory = (orderHistory || []).filter((h) => {
+                      const dateKey = new Date(h.orderDate).toISOString().split("T")[0];
+                      return !refillProductDateKeys.has(`${h.productId}-${dateKey}`);
+                    });
                     // Group order history by orderId for cleaner display
-                    const grouped: Record<string, typeof orderHistory> = {};
-                    for (const h of orderHistory || []) {
+                    const grouped: Record<string, typeof filteredHistory> = {};
+                    for (const h of filteredHistory) {
                       if (!grouped[h.orderId]) grouped[h.orderId] = [];
                       grouped[h.orderId].push(h);
                     }
