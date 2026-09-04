@@ -600,6 +600,9 @@ export const getDeliveredOrderMedicines = query({
         let refillStatus: "due" | "soon" | "normal" = "normal";
         let refillMessage = "";
 
+        // Only show refill suggestions when there are 2+ orders (enough history
+        // to identify a reliable reorder pattern). Single-purchase items are NOT
+        // shown because there is insufficient repeat history.
         if (orderCount >= 2 && averageIntervalDays > 0) {
           if (daysSinceLastOrder >= averageIntervalDays) {
             refillStatus = "due";
@@ -608,10 +611,6 @@ export const getDeliveredOrderMedicines = query({
             refillStatus = "soon";
             refillMessage = `Usually reordered around every ${averageIntervalDays} days`;
           }
-        } else if (daysSinceLastOrder >= 30) {
-          // Fallback for single-order products: suggest after 30 days
-          refillStatus = "soon";
-          refillMessage = "You ordered this over a month ago";
         }
 
         return {
