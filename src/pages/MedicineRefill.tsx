@@ -235,18 +235,15 @@ export default function MedicineRefill() {
       const results = await addToCart({ items: [{ productId: productId as any, quantity }] });
       const added = results.some((r: any) => r.success);
       if (added) {
-        toast.success("Added to cart");
-        // Microtask escapes React 18 automatic batching so the navigation
-        // is not swallowed by the setRefillingId(null) update in finally.
-        queueMicrotask(() => {
-          navigateRef.current("/cart", {
-            state: {
-              breadcrumbTrail: [
-                { label: "Medicine Refill", href: "/refill" },
-                { label: "Shopping Cart" },
-              ],
-            },
-          });
+        // Navigate to Cart immediately — no intermediate toast or delay.
+        // The Cart page itself confirms the item is present.
+        navigateRef.current("/cart", {
+          state: {
+            breadcrumbTrail: [
+              { label: "Medicine Refill", href: "/refill" },
+              { label: "Shopping Cart" },
+            ],
+          },
         });
       } else {
         const failed = results.find((r: any) => !r.success);
