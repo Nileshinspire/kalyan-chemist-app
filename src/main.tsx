@@ -74,7 +74,9 @@ const LabTestDetail = lazy(() => import("./pages/LabTestDetail"));
 const AdminLabTests = lazy(() => import("./pages/admin/AdminLabTests"));
 const AccountHelpSupport = lazy(() => import("./pages/account/AccountHelpSupport"));
 const MedicineRefill = lazy(() => import("./pages/MedicineRefill"));
+const AIChatbot = lazy(() => import("./pages/AIChatbot"));
 const AdminRefills = lazy(() => import("./pages/admin/AdminRefills"));
+const AdminChatbot = lazy(() => import("./pages/admin/AdminChatbot"));
 
 /** Animated loading skeleton for route transitions */
 function RouteLoading() {
@@ -331,6 +333,15 @@ function AnimatedRoutes() {
           }
         />
         <Route
+          path="/chatbot"
+          element={
+            <RequireAuth>
+                <AIChatbot />
+              </RequireAuth>
+            
+          }
+        />
+        <Route
           path="/lab-tests"
           element={
             <RequireAuth>
@@ -551,6 +562,15 @@ function AnimatedRoutes() {
           element={
             <RequireAuth adminOnly>
                 <AdminRefills />
+              </RequireAuth>
+            
+          }
+        />
+        <Route
+          path="/admin/chatbot"
+          element={
+            <RequireAuth adminOnly>
+                <AdminChatbot />
               </RequireAuth>
             
           }

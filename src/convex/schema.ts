@@ -801,6 +801,75 @@ const schema = defineSchema(
     updatedBy: v.optional(v.id("users")),
     updatedAt: v.number(),
   }),
+
+    // ── AI Chatbot Conversations ──
+    chatbot_conversations: defineTable({
+      userId: v.id("users"),
+      title: v.optional(v.string()),
+      lastMessageAt: v.number(),
+      messageCount: v.number(),
+      // Sentiment / handoff tracking
+      sentiment: v.optional(v.union(
+        v.literal("positive"),
+        v.literal("neutral"),
+        v.literal("frustrated"),
+      )),
+      handoffRequested: v.boolean(),
+      handoffReason: v.optional(v.string()),
+      language: v.optional(v.string()), // "en", "hi", "mr", "hinglish"
+      createdAt: v.number(),
+    })
+      .index("by_user", ["userId"])
+      .index("by_lastMessage", ["lastMessageAt"])
+      .index("by_handoff", ["handoffRequested"]),
+
+    // ── AI Chatbot Messages ──
+    chatbot_messages: defineTable({
+      conversationId: v.id("chatbot_conversations"),
+      userId: v.id("users"),
+      role: v.union(
+        v.literal("user"),
+        v.literal("assistant"),
+        v.literal("system"),
+      ),
+      content: v.string(),
+      // Intent classification
+      intent: v.optional(v.string()), // "product_search", "order_tracking", "refill", "navigation", "medical_question", "complaint", "general"
+      // Product context if relevant
+      productIds: v.optional(v.array(v.id("products"))),
+      // Order context if relevant
+      orderIds: v.optional(v.array(v.id("orders"))),
+      // Response metadata
+      responseTimeMs: v.optional(v.number()),
+      handoffTriggered: v.optional(v.boolean()),
+      createdAt: v.number(),
+    })
+      .index("by_conversation", ["conversationId"])
+      .index("by_user", ["userId"])  
+      .index("by_createdAt", ["createdAt"]),
+
+    // ── Admin Chatbot Analytics ──
+    chatbot_analytics: defineTable({
+      date: v.string(), // "YYYY-MM-DD"
+      totalConversations: v.number(),
+      totalMessages: v.number(),
+      handoffCount: v.number(),
+      topIntents: v.array(v.object({
+        intent: v.string(),
+        count: v.number(),
+      })),
+      avgResponseTimeMs: v.number(),
+      humanHandoffPercentage: v.number(),
+      mostSearchedProducts: v.array(v.object({
+        productName: v.string(),
+        searchCount: v.number(),
+      })),
+      unavailableSearches: v.array(v.object({
+        productName: v.string(),
+        searchCount: v.number(),
+      })),
+    })
+      .index("by_date", ["date"]),
   },
   {
     schemaValidation: false,

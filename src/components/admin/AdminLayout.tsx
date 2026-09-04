@@ -30,6 +30,7 @@ import {
   History,
   FlaskConical,
   RefreshCw,
+  Bot,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -50,6 +51,7 @@ const NAV_ITEMS = [
   { label: "Doctors", path: "/admin/doctors", icon: Stethoscope },
   { label: "Lab Tests", path: "/admin/lab-tests", icon: FlaskConical },
   { label: "Medicine Refills", path: "/admin/refills", icon: RefreshCw },
+  { label: "AI Chatbot", path: "/admin/chatbot", icon: Bot },
   { label: "Appointments", path: "/admin/appointments", icon: CalendarClock },
   { label: "Settings", path: "/admin/settings", icon: Settings },
   { label: "Activity Log", path: "/admin/activity", icon: History },

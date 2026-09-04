@@ -334,6 +334,26 @@ export default function Landing() {
               </div>
               <ArrowRight className="size-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all shrink-0" />
             </button>
+
+            {/* AI Chatbot */}
+            <button
+              type="button"
+              onClick={() => navigate("/chatbot")}
+              className="inline-flex items-center gap-2.5 rounded-lg border border-border/60 bg-card hover:bg-accent/40 px-3 py-2.5 sm:px-4 sm:py-3 transition-all duration-300 group cursor-pointer shadow-sm hover:shadow-md"
+            >
+              <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary/15 transition-colors">
+                <MessageCircle className="size-[18px]" />
+              </div>
+              <div className="text-left">
+                <h3 className="text-sm sm:text-base font-semibold text-foreground group-hover:text-primary transition-colors">
+                  AI Chatbot
+                </h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Chat for help & medicines
+                </p>
+              </div>
+              <ArrowRight className="size-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all shrink-0" />
+            </button>
           </div>
         </div>
       </section>
