@@ -839,6 +839,76 @@ const schema = defineSchema(
       productIds: v.optional(v.array(v.id("products"))),
       // Order context if relevant
       orderIds: v.optional(v.array(v.id("orders"))),
+      // Attached files (images/PDFs) — stored via Convex file storage
+      attachments: v.optional(
+        v.array(
+          v.object({
+            fileId: v.string(),
+            fileName: v.string(),
+            fileType: v.string(),
+            fileSize: v.number(),
+          })
+        )
+      ),
+      // Language preference snapshot for this message
+      language: v.optional(v.string()),
+      // Result data of tool calls the assistant made for this reply (for rich UI cards)
+      toolData: v.optional(
+        v.object({
+          products: v.optional(
+            v.array(
+              v.object({
+                productId: v.id("products"),
+                name: v.string(),
+                slug: v.string(),
+                price: v.number(),
+                discountPrice: v.optional(v.number()),
+                stockQuantity: v.number(),
+                imageUrl: v.optional(v.string()),
+                manufacturer: v.optional(v.string()),
+                packSize: v.optional(v.string()),
+                prescriptionRequired: v.optional(v.boolean()),
+              })
+            )
+          ),
+          orders: v.optional(
+            v.array(
+              v.object({
+                orderId: v.id("orders"),
+                invoiceNumber: v.optional(v.string()),
+                status: v.string(),
+                totalAmount: v.number(),
+                itemsSummary: v.optional(v.string()),
+                createdAt: v.number(),
+              })
+            )
+          ),
+          appointments: v.optional(
+            v.array(
+              v.object({
+                doctorId: v.id("doctors"),
+                doctorName: v.string(),
+                specialty: v.string(),
+                consultationFee: v.number(),
+                city: v.optional(v.string()),
+                experience: v.optional(v.string()),
+              })
+            )
+          ),
+          labTests: v.optional(
+            v.array(
+              v.object({
+                testId: v.id("lab_tests"),
+                name: v.string(),
+                discountedPrice: v.number(),
+                originalPrice: v.number(),
+                reportTime: v.optional(v.string()),
+                sampleType: v.optional(v.string()),
+              })
+            )
+          ),
+        })
+      ),
       // Response metadata
       responseTimeMs: v.optional(v.number()),
       handoffTriggered: v.optional(v.boolean()),
