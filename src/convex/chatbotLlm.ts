@@ -4,27 +4,103 @@ import { action } from "./_generated/server";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
-import Anthropic from "@anthropic-ai/sdk";
 
 /* ══════════════════════════════════════════════════════════════
    LLM CONVERSATION ENGINE — Kalyan Chemist AI Assistant
-   Powered by Claude with function-calling grounded in live
-   platform data. NOT a rule-based/scripted bot.
+   Powered by Google Gemini (official free-tier API) with
+   function-calling grounded in live platform data. NOT a
+   rule-based/scripted bot.
    ══════════════════════════════════════════════════════════════ */
 
-// ── Client (lazy init) ──
-let anthropicClient: Anthropic | null = null;
-function getClient(): Anthropic | null {
-  if (anthropicClient) return anthropicClient;
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return null;
-  anthropicClient = new Anthropic({ apiKey });
-  return anthropicClient;
+// ── Gemini config (server-side only) ──
+// The API key is read from the environment; never hardcoded or exposed to
+// the client. Free keys: https://aistudio.google.com/apikey — the Gemini API
+// offers an official free tier (rate-limited, no billing required).
+function getApiKey(): string | null {
+  const apiKey = process.env.GEMINI_API_KEY;
+  return apiKey || null;
 }
 
-const MODEL = "claude-sonnet-4-20250514";
+const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
+const MODEL = "gemini-2.5-flash";
 const MAX_TOKENS = 2048;
 const MAX_TOOL_ROUNDS = 4;
+
+/* ── Gemini REST types (minimal, only what this file uses) ── */
+
+interface GeminiFunctionDeclaration {
+  name: string;
+  description: string;
+  parameters: {
+    type: "object";
+    properties: Record<
+      string,
+      { type: string; description?: string; enum?: string[]; items?: { type: string } }
+    >;
+    required?: string[];
+  };
+}
+
+interface GeminiPart {
+  text?: string;
+  inline_data?: { mime_type: string; data: string };
+  functionCall?: { name: string; args?: Record<string, any> };
+  functionResponse?: { name: string; response: Record<string, any> };
+}
+
+interface GeminiContent {
+  role: "user" | "model";
+  parts: GeminiPart[];
+}
+
+interface GeminiResponse {
+  candidates?: { content?: { parts?: GeminiPart[] }; finishReason?: string }[];
+  promptFeedback?: { blockReason?: string };
+  error?: { message?: string };
+}
+
+/* ── Gemini generateContent call (function calling + system instruction) ── */
+
+async function callGemini(
+  apiKey: string,
+  systemPrompt: string,
+  tools: GeminiFunctionDeclaration[],
+  contents: GeminiContent[],
+): Promise<GeminiResponse> {
+  const res = await fetch(
+    `${GEMINI_BASE_URL}/models/${MODEL}:generateContent?key=${encodeURIComponent(apiKey)}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: systemPrompt }] },
+        contents,
+        tools: [{ function_declarations: tools }],
+        generationConfig: {
+          maxOutputTokens: MAX_TOKENS,
+          temperature: 0.7,
+          // gemini-2.5-flash runs "thinking" by default, which consumes the
+          // same output-token budget and can leave the visible reply empty.
+          // Disable it for fast, direct conversational replies.
+          thinkingConfig: { thinkingBudget: 0 },
+        },
+      }),
+    },
+  );
+
+  const data: GeminiResponse = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data?.error?.message || `Gemini API error (HTTP ${res.status})`);
+  }
+  return data;
+}
+
+/* ── Gemini requires functionResponse.payload to be an object; wrap strings ── */
+
+function normalizeGeminiToolResponse(result: any): Record<string, any> {
+  if (result && typeof result === "object") return result;
+  return { result: String(result) };
+}
 
 /* ══════════════════════════════════════════════════════════════
    SYSTEM PROMPT — the heart of the assistant's behavior
@@ -87,15 +163,15 @@ RESPONSE FORMAT
 Plain text with light markdown (**bold**, bullet points, numbered steps). Keep replies focused: a direct answer, brief supporting info, and at most one natural follow-up offer. Do not use HTML.`;
 
 /* ══════════════════════════════════════════════════════════════
-   TOOL DEFINITIONS (Claude function-calling)
+   TOOL DEFINITIONS (Gemini function declarations)
    ══════════════════════════════════════════════════════════════ */
 
-const TOOLS: Anthropic.Messages.Tool[] = [
+const TOOLS: GeminiFunctionDeclaration[] = [
   {
     name: "searchProducts",
     description:
       "Search the live Kalyan Chemist product catalog for medicines and health products. Use for ANY question about a product's existence, price, current stock/availability, composition, manufacturer, pack size, or prescription requirement. Supports fuzzy matching. Returns products with exact current prices and stock.",
-    input_schema: {
+    parameters: {
       type: "object" as const,
       properties: {
         query: {
@@ -115,7 +191,7 @@ const TOOLS: Anthropic.Messages.Tool[] = [
     name: "getMyOrders",
     description:
       "Get the current logged-in customer's recent orders with live status. Use for any question about their orders, delivery, tracking, order history, or payment status.",
-    input_schema: {
+    parameters: {
       type: "object" as const,
       properties: {
         limit: { type: "number", description: "Max orders to return (default 5, max 10)" },
@@ -127,19 +203,19 @@ const TOOLS: Anthropic.Messages.Tool[] = [
     name: "getMyRefills",
     description:
       "Get the customer's medicine refill reminders and upcoming refills from their refill system. Use for questions about refills, reorder reminders, or regular medicines.",
-    input_schema: { type: "object" as const, properties: {}, required: [] },
+    parameters: { type: "object" as const, properties: {}, required: [] },
   },
   {
     name: "getMyPrescriptions",
     description:
       "Get the customer's uploaded prescriptions and their review status (pending / approved / rejected / needs clarification). Use for prescription status questions.",
-    input_schema: { type: "object" as const, properties: {}, required: [] },
+    parameters: { type: "object" as const, properties: {}, required: [] },
   },
   {
     name: "findDoctors",
     description:
       "Search the live doctor directory for consultations. Use for any question about doctor appointments, specialties available, consultation fees, or finding a doctor.",
-    input_schema: {
+    parameters: {
       type: "object" as const,
       properties: {
         specialty: { type: "string", description: "Optional specialty filter (e.g. 'General Physician', 'Dermatologist')" },
@@ -151,7 +227,7 @@ const TOOLS: Anthropic.Messages.Tool[] = [
     name: "findLabTests",
     description:
       "Search the live lab test and health package catalog. Use for questions about lab tests, health checkups, package contents, prices, or report timing.",
-    input_schema: {
+    parameters: {
       type: "object" as const,
       properties: {
         query: { type: "string", description: "Test or package name / category (e.g. 'full body checkup', 'thyroid')" },
@@ -163,13 +239,13 @@ const TOOLS: Anthropic.Messages.Tool[] = [
     name: "getStoreInfo",
     description:
       "Get live store configuration: delivery timelines, delivery fees, free-delivery threshold, minimum order, payment methods (COD/online), store address, business hours, and policies (returns, prescription verification). Use for any policy/timing/fees question instead of guessing.",
-    input_schema: { type: "object" as const, properties: {}, required: [] },
+    parameters: { type: "object" as const, properties: {}, required: [] },
   },
   {
     name: "searchKnowledge",
     description:
       "Search a curated pharmacy knowledge base of general health education content — common conditions (fever, cold, acidity, diabetes basics), nutrition, wellness, first aid, hygiene, preventive care. Use this for general health/education questions so your answer is grounded, then respond in your own natural words. NOT for specific products (use searchProducts).",
-    input_schema: {
+    parameters: {
       type: "object" as const,
       properties: {
         topic: {
@@ -184,7 +260,7 @@ const TOOLS: Anthropic.Messages.Tool[] = [
     name: "createSupportTicket",
     description:
       "Create a support ticket so the human pharmacy team contacts the customer. Use ONLY when the customer has a complaint/dispute, requests a refund/cancel that needs human action, or explicitly asks to speak to a human/pharmacist. Always confirm with the customer first if they haven't explicitly requested it.",
-    input_schema: {
+    parameters: {
       type: "object" as const,
       properties: {
         subject: { type: "string", description: "Short ticket subject" },
@@ -385,10 +461,10 @@ export const sendLlmMessage = action({
       userId: userIdentity,
     });
 
-    // ── Build Anthropic message list (incl. attachments as image blocks) ──
-    const anthropicMessages: Anthropic.Messages.MessageParam[] = [];
+    // ── Build Gemini contents list (incl. attachments as inline_data parts) ──
+    const contents: GeminiContent[] = [];
     for (const m of history) {
-      const blocks: Anthropic.Messages.ContentBlockParam[] = [];
+      const parts: GeminiPart[] = [];
       // Attachments belong to the user message they were sent with
       if (m.role === "user" && m.attachments?.length) {
         for (const a of m.attachments) {
@@ -409,39 +485,35 @@ export const sendLlmMessage = action({
                   for (let i = 0; i < buf.length; i += CHUNK) {
                     binary += String.fromCharCode(...buf.subarray(i, i + CHUNK));
                   }
-                  blocks.push({
-                    type: "image",
-                    source: {
-                      type: "base64",
-                      media_type: (a.fileType as any) || "image/jpeg",
+                  parts.push({
+                    inline_data: {
+                      mime_type: a.fileType || "image/jpeg",
                       data: btoa(binary),
                     },
-                  } as any);
+                  });
                 }
-                blocks.push({
-                  type: "text",
+                parts.push({
                   text: `[Customer attached: ${a.fileName}]`,
                 });
               }
             } catch {
-              blocks.push({ type: "text", text: `[Customer attached file: ${a.fileName} — could not be loaded]` });
+              parts.push({ text: `[Customer attached file: ${a.fileName} — could not be loaded]` });
             }
           } else {
-            blocks.push({
-              type: "text",
+            parts.push({
               text: `[Customer attached a PDF: ${a.fileName} — ${a.fileSize} bytes. Acknowledge it and describe what the customer can do; offer to route it to the pharmacist if they need it reviewed.]`,
             });
           }
         }
       }
-      blocks.push({ type: "text", text: m.content });
-      anthropicMessages.push({ role: m.role as "user" | "assistant", content: blocks });
+      parts.push({ text: m.content });
+      contents.push({ role: m.role === "assistant" ? "model" : "user", parts });
     }
 
     // History excludes the NEW message (it is persisted after the LLM run), so
-    // always append it as the final user turn. The Anthropic API merges
-    // consecutive user turns automatically, so this is safe in every case.
-    anthropicMessages.push({ role: "user", content: [{ type: "text", text: args.content }] });
+    // always append it as the final user turn. Gemini merges consecutive
+    // user turns automatically, so this is safe in every case.
+    contents.push({ role: "user", parts: [{ text: args.content }] });
 
     // ── Language preference context ──
     const langLine = args.preferredLanguage
@@ -464,9 +536,9 @@ export const sendLlmMessage = action({
       .join("\n\n");
 
     // ── LLM call availability check ──
-    const client = getClient();
-    if (!client) {
-      // Graceful fallback when ANTHROPIC_API_KEY is not configured:
+    const apiKey = getApiKey();
+    if (!apiKey) {
+      // Graceful fallback when GEMINI_API_KEY is not configured:
       // persist a transparent notice instead of pretending the LLM answered.
       const fallbackText =
         "The AI assistant is temporarily unavailable (LLM service not configured). " +
@@ -571,53 +643,42 @@ export const sendLlmMessage = action({
       }
     };
 
-    // ── Agentic loop: call LLM → run tools → feed results back ──
+    // ── Agentic loop: call Gemini → run tools → feed results back ──
     try {
       let finalText = "";
-      let stop_reason = "";
 
       for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
-        const response = await client.messages.create({
-          model: MODEL,
-          max_tokens: MAX_TOKENS,
-          system: systemPrompt,
-          tools: TOOLS,
-          messages: anthropicMessages as any,
-        });
+        const response = await callGemini(apiKey, systemPrompt, TOOLS, contents);
+        const candidate = response.candidates?.[0];
+        const resultParts: GeminiPart[] = candidate?.content?.parts ?? [];
 
-        stop_reason = response.stop_reason || "";
-
-        // Accumulate text blocks
-        for (const block of response.content) {
-          if (block.type === "text") finalText += (finalText ? "\n\n" : "") + block.text;
+        // Accumulate any text this round produced
+        for (const part of resultParts) {
+          if (part.text) finalText += (finalText ? "\n\n" : "") + part.text;
         }
 
-        if (stop_reason !== "tool_use") break;
+        const functionCalls = resultParts.filter((p) => p.functionCall);
+        if (functionCalls.length === 0) break;
 
-        // Execute each requested tool and feed results back
-        const toolResults: Anthropic.Messages.MessageParam = {
-          role: "user",
-          content: [] as any,
-        };
-        const resultsContent: any[] = [];
-        for (const block of response.content) {
-          if (block.type === "tool_use") {
-            let result: any;
-            try {
-              result = await executeTool(block.name, block.input);
-            } catch (e: any) {
-              result = { error: e?.message || "Tool failed" };
-            }
-            resultsContent.push({
-              type: "tool_result",
-              tool_use_id: block.id,
-              content: JSON.stringify(result).slice(0, 12000),
-            });
+        // Echo the model's tool-request turn back into the conversation, then
+        // answer each call with a functionResponse part (Gemini protocol).
+        contents.push({ role: "model", parts: resultParts });
+        const responseParts: GeminiPart[] = [];
+        for (const call of functionCalls) {
+          let result: any;
+          try {
+            result = await executeTool(call.functionCall!.name, call.functionCall!.args ?? {});
+          } catch (e: any) {
+            result = { error: e?.message || "Tool failed" };
           }
+          responseParts.push({
+            functionResponse: {
+              name: call.functionCall!.name,
+              response: normalizeGeminiToolResponse(result),
+            },
+          });
         }
-        toolResults.content = resultsContent as any;
-        anthropicMessages.push({ role: "assistant", content: response.content as any });
-        anthropicMessages.push(toolResults);
+        contents.push({ role: "user", parts: responseParts });
       }
 
       if (!finalText.trim()) finalText = "I'm here and listening — could you tell me a bit more about what you need?";
