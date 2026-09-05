@@ -42,6 +42,20 @@ const MEDICAL_SAFETY_REPLY =
   "For medical questions, please consult our pharmacist or a qualified healthcare professional. " +
   "Would you like me to connect you with our pharmacist support team?";
 
+// Single everyday words that are clearly NOT a medicine name. Prevents the
+// bare-product-name fallback from treating e.g. "delivery" as a product query.
+const NON_PRODUCT_WORDS = new Set([
+  "delivery", "shipping", "shipment", "payment", "payments", "contact", "address", "addresses",
+  "timing", "timings", "hours", "offer", "offers", "discount", "discounts",
+  "coupon", "coupons", "account", "login", "logout", "register", "signup", "profile", "settings",
+  "prescription", "prescriptions", "invoice", "refund", "refunds", "return", "returns", "policy",
+  "policies", "privacy", "terms", "careers", "about", "charges", "fee", "fees", "hello", "hey",
+  "thanks", "thank", "help", "support", "yes", "no", "okay", "ok", "time", "today",
+  "tomorrow", "now", "please", "sorry", "welcome", "call", "phone", "number", "email", "website",
+  "app", "site", "store", "shop", "kalyan", "chemist", "team", "staff", "manager", "pharmacist",
+  "hi", "bye", "good", "great", "nice", "cool", "perfect", "alright", "done", "sure",
+]);
+
 // ─── Intent classification ───
 // Priority order matters: specific action/question checks must run BEFORE broad
 // keyword checks so real queries are answered directly instead of falling into
@@ -70,9 +84,20 @@ function classifyIntent(text: string): string {
     return "context_action";
   }
 
+  // 1c-bis. Short yes/no replies — answered naturally, and they follow through on
+  //      a pharmacist handoff when one was just offered. Checked BEFORE
+  //      acknowledgments so "no thanks" isn't misread as gratitude.
+  const wordCount = t.split(/\s+/).length;
+  if (
+    wordCount <= 3 &&
+    (/^(yes+|yeah|yep|yup|ya|sure|haan|haanji|yes please|please do|go ahead)\b/.test(t) ||
+      /^(no+|nope|nah|nahi|nahin|not now|no thanks|no thank you)\b/.test(t))
+  ) {
+    return "confirmation";
+  }
+
   // 1d. Casual acknowledgments — short natural replies, never a capability menu.
   //      Word-count guard so "great, is Dolo available?" still routes to availability.
-  const wordCount = t.split(/\s+/).length;
   if (/\b(thanks|thank you|thankyou|thx|ty)\b/.test(t) && wordCount <= 4) {
     return "acknowledgment";
   }
@@ -170,6 +195,13 @@ function classifyIntent(text: string): string {
     return "health_concern";
   }
 
+  // 10c. Explicit request for human / pharmacist assistance → connect directly.
+  //      Must come before the safety triggers so requests like "I want to talk to
+  //      the pharmacist about my medicine" get the connection, not a refusal.
+  if (/\b(pharmacist|customer care|customer support|human (support|agent|help)|speak (to|with) (someone|a person)|talk to (someone|a person))\b/.test(t)) {
+    return "human_handoff";
+  }
+
   // 11. Personal medical advice → safety / pharmacist handoff
   if (MEDICAL_SAFETY_TRIGGERS.some((kw) => t.includes(kw))) {
     return "medical_question";
@@ -193,6 +225,19 @@ function classifyIntent(text: string): string {
   // 15. Help
   if (/\b(help|guide|support|features)\b/.test(t)) {
     return "help";
+  }
+
+  // 16b. Bare product name — a short medicine-like phrase with no other intent
+  //      (e.g. "dolo 650" after "Which medicine are you looking for?") is a real
+  //      product query, not an unclear message.
+  const bare = text.trim();
+  if (
+    wordCount <= 4 &&
+    /^[a-z][a-z0-9]*(\s+[a-z0-9]+)*$/i.test(bare) &&
+    bare.replace(/[^a-z]/gi, "").length >= 3 &&
+    !(wordCount === 1 && NON_PRODUCT_WORDS.has(bare.toLowerCase()))
+  ) {
+    return "availability";
   }
 
   // 16. Genuinely unclear → short clarifying question (handled in generateResponse)
@@ -324,7 +369,8 @@ async function generateResponse(
   intent: string,
   text: string,
   userId: string,
-  contextProductIds?: string[]
+  contextProductIds?: string[],
+  lastIntent?: string
 ): Promise<{ content: string; productIds?: string[]; orderIds?: string[] }> {
   const t = text.toLowerCase();
 
@@ -364,6 +410,41 @@ async function generateResponse(
         content:
           "I'm doing great, thanks for asking! 😊 I'm the Kalyan Chemist AI assistant — here whenever you need " +
           "medicines, order updates, or refill help. How can I help?",
+      };
+    }
+
+    case "confirmation": {
+      const isNegative = /^(no+|nope|nah|nahi|nahin|not now|no thanks|no thank you)\b/.test(t);
+      if (!isNegative && (lastIntent === "health_concern" || lastIntent === "medical_question")) {
+        // We just offered to connect them with the pharmacist and they said yes
+        return {
+          content:
+            "Of course — our pharmacist will guide you best on this. 💙\n\n" +
+            "📞 **+91 98765 43210** (Mon–Sat, 8 AM – 10 PM)\n" +
+            "💬 **WhatsApp** — use the chat button on our website\n\n" +
+            "In the meantime, I can help with product availability, prices, or your orders.",
+        };
+      }
+      if (isNegative) {
+        return {
+          content: "No problem at all! I'm right here whenever you need me. 😊",
+        };
+      }
+      const prompts = [
+        "Great! What would you like me to help you with?",
+        "Sure — tell me what you need and I'll take care of it.",
+        "Perfect. What can I do for you?",
+      ];
+      return { content: prompts[text.length % prompts.length] };
+    }
+
+    case "human_handoff": {
+      return {
+        content:
+          "Of course! Our pharmacy team will be happy to help you personally. 💙\n\n" +
+          "📞 **+91 98765 43210** (Mon–Sat, 8 AM – 10 PM)\n" +
+          "💬 **WhatsApp** — use the chat button on our website\n\n" +
+          "Is there something I can help you with in the meantime, like checking a medicine or your order status?",
       };
     }
 
@@ -872,6 +953,15 @@ async function generateResponse(
             "and I'll check availability and price for you.",
         };
       }
+      // Follow-up to a health/medical exchange — acknowledge their answer and
+      // re-offer the pharmacist instead of a generic clarifying question.
+      if (lastIntent === "health_concern" || lastIntent === "medical_question") {
+        return {
+          content:
+            "Thanks for sharing that. 💙 For anything that needs medical judgment, our pharmacist can guide you best — " +
+            "would you like me to connect you?",
+        };
+      }
       return {
         content:
           "I want to make sure I help you correctly. Could you tell me a bit more — for example, " +
@@ -955,7 +1045,26 @@ export const sendMessage = mutation({
       ) as any;
       const contextProductIds: string[] | undefined = lastProductMsg?.productIds;
 
-      const response = await generateResponse(ctx, intent, args.content, userId, contextProductIds);
+      // Also remember what the assistant was last talking ABOUT (e.g. a health
+      // concern or a pharmacist offer) so short replies like "yes" or "3 days"
+      // are understood as answers to that question.
+      const lastAssistantMsg = recentMessages.find((m) => m.role === "assistant") as any;
+      const lastAssistantIntent: string | undefined = lastAssistantMsg?.intent;
+
+      // A short affirmative right after the assistant showed products ("Do you
+      // have Dolo?" → "yes") means "go ahead with that product" — route it to
+      // the existing context-action (add-to-cart) flow instead of a generic prompt.
+      let resolvedIntent = intent;
+      if (
+        intent === "confirmation" &&
+        /^(yes+|yeah|yep|yup|ya|sure|haan|haanji|yes please|please do|go ahead)\b/.test(args.content.toLowerCase().trim()) &&
+        ["availability", "price", "product_search", "product_info"].includes(lastAssistantIntent || "") &&
+        contextProductIds?.length
+      ) {
+        resolvedIntent = "context_action";
+      }
+
+      const response = await generateResponse(ctx, resolvedIntent, args.content, userId, contextProductIds, lastAssistantIntent);
       responseText = response.content;
       productIds = response.productIds;
       orderIds = response.orderIds;
