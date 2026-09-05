@@ -1,4 +1,5 @@
 import { query, mutation } from "./_generated/server";
+import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 
 // ─── Fuzzy product search ───
@@ -975,7 +976,7 @@ async function generateResponse(
 export const createConversation = mutation({
   args: {},
   handler: async (ctx) => {
-    const userId = (await ctx.auth.getUserIdentity())?.subject;
+    const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
     const id = await ctx.db.insert("chatbot_conversations", {
@@ -999,7 +1000,7 @@ export const sendMessage = mutation({
     content: v.string(),
   },
   handler: async (ctx, args) => {
-    const userId = (await ctx.auth.getUserIdentity())?.subject;
+    const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
     const conv = await ctx.db.get(args.conversationId);
@@ -1133,7 +1134,7 @@ export const getMessages = query({
     conversationId: v.id("chatbot_conversations"),
   },
   handler: async (ctx, args) => {
-    const userId = (await ctx.auth.getUserIdentity())?.subject;
+    const userId = await getAuthUserId(ctx);
     if (!userId) return [];
 
     const conv = await ctx.db.get(args.conversationId);
@@ -1153,7 +1154,7 @@ export const getMessages = query({
 export const getConversations = query({
   args: {},
   handler: async (ctx) => {
-    const userId = (await ctx.auth.getUserIdentity())?.subject;
+    const userId = await getAuthUserId(ctx);
     if (!userId) return [];
 
     const conversations = await ctx.db
@@ -1172,7 +1173,7 @@ export const getConversation = query({
     conversationId: v.id("chatbot_conversations"),
   },
   handler: async (ctx, args) => {
-    const userId = (await ctx.auth.getUserIdentity())?.subject;
+    const userId = await getAuthUserId(ctx);
     if (!userId) return null;
 
     const conv = await ctx.db.get(args.conversationId);
@@ -1187,7 +1188,7 @@ export const deleteConversation = mutation({
     conversationId: v.id("chatbot_conversations"),
   },
   handler: async (ctx, args) => {
-    const userId = (await ctx.auth.getUserIdentity())?.subject;
+    const userId = await getAuthUserId(ctx);
     if (!userId) throw new Error("Not authenticated");
 
     const conv = await ctx.db.get(args.conversationId);
@@ -1211,7 +1212,7 @@ export const deleteConversation = mutation({
 export const getAdminAnalytics = query({
   args: {},
   handler: async (ctx) => {
-    const userId = (await ctx.auth.getUserIdentity())?.subject;
+    const userId = await getAuthUserId(ctx);
     if (!userId) return null;
 
     const user = await ctx.db.get(userId as any);
@@ -1312,7 +1313,7 @@ export const getAdminAnalytics = query({
 export const getProactiveSuggestions = query({
   args: {},
   handler: async (ctx) => {
-    const userId = (await ctx.auth.getUserIdentity())?.subject;
+    const userId = await getAuthUserId(ctx);
     if (!userId) return [];
 
     const suggestions: string[] = [];

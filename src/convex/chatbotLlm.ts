@@ -1,6 +1,7 @@
 "use node";
 
 import { action } from "./_generated/server";
+import { getAuthUserId } from "@convex-dev/auth/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import Anthropic from "@anthropic-ai/sdk";
@@ -368,7 +369,12 @@ type LlmActionResult = {
 export const sendLlmMessage = action({
   args: sendLlmMessageArgs,
   handler: async (ctx, args): Promise<LlmActionResult> => {
-    const userIdentity = (await ctx.auth.getUserIdentity())?.subject;
+    // Resolve the real users._id. ctx.auth.getUserIdentity().subject is the
+    // token subject ("<users._id>|<sessionId>", 65 chars) — passing it to
+    // db.get() throws "Invalid ID length 65". getAuthUserId splits on the
+    // divider and returns the actual user document ID (same helper cart,
+    // orders, and refills use).
+    const userIdentity = await getAuthUserId(ctx);
     if (!userIdentity) throw new Error("Not authenticated");
 
     const started = Date.now();
