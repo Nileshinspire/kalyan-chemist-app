@@ -918,6 +918,32 @@ const schema = defineSchema(
       .index("by_user", ["userId"])  
       .index("by_createdAt", ["createdAt"]),
 
+    // ── Support Tickets (customer requests routed to the pharmacy team) ──
+    support_tickets: defineTable({
+      userId: v.id("users"),
+      conversationId: v.optional(v.id("chatbot_conversations")),
+      subject: v.string(),
+      description: v.string(),
+      category: v.union(
+        v.literal("complaint"),
+        v.literal("refund"),
+        v.literal("order_issue"),
+        v.literal("medical_consultation"),
+        v.literal("other"),
+      ),
+      status: v.union(
+        v.literal("open"),
+        v.literal("in_progress"),
+        v.literal("resolved"),
+        v.literal("closed"),
+      ),
+      createdAt: v.number(),
+      updatedAt: v.number(),
+    })
+      .index("by_user", ["userId"])
+      .index("by_status", ["status"])
+      .index("by_createdAt", ["createdAt"]),
+
     // ── Admin Chatbot Analytics ──
     chatbot_analytics: defineTable({
       date: v.string(), // "YYYY-MM-DD"

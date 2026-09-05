@@ -325,6 +325,8 @@ const sendLlmMessageArgs = {
   content: v.string(),
   /** Preferred language code if the customer set one in chat settings */
   preferredLanguage: v.optional(v.string()),
+  /** Explicit customer request for human support (routes to a real ticket) */
+  requestHumanHandoff: v.optional(v.boolean()),
   /** Attachments uploaded by the customer with this message */
   attachments: v.optional(
     v.array(
@@ -342,6 +344,7 @@ export type SendLlmMessageArgs = {
   conversationId: string;
   content: string;
   preferredLanguage?: string;
+  requestHumanHandoff?: boolean;
   attachments?: { fileId: string; fileName: string; fileType: string; fileSize: number }[];
 };
 
