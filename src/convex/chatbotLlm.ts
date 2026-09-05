@@ -354,9 +354,20 @@ export type SendLlmMessageArgs = {
    goes through internal queries/mutations defined below.
    ══════════════════════════════════════════════════════════════ */
 
+type LlmActionResult = {
+  response: string;
+  toolData: Record<string, unknown> | null;
+  llmPowered: boolean;
+  handoffTriggered: boolean;
+  model?: string;
+  messageId?: string;
+  responseTimeMs?: number;
+  error?: string;
+};
+
 export const sendLlmMessage = action({
   args: sendLlmMessageArgs,
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<LlmActionResult> => {
     const userIdentity = (await ctx.auth.getUserIdentity())?.subject;
     if (!userIdentity) throw new Error("Not authenticated");
 
@@ -385,12 +396,19 @@ export const sendLlmMessage = action({
                 const res = await fetch(url);
                 if (res.ok) {
                   const buf = new Uint8Array(await res.arrayBuffer());
+                  // Chunked conversion — spreading a large Uint8Array into
+                  // String.fromCharCode can overflow the call stack.
+                  let binary = "";
+                  const CHUNK = 0x8000;
+                  for (let i = 0; i < buf.length; i += CHUNK) {
+                    binary += String.fromCharCode(...buf.subarray(i, i + CHUNK));
+                  }
                   blocks.push({
                     type: "image",
                     source: {
                       type: "base64",
                       media_type: (a.fileType as any) || "image/jpeg",
-                      data: btoa(String.fromCharCode(...buf)),
+                      data: btoa(binary),
                     },
                   } as any);
                 }
@@ -414,16 +432,10 @@ export const sendLlmMessage = action({
       anthropicMessages.push({ role: m.role as "user" | "assistant", content: blocks });
     }
 
-    // Current user message is already in history (saved by caller? No — we save it here)
-    // Actually the flow: this action receives the NEW message; history excludes it.
-    if (anthropicMessages.length === 0 || anthropicMessages[anthropicMessages.length - 1].role !== "user") {
-      anthropicMessages.push({ role: "user", content: [{ type: "text", text: args.content }] });
-    } else {
-      // Replace the last user turn's trailing text with the actual new content
-      // (history's last user message is the placeholder saved by frontend)
-      const lastMsg = anthropicMessages[anthropicMessages.length - 1];
-      // If frontend already saved the message, history includes it; append nothing.
-    }
+    // History excludes the NEW message (it is persisted after the LLM run), so
+    // always append it as the final user turn. The Anthropic API merges
+    // consecutive user turns automatically, so this is safe in every case.
+    anthropicMessages.push({ role: "user", content: [{ type: "text", text: args.content }] });
 
     // ── Language preference context ──
     const langLine = args.preferredLanguage
@@ -605,7 +617,7 @@ export const sendLlmMessage = action({
       if (!finalText.trim()) finalText = "I'm here and listening — could you tell me a bit more about what you need?";
 
       // Persist the exchange (user message + assistant reply + tool data)
-      const saved = await ctx.runMutation(internal.chatbotInternal.persistMessages, {
+      const saved = (await ctx.runMutation(internal.chatbotInternal.persistMessages, {
         conversationId: args.conversationId,
         userId: userIdentity,
         userContent: args.content,
@@ -619,7 +631,8 @@ export const sendLlmMessage = action({
           labTests: toolData.labTests,
         },
         preferredLanguage: args.preferredLanguage,
-      });
+        responseTimeMs: Date.now() - started,
+      })) as { assistantMessageId?: string } | null;
 
       return {
         response: finalText,
@@ -646,6 +659,7 @@ export const sendLlmMessage = action({
         response: fallbackText,
         toolData: null,
         llmPowered: false,
+        handoffTriggered: false,
         error: err?.message,
       };
     }

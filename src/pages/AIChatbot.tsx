@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router";
-import { useMutation, useQuery } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -555,7 +555,7 @@ export default function AIChatbot() {
 
   const conversations = useQuery(api.chatbot.getConversations);
   const createConversation = useMutation(api.chatbot.createConversation);
-  const sendMessage = useMutation(api.chatbot.sendMessage);
+  const sendAiMessage = useAction(api.chatbotLlm.sendLlmMessage);
   const deleteConversation = useMutation(api.chatbot.deleteConversation);
   const proactiveSuggestions = useQuery(api.chatbot.getProactiveSuggestions);
 
@@ -610,7 +610,10 @@ export default function AIChatbot() {
 
       setIsTyping(true);
       try {
-        const result = await sendMessage({ conversationId: convId, content: msg });
+        // LLM engine (Claude + function-calling) — generates the reply, runs
+        // data tools, and persists both messages server-side. The UI simply
+        // renders the updated conversation from the reactive getMessages query.
+        const result = await sendAiMessage({ conversationId: convId, content: msg });
         if (result.handoffTriggered) toast.info("Connecting you with a pharmacist…");
       } catch (err: any) {
         toast.error(err.message || "Failed to send message");
@@ -619,7 +622,7 @@ export default function AIChatbot() {
         inputRef.current?.focus();
       }
     },
-    [input, activeConvId, isTyping, createConversation, sendMessage],
+    [input, activeConvId, isTyping, createConversation, sendAiMessage],
   );
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
