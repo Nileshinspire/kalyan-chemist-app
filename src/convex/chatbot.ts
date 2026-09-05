@@ -65,6 +65,31 @@ function classifyIntent(text: string): string {
     return "navigation";
   }
 
+  // 1c. Context actions — "add it", "add that to cart" — resolved from conversation context
+  if (/\b(add|put|include)\b/.test(t) && /\b(it|that|this|them|cart)\b/.test(t) && !/\bhow\b/.test(t)) {
+    return "context_action";
+  }
+
+  // 1d. Casual acknowledgments — short natural replies, never a capability menu.
+  //      Word-count guard so "great, is Dolo available?" still routes to availability.
+  const wordCount = t.split(/\s+/).length;
+  if (/\b(thanks|thank you|thankyou|thx|ty)\b/.test(t) && wordCount <= 4) {
+    return "acknowledgment";
+  }
+  if (/\b(ok|okay|kk|got it|alright|sounds good|perfect|cool|nice|great|done)\b/.test(t) && wordCount <= 3) {
+    return "acknowledgment";
+  }
+
+  // 1e. Farewells
+  if (/\b(bye|goodbye|good night|goodnight|see you|see ya|take care)\b/.test(t)) {
+    return "farewell";
+  }
+
+  // 1f. Small talk about the assistant itself
+  if (/\b(how are you|who are you|what is your name|whats your name|are you human|are you a bot|are you real)\b/.test(t)) {
+    return "smalltalk";
+  }
+
   // 2. Doctor appointment booking
   if (/\b(doctor|appointment|consultation)\b/.test(t) &&
       /\b(book|booking|schedule|slot|how|kaise|kese|consult)\b/.test(t)) {
@@ -93,7 +118,7 @@ function classifyIntent(text: string): string {
 
   // 6. Order tracking — includes explicit order refs like "#A1B2C3"
   if (/#[a-z0-9]{3,8}\b/.test(t) ||
-      /\b(track|where is my|order status|my order|shipped|dispatched|out for delivery|has my order|when will my order)\b/.test(t)) {
+      /\b(track|where is my|order status|my order|shipped|dispatched|out for delivery|has my order|when will my order|mera order|order kaha|order kahan|order kab aayega|order kab milega)\b/.test(t)) {
     return "order_tracking";
   }
 
@@ -103,7 +128,7 @@ function classifyIntent(text: string): string {
   }
 
   // 8. Availability — "Is Dolo 650 available?", "Do you have Brufen 400mg?"
-  if (/\b(available|availability|in stock|out of stock|stock|do you have|do u have|have you got)\b/.test(t)) {
+  if (/\b(available|availability|in stock|out of stock|stock|do you have|do u have|have you got|hai kya|milta hai|milega|milenga|milenge|milta|available hai)\b/.test(t)) {
     return "availability";
   }
 
@@ -127,6 +152,22 @@ function classifyIntent(text: string): string {
   // "Does X require prescription?" is a product attribute, not medical advice
   if (/\b(prescription required|require[s]? prescription|need[s]? prescription|prescription needed)\b/.test(t)) {
     return "product_info";
+  }
+
+  // 10a. Direct treatment recommendations ("which medicine for fever?") → safety
+  if (/\b(which|what) (medicine|tablet|capsule|syrup)\b/.test(t)) {
+    return "medical_question";
+  }
+
+  // 10b. Health concern / symptom talk — "I have fever", "something for pain".
+  //      Handled empathetically with a clarifying question + pharmacist offer.
+  //      Still safe: no diagnosis, no symptom-based product recommendation.
+  if (
+    /\b(i have|i've got|im having|i am having|im feeling|i am feeling|not feeling well|feeling (unwell|sick|ill|weak|dizzy)|suffering from|mujhe (bukhar|dard|fever|khansi)|bukhar hai|dard ho|tabiyat (theek|nahi))\b/.test(t) ||
+    /\b(i|i'm|im)\b.*\b(fever|cough|cold|headache|vomiting|diarrhea|loose motions?|acidity|constipation|sore throat|throat pain|body pain|back pain|stomach (ache|pain)|flu)\b/.test(t) ||
+    /\b(something|anything|tablet|capsule|syrup|medicine) (for|of) (pain|fever|cough|cold|headache|acidity|gas|constipation|vomiting|loose motions?|throat|flu)\b/.test(t)
+  ) {
+    return "health_concern";
   }
 
   // 11. Personal medical advice → safety / pharmacist handoff
@@ -161,7 +202,8 @@ function classifyIntent(text: string): string {
 // ─── Search-term extraction (strips question/stop words, keeps brand + strength) ───
 function extractSearchTerms(t: string): string {
   return t
-    .replace(/\b(what|whats|which|is|are|was|the|a|an|of|for|about|tell|me|details|detail|information|info|composition|used|use|uses|does|do|did|you|u|your|have|has|had|get|give|show|price|prices|cost|rate|mrp|charges|how|much|many|available|availability|stock|in|on|at|please|can|could|would|will|i|my|it|its|this|that|there|medicine|medicines|product|products|item|items|brand|any|need|want|know|and|or|with|to|search|find|finds|looking|look|help|something|anything|seeking|check|checking)\b/g, " ")
+    .replace(/\b(i'm|im|i've|ive|i'll|ill|don't|dont|do you|do u)\b/g, " ")
+    .replace(/\b(what|whats|which|is|are|was|the|a|an|of|for|about|tell|me|details|detail|information|info|composition|used|use|uses|does|do|did|you|u|your|have|has|had|get|give|show|price|prices|cost|rate|mrp|charges|how|much|many|available|availability|stock|in|on|at|please|can|could|would|will|i|my|it|its|this|that|there|medicine|medicines|product|products|item|items|brand|any|need|want|know|and|or|with|to|search|find|finds|looking|look|help|something|anything|seeking|check|checking|mom|mum|mother|dad|papa|father|wife|husband|brother|sister|son|daughter|baby|kid|kids|child|children|friend|family|uncle|aunty|aunt|grandma|grandpa|him|her|they|them|she|he|his|someone|myself)\b/g, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -288,19 +330,108 @@ async function generateResponse(
 
   switch (intent) {
     case "medical_question": {
-      return { content: MEDICAL_SAFETY_REPLY };
+      // Safety boundary is identical in both phrasings — only the tone varies
+      // so the refusal doesn't feel robotic on repeat questions.
+      const naturalSafety =
+        "I'd rather not guess with something like this — dosage and treatment decisions really need a professional. " +
+        "I can connect you with our pharmacist so you get the right guidance. Would that help?";
+      return { content: text.length % 2 === 0 ? naturalSafety : MEDICAL_SAFETY_REPLY };
     }
 
     case "greeting": {
       return {
+        content: "Hey! 👋 How can I help you today?",
+      };
+    }
+
+    case "acknowledgment": {
+      const isThanks = /\b(thanks|thank you|thankyou|thx|ty)\b/.test(t);
+      return {
+        content: isThanks
+          ? "You're welcome! 😊 Anything else I can help with?"
+          : "Great! Let me know if you need anything else.",
+      };
+    }
+
+    case "farewell": {
+      return {
+        content: "Take care! 👋 I'm right here whenever you need me.",
+      };
+    }
+
+    case "smalltalk": {
+      return {
         content:
-          "Hello! 👋 Welcome to Kalyan Chemist. I'm here to help you with:\n\n" +
-          "• **Search medicines** and check availability\n" +
-          "• **Track your orders**\n" +
-          "• **Refill reminders** for regular medicines\n" +
-          "• **Navigate** the website\n" +
-          "• **General pharmacy support**\n\n" +
-          "How can I assist you today?",
+          "I'm doing great, thanks for asking! 😊 I'm the Kalyan Chemist AI assistant — here whenever you need " +
+          "medicines, order updates, or refill help. How can I help?",
+      };
+    }
+
+    case "health_concern": {
+      // Serious red-flag symptoms → encourage urgent professional care, no product talk.
+      if (
+        /\b(chest pain|heart attack|stroke|unconscious|fainted|fainting|breathless|difficulty breathing|can't breathe|cant breathe|severe bleeding|seizure|overdose|suicidal)\b/.test(t)
+      ) {
+        return {
+          content:
+            "That sounds serious, and I don't want to take any chances with your health. 💙\n\n" +
+            "Please contact a doctor or emergency services right away. I can also connect you with our pharmacy team immediately — just say the word.",
+        };
+      }
+      const empathetic =
+        "I'm sorry you're not feeling well. 💙 Could you tell me a bit more — how long has this been going on, and are there any other symptoms along with it?\n\n" +
+        "I can check availability of specific products for you, but for anything that needs medical judgment, our pharmacist would be the right person. Would you like me to connect you?";
+      const short =
+        "I'm sorry to hear that. 💙 How long have you been feeling this way, and is it accompanied by any other symptoms?\n\n" +
+        "If you'd like, I can connect you with our pharmacist for the right guidance.";
+      return { content: text.length % 2 === 0 ? empathetic : short };
+    }
+
+    case "context_action": {
+      // "add it" / "add that to cart" → resolve from the message or conversation context
+      const terms = extractSearchTerms(t)
+        .replace(/\b(add|put|include|cart|bag)\b/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+      let found =
+        terms.length >= 2
+          ? await findProducts(ctx, terms, { includeOutOfStock: false, limit: 3 })
+          : [];
+      if (found.length === 0) {
+        found = await resolveContextProducts(ctx, contextProductIds);
+      }
+
+      if (found.length === 0) {
+        return {
+          content: "Sure! Which product would you like to add to your cart? Just tell me the medicine name.",
+        };
+      }
+
+      if (found.length > 1) {
+        const options = found
+          .map(({ product: p }: any) => `• **${p.name}** — ${priceLabel(p)} | ${stockLabel(p)}`)
+          .join("\n");
+        return {
+          content: `I found a few products:\n\n${options}\n\nWhich one would you like to add?`,
+        };
+      }
+
+      const p = found[0].product;
+      if (p.stockQuantity <= 0) {
+        return {
+          content:
+            `**${p.name}** is currently out of stock, so I can't add it right now. ` +
+            `I can let our team know you're looking for it, or help you find an alternative — just say the word.\n\n` +
+            `[View Product](#/products/${p.slug})`,
+          productIds: [p._id],
+        };
+      }
+      return {
+        content:
+          `Sure! **${p.name}** — ${priceLabel(p)}. Tap below and it opens on the product page, where you can add it to your cart:\n\n` +
+          `[Add to Cart](#/products/${p.slug})\n\n` +
+          `Anything else you'd like?`,
+        productIds: [p._id],
       };
     }
 
@@ -350,11 +481,9 @@ async function generateResponse(
 
         return {
           content:
-            `I couldn't find "${searchTerms}" in our catalogue. Here are some suggestions:\n\n` +
-            "• Check the spelling of the medicine name\n" +
-            "• Try searching by brand name (e.g., \"Dolo\" instead of \"Paracetamol\")\n" +
-            "• Search by generic name (e.g., \"Paracetamol\" instead of \"Dolo\")\n\n" +
-            "You can also browse our full catalogue or contact our pharmacist for help.",
+            `I couldn't find "${searchTerms}" in our catalogue — it may be the spelling, or we might not stock it.\n\n` +
+            "You could try the brand name (e.g., \"Dolo\" instead of \"Paracetamol\") or the generic name instead. " +
+            "Tell me a bit more about what you're looking for and I'll check again — or I can connect you with our pharmacist.",
         };
       }
 
@@ -364,10 +493,15 @@ async function generateResponse(
         return `• **${p.name}** — ${p.packSize} ${p.strength || ""} ${p.form || ""}\n  ${p.manufacturer} | ${priceLabel(p)}${rx}\n  [View Product](#/products/${p.slug})`;
       });
 
+      const openers = [
+        `I found ${scored.length} matching product${scored.length > 1 ? "s" : ""}:\n\n`,
+        `Yes! Here's what I found:\n\n`,
+        `Good news — here ${scored.length > 1 ? "they" : "it"} ${scored.length > 1 ? "are" : "is"}:\n\n`,
+      ];
       const content =
-        `I found ${scored.length} matching product${scored.length > 1 ? "s" : ""}:\n\n` +
+        openers[scored.length % openers.length] +
         productLines.join("\n\n") +
-        "\n\nWould you like to add any of these to your cart, or need more details?";
+        "\n\nWould you like me to add one to your cart, or share more details?";
 
       return {
         content,
@@ -567,7 +701,8 @@ async function generateResponse(
       if (orders.length === 0) {
         return {
           content:
-            "You don't have any orders yet. Once you place an order, I can show its live status right here.\n\n" +
+            "You don't have any orders yet — once you place one, I can show its live status right here.\n\n" +
+            "Want help finding a medicine in the meantime?\n\n" +
             "[Browse Medicines](#/products)",
         };
       }
@@ -610,9 +745,9 @@ async function generateResponse(
       const recent = orders.slice(0, 4);
       return {
         content:
-          `You have ${orders.length} orders. Here are your most recent ones:\n\n` +
+          `I can see ${orders.length} orders on your account. Here are the most recent ones:\n\n` +
           recent.map((o: any) => formatOrder(o)).join("\n\n") +
-          `\n\nAsk about a specific order number (e.g., "Where is order #${recent[0]._id.slice(-6).toUpperCase()}?") for full details.`,
+          `\n\nWhich one would you like to check? Just tell me the order number (e.g., "Where is order #${recent[0]._id.slice(-6).toUpperCase()}?").`,
         orderIds: recent.map((o: any) => o._id),
       };
     }
@@ -632,9 +767,8 @@ async function generateResponse(
       if (delivered.length === 0) {
         return {
           content:
-            "You don't have any previous orders to refill yet. Start by browsing our catalogue!\n\n" +
-            "[Browse Medicines](#/products)\n\n" +
-            "Once you've placed some orders, I'll help you refill your regular medicines.",
+            "You don't have any previous orders yet, so there's nothing to refill just yet. Once you've placed an order, I'll help you reorder your regular medicines.\n\n" +
+            "[Browse Medicines](#/products)",
         };
       }
 
@@ -671,14 +805,14 @@ async function generateResponse(
 
       const lines = candidates.map((c) => {
         const daysAgo = Math.round((Date.now() - c.lastDate) / 86400000);
-        return `• **${c.name}** — Last ordered ${daysAgo} days ago (×${c.qty})`;
+        return `• **${c.name}** — last ordered ${daysAgo === 0 ? "today" : daysAgo === 1 ? "yesterday" : `${daysAgo} days ago`} (×${c.qty})`;
       });
 
       return {
         content:
-          "Based on your order history, you may want to refill:\n\n" +
+          "Sure — I can help with that. Based on your order history, these look ready for a refill:\n\n" +
           lines.join("\n") +
-          "\n\nVisit your **Medicine Refill** page to see full refill details and set reminders.\n\n" +
+          "\n\nYour **Medicine Refill** page has the full details, quantities and reminders.\n\n" +
           "[Go to Medicine Refill](#/refill)",
       };
     }
@@ -721,12 +855,11 @@ async function generateResponse(
     case "complaint": {
       return {
         content:
-          "I'm sorry to hear you're experiencing an issue. I understand this is frustrating.\n\n" +
-          "I'll connect you with our support team who can help resolve this for you. " +
-          "In the meantime, you can also reach us at:\n\n" +
+          "I'm really sorry about that — that's not the experience we want you to have. 💙\n\n" +
+          "Let me connect you with our support team so this gets properly sorted out. In the meantime, you can reach us directly:\n\n" +
           "📞 **+91 98765 43210** (Mon–Sat, 8 AM – 10 PM)\n" +
-          "💬 **WhatsApp** — Click the chat button on the website\n\n" +
-          "Would you like me to connect you with our pharmacist support team?",
+          "💬 **WhatsApp** — use the chat button on our website\n\n" +
+          "Would you like me to connect you now?",
       };
     }
 
