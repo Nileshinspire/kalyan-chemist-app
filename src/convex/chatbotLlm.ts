@@ -81,18 +81,23 @@ async function callGemini(
     },
   });
 
-  // The free tier occasionally returns transient 429/500/503 ("high demand")
-  // responses. Retry a couple of times with a short backoff so a momentary
-  // spike doesn't surface as an error to the customer.
+  // The free tier is rate-limited (~20 requests/min) and occasionally returns
+  // transient 429/500/503 responses. The 429 quota window recovers in seconds
+  // ("Please retry in ~5-10s"), so back off long enough to outwait it — a
+  // short 500ms retry just hits the same window again and wastes the attempt.
   const RETRIES = 2;
   let lastError: Error | null = null;
   for (let attempt = 0; attempt <= RETRIES; attempt++) {
+    let status = 0;
     try {
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body,
+        // Don't let a hung upstream hold the action indefinitely.
+        signal: AbortSignal.timeout(30000),
       });
+      status = res.status;
       const data: GeminiResponse = await res.json().catch(() => ({}));
       if (!res.ok) {
         const err = new Error(data?.error?.message || `Gemini API error (HTTP ${res.status})`);
@@ -108,7 +113,14 @@ async function callGemini(
       if (attempt === RETRIES) throw e;
       lastError = e;
     }
-    await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
+    // Rate-limit (429) windows reset in ~5-15s; server-load errors (500/503)
+    // usually clear faster. Tailor the wait so retries actually land outside
+    // the exhausted window.
+    const delayMs =
+      status === 429
+        ? [5000, 10000][attempt]
+        : [1000, 2500][attempt] ?? 2500;
+    await new Promise((r) => setTimeout(r, delayMs));
   }
   throw lastError ?? new Error("Gemini API request failed");
 }
@@ -731,7 +743,13 @@ export const sendLlmMessage = action({
         responseTimeMs: Date.now() - started,
       };
     } catch (err: any) {
-      // LLM call failed — transparent fallback, never a fake answer
+      // LLM call failed after retries — transparent fallback, never a fake
+      // answer. Log the real reason server-side so `convex logs` shows the
+      // exact upstream error without exposing anything to the customer.
+      console.error("[chatbotLlm] Gemini call failed", {
+        message: err?.message || String(err),
+        conversationId: args.conversationId,
+      });
       const fallbackText =
         "I'm having trouble reaching my AI service right now. Please try again in a moment, or call us at +91 98765 43210 (Mon–Sat, 8 AM – 10 PM).";
       await ctx.runMutation(internal.chatbotInternal.persistMessages, {
