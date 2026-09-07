@@ -22,7 +22,7 @@ function getApiKey(): string | null {
 }
 
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
-const MODEL = "gemini-2.5-flash";
+const MODEL = "gemini-3.6-flash";
 const MAX_TOKENS = 2048;
 const MAX_TOOL_ROUNDS = 4;
 
@@ -79,7 +79,7 @@ async function callGemini(
         generationConfig: {
           maxOutputTokens: MAX_TOKENS,
           temperature: 0.7,
-          // gemini-2.5-flash runs "thinking" by default, which consumes the
+          // gemini-3.6-flash runs "thinking" by default, which consumes the
           // same output-token budget and can leave the visible reply empty.
           // Disable it for fast, direct conversational replies.
           thinkingConfig: { thinkingBudget: 0 },
