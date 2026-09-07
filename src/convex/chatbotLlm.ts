@@ -22,7 +22,12 @@ function getApiKey(): string | null {
 }
 
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
-const MODEL = "gemini-3.6-flash";
+// gemini-3.5-flash-lite — current officially supported free-tier model.
+// Google's free-tier quota is PER MODEL (gemini-3.6-flash free tier caps at
+// ~20 req/min, which a busy chatbot exhausts within minutes). Lite models are
+// built for high-volume use and have their own separate free-tier bucket.
+// Verified live: full function-calling + thoughtSignature round-trips work.
+const MODEL = "gemini-3.5-flash-lite";
 const MAX_TOKENS = 2048;
 const MAX_TOOL_ROUNDS = 4;
 
@@ -75,18 +80,24 @@ async function callGemini(
     generationConfig: {
       maxOutputTokens: MAX_TOKENS,
       temperature: 0.7,
-      // NOTE: gemini-3.6-flash rejects `thinkingConfig` (HTTP 400
-      // INVALID_ARGUMENT) — verified live against the API. The model
-      // returns normal visible replies and function calls without it.
+      // NOTE: Gemini 3.x models reject `thinkingConfig` (HTTP 400
+      // INVALID_ARGUMENT) — verified live against the API. They return
+      // normal visible replies and function calls without it.
     },
   });
 
-  // The free tier is rate-limited (~20 requests/min) and occasionally returns
-  // transient 429/500/503 responses. The 429 quota window recovers in seconds
-  // ("Please retry in ~5-10s"), so back off long enough to outwait it — a
-  // short 500ms retry just hits the same window again and wastes the attempt.
+  // The free tier is rate-limited (a few requests/min per model bucket) and
+  // occasionally returns transient 429/500/503 responses. Gemini's 429 error
+  // tells us exactly when the window clears ("Please retry in Xs") — wait that
+  // long (plus margin) so the retry lands in a fresh window instead of burning
+  // another quota slot inside the same exhausted one.
+  const parseRetrySeconds = (msg: string): number => {
+    const m = /retry in\s+([\d.]+)\s*s/i.exec(msg || "");
+    return m ? Math.min(parseFloat(m[1]) + 1, 25) : 0;
+  };
   const RETRIES = 2;
   let lastError: Error | null = null;
+  let retrySeconds = 0;
   for (let attempt = 0; attempt <= RETRIES; attempt++) {
     let status = 0;
     try {
@@ -101,6 +112,7 @@ async function callGemini(
       const data: GeminiResponse = await res.json().catch(() => ({}));
       if (!res.ok) {
         const err = new Error(data?.error?.message || `Gemini API error (HTTP ${res.status})`);
+        retrySeconds = status === 429 ? parseRetrySeconds(err.message) : 0;
         // Retry only transient server/rate-limit failures; surface everything
         // else (bad request, auth, model errors) immediately.
         if (![429, 500, 503].includes(res.status) || attempt === RETRIES) throw err;
@@ -113,12 +125,11 @@ async function callGemini(
       if (attempt === RETRIES) throw e;
       lastError = e;
     }
-    // Rate-limit (429) windows reset in ~5-15s; server-load errors (500/503)
-    // usually clear faster. Tailor the wait so retries actually land outside
-    // the exhausted window.
+    // Rate-limit (429): wait out the reported window. Server-load errors
+    // (500/503) usually clear faster.
     const delayMs =
       status === 429
-        ? [5000, 10000][attempt]
+        ? (retrySeconds || 6) * 1000
         : [1000, 2500][attempt] ?? 2500;
     await new Promise((r) => setTimeout(r, delayMs));
   }
