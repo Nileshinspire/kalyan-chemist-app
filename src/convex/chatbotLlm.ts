@@ -539,10 +539,12 @@ export const sendLlmMessage = action({
     const apiKey = getApiKey();
     if (!apiKey) {
       // Graceful fallback when GEMINI_API_KEY is not configured:
-      // persist a transparent notice instead of pretending the LLM answered.
+      // persist a transparent notice naming the exact missing secret
+      // instead of pretending the LLM answered.
       const fallbackText =
-        "The AI assistant is temporarily unavailable (LLM service not configured). " +
-        "Our team has been notified. You can still browse products, track orders, or call us at +91 98765 43210 (Mon–Sat, 8 AM – 10 PM).";
+        "The AI assistant is temporarily unavailable — the LLM service key (GEMINI_API_KEY) is not configured on this deployment. " +
+        "Once the project owner adds the free Google Gemini key, I'll be fully AI-powered and can answer any question. " +
+        "Meanwhile, you can browse products, track orders, or call us at +91 98765 43210 (Mon–Sat, 8 AM – 10 PM).";
       await ctx.runMutation(internal.chatbotInternal.persistMessages, {
         conversationId: args.conversationId,
         userId: userIdentity,
