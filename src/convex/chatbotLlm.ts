@@ -67,31 +67,50 @@ async function callGemini(
   tools: GeminiFunctionDeclaration[],
   contents: GeminiContent[],
 ): Promise<GeminiResponse> {
-  const res = await fetch(
-    `${GEMINI_BASE_URL}/models/${MODEL}:generateContent?key=${encodeURIComponent(apiKey)}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        system_instruction: { parts: [{ text: systemPrompt }] },
-        contents,
-        tools: [{ function_declarations: tools }],
-        generationConfig: {
-          maxOutputTokens: MAX_TOKENS,
-          temperature: 0.7,
-          // NOTE: gemini-3.6-flash rejects `thinkingConfig` (HTTP 400
-          // INVALID_ARGUMENT) — verified live against the API. The model
-          // returns normal visible replies and function calls without it.
-        },
-      }),
+  const url = `${GEMINI_BASE_URL}/models/${MODEL}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const body = JSON.stringify({
+    system_instruction: { parts: [{ text: systemPrompt }] },
+    contents,
+    tools: [{ function_declarations: tools }],
+    generationConfig: {
+      maxOutputTokens: MAX_TOKENS,
+      temperature: 0.7,
+      // NOTE: gemini-3.6-flash rejects `thinkingConfig` (HTTP 400
+      // INVALID_ARGUMENT) — verified live against the API. The model
+      // returns normal visible replies and function calls without it.
     },
-  );
+  });
 
-  const data: GeminiResponse = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error(data?.error?.message || `Gemini API error (HTTP ${res.status})`);
+  // The free tier occasionally returns transient 429/500/503 ("high demand")
+  // responses. Retry a couple of times with a short backoff so a momentary
+  // spike doesn't surface as an error to the customer.
+  const RETRIES = 2;
+  let lastError: Error | null = null;
+  for (let attempt = 0; attempt <= RETRIES; attempt++) {
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body,
+      });
+      const data: GeminiResponse = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const err = new Error(data?.error?.message || `Gemini API error (HTTP ${res.status})`);
+        // Retry only transient server/rate-limit failures; surface everything
+        // else (bad request, auth, model errors) immediately.
+        if (![429, 500, 503].includes(res.status) || attempt === RETRIES) throw err;
+        lastError = err;
+      } else {
+        return data;
+      }
+    } catch (e: any) {
+      // Network-level failure (timeout, DNS) — retry transient cases too.
+      if (attempt === RETRIES) throw e;
+      lastError = e;
+    }
+    await new Promise((r) => setTimeout(r, 500 * (attempt + 1)));
   }
-  return data;
+  throw lastError ?? new Error("Gemini API request failed");
 }
 
 /* ── Gemini requires functionResponse.payload to be an object; wrap strings ── */
