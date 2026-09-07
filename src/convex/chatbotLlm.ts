@@ -79,10 +79,9 @@ async function callGemini(
         generationConfig: {
           maxOutputTokens: MAX_TOKENS,
           temperature: 0.7,
-          // gemini-3.6-flash runs "thinking" by default, which consumes the
-          // same output-token budget and can leave the visible reply empty.
-          // Disable it for fast, direct conversational replies.
-          thinkingConfig: { thinkingBudget: 0 },
+          // NOTE: gemini-3.6-flash rejects `thinkingConfig` (HTTP 400
+          // INVALID_ARGUMENT) — verified live against the API. The model
+          // returns normal visible replies and function calls without it.
         },
       }),
     },
