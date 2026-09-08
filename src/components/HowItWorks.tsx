@@ -1,6 +1,12 @@
-import { motion, useReducedMotion } from "framer-motion";
-import { ArrowRight, Plus, Zap } from "lucide-react";
-import { Fragment } from "react";
+import {
+  motion,
+  useMotionValue,
+  useReducedMotion,
+  useSpring,
+  useTransform,
+} from "framer-motion";
+import { Plus, Zap } from "lucide-react";
+import { Fragment, useEffect, useState, type MouseEvent as ReactMouseEvent } from "react";
 
 /* ── Premium soft-3D step illustrations (Kalyan Chemist palette) ── */
 
@@ -38,9 +44,14 @@ function SearchIllustration() {
           <stop offset="0.55" stopColor="#F3FEFB" />
           <stop offset="1" stopColor="#D8F6EE" />
         </linearGradient>
+        <radialGradient id="siSpot" cx="0.5" cy="0.12" r="0.95">
+          <stop offset="0" stopColor="#FFFFFF" stopOpacity="0.85" />
+          <stop offset="1" stopColor="#FFFFFF" stopOpacity="0" />
+        </radialGradient>
       </defs>
 
       <rect x="1" y="1" width="218" height="148" rx="24" fill="url(#siBg)" stroke="#CCFBF1" strokeWidth="1.5" />
+      <ellipse cx="110" cy="-8" rx="118" ry="66" fill="url(#siSpot)" />
       <circle cx="126" cy="74" r="64" fill="url(#siGlow)" />
       <circle cx="58" cy="64" r="26" fill="#FDBA74" opacity="0.14" />
       <path d="M34 46 l1.1 2.6 2.6 1.1 -2.6 1.1 -1.1 2.6 -1.1 -2.6 -2.6 -1.1 2.6 -1.1 Z" fill="#8B5CF6" opacity="0.5" />
@@ -78,8 +89,9 @@ function SearchIllustration() {
         <rect x="28" y="124" width="5" height="6" rx="2.5" fill="#FFFFFF" opacity="0.55" />
       </g>
 
-      <g transform="rotate(-7 140 88)">
-        <rect x="106" y="32" width="68" height="112" rx="17" fill="url(#siBody)" />
+      <motion.g animate={{ x: [0, 1.2, 0], y: [0, -1.4, 0] }} transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}>
+        <g transform="rotate(-7 140 88)">
+          <rect x="106" y="32" width="68" height="112" rx="17" fill="url(#siBody)" />
         <rect x="106" y="32" width="68" height="112" rx="17" fill="none" stroke="#0D9488" strokeWidth="2.2" />
         <rect x="112" y="38" width="56" height="100" rx="12" fill="url(#siScreen)" />
         <circle cx="119" cy="44.5" r="2.1" fill="#0D9488" opacity="0.55" />
@@ -101,7 +113,14 @@ function SearchIllustration() {
         <rect x="133" y="118" width="13" height="2.4" rx="1.2" fill="#CCFBF1" />
         <rect x="150" y="112" width="10" height="6" rx="3" fill="#14B8A6" opacity="0.85" />
         <rect x="119" y="121.5" width="18" height="3.8" rx="1.9" fill="#93C5FD" opacity="0.9" />
-      </g>
+        </g>
+      </motion.g>
+
+      <motion.g animate={{ y: [0, -3.5, 0] }} transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}>
+        <rect x="20" y="96" width="46" height="16" rx="8" fill="#FFFFFF" stroke="#99F6E4" strokeWidth="1.3" />
+        <rect x="27" y="101" width="20" height="5" rx="2.5" fill="#FDBA74" />
+        <rect x="51" y="100.5" width="11" height="6" rx="3" fill="#14B8A6" opacity="0.9" />
+      </motion.g>
 
       <motion.g animate={{ y: [0, -4, 0] }} transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut" }}>
         <circle cx="182" cy="41" r="15" fill="url(#siGlass)" />
@@ -148,9 +167,14 @@ function OrderIllustration() {
           <stop offset="0" stopColor="#FFFFFF" />
           <stop offset="1" stopColor="#EAFBF6" />
         </linearGradient>
+        <radialGradient id="oiSpot" cx="0.5" cy="0.12" r="0.95">
+          <stop offset="0" stopColor="#FFFFFF" stopOpacity="0.85" />
+          <stop offset="1" stopColor="#FFFFFF" stopOpacity="0" />
+        </radialGradient>
       </defs>
 
       <rect x="1" y="1" width="218" height="148" rx="24" fill="url(#oiBg)" stroke="#CCFBF1" strokeWidth="1.5" />
+      <ellipse cx="110" cy="-8" rx="118" ry="66" fill="url(#oiSpot)" />
       <circle cx="110" cy="72" r="66" fill="url(#oiGlow)" />
       <path d="M196 82 l1.1 2.6 2.6 1.1 -2.6 1.1 -1.1 2.6 -1.1 -2.6 -2.6 -1.1 2.6 -1.1 Z" fill="#8B5CF6" opacity="0.55" />
       <circle cx="102" cy="78" r="26" fill="#2DD4BF" opacity="0.1" />
@@ -165,8 +189,9 @@ function OrderIllustration() {
       <ellipse cx="102" cy="124" rx="42" ry="7" fill="#0D9488" opacity="0.1" />
       <ellipse cx="178" cy="126" rx="30" ry="5.5" fill="#0D9488" opacity="0.08" />
 
-      <g>
-        <rect x="80" y="38" width="27" height="28" rx="6" fill="url(#oiTeal)" />
+      <motion.g animate={{ y: [0, -1.5, 0] }} transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}>
+        <g>
+          <rect x="80" y="38" width="27" height="28" rx="6" fill="url(#oiTeal)" />
         <rect x="80" y="38" width="27" height="9" rx="4.5" fill="#FFFFFF" opacity="0.92" />
         <path d="M90.5 54 v10 M85.5 59 h10" stroke="#FFFFFF" strokeWidth="2.4" strokeLinecap="round" />
         <rect x="103" y="47" width="22" height="20" rx="5" fill="url(#oiOrange)" />
@@ -185,7 +210,16 @@ function OrderIllustration() {
         <circle cx="120" cy="120" r="7" fill="#0F766E" />
         <circle cx="84" cy="120" r="2.6" fill="#CCFBF1" />
         <circle cx="120" cy="120" r="2.6" fill="#CCFBF1" />
-      </g>
+        </g>
+      </motion.g>
+
+      <motion.g animate={{ y: [0, -3, 0] }} transition={{ duration: 4.8, repeat: Infinity, ease: "easeInOut" }}>
+        <g transform="rotate(8 190 40)">
+          <rect x="179" y="30" width="20" height="15" rx="3.5" fill="#FFFFFF" stroke="#99F6E4" strokeWidth="1.4" />
+          <rect x="179" y="30" width="20" height="5" rx="2.5" fill="#14B8A6" opacity="0.85" />
+          <rect x="179" y="38.5" width="12" height="2.6" rx="1.3" fill="#99F6E4" />
+        </g>
+      </motion.g>
 
       <motion.g animate={{ y: [0, -3.5, 0] }} transition={{ duration: 4.2, repeat: Infinity, ease: "easeInOut" }}>
         <rect x="24" y="24" width="64" height="24" rx="12" fill="#FFFFFF" stroke="#99F6E4" strokeWidth="1.5" />
@@ -251,9 +285,14 @@ function DeliveryIllustration() {
           <stop offset="0" stopColor="#FDBA74" />
           <stop offset="1" stopColor="#F97316" />
         </linearGradient>
+        <radialGradient id="diSpot" cx="0.5" cy="0.12" r="0.95">
+          <stop offset="0" stopColor="#FFFFFF" stopOpacity="0.85" />
+          <stop offset="1" stopColor="#FFFFFF" stopOpacity="0" />
+        </radialGradient>
       </defs>
 
       <rect x="1" y="1" width="218" height="148" rx="24" fill="url(#diBg)" stroke="#CCFBF1" strokeWidth="1.5" />
+      <ellipse cx="110" cy="-8" rx="118" ry="66" fill="url(#diSpot)" />
       <circle cx="124" cy="76" r="62" fill="url(#diGlow)" />
       <circle cx="150" cy="64" r="32" fill="#8B5CF6" opacity="0.1" />
       <circle cx="64" cy="50" r="2.4" fill="#3B82F6" opacity="0.5" />
@@ -310,6 +349,14 @@ function DeliveryIllustration() {
         <path d="M181 22.5 a14 14 0 0 1 12 -3.5" stroke="#5EEAD4" strokeWidth="2.2" strokeLinecap="round" opacity="0.8" />
         <circle cx="188" cy="45" r="16.5" stroke="#2DD4BF" strokeWidth="1.5" strokeDasharray="2 4" opacity="0.55" fill="none" />
       </motion.g>
+
+      <motion.g animate={{ y: [0, -3, 0] }} transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}>
+        <rect x="16" y="18" width="54" height="17" rx="8.5" fill="#FFFFFF" stroke="#99F6E4" strokeWidth="1.3" />
+        <circle cx="26" cy="26.5" r="6.5" fill="#14B8A6" />
+        <path d="M23.4 26.5 l2 2 4 -4.4" stroke="#FFFFFF" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        <rect x="37" y="23.5" width="20" height="3" rx="1.5" fill="#0F766E" opacity="0.8" />
+        <rect x="37" y="28.5" width="13" height="2.4" rx="1.2" fill="#99F6E4" />
+      </motion.g>
     </svg>
   );
 }
@@ -317,6 +364,37 @@ function DeliveryIllustration() {
 /* ── How It Works: compact premium process banner ── */
 export default function HowItWorks() {
   const prefersReducedMotion = useReducedMotion();
+
+  /* ── subtle mouse parallax (fine-pointer devices only) ── */
+  const [finePointer, setFinePointer] = useState(false);
+  const mx = useMotionValue(0);
+  const my = useMotionValue(0);
+  const sx = useSpring(mx, { stiffness: 50, damping: 18 });
+  const sy = useSpring(my, { stiffness: 50, damping: 18 });
+  const bgX = useTransform(sx, (v) => v * -5);
+  const bgY = useTransform(sy, (v) => v * -4);
+  const fgX = useTransform(sx, (v) => v * 6);
+  const fgY = useTransform(sy, (v) => v * 4);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(pointer: fine)");
+    setFinePointer(mq.matches);
+    const onChange = (e: MediaQueryListEvent) => setFinePointer(e.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+
+  const parallaxOn = finePointer && !prefersReducedMotion;
+
+  const handleMouseMove = (e: ReactMouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    mx.set(((e.clientX - rect.left) / rect.width - 0.5) * 2);
+    my.set(((e.clientY - rect.top) / rect.height - 0.5) * 2);
+  };
+  const handleMouseLeave = () => {
+    mx.set(0);
+    my.set(0);
+  };
 
   return (
     <section className="border-y border-border/50 bg-gradient-to-b from-card/50 to-background overflow-hidden">
@@ -338,9 +416,17 @@ export default function HowItWorks() {
         </div>
 
         {/* Process banner */}
-        <div className="relative mt-4 overflow-hidden rounded-3xl border border-primary/10 bg-white shadow-glow sm:mt-5">
+        <div
+          className="group/flow relative mt-4 overflow-hidden rounded-3xl border border-primary/10 bg-white shadow-glow sm:mt-4"
+          onMouseMove={parallaxOn ? handleMouseMove : undefined}
+          onMouseLeave={parallaxOn ? handleMouseLeave : undefined}
+        >
           {/* ── Premium layered healthcare backdrop (visual only) ── */}
-          <div aria-hidden className="pointer-events-none absolute inset-0">
+          <motion.div
+            aria-hidden
+            className="pointer-events-none absolute inset-0"
+            style={parallaxOn ? { x: bgX, y: bgY } : undefined}
+          >
             {/* base color wash */}
             <div className="absolute inset-0 bg-gradient-to-br from-teal-50 via-white to-sky-50" />
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(45,212,191,0.14),transparent_55%)]" />
@@ -407,9 +493,16 @@ export default function HowItWorks() {
                 strokeLinejoin="round"
               />
             </svg>
-          </div>
+            {/* translucent depth rings */}
+            <div className="absolute top-1/3 -left-12 size-44 -translate-y-1/2 rounded-full border-2 border-teal-400/10" />
+            <div className="absolute right-6 bottom-8 size-24 rounded-full border-2 border-dashed border-sky-400/15" />
+            <div className="absolute -right-8 top-16 size-32 rounded-full border border-violet-400/10" />
+          </motion.div>
 
-          <div className="relative grid grid-cols-1 gap-y-3 px-4 py-4 sm:px-6 lg:grid-cols-[1fr_auto_1fr_auto_1fr] lg:items-center lg:gap-x-0.5 lg:px-5 lg:py-4">
+          <motion.div
+            className="relative grid grid-cols-1 gap-y-2.5 px-4 py-4 sm:px-6 lg:grid-cols-[1fr_auto_1fr_auto_1fr] lg:items-center lg:gap-x-1 lg:px-4 lg:py-4"
+            style={parallaxOn ? { x: fgX, y: fgY } : undefined}
+          >
             {[
               {
                 step: "01",
@@ -439,9 +532,10 @@ export default function HowItWorks() {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true, margin: "-40px" }}
                   transition={{ delay: i * 0.12, duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-                  className="group flex items-center gap-4 sm:gap-5 lg:flex-col lg:justify-start lg:gap-0 lg:px-1 lg:text-center"
+                  className="group"
                 >
-                  <div className="relative shrink-0 [perspective:900px] lg:mx-auto lg:w-full lg:max-w-[300px]">
+                  <div className="flex w-full items-center gap-4 transition-opacity duration-300 group-hover/flow:opacity-60 hover:opacity-100! sm:gap-5 lg:flex-col lg:justify-start lg:gap-0 lg:px-1 lg:text-center">
+                    <div className="relative shrink-0 [perspective:900px] lg:mx-auto lg:w-full lg:max-w-[320px]">
                     {/* soft teal glow that blooms behind the card on hover */}
                     <div
                       aria-hidden
@@ -465,40 +559,55 @@ export default function HowItWorks() {
                       {/* subtle Kalyan teal accent overlay — original illustration colors stay visible */}
                       <div className="pointer-events-none absolute inset-0 rounded-2xl bg-[radial-gradient(ellipse_at_top,rgba(45,212,191,0.16),transparent_62%)] opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
                     </motion.div>
-                    <div className="absolute -top-2 left-1/2 flex size-7 -translate-x-1/2 items-center justify-center rounded-xl gradient-primary text-white text-[10px] font-bold shadow-md ring-2 ring-white lg:-top-2.5 lg:size-8 lg:text-[11px]">
+                    <div className="absolute -top-2 left-1/2 flex size-7 -translate-x-1/2 items-center justify-center rounded-xl gradient-primary text-white text-[10px] font-bold shadow-md ring-2 ring-white transition-all duration-300 group-hover:-translate-y-0.5 group-hover:scale-110 group-hover:shadow-lg group-hover:shadow-teal-500/40 lg:-top-2.5 lg:size-8 lg:text-[11px]">
                       {item.step}
                     </div>
                   </div>
                   <div className="min-w-0 flex-1 text-left lg:mt-2 lg:flex-none lg:text-center">
-                    <h3 className="text-[13px] font-semibold text-foreground sm:text-sm">
+                    <h3 className="text-[13px] font-semibold text-foreground transition-all duration-300 group-hover:-translate-y-0.5 group-hover:text-teal-700 sm:text-sm">
                       {item.title}
                     </h3>
                     <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground lg:mx-auto lg:mt-1 lg:max-w-[240px]">
                       {item.description}
                     </p>
                   </div>
+                  </div>
                 </motion.div>
 
                 {/* Connector between steps */}
                 {i < 2 && (
-                  <div aria-hidden className="flex items-center justify-center py-1 lg:w-9 lg:shrink-0 lg:py-0 lg:-mt-8">
-                    <div className="flex flex-col items-center gap-1 lg:flex-row lg:gap-0">
-                      <span className="h-4 w-px border-l-2 border-dashed border-primary/25 lg:hidden" />
-                      <span className="hidden h-px w-5 border-t-2 border-dashed border-primary/25 lg:block" />
-                      <motion.span
-                        animate={{ scale: [1, 1.12, 1] }}
-                        transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut", delay: i * 0.4 }}
-                        className="flex size-6 items-center justify-center rounded-full border border-primary/15 bg-gradient-to-br from-teal-50 to-orange-50 text-primary shadow-sm lg:mx-1 lg:size-7"
-                      >
-                        <ArrowRight className="size-3 rotate-90 lg:rotate-0" />
-                      </motion.span>
-                      <span className="hidden h-px w-5 border-t-2 border-dashed border-primary/25 lg:block" />
-                    </div>
+                  <div aria-hidden className="flex items-center justify-center py-0.5 lg:w-16 lg:shrink-0 lg:py-0 lg:-mt-8">
+                    {/* mobile: downward flowing journey path */}
+                    <svg viewBox="0 0 40 46" className="h-11 w-9 lg:hidden" fill="none">
+                      <path d="M20 3 C 9 17, 31 30, 20 43" stroke="#99F6E4" strokeWidth="2.5" strokeLinecap="round" strokeDasharray="1 7" />
+                      <path d="M20 3 C 9 17, 31 30, 20 43" stroke="#2DD4BF" strokeWidth="4.5" strokeLinecap="round" opacity="0.12" />
+                      <motion.circle
+                        r="2.6"
+                        fill="#0D9488"
+                        style={{ offsetPath: 'path("M20 3 C 9 17, 31 30, 20 43")', offsetRotate: "0deg" }}
+                        animate={prefersReducedMotion ? undefined : { offsetDistance: ["0%", "100%"] }}
+                        transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut", delay: i * 0.45 }}
+                      />
+                      <path d="M20 43 l-4.4 -2.1 m4.4 2.1 l2.1 -4.4" stroke="#F97316" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    {/* desktop: refined curved path with a travelling highlight */}
+                    <svg viewBox="0 0 64 48" className="hidden h-12 w-16 lg:block" fill="none">
+                      <path d="M5 40 C 20 8, 45 38, 59 10" stroke="#99F6E4" strokeWidth="2.5" strokeLinecap="round" strokeDasharray="1 7" />
+                      <path d="M5 40 C 20 8, 45 38, 59 10" stroke="#2DD4BF" strokeWidth="5" strokeLinecap="round" opacity="0.12" />
+                      <motion.circle
+                        r="2.6"
+                        fill="#0D9488"
+                        style={{ offsetPath: 'path("M5 40 C 20 8, 45 38, 59 10")', offsetRotate: "0deg" }}
+                        animate={prefersReducedMotion ? undefined : { offsetDistance: ["0%", "100%"] }}
+                        transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut", delay: i * 0.45 }}
+                      />
+                      <path d="M59 10 l-5.2 -1.6 m5.2 1.6 l-1.6 5.2" stroke="#F97316" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
                   </div>
                 )}
               </Fragment>
             ))}
-          </div>
+          </motion.div>
         </div>
       </div>
     </section>
