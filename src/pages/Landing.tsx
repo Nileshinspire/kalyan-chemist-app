@@ -84,6 +84,30 @@ const CATEGORY_STYLES: Record<string, { icon: typeof Pill; color: string; hoverB
 
 const DEFAULT_STYLE = { icon: Pill, color: "from-primary/15 to-primary/10", hoverBg: "hover:from-primary/20 hover:to-primary/15", iconColor: "text-primary" };
 
+// Health-condition categories that are already represented by the
+// "Browse by Health Conditions" section — excluded from "Find What You Need"
+// to avoid duplicate health-condition concepts on the homepage. Includes
+// same-purpose categories that exist under different names
+// (e.g. Heart & Cardio ≈ Cardiac Care).
+const HEALTH_CONDITION_SLUGS = new Set([
+  // Exact health-condition categories
+  "diabetes-care",
+  "cardiac-care",
+  "stomach-care",
+  "pain-relief",
+  "liver-care",
+  "oral-care",
+  "respiratory",
+  "sexual-health",
+  "elderly-care",
+  "cold-immunity",
+  // Same-purpose categories under different names
+  "heart-cardio", // ≈ Cardiac Care
+  "digestive-health", // ≈ Stomach Care
+  "sexual-wellness", // ≈ Sexual Health
+  "health-safety", // ≈ Cold & Immunity
+]);
+
 const features = [
   { icon: ShieldCheck, title: "Genuine Medicines", description: "Every product sourced directly from licensed manufacturers and verified distributors." },
   { icon: Truck, title: "Prompt Delivery", description: "Orders dispatched within hours and delivered to your doorstep with care." },
@@ -411,7 +435,9 @@ export default function Landing() {
           </p>
         </motion.div>
         <div className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {(categories ?? []).map((cat) => {
+          {(categories ?? [])
+            .filter((cat) => !HEALTH_CONDITION_SLUGS.has(cat.slug))
+            .map((cat) => {
             const style = CATEGORY_STYLES[cat.slug] ?? DEFAULT_STYLE;
             return (
               <motion.div
