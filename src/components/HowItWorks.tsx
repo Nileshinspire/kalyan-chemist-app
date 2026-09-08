@@ -305,26 +305,29 @@ function DeliveryIllustration() {
 export default function HowItWorks() {
   return (
     <section className="border-y border-border/50 bg-gradient-to-b from-card/50 to-background overflow-hidden">
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10">
-        <div className="mx-auto max-w-2xl text-center">
-          <div className="inline-flex items-center gap-1.5 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-[11px] font-medium text-primary">
-            <Zap className="size-3" />
-            Simple Process
+      <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-6">
+        {/* Compact header — badge + title inline, subtitle beside on desktop */}
+        <div className="flex flex-col items-center gap-1.5 text-center lg:flex-row lg:items-center lg:justify-between lg:gap-4 lg:text-left">
+          <div className="flex items-center gap-2.5">
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-primary/5 border border-primary/10 px-2.5 py-1 text-[10px] font-medium text-primary">
+              <Zap className="size-3" />
+              Simple Process
+            </div>
+            <h2 className="text-xl font-bold tracking-tight sm:text-2xl">
+              How It Works
+            </h2>
           </div>
-          <h2 className="mt-2.5 text-2xl font-bold tracking-tight sm:text-3xl">
-            How It Works
-          </h2>
-          <p className="mx-auto mt-1.5 max-w-xl text-sm leading-relaxed text-muted-foreground sm:text-[15px]">
+          <p className="max-w-sm text-xs leading-relaxed text-muted-foreground sm:text-[13px]">
             One smooth journey from browsing to your doorstep — search, order, receive.
           </p>
         </div>
 
         {/* Process banner */}
-        <div className="relative mt-5 overflow-hidden rounded-3xl border border-primary/10 bg-gradient-to-b from-teal-50/70 via-white to-emerald-50/50 shadow-glow sm:mt-6">
+        <div className="relative mt-4 overflow-hidden rounded-3xl border border-primary/10 bg-gradient-to-b from-teal-50/70 via-white to-emerald-50/50 shadow-glow sm:mt-5">
           <div className="pointer-events-none absolute -top-16 -right-16 size-52 rounded-full bg-teal-400/10 blur-3xl" />
           <div className="pointer-events-none absolute -bottom-20 -left-14 size-52 rounded-full bg-orange-400/10 blur-3xl" />
 
-          <div className="relative grid grid-cols-1 px-4 py-6 sm:px-6 lg:grid-cols-[1fr_auto_1fr_auto_1fr] lg:items-center lg:gap-x-1.5 lg:px-8 lg:py-5">
+          <div className="relative grid grid-cols-1 gap-y-3 px-4 py-4 sm:px-6 lg:grid-cols-[1fr_auto_1fr_auto_1fr] lg:items-center lg:gap-x-1.5 lg:px-8 lg:py-4">
             {[
               {
                 step: "01",
@@ -356,19 +359,19 @@ export default function HowItWorks() {
                   transition={{ delay: i * 0.12, duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
                   className="group flex items-center gap-4 sm:gap-5 lg:flex-col lg:justify-start lg:gap-0 lg:px-1 lg:text-center"
                 >
-                  <div className="relative shrink-0 lg:mx-auto lg:w-full lg:max-w-[280px]">
-                    <div className="relative flex h-24 w-36 items-center justify-center overflow-hidden rounded-2xl border border-teal-900/5 bg-white shadow-card-hover transition-all duration-300 group-hover:-translate-y-1 group-hover:border-primary/15 sm:h-28 sm:w-48 lg:h-28 lg:w-full">
+                  <div className="relative shrink-0 lg:mx-auto lg:w-full lg:max-w-[240px]">
+                    <div className="relative flex h-20 w-32 items-center justify-center overflow-hidden rounded-2xl border border-teal-900/5 bg-white shadow-card-hover transition-all duration-300 group-hover:-translate-y-1 group-hover:border-primary/15 sm:h-24 sm:w-44 lg:h-24 lg:w-full">
                       <item.Illustration />
                     </div>
-                    <div className="absolute -top-2.5 left-1/2 flex size-8 -translate-x-1/2 items-center justify-center rounded-xl gradient-primary text-white text-[11px] font-bold shadow-md ring-2 ring-white lg:-top-3 lg:size-9 lg:text-xs">
+                    <div className="absolute -top-2 left-1/2 flex size-7 -translate-x-1/2 items-center justify-center rounded-xl gradient-primary text-white text-[10px] font-bold shadow-md ring-2 ring-white lg:-top-2.5 lg:size-8 lg:text-[11px]">
                       {item.step}
                     </div>
                   </div>
-                  <div className="min-w-0 flex-1 text-left lg:mt-2.5 lg:flex-none lg:text-center">
-                    <h3 className="text-sm font-semibold text-foreground sm:text-[15px]">
+                  <div className="min-w-0 flex-1 text-left lg:mt-2 lg:flex-none lg:text-center">
+                    <h3 className="text-[13px] font-semibold text-foreground sm:text-sm">
                       {item.title}
                     </h3>
-                    <p className="mt-1 text-xs leading-snug text-muted-foreground lg:mx-auto lg:mt-1 lg:max-w-[250px]">
+                    <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground lg:mx-auto lg:mt-1 lg:max-w-[240px]">
                       {item.description}
                     </p>
                   </div>
@@ -376,12 +379,12 @@ export default function HowItWorks() {
 
                 {/* Connector between steps */}
                 {i < 2 && (
-                  <div aria-hidden className="flex items-center justify-center py-2 lg:w-9 lg:shrink-0 lg:py-0 lg:-mt-9">
+                  <div aria-hidden className="flex items-center justify-center py-1 lg:w-9 lg:shrink-0 lg:py-0 lg:-mt-8">
                     <div className="flex flex-col items-center gap-1 lg:flex-row lg:gap-0">
-                      <span className="h-5 w-px border-l-2 border-dashed border-primary/25 lg:hidden" />
+                      <span className="h-4 w-px border-l-2 border-dashed border-primary/25 lg:hidden" />
                       <span className="hidden h-px w-5 border-t-2 border-dashed border-primary/25 lg:block" />
-                      <span className="flex size-7 items-center justify-center rounded-full border border-primary/15 bg-white text-primary shadow-sm lg:mx-1 lg:size-8">
-                        <ArrowRight className="size-3.5 rotate-90 lg:rotate-0" />
+                      <span className="flex size-6 items-center justify-center rounded-full border border-primary/15 bg-white text-primary shadow-sm lg:mx-1 lg:size-7">
+                        <ArrowRight className="size-3 rotate-90 lg:rotate-0" />
                       </span>
                       <span className="hidden h-px w-5 border-t-2 border-dashed border-primary/25 lg:block" />
                     </div>
