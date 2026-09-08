@@ -42,17 +42,21 @@ function SearchIllustration() {
 
       <rect x="1" y="1" width="218" height="148" rx="24" fill="url(#siBg)" stroke="#CCFBF1" strokeWidth="1.5" />
       <circle cx="126" cy="74" r="64" fill="url(#siGlow)" />
+      <circle cx="58" cy="64" r="26" fill="#FDBA74" opacity="0.14" />
+      <path d="M34 46 l1.1 2.6 2.6 1.1 -2.6 1.1 -1.1 2.6 -1.1 -2.6 -2.6 -1.1 2.6 -1.1 Z" fill="#8B5CF6" opacity="0.5" />
 
       <path d="M46 32 l1.7 4 4 1.7 -4 1.7 -1.7 4 -1.7 -4 -4 -1.7 4 -1.7 Z" fill="#2DD4BF" opacity="0.8" />
       <path d="M196 122 l1.4 3.3 3.3 1.4 -3.3 1.4 -1.4 3.3 -1.4 -3.3 -3.3 -1.4 3.3 -1.4 Z" fill="#FB923C" opacity="0.85" />
       <circle cx="192" cy="30" r="2.6" fill="#0D9488" opacity="0.45" />
       <circle cx="32" cy="118" r="2.2" fill="#0D9488" opacity="0.4" />
 
-      <g opacity="0.55">
-        <rect x="16" y="34" width="70" height="18" rx="9" fill="#FFFFFF" />
-        <rect x="25" y="40" width="34" height="6" rx="3" fill="#CCFBF1" />
-        <rect x="16" y="58" width="52" height="10" rx="5" fill="#FFFFFF" opacity="0.85" />
-      </g>
+      <motion.g animate={{ y: [0, -3, 0] }} transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}>
+        <g opacity="0.55">
+          <rect x="16" y="34" width="70" height="18" rx="9" fill="#FFFFFF" />
+          <rect x="25" y="40" width="34" height="6" rx="3" fill="#BFDBFE" />
+          <rect x="16" y="58" width="52" height="10" rx="5" fill="#FFFFFF" opacity="0.85" />
+        </g>
+      </motion.g>
 
       <ellipse cx="60" cy="133" rx="30" ry="6.5" fill="#0D9488" opacity="0.1" />
       <ellipse cx="156" cy="134" rx="42" ry="7" fill="#0D9488" opacity="0.12" />
@@ -96,6 +100,7 @@ function SearchIllustration() {
         <rect x="133" y="112" width="20" height="3" rx="1.5" fill="#0F766E" opacity="0.55" />
         <rect x="133" y="118" width="13" height="2.4" rx="1.2" fill="#CCFBF1" />
         <rect x="150" y="112" width="10" height="6" rx="3" fill="#14B8A6" opacity="0.85" />
+        <rect x="119" y="121.5" width="18" height="3.8" rx="1.9" fill="#93C5FD" opacity="0.9" />
       </g>
 
       <motion.g animate={{ y: [0, -4, 0] }} transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut" }}>
@@ -116,8 +121,8 @@ function OrderIllustration() {
     <svg viewBox="0 0 220 150" fill="none" className="size-full" aria-hidden="true">
       <defs>
         <linearGradient id="oiBg" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#F2FCF9" />
-          <stop offset="1" stopColor="#DFF7F0" />
+          <stop offset="0" stopColor="#F4FAFF" />
+          <stop offset="1" stopColor="#E3F0FD" />
         </linearGradient>
         <radialGradient id="oiGlow" cx="0.5" cy="0.5" r="0.5">
           <stop offset="0" stopColor="#FDBA74" stopOpacity="0.18" />
@@ -147,6 +152,8 @@ function OrderIllustration() {
 
       <rect x="1" y="1" width="218" height="148" rx="24" fill="url(#oiBg)" stroke="#CCFBF1" strokeWidth="1.5" />
       <circle cx="110" cy="72" r="66" fill="url(#oiGlow)" />
+      <path d="M196 82 l1.1 2.6 2.6 1.1 -2.6 1.1 -1.1 2.6 -1.1 -2.6 -2.6 -1.1 2.6 -1.1 Z" fill="#8B5CF6" opacity="0.55" />
+      <circle cx="102" cy="78" r="26" fill="#2DD4BF" opacity="0.1" />
 
       <path d="M196 30 l1.6 3.8 3.8 1.6 -3.8 1.6 -1.6 3.8 -1.6 -3.8 -3.8 -1.6 3.8 -1.6 Z" fill="#2DD4BF" opacity="0.85" />
       <path d="M34 66 l1.5 3.5 3.5 1.5 -3.5 1.5 -1.5 3.5 -1.5 -3.5 -3.5 -1.5 3.5 -1.5 Z" fill="#FB923C" opacity="0.9" />
@@ -193,22 +200,24 @@ function OrderIllustration() {
         <rect x="144" y="82" width="64" height="46" rx="10" fill="none" stroke="#0D9488" strokeWidth="1.8" />
         <rect x="151" y="90" width="11" height="8" rx="2.2" fill="url(#oiGold)" />
         <rect x="151" y="90" width="11" height="8" rx="2.2" fill="none" stroke="#F59E0B" strokeOpacity="0.5" strokeWidth="1" />
-        <path d="M167 92 a6 6 0 1 1 0.1 0" stroke="#99F6E4" strokeWidth="1.8" fill="none" />
-        <path d="M171 96 a9 9 0 1 1 0.1 0" stroke="#5EEAD4" strokeWidth="1.6" fill="none" />
+        <path d="M167 92 a6 6 0 1 1 0.1 0" stroke="#A7C7FA" strokeWidth="1.8" fill="none" />
+        <path d="M171 96 a9 9 0 1 1 0.1 0" stroke="#7FA8F5" strokeWidth="1.6" fill="none" />
         <rect x="151" y="104" width="24" height="2.4" rx="1.2" fill="#D3F6EC" />
         <rect x="151" y="110" width="17" height="2.4" rx="1.2" fill="#E6FAF4" />
         <circle cx="200" cy="90" r="12" fill="url(#oiTeal)" stroke="#FFFFFF" strokeWidth="2.4" />
         <path d="M194.4 90 l4 4 l7.6 -8" stroke="#FFFFFF" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" />
       </g>
 
-      <circle cx="52" cy="130" r="10" fill="url(#oiGold)" />
-      <circle cx="52" cy="130" r="10" fill="none" stroke="#F59E0B" strokeOpacity="0.5" strokeWidth="1.2" />
-      <text x="52" y="134.5" textAnchor="middle" fontSize="11" fontWeight="700" fill="#B45309" fontFamily="inherit">
-        ₹
-      </text>
+      <motion.g animate={{ y: [0, -3, 0] }} transition={{ duration: 4.6, repeat: Infinity, ease: "easeInOut" }}>
+        <circle cx="52" cy="130" r="10" fill="url(#oiGold)" />
+        <circle cx="52" cy="130" r="10" fill="none" stroke="#F59E0B" strokeOpacity="0.5" strokeWidth="1.2" />
+        <text x="52" y="134.5" textAnchor="middle" fontSize="11" fontWeight="700" fill="#B45309" fontFamily="inherit">
+          ₹
+        </text>
+      </motion.g>
       <g transform="rotate(10 188 112)">
         <rect x="182" y="108" width="12" height="8" rx="4" fill="#FB923C" />
-        <rect x="189" y="108" width="12" height="8" rx="4" fill="#FDBA74" />
+        <rect x="189" y="108" width="12" height="8" rx="4" fill="#60A5FA" />
       </g>
     </svg>
   );
@@ -219,8 +228,8 @@ function DeliveryIllustration() {
     <svg viewBox="0 0 220 150" fill="none" className="size-full" aria-hidden="true">
       <defs>
         <linearGradient id="diBg" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#F2FCF9" />
-          <stop offset="1" stopColor="#DFF7F0" />
+          <stop offset="0" stopColor="#F6F9FF" />
+          <stop offset="1" stopColor="#E9E9FA" />
         </linearGradient>
         <radialGradient id="diGlow" cx="0.5" cy="0.5" r="0.5">
           <stop offset="0" stopColor="#2DD4BF" stopOpacity="0.2" />
@@ -246,6 +255,8 @@ function DeliveryIllustration() {
 
       <rect x="1" y="1" width="218" height="148" rx="24" fill="url(#diBg)" stroke="#CCFBF1" strokeWidth="1.5" />
       <circle cx="124" cy="76" r="62" fill="url(#diGlow)" />
+      <circle cx="150" cy="64" r="32" fill="#8B5CF6" opacity="0.1" />
+      <circle cx="64" cy="50" r="2.4" fill="#3B82F6" opacity="0.5" />
 
       <path d="M46 26 l1.6 3.8 3.8 1.6 -3.8 1.6 -1.6 3.8 -1.6 -3.8 -3.8 -1.6 3.8 -1.6 Z" fill="#FB923C" opacity="0.9" />
       <path d="M158 122 l1.4 3.3 3.3 1.4 -3.3 1.4 -1.4 3.3 -1.4 -3.3 -3.3 -1.4 3.3 -1.4 Z" fill="#2DD4BF" opacity="0.8" />
@@ -265,8 +276,10 @@ function DeliveryIllustration() {
       <rect x="43" y="92" width="14" height="14" rx="3.5" fill="#D6F7ED" stroke="#99F6E4" strokeWidth="1.8" />
       <path d="M50 94.5 v9 M45.5 99 h9" stroke="#0D9488" strokeWidth="1.6" strokeLinecap="round" opacity="0.55" />
       <rect x="34" y="80" width="58" height="7" rx="3.5" fill="#CCFBF1" opacity="0.55" />
-      <rect x="94" y="108" width="20" height="16" rx="3.5" fill="#FFFFFF" stroke="#99F6E4" strokeWidth="1.4" />
-      <rect x="94" y="114" width="20" height="3.5" fill="url(#diOrange)" />
+      <motion.g animate={{ y: [0, -2.5, 0] }} transition={{ duration: 5.2, repeat: Infinity, ease: "easeInOut" }}>
+        <rect x="94" y="108" width="20" height="16" rx="3.5" fill="#FFFFFF" stroke="#99F6E4" strokeWidth="1.4" />
+        <rect x="94" y="114" width="20" height="3.5" fill="#8B5CF6" opacity="0.85" />
+      </motion.g>
 
       <g>
         <rect x="116" y="96" width="24" height="19" rx="4" fill="url(#diTeal)" />
@@ -323,11 +336,12 @@ export default function HowItWorks() {
         </div>
 
         {/* Process banner */}
-        <div className="relative mt-4 overflow-hidden rounded-3xl border border-primary/10 bg-gradient-to-b from-teal-50/70 via-white to-emerald-50/50 shadow-glow sm:mt-5">
+        <div className="relative mt-4 overflow-hidden rounded-3xl border border-primary/10 bg-gradient-to-b from-teal-50/80 via-white to-violet-50/50 shadow-glow sm:mt-5">
           <div className="pointer-events-none absolute -top-16 -right-16 size-52 rounded-full bg-teal-400/10 blur-3xl" />
           <div className="pointer-events-none absolute -bottom-20 -left-14 size-52 rounded-full bg-orange-400/10 blur-3xl" />
+          <div className="pointer-events-none absolute -top-14 -left-14 size-44 rounded-full bg-violet-400/10 blur-3xl" />
 
-          <div className="relative grid grid-cols-1 gap-y-3 px-4 py-4 sm:px-6 lg:grid-cols-[1fr_auto_1fr_auto_1fr] lg:items-center lg:gap-x-1.5 lg:px-8 lg:py-4">
+          <div className="relative grid grid-cols-1 gap-y-3 px-4 py-4 sm:px-6 lg:grid-cols-[1fr_auto_1fr_auto_1fr] lg:items-center lg:gap-x-0.5 lg:px-5 lg:py-4">
             {[
               {
                 step: "01",
@@ -359,10 +373,17 @@ export default function HowItWorks() {
                   transition={{ delay: i * 0.12, duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
                   className="group flex items-center gap-4 sm:gap-5 lg:flex-col lg:justify-start lg:gap-0 lg:px-1 lg:text-center"
                 >
-                  <div className="relative shrink-0 lg:mx-auto lg:w-full lg:max-w-[240px]">
-                    <div className="relative flex h-20 w-32 items-center justify-center overflow-hidden rounded-2xl border border-teal-900/5 bg-white shadow-card-hover transition-all duration-300 group-hover:-translate-y-1 group-hover:border-primary/15 sm:h-24 sm:w-44 lg:h-24 lg:w-full">
-                      <item.Illustration />
-                    </div>
+                  <div className="relative shrink-0 lg:mx-auto lg:w-full lg:max-w-[300px]">
+                    <motion.div
+                      animate={{ y: [0, -2.5, 0] }}
+                      transition={{ duration: 5.5, repeat: Infinity, ease: "easeInOut" }}
+                      whileHover={{ y: -6, rotate: 1.2, scale: 1.03 }}
+                      className="relative flex h-20 w-32 items-center justify-center overflow-hidden rounded-2xl border border-teal-900/5 bg-white shadow-card-hover transition-shadow duration-300 hover:shadow-xl hover:shadow-teal-500/10 sm:h-24 sm:w-44 lg:h-24 lg:w-full"
+                    >
+                      <div className="size-full transition-transform duration-500 group-hover:scale-105">
+                        <item.Illustration />
+                      </div>
+                    </motion.div>
                     <div className="absolute -top-2 left-1/2 flex size-7 -translate-x-1/2 items-center justify-center rounded-xl gradient-primary text-white text-[10px] font-bold shadow-md ring-2 ring-white lg:-top-2.5 lg:size-8 lg:text-[11px]">
                       {item.step}
                     </div>
@@ -383,9 +404,13 @@ export default function HowItWorks() {
                     <div className="flex flex-col items-center gap-1 lg:flex-row lg:gap-0">
                       <span className="h-4 w-px border-l-2 border-dashed border-primary/25 lg:hidden" />
                       <span className="hidden h-px w-5 border-t-2 border-dashed border-primary/25 lg:block" />
-                      <span className="flex size-6 items-center justify-center rounded-full border border-primary/15 bg-white text-primary shadow-sm lg:mx-1 lg:size-7">
+                      <motion.span
+                        animate={{ scale: [1, 1.12, 1] }}
+                        transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut", delay: i * 0.4 }}
+                        className="flex size-6 items-center justify-center rounded-full border border-primary/15 bg-gradient-to-br from-teal-50 to-orange-50 text-primary shadow-sm lg:mx-1 lg:size-7"
+                      >
                         <ArrowRight className="size-3 rotate-90 lg:rotate-0" />
-                      </span>
+                      </motion.span>
                       <span className="hidden h-px w-5 border-t-2 border-dashed border-primary/25 lg:block" />
                     </div>
                   </div>
