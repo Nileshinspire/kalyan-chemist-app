@@ -612,10 +612,13 @@ export default function AIChatbot() {
 
       setIsUploading(true);
       try {
-        // Same Convex storage upload flow used by the Upload Prescription page
+        // Same Convex storage upload flow used by the Upload Prescription page.
+        // NOTE: Convex upload URLs require POST — PUT returns 405
+        // "Method Not Allowed" (docs: "The client should make a POST request
+        // to this URL with the file as the body").
         const uploadUrl = await generateUploadUrl();
         const response = await fetch(uploadUrl, {
-          method: "PUT",
+          method: "POST",
           headers: { "Content-Type": file.type },
           body: file,
         });

@@ -66,8 +66,10 @@ export default function UploadPrescription() {
         const uploadUrl = await generateUploadUrl();
 
         // 2. Upload file to Convex storage
+        // NOTE: Convex upload URLs require POST — PUT returns 405
+        // "Method Not Allowed".
         const response = await fetch(uploadUrl, {
-          method: "PUT",
+          method: "POST",
           headers: { "Content-Type": file.type },
           body: file,
         });
