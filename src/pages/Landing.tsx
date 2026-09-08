@@ -32,6 +32,7 @@ import { useRef, useState, useMemo } from "react";
 import { openWhatsApp, generateEnquiryMessage } from "@/lib/whatsapp";
 import Navbar from "@/components/layout/Navbar";
 import WhatsAppFloat from "@/components/WhatsAppFloat";
+import HealthConditions from "@/components/HealthConditions";
 import WriteReview from "@/components/WriteReview";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -357,6 +358,9 @@ export default function Landing() {
           </div>
         </div>
       </section>
+
+      {/* ── Browse by Health Conditions ── */}
+      <HealthConditions />
 
       {/* ── Trust bar ── */}
       <section className="border-y border-border/50 bg-card/60 backdrop-blur-sm">
