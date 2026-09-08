@@ -219,6 +219,39 @@ export const popular = query({
   },
 });
 
+// ── New arrivals (products added within the last 30 days, newest first) ──
+export const newArrivals = query({
+  args: { limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    // Rolling ~30-day window based on the product's actual creation date.
+    const cutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    const products = await ctx.db
+      .query("products")
+      .withIndex("by_isActive", (q) => q.eq("isActive", true))
+      .collect();
+
+    const recent = products
+      .filter((p) => p.createdAt >= cutoff)
+      .sort((a, b) => b.createdAt - a.createdAt);
+
+    // Enrich with category and brand names (same shape the product cards use)
+    const enriched = await Promise.all(
+      recent.slice(0, args.limit ?? 10).map(async (p) => {
+        const category = await ctx.db.get(p.categoryId);
+        const brand = p.brandId ? await ctx.db.get(p.brandId) : null;
+        return {
+          ...p,
+          categoryName: category?.name ?? "Uncategorized",
+          categorySlug: category?.slug ?? "",
+          brandName: brand?.name ?? null,
+        };
+      })
+    );
+
+    return enriched;
+  },
+});
+
 // ── Featured products (highest discount) ──
 export const featured = query({
   args: { limit: v.optional(v.number()) },

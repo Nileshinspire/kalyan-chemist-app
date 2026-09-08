@@ -30,9 +30,11 @@ interface ProductCardProps {
     brandName?: string | null;
     imageUrl?: string;
   };
+  /** Opt-in "New" badge (used by the homepage New Arrivals carousel only). */
+  newArrival?: boolean;
 }
 
-const ProductCard = memo(function ProductCard({ product }: ProductCardProps) {
+const ProductCard = memo(function ProductCard({ product, newArrival = false }: ProductCardProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
@@ -118,8 +120,15 @@ const ProductCard = memo(function ProductCard({ product }: ProductCardProps) {
             }`}
           />
         )}
-        {hasDiscount && (
+        {newArrival && (
           <div className="absolute top-3 left-3">
+            <Badge className="text-[10px] font-bold bg-gradient-to-r from-teal-600 to-emerald-600 text-white border-0 shadow-md">
+              New
+            </Badge>
+          </div>
+        )}
+        {hasDiscount && (
+          <div className={`absolute left-3 ${newArrival ? "top-12" : "top-3"}`}>
             <Badge className="text-[10px] font-bold bg-gradient-to-r from-green-500 to-emerald-500 text-white border-0 shadow-md">
               {discountPct}% OFF
             </Badge>
