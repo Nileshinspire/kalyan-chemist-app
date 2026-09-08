@@ -43,6 +43,18 @@ export default function NewArrivals() {
 
   return (
     <section className="bg-background">
+      {/* Scoped compact-card styles: shrink ONLY the cards rendered inside
+          this New Arrivals carousel (tighter image band, content padding and
+          vertical rhythm). The shared ProductCard and every other section
+          stay untouched. */}
+      <style>{`
+        .kc-new-arrival .h-44 { height: 8rem; }
+        .kc-new-arrival .p-4 { padding: 0.75rem 1rem; }
+        .kc-new-arrival .space-y-2\.5 > :not([hidden]) ~ :not([hidden]) {
+          margin-top: 0.5rem;
+          margin-bottom: 0rem;
+        }
+      `}</style>
       <div className="mx-auto max-w-7xl px-4 sm:px-6 pt-1 sm:pt-2 pb-8 sm:pb-12">
         <div className="flex items-end justify-between gap-4 mb-8">
           <div className="max-w-2xl">
@@ -91,7 +103,7 @@ export default function NewArrivals() {
           {products.map((product) => (
             <div
               key={product._id}
-              className="min-w-[calc(50%-0.5rem)] snap-start md:min-w-[calc(33.333%-0.667rem)] lg:min-w-[calc(25%-0.75rem)]"
+              className="kc-new-arrival min-w-[calc(50%-0.5rem)] snap-start md:min-w-[calc(33.333%-0.667rem)] lg:min-w-[calc(25%-0.75rem)]"
             >
               <ProductCard product={product} newArrival />
             </div>
