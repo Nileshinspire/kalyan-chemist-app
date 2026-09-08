@@ -252,6 +252,93 @@ export const newArrivals = query({
   },
 });
 
+// ── Value Deals Under ₹100 (non-medicine products priced ≤ ₹100) ──
+// Eligibility is derived entirely from the EXISTING product/category data:
+//  1. active product (existing visibility rule),
+//  2. current SELLING price (discountPrice ?? price) ≤ 100,
+//  3. NOT a pharmaceutical medicine — determined by the product's category
+//     (the project's reliable product classification; medicine categories are
+//     the pain/cardiac/diabetes/antibiotic/digestive/Rx + health-condition
+//     categories, while wellness/personal-care/device categories are eligible).
+// Ranking uses existing popularity (order history) then recency, so the
+// section is stable and dynamic — no manual list, no separate database.
+const MEDICINE_CATEGORY_SLUGS = new Set([
+  "pain-relief",
+  "heart-cardio",
+  "diabetes-care",
+  "antibiotics",
+  "digestive-health",
+  "prescription-required",
+  "cardiac-care",
+  "stomach-care",
+  "liver-care",
+  "respiratory",
+  "sexual-health",
+  "elderly-care",
+  "cold-immunity",
+  "health-safety",
+  "sexual-wellness",
+  "alternative-medicine",
+]);
+
+const VALUE_DEAL_MAX_PRICE = 100;
+
+export const valueDeals = query({
+  args: { limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const products = await ctx.db
+      .query("products")
+      .withIndex("by_isActive", (q) => q.eq("isActive", true))
+      .collect();
+
+    // Real popularity signal from existing order history (same approach as `popular`).
+    const orders = await ctx.db.query("orders").collect();
+    const orderCount = new Map<string, number>();
+    for (const order of orders) {
+      for (const item of order.items) {
+        orderCount.set(
+          item.productId as string,
+          (orderCount.get(item.productId as string) ?? 0) + item.quantity
+        );
+      }
+    }
+
+    const candidates = products.filter((p) => {
+      const sellingPrice = p.discountPrice ?? p.price;
+      return sellingPrice <= VALUE_DEAL_MAX_PRICE;
+    });
+
+    // Enrich with category/brand names so we can classify by category slug
+    // (the existing reliable medicine/non-medicine classification) and render
+    // the shared product card.
+    const enriched = await Promise.all(
+      candidates.map(async (p) => {
+        const category = await ctx.db.get(p.categoryId);
+        const brand = p.brandId ? await ctx.db.get(p.brandId) : null;
+        return {
+          ...p,
+          categoryName: category?.name ?? "Uncategorized",
+          categorySlug: category?.slug ?? "",
+          brandName: brand?.name ?? null,
+          orderCount: orderCount.get(p._id as string) ?? 0,
+        };
+      })
+    );
+
+    // Exclude pharmaceutical medicines (by their existing category).
+    const eligible = enriched
+      .filter((p) => !MEDICINE_CATEGORY_SLUGS.has(p.categorySlug))
+      .sort(
+        (a, b) =>
+          b.orderCount - a.orderCount ||
+          b.createdAt - a.createdAt ||
+          a.name.localeCompare(b.name)
+      );
+
+    return args.limit ? eligible.slice(0, args.limit) : eligible;
+  },
+});
+
 // ── Featured products (highest discount) ──
 export const featured = query({
   args: { limit: v.optional(v.number()) },

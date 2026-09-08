@@ -36,6 +36,7 @@ import HealthConditions from "@/components/HealthConditions";
 import PopularLabTests from "@/components/PopularLabTests";
 import HealthcareDevices from "@/components/HealthcareDevices";
 import NewArrivals from "@/components/NewArrivals";
+import ValueDeals from "@/components/ValueDeals";
 import WriteReview from "@/components/WriteReview";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -397,6 +398,9 @@ export default function Landing() {
 
       {/* ── New Arrivals ── */}
       <NewArrivals />
+
+      {/* ── Value Deals Under ₹100 ── */}
+      <ValueDeals />
 
       {/* ── Trust bar ── */}
       <section className="border-y border-border/50 bg-card/60 backdrop-blur-sm">

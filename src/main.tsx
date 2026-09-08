@@ -27,6 +27,7 @@ const AdminLogin = lazy(() => import("./pages/AdminLogin.tsx"));
 const Dashboard = lazy(() => import("./pages/Dashboard.tsx"));
 const Products = lazy(() => import("./pages/Products.tsx"));
 const ProductDetail = lazy(() => import("./pages/ProductDetail.tsx"));
+const ValueDealsPage = lazy(() => import("./pages/ValueDeals.tsx"));
 const Cart = lazy(() => import("./pages/Cart.tsx"));
 const Wishlist = lazy(() => import("./pages/Wishlist.tsx"));
 const Checkout = lazy(() => import("./pages/Checkout.tsx"));
@@ -242,6 +243,13 @@ function AnimatedRoutes() {
           path="/products"
           element={
             <Products />
+            
+          }
+        />
+        <Route
+          path="/value-deals"
+          element={
+            <ValueDealsPage />
             
           }
         />
