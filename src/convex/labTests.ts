@@ -31,14 +31,33 @@ export const adminList = query({
   },
 });
 
-/* ── PUBLIC: List all active tests (homepage "Popular Lab Tests") ── */
+/* ── PUBLIC: Popular lab tests for the homepage carousel ──
+ * Ranks ACTIVE lab tests by the real number of successful bookings in the
+ * existing `lab_bookings` history (higher booking count = higher popularity).
+ * "Successful" = not cancelled and not failed/refunded per the existing
+ * booking/payment status system. Fully dynamic: every new booking updates the
+ * count and therefore the ranking automatically. Ties break by newest test.
+ */
 export const listActive = query({
   args: {},
   handler: async (ctx) => {
-    const tests = await ctx.db.query("lab_tests").withIndex("by_createdAt").collect();
+    const [tests, bookings] = await Promise.all([
+      ctx.db.query("lab_tests").withIndex("by_createdAt").collect(),
+      ctx.db.query("lab_bookings").collect(),
+    ]);
+    const counts = new Map<string, number>();
+    for (const b of bookings) {
+      if (b.bookingStatus === "cancelled") continue;
+      if (b.paymentStatus === "failed" || b.paymentStatus === "refunded") continue;
+      counts.set(b.testId, (counts.get(b.testId) ?? 0) + 1);
+    }
     return tests
       .filter((t) => t.active)
-      .sort((a, b) => b.createdAt - a.createdAt);
+      .map((t) => ({ ...t, bookingCount: counts.get(t._id) ?? 0 }))
+      .sort(
+        (a, b) =>
+          b.bookingCount - a.bookingCount || b.createdAt - a.createdAt
+      );
   },
 });
 
