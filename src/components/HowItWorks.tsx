@@ -441,16 +441,29 @@ export default function HowItWorks() {
                   transition={{ delay: i * 0.12, duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
                   className="group flex items-center gap-4 sm:gap-5 lg:flex-col lg:justify-start lg:gap-0 lg:px-1 lg:text-center"
                 >
-                  <div className="relative shrink-0 lg:mx-auto lg:w-full lg:max-w-[300px]">
+                  <div className="relative shrink-0 [perspective:900px] lg:mx-auto lg:w-full lg:max-w-[300px]">
+                    {/* soft teal glow that blooms behind the card on hover */}
+                    <div
+                      aria-hidden
+                      className="absolute inset-x-1 -inset-y-1.5 rounded-3xl bg-teal-400/25 opacity-0 blur-lg transition-opacity duration-300 group-hover:opacity-100"
+                    />
                     <motion.div
-                      animate={{ y: [0, -2.5, 0] }}
-                      transition={{ duration: 5.5, repeat: Infinity, ease: "easeInOut" }}
-                      whileHover={{ y: -6, rotate: 1.2, scale: 1.03 }}
-                      className="relative flex h-20 w-32 items-center justify-center overflow-hidden rounded-2xl border border-teal-900/5 bg-white shadow-card-hover transition-shadow duration-300 hover:shadow-xl hover:shadow-teal-500/10 sm:h-24 sm:w-44 lg:h-24 lg:w-full"
+                      whileHover={{ y: -7, rotateX: 4, rotateY: -3, scale: 1.045 }}
+                      transition={{ type: "spring", stiffness: 320, damping: 22, mass: 0.7 }}
+                      className="relative flex h-20 w-32 items-center justify-center overflow-hidden rounded-2xl border border-teal-900/5 bg-white shadow-card-hover transition-shadow duration-300 hover:shadow-xl hover:shadow-teal-500/20 hover:ring-2 hover:ring-teal-400/25 sm:h-24 sm:w-44 lg:h-24 lg:w-full"
                     >
-                      <div className="size-full transition-transform duration-500 group-hover:scale-105">
-                        <item.Illustration />
-                      </div>
+                      {/* keep the existing gentle float on its own layer */}
+                      <motion.div
+                        animate={{ y: [0, -2.5, 0] }}
+                        transition={{ duration: 5.5, repeat: Infinity, ease: "easeInOut" }}
+                        className="size-full"
+                      >
+                        <div className="size-full transition-transform duration-500 group-hover:scale-105">
+                          <item.Illustration />
+                        </div>
+                      </motion.div>
+                      {/* subtle Kalyan teal accent overlay — original illustration colors stay visible */}
+                      <div className="pointer-events-none absolute inset-0 rounded-2xl bg-[radial-gradient(ellipse_at_top,rgba(45,212,191,0.16),transparent_62%)] opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
                     </motion.div>
                     <div className="absolute -top-2 left-1/2 flex size-7 -translate-x-1/2 items-center justify-center rounded-xl gradient-primary text-white text-[10px] font-bold shadow-md ring-2 ring-white lg:-top-2.5 lg:size-8 lg:text-[11px]">
                       {item.step}
