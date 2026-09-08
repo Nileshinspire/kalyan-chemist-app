@@ -27,7 +27,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate, useLocation, useSearchParams } from "react-router";
-import { Fragment, useRef, useState, useMemo } from "react";
+import { useRef, useState, useMemo } from "react";
 import { openWhatsApp, generateEnquiryMessage } from "@/lib/whatsapp";
 import Navbar from "@/components/layout/Navbar";
 import WhatsAppFloat from "@/components/WhatsAppFloat";
@@ -36,6 +36,7 @@ import PopularLabTests from "@/components/PopularLabTests";
 import HealthcareDevices from "@/components/HealthcareDevices";
 import NewArrivals from "@/components/NewArrivals";
 import ValueDeals from "@/components/ValueDeals";
+import HowItWorks from "@/components/HowItWorks";
 import WriteReview from "@/components/WriteReview";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -168,124 +169,9 @@ function HeroCategoryNav() {
   );
 }
 
-/* ── How It Works: custom flat-style illustrations (Kalyan Chemist palette) ── */
-function SearchIllustration() {
-  return (
-    <svg viewBox="0 0 220 150" fill="none" className="size-full" aria-hidden="true">
-      <rect x="2" y="2" width="216" height="146" rx="26" fill="#F0FDFA" stroke="#CCFBF1" strokeWidth="2" />
-      <path d="M20 24 l2.5 6 6 2.5 -6 2.5 -2.5 6 -2.5 -6 -6 -2.5 6 -2.5 Z" fill="#FB923C" opacity="0.85" />
-      <circle cx="196" cy="26" r="3.5" fill="#14B8A6" opacity="0.6" />
-      {/* pill bottle */}
-      <rect x="22" y="70" width="30" height="42" rx="8" fill="#FFFFFF" stroke="#0E8A7C" strokeWidth="2.5" />
-      <rect x="22" y="60" width="30" height="13" rx="5" fill="#FB923C" stroke="#EA580C" strokeWidth="2" />
-      <path d="M37 79 v10 M32 84 h10" stroke="#0E8A7C" strokeWidth="2.5" strokeLinecap="round" />
-      <path d="M27 98 h20 M27 104 h14" stroke="#A7F3D0" strokeWidth="2.5" strokeLinecap="round" />
-      {/* tablets */}
-      <rect x="26" y="118" width="30" height="12" rx="6" fill="#14B8A6" opacity="0.9" />
-      <circle cx="60" cy="122" r="5.5" fill="#FB923C" opacity="0.9" />
-      {/* phone with medicine search */}
-      <g transform="rotate(-8 118 78)">
-        <rect x="92" y="36" width="54" height="90" rx="11" fill="#FFFFFF" stroke="#0E8A7C" strokeWidth="2.5" />
-        <rect x="97" y="42" width="44" height="78" rx="7" fill="#F0FDFA" />
-        <rect x="101" y="49" width="36" height="13" rx="6.5" fill="#FFFFFF" stroke="#14B8A6" strokeWidth="2" />
-        <circle cx="107" cy="55.5" r="3.2" fill="none" stroke="#0E8A7C" strokeWidth="2" />
-        <path d="M109.2 57.8 l2.6 2.6" stroke="#0E8A7C" strokeWidth="2" strokeLinecap="round" />
-        <rect x="101" y="68" width="36" height="10" rx="5" fill="#FFFFFF" stroke="#CCFBF1" strokeWidth="1.6" />
-        <rect x="101" y="81" width="36" height="10" rx="5" fill="#FFFFFF" stroke="#CCFBF1" strokeWidth="1.6" />
-        <rect x="101" y="94" width="36" height="10" rx="5" fill="#FFFFFF" stroke="#CCFBF1" strokeWidth="1.6" />
-        <rect x="107" y="71" width="5" height="4" rx="1" fill="#14B8A6" />
-        <circle cx="107" cy="99" r="2.6" fill="#FB923C" />
-      </g>
-      {/* magnifying glass */}
-      <g transform="rotate(12 176 48)">
-        <circle cx="176" cy="46" r="15" fill="#FFFFFF" stroke="#0E8A7C" strokeWidth="3" />
-        <path d="M176 40 v8 M172 44 h8" stroke="#FB923C" strokeWidth="2" strokeLinecap="round" />
-        <path d="M187 57 l8 8" stroke="#EA580C" strokeWidth="4.5" strokeLinecap="round" />
-      </g>
-    </svg>
-  );
-}
 
-function OrderIllustration() {
-  return (
-    <svg viewBox="0 0 220 150" fill="none" className="size-full" aria-hidden="true">
-      <rect x="2" y="2" width="216" height="146" rx="26" fill="#F0FDFA" stroke="#CCFBF1" strokeWidth="2" />
-      <path d="M26 30 l3 7 7 3 -7 3 -3 7 -3 -7 -7 -3 7 -3 Z" fill="#FB923C" opacity="0.85" />
-      <circle cx="198" cy="30" r="3.5" fill="#14B8A6" opacity="0.6" />
-      {/* cart handle (behind basket) */}
-      <path d="M84 58 V44 a8 8 0 0 1 8 -8 H98" stroke="#0E8A7C" strokeWidth="3" strokeLinecap="round" />
-      {/* basket */}
-      <path
-        d="M50 58 h68 l-8 48 a4 4 0 0 1 -4 4 H62 a4 4 0 0 1 -4 -4 Z"
-        fill="#FFFFFF"
-        stroke="#0E8A7C"
-        strokeWidth="2.5"
-        strokeLinejoin="round"
-      />
-      <circle cx="68" cy="116" r="5.5" fill="#14B8A6" stroke="#0E8A7C" strokeWidth="2" />
-      <circle cx="100" cy="116" r="5.5" fill="#14B8A6" stroke="#0E8A7C" strokeWidth="2" />
-      {/* medicine packages inside cart */}
-      <rect x="66" y="38" width="16" height="22" rx="5" fill="#FFFFFF" stroke="#0E8A7C" strokeWidth="2.2" />
-      <rect x="66" y="31" width="16" height="9" rx="3.5" fill="#FB923C" stroke="#EA580C" strokeWidth="1.8" />
-      <path d="M74 42 v5 M71.5 44.5 h5" stroke="#0E8A7C" strokeWidth="1.8" strokeLinecap="round" />
-      <rect x="86" y="40" width="20" height="16" rx="3.5" fill="#F0FDFA" stroke="#14B8A6" strokeWidth="2.2" />
-      <path d="M96 44 v8 M92 48 h8" stroke="#14B8A6" strokeWidth="2" strokeLinecap="round" />
-      <rect x="109" y="42" width="9" height="15" rx="4" fill="#FFEDD5" stroke="#EA580C" strokeWidth="2" />
-      {/* payment card with confirmation */}
-      <g transform="rotate(-8 168 62)">
-        <rect x="138" y="44" width="60" height="38" rx="9" fill="#FFFFFF" stroke="#0E8A7C" strokeWidth="2.5" />
-        <rect x="145" y="52" width="9" height="7" rx="2" fill="#FB923C" />
-        <path d="M160 54 h30 M145 63 h22 M145 70 h14" stroke="#CCFBF1" strokeWidth="2.5" strokeLinecap="round" />
-        <circle cx="184" cy="66" r="10" fill="#14B8A6" stroke="#FFFFFF" strokeWidth="2.5" />
-        <path d="M178.5 66 l4 4 l8 -8" stroke="#FFFFFF" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-      </g>
-      {/* rupee coin */}
-      <circle cx="196" cy="104" r="11" fill="#FFEDD5" stroke="#EA580C" strokeWidth="2.2" />
-      <text x="196" y="109.5" textAnchor="middle" fontSize="13" fontWeight="700" fill="#EA580C" fontFamily="inherit">
-        ₹
-      </text>
-    </svg>
-  );
-}
 
-function DeliveryIllustration() {
-  return (
-    <svg viewBox="0 0 220 150" fill="none" className="size-full" aria-hidden="true">
-      <rect x="2" y="2" width="216" height="146" rx="26" fill="#F0FDFA" stroke="#CCFBF1" strokeWidth="2" />
-      <path d="M26 26 l2.5 6 6 2.5 -6 2.5 -2.5 6 -2.5 -6 -6 -2.5 6 -2.5 Z" fill="#FB923C" opacity="0.85" />
-      <circle cx="200" cy="112" r="3.5" fill="#14B8A6" opacity="0.6" />
-      {/* delivery route */}
-      <path d="M150 30 C140 70 122 96 82 114" fill="none" stroke="#14B8A6" strokeWidth="2" strokeDasharray="3 5" strokeLinecap="round" />
-      {/* location pin */}
-      <path
-        d="M150 24 c-9 0 -16 7 -16 16 c0 12 16 27 16 27 s16 -15 16 -27 c0 -9 -7 -16 -16 -16 Z"
-        fill="#0E8A7C"
-      />
-      <circle cx="150" cy="42" r="6.5" fill="#FFFFFF" />
-      <path d="M150 38.5 v7 M146.5 42 h7" stroke="#0E8A7C" strokeWidth="2" strokeLinecap="round" />
-      {/* house */}
-      <rect x="82" y="50" width="10" height="16" rx="3" fill="#FFEDD5" stroke="#EA580C" strokeWidth="2" />
-      <path d="M28 80 L66 48 L104 80 Z" fill="#F0FDFA" stroke="#0E8A7C" strokeWidth="2.5" strokeLinejoin="round" />
-      <rect x="34" y="76" width="64" height="44" rx="7" fill="#FFFFFF" stroke="#0E8A7C" strokeWidth="2.5" />
-      <rect x="58" y="94" width="16" height="26" rx="5" fill="#CCFBF1" stroke="#0E8A7C" strokeWidth="2" />
-      <circle cx="70" cy="107" r="1.8" fill="#EA580C" />
-      <circle cx="46" cy="92" r="6.5" fill="#FFFFFF" stroke="#0E8A7C" strokeWidth="2" />
-      <path d="M46 87.5 v9 M41.5 92 h9" stroke="#A7F3D0" strokeWidth="1.8" strokeLinecap="round" />
-      {/* package at the doorstep */}
-      <rect x="42" y="116" width="28" height="18" rx="3.5" fill="#FFFFFF" stroke="#0E8A7C" strokeWidth="2.2" />
-      <path d="M42 125 h28" stroke="#FB923C" strokeWidth="2" />
-      {/* delivery person with package */}
-      <path d="M165 116 v11 M175 116 v11" stroke="#0E8A7C" strokeWidth="3" strokeLinecap="round" />
-      <rect x="161" y="96" width="18" height="22" rx="7" fill="#14B8A6" />
-      <path d="M161 102 h-9 l-3 9" fill="none" stroke="#0E8A7C" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-      <rect x="143" y="104" width="15" height="13" rx="2.5" fill="#FFFFFF" stroke="#0E8A7C" strokeWidth="2" />
-      <path d="M143 110.5 h15" stroke="#FB923C" strokeWidth="1.8" />
-      <circle cx="170" cy="88" r="8" fill="#FFEDD5" stroke="#EA580C" strokeWidth="2" />
-      <path d="M162 85 a8 8 0 0 1 16 0 Z" fill="#FB923C" stroke="#EA580C" strokeWidth="1.8" strokeLinejoin="round" />
-      <path d="M161 85 h18" stroke="#EA580C" strokeWidth="1.8" strokeLinecap="round" />
-    </svg>
-  );
-}
+
 
 export default function Landing() {
   const navigate = useNavigate();
@@ -739,93 +625,7 @@ export default function Landing() {
       )}
 
       {/* ── How It Works ── */}
-      <section className="border-y border-border/50 bg-gradient-to-b from-card/50 to-background overflow-hidden">
-        <div className="mx-auto max-w-7xl px-6 py-24">
-          <div className="mx-auto max-w-2xl text-center">
-            <div className="inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary">
-              <Zap className="size-3" />
-              Simple Process
-            </div>
-            <h2 className="mt-4 text-3xl font-bold tracking-tight sm:text-5xl">
-              How It Works
-            </h2>
-            <p className="mt-3 text-muted-foreground leading-relaxed text-lg">
-              One smooth journey from browsing to your doorstep — search, order, receive.
-            </p>
-          </div>
-
-          {/* Process banner */}
-          <div className="relative mt-14 overflow-hidden rounded-[2rem] border border-primary/10 bg-gradient-to-b from-teal-50/70 via-white to-emerald-50/50 shadow-glow">
-            <div className="pointer-events-none absolute -top-28 -right-20 size-80 rounded-full bg-teal-400/10 blur-3xl" />
-            <div className="pointer-events-none absolute -bottom-32 -left-24 size-80 rounded-full bg-orange-400/10 blur-3xl" />
-
-            <div className="relative flex flex-col px-6 py-12 sm:px-10 sm:py-14 lg:flex-row lg:items-center lg:gap-2 lg:px-12 lg:py-16">
-              {[
-                {
-                  step: "01",
-                  title: "Search & Select",
-                  description:
-                    "Browse the catalogue or search for your medicine — check dosage, manufacturer and price in seconds.",
-                  Illustration: SearchIllustration,
-                },
-                {
-                  step: "02",
-                  title: "Place Your Order",
-                  description:
-                    "Add items to the cart, confirm your address and check out with online payment or cash on delivery.",
-                  Illustration: OrderIllustration,
-                },
-                {
-                  step: "03",
-                  title: "Receive at Your Door",
-                  description:
-                    "Your order is packed securely and delivered to your doorstep — track it every step of the way.",
-                  Illustration: DeliveryIllustration,
-                },
-              ].map((item, i) => (
-                <Fragment key={item.step}>
-                  <motion.div
-                    initial={{ opacity: 0, y: 28 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: i * 0.16, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-                    className="group relative flex flex-1 flex-col items-center text-center"
-                  >
-                    <div className="relative">
-                      <div className="relative flex h-44 w-full min-w-[220px] max-w-[280px] items-center justify-center overflow-hidden rounded-3xl border border-teal-900/5 bg-white shadow-card-hover transition-transform duration-300 group-hover:-translate-y-1">
-                        <item.Illustration />
-                      </div>
-                      <div className="absolute -top-4 left-1/2 flex size-12 -translate-x-1/2 items-center justify-center rounded-2xl gradient-primary text-white text-base font-bold shadow-glow ring-4 ring-white">
-                        {item.step}
-                      </div>
-                    </div>
-                    <h3 className="mt-7 text-lg font-semibold text-foreground sm:text-xl">
-                      {item.title}
-                    </h3>
-                    <p className="mt-2 max-w-[260px] text-sm leading-relaxed text-muted-foreground">
-                      {item.description}
-                    </p>
-                  </motion.div>
-
-                  {/* Connector between steps */}
-                  {i < 2 && (
-                    <div aria-hidden className="flex items-center justify-center py-3 lg:w-24 lg:shrink-0 lg:py-0">
-                      <div className="flex flex-col items-center gap-1.5 lg:flex-row lg:gap-0">
-                        <span className="h-7 w-px border-l-2 border-dashed border-primary/25 lg:hidden" />
-                        <span className="hidden h-px w-7 border-t-2 border-dashed border-primary/25 lg:block" />
-                        <span className="flex size-9 items-center justify-center rounded-full border border-primary/15 bg-white text-primary shadow-sm lg:mx-1.5">
-                          <ArrowRight className="size-4 rotate-90 lg:rotate-0" />
-                        </span>
-                        <span className="hidden h-px w-7 border-t-2 border-dashed border-primary/25 lg:block" />
-                      </div>
-                    </div>
-                  )}
-                </Fragment>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
+      <HowItWorks />
 
       {/* ── Features ── */}
       <motion.section
