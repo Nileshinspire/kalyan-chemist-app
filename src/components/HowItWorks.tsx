@@ -1,5 +1,5 @@
-import { motion } from "framer-motion";
-import { ArrowRight, Zap } from "lucide-react";
+import { motion, useReducedMotion } from "framer-motion";
+import { ArrowRight, Plus, Zap } from "lucide-react";
 import { Fragment } from "react";
 
 /* ── Premium soft-3D step illustrations (Kalyan Chemist palette) ── */
@@ -316,6 +316,8 @@ function DeliveryIllustration() {
 
 /* ── How It Works: compact premium process banner ── */
 export default function HowItWorks() {
+  const prefersReducedMotion = useReducedMotion();
+
   return (
     <section className="border-y border-border/50 bg-gradient-to-b from-card/50 to-background overflow-hidden">
       <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-6">
@@ -336,10 +338,76 @@ export default function HowItWorks() {
         </div>
 
         {/* Process banner */}
-        <div className="relative mt-4 overflow-hidden rounded-3xl border border-primary/10 bg-gradient-to-b from-teal-50/80 via-white to-violet-50/50 shadow-glow sm:mt-5">
-          <div className="pointer-events-none absolute -top-16 -right-16 size-52 rounded-full bg-teal-400/10 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-20 -left-14 size-52 rounded-full bg-orange-400/10 blur-3xl" />
-          <div className="pointer-events-none absolute -top-14 -left-14 size-44 rounded-full bg-violet-400/10 blur-3xl" />
+        <div className="relative mt-4 overflow-hidden rounded-3xl border border-primary/10 bg-white shadow-glow sm:mt-5">
+          {/* ── Premium layered healthcare backdrop (visual only) ── */}
+          <div aria-hidden className="pointer-events-none absolute inset-0">
+            {/* base color wash */}
+            <div className="absolute inset-0 bg-gradient-to-br from-teal-50 via-white to-sky-50" />
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(45,212,191,0.14),transparent_55%)]" />
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,rgba(96,165,250,0.12),transparent_55%)]" />
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,rgba(251,146,60,0.10),transparent_50%)]" />
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(139,92,246,0.08),transparent_50%)]" />
+            {/* keep the center clean for readability */}
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.92),transparent_70%)]" />
+
+            {/* faint healthcare dot grid */}
+            <div className="absolute inset-0 bg-[radial-gradient(circle,rgba(13,148,136,0.10)_1px,transparent_1px)] bg-[size:22px_22px] [mask-image:radial-gradient(ellipse_at_center,black_35%,transparent_85%)]" />
+
+            {/* slowly drifting color orbs */}
+            <motion.div
+              animate={prefersReducedMotion ? undefined : { x: [0, 28, 0], y: [0, -22, 0] }}
+              transition={{ duration: 22, repeat: Infinity, ease: "easeInOut" }}
+              className="absolute -top-24 -left-24 size-72 rounded-full bg-teal-300/30 blur-3xl"
+            />
+            <motion.div
+              animate={prefersReducedMotion ? undefined : { x: [0, -24, 0], y: [0, 20, 0] }}
+              transition={{ duration: 26, repeat: Infinity, ease: "easeInOut" }}
+              className="absolute -right-28 -bottom-28 size-80 rounded-full bg-orange-300/25 blur-3xl"
+            />
+            <motion.div
+              animate={prefersReducedMotion ? undefined : { x: [0, 20, 0], y: [0, 16, 0] }}
+              transition={{ duration: 24, repeat: Infinity, ease: "easeInOut" }}
+              className="absolute -right-16 top-1/3 size-64 rounded-full bg-sky-300/25 blur-3xl"
+            />
+            <motion.div
+              animate={prefersReducedMotion ? undefined : { x: [0, -18, 0], y: [0, -14, 0] }}
+              transition={{ duration: 28, repeat: Infinity, ease: "easeInOut" }}
+              className="absolute -bottom-24 left-1/4 size-64 rounded-full bg-violet-300/20 blur-3xl"
+            />
+            <motion.div
+              animate={prefersReducedMotion ? undefined : { x: [0, 16, 0], y: [0, -12, 0] }}
+              transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
+              className="absolute -top-20 left-1/2 size-56 -translate-x-1/2 rounded-full bg-emerald-300/20 blur-3xl"
+            />
+
+            {/* soft glows that seat the 3D illustrations into the banner */}
+            <div className="absolute top-1/2 left-[16.5%] hidden size-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-teal-400/15 blur-2xl lg:block" />
+            <div className="absolute top-1/2 left-1/2 hidden size-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-sky-400/15 blur-2xl lg:block" />
+            <div className="absolute top-1/2 left-[83.5%] hidden size-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-violet-400/15 blur-2xl lg:block" />
+
+            {/* subtle translucent healthcare crosses */}
+            <Plus className="absolute top-4 left-[12%] size-5 rotate-12 text-teal-600/15" />
+            <Plus className="absolute bottom-5 left-[30%] size-4 rotate-45 text-sky-600/15" />
+            <Plus className="absolute top-6 left-[58%] size-4 -rotate-12 text-orange-500/15" />
+            <Plus className="absolute bottom-6 right-[16%] size-5 rotate-45 text-violet-500/15" />
+            <Plus className="absolute top-1/2 left-1/2 size-6 -translate-x-1/2 -translate-y-1/2 rotate-12 text-teal-600/[0.07]" />
+
+            {/* faint heartbeat line along the top edge */}
+            <svg
+              className="absolute inset-x-0 top-2 h-9 w-full text-teal-600/15"
+              viewBox="0 0 1200 40"
+              preserveAspectRatio="none"
+              fill="none"
+            >
+              <path
+                d="M0 28 H260 l20 -16 16 34 18 -26 12 8 h180 l20 -18 16 30 16 -14 h90 l20 -24 16 40 16 -16 h110 l20 -26 18 36 16 -10 h330 H1200"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </div>
 
           <div className="relative grid grid-cols-1 gap-y-3 px-4 py-4 sm:px-6 lg:grid-cols-[1fr_auto_1fr_auto_1fr] lg:items-center lg:gap-x-0.5 lg:px-5 lg:py-4">
             {[
