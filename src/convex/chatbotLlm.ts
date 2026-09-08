@@ -503,58 +503,69 @@ export const sendLlmMessage = action({
     });
 
     // ── Build Gemini contents list (incl. attachments as inline_data parts) ──
+    // Shared helper: turn attachment metadata into multimodal parts the LLM can
+    // actually see. Images are fetched from Convex storage and sent as
+    // inline_data; PDFs become a descriptive note (they can't be sent inline).
+    const buildAttachmentParts = async (
+      attachments?: { fileId: string; fileName: string; fileType: string; fileSize: number }[]
+    ): Promise<GeminiPart[]> => {
+      const parts: GeminiPart[] = [];
+      if (!attachments?.length) return parts;
+      for (const a of attachments) {
+        if (a.fileType.startsWith("image/")) {
+          try {
+            const url = await ctx.runQuery(internal.chatbotInternal.getAttachmentUrl, {
+              fileId: a.fileId,
+              userId: userIdentity,
+            });
+            if (url) {
+              const res = await fetch(url);
+              if (res.ok) {
+                const buf = new Uint8Array(await res.arrayBuffer());
+                // Chunked conversion — spreading a large Uint8Array into
+                // String.fromCharCode can overflow the call stack.
+                let binary = "";
+                const CHUNK = 0x8000;
+                for (let i = 0; i < buf.length; i += CHUNK) {
+                  binary += String.fromCharCode(...buf.subarray(i, i + CHUNK));
+                }
+                parts.push({
+                  inline_data: {
+                    mime_type: a.fileType || "image/jpeg",
+                    data: btoa(binary),
+                  },
+                });
+              }
+              parts.push({ text: `[Customer attached: ${a.fileName}]` });
+            }
+          } catch {
+            parts.push({ text: `[Customer attached file: ${a.fileName} — could not be loaded]` });
+          }
+        } else {
+          parts.push({
+            text: `[Customer attached a PDF: ${a.fileName} — ${a.fileSize} bytes. Acknowledge it and describe what the customer can do; offer to route it to the pharmacist if they need it reviewed.]`,
+          });
+        }
+      }
+      return parts;
+    };
+
     const contents: GeminiContent[] = [];
     for (const m of history) {
       const parts: GeminiPart[] = [];
       // Attachments belong to the user message they were sent with
-      if (m.role === "user" && m.attachments?.length) {
-        for (const a of m.attachments) {
-          if (a.fileType.startsWith("image/")) {
-            try {
-              const url = await ctx.runQuery(internal.chatbotInternal.getAttachmentUrl, {
-                fileId: a.fileId,
-                userId: userIdentity,
-              });
-              if (url) {
-                const res = await fetch(url);
-                if (res.ok) {
-                  const buf = new Uint8Array(await res.arrayBuffer());
-                  // Chunked conversion — spreading a large Uint8Array into
-                  // String.fromCharCode can overflow the call stack.
-                  let binary = "";
-                  const CHUNK = 0x8000;
-                  for (let i = 0; i < buf.length; i += CHUNK) {
-                    binary += String.fromCharCode(...buf.subarray(i, i + CHUNK));
-                  }
-                  parts.push({
-                    inline_data: {
-                      mime_type: a.fileType || "image/jpeg",
-                      data: btoa(binary),
-                    },
-                  });
-                }
-                parts.push({
-                  text: `[Customer attached: ${a.fileName}]`,
-                });
-              }
-            } catch {
-              parts.push({ text: `[Customer attached file: ${a.fileName} — could not be loaded]` });
-            }
-          } else {
-            parts.push({
-              text: `[Customer attached a PDF: ${a.fileName} — ${a.fileSize} bytes. Acknowledge it and describe what the customer can do; offer to route it to the pharmacist if they need it reviewed.]`,
-            });
-          }
-        }
-      }
+      if (m.role === "user") parts.push(...(await buildAttachmentParts(m.attachments)));
       parts.push({ text: m.content });
       contents.push({ role: m.role === "assistant" ? "model" : "user", parts });
     }
 
     // History excludes the NEW message (it is persisted after the LLM run), so
-    // always append it as the final user turn. Gemini merges consecutive
-    // user turns automatically, so this is safe in every case.
-    contents.push({ role: "user", parts: [{ text: args.content }] });
+    // always append it as the final user turn — including any attachments sent
+    // with it, so the model sees the uploaded image/file in this same turn.
+    contents.push({
+      role: "user",
+      parts: [...(await buildAttachmentParts(args.attachments)), { text: args.content }],
+    });
 
     // ── Language preference context ──
     const langLine = args.preferredLanguage

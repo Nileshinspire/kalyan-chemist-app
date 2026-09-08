@@ -40,6 +40,10 @@ import {
   IndianRupee,
   PackageX,
   History,
+  X,
+  FileText,
+  Image as ImageIcon,
+  Loader2,
 } from "lucide-react";
 import type { Id } from "@/convex/_generated/dataModel";
 
@@ -558,6 +562,10 @@ export default function AIChatbot() {
   const sendAiMessage = useAction(api.chatbotLlm.sendLlmMessage);
   const deleteConversation = useMutation(api.chatbot.deleteConversation);
   const proactiveSuggestions = useQuery(api.chatbot.getProactiveSuggestions);
+  // Reuse the platform's existing Convex storage upload flow (same mutation
+  // the Upload Prescription page uses) so attachments reach the chatbot
+  // backend as real Convex storage file IDs.
+  const generateUploadUrl = useMutation(api.prescriptions.generateUploadUrl);
 
   const [activeConvId, setActiveConvId] = useState<Id<"chatbot_conversations"> | null>(null);
   const messages = useQuery(
@@ -569,12 +577,74 @@ export default function AIChatbot() {
   const [isTyping, setIsTyping] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showLangPicker, setShowLangPicker] = useState(false);
+  const [attachment, setAttachment] = useState<{
+    fileId: string;
+    fileName: string;
+    fileType: string;
+    fileSize: number;
+    previewUrl?: string;
+  } | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { isListening, isSupported: voiceSupported, toggle: toggleVoice } = useVoiceInput((t) => setInput(t));
   const { enabled: ttsOn, setEnabled: setTts, speak } = useTextToSpeech();
+
+  /* ── Attachment: select → upload to Convex storage → preview in composer ── */
+  const handleFileSelect = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      // Same accepted types as the rest of the platform (JPG / PNG / PDF)
+      const validTypes = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
+      if (!validTypes.includes(file.type)) {
+        toast.error("Please attach a JPG, PNG, or PDF file.");
+        return;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error("File must be 10 MB or less.");
+        return;
+      }
+
+      setIsUploading(true);
+      try {
+        // Same Convex storage upload flow used by the Upload Prescription page
+        const uploadUrl = await generateUploadUrl();
+        const response = await fetch(uploadUrl, {
+          method: "PUT",
+          headers: { "Content-Type": file.type },
+          body: file,
+        });
+        if (!response.ok) throw new Error("Upload failed");
+        const { storageId } = await response.json();
+
+        if (attachment?.previewUrl) URL.revokeObjectURL(attachment.previewUrl);
+        setAttachment({
+          fileId: storageId,
+          fileName: file.name,
+          fileType: file.type,
+          fileSize: file.size,
+          previewUrl: file.type.startsWith("image/") ? URL.createObjectURL(file) : undefined,
+        });
+      } catch {
+        toast.error("Could not upload the file. Please try again.");
+      } finally {
+        setIsUploading(false);
+        // Reset so the same file can be picked again
+        e.target.value = "";
+      }
+    },
+    [generateUploadUrl, attachment],
+  );
+
+  const removeAttachment = useCallback(() => {
+    if (attachment?.previewUrl) URL.revokeObjectURL(attachment.previewUrl);
+    setAttachment(null);
+  }, [attachment]);
 
   /* Auto-scroll */
   useEffect(() => {
@@ -593,7 +663,8 @@ export default function AIChatbot() {
   const handleSend = useCallback(
     async (text?: string) => {
       const msg = (text || input).trim();
-      if (!msg || isTyping) return;
+      // Allow sending an attachment on its own (e.g. a medicine photo or PDF)
+      if ((!msg && !attachment) || isTyping || isUploading) return;
       setInput("");
       setShowLangPicker(false);
 
@@ -610,11 +681,28 @@ export default function AIChatbot() {
 
       setIsTyping(true);
       try {
-        // LLM engine (Claude + function-calling) — generates the reply, runs
-        // data tools, and persists both messages server-side. The UI simply
-        // renders the updated conversation from the reactive getMessages query.
-        const result = await sendAiMessage({ conversationId: convId, content: msg });
+        // LLM engine (Gemini + function-calling) — generates the reply, runs
+        // data tools, and persists both messages server-side (attachments
+        // included, so they render in the thread and feed the model). The UI
+        // simply renders the updated conversation from the reactive
+        // getMessages query.
+        const result = await sendAiMessage({
+          conversationId: convId,
+          content: msg,
+          attachments: attachment
+            ? [
+                {
+                  fileId: attachment.fileId,
+                  fileName: attachment.fileName,
+                  fileType: attachment.fileType,
+                  fileSize: attachment.fileSize,
+                },
+              ]
+            : undefined,
+        });
         if (result.handoffTriggered) toast.info("Connecting you with a pharmacist…");
+        if (attachment?.previewUrl) URL.revokeObjectURL(attachment.previewUrl);
+        setAttachment(null);
       } catch (err: any) {
         toast.error(err.message || "Failed to send message");
       } finally {
@@ -622,7 +710,7 @@ export default function AIChatbot() {
         inputRef.current?.focus();
       }
     },
-    [input, activeConvId, isTyping, createConversation, sendAiMessage],
+    [input, activeConvId, isTyping, isUploading, attachment, createConversation, sendAiMessage],
   );
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -1040,6 +1128,25 @@ export default function AIChatbot() {
                         {renderMarkdown(msg.content)}
                       </div>
 
+                      {/* Sent attachment chip (metadata from the stored message) */}
+                      {isUser && msg.attachments && msg.attachments.length > 0 && (
+                        <div className={`flex flex-wrap gap-1.5 ${msg.content ? "mt-1.5" : ""}`}>
+                          {msg.attachments.map((a: any, ai: number) => (
+                            <span
+                              key={ai}
+                              className="inline-flex items-center gap-1.5 rounded-lg bg-white/15 px-2 py-1 text-[10.5px] font-medium text-white/90"
+                            >
+                              {a.fileType?.startsWith("image/") ? (
+                                <ImageIcon className="size-3" />
+                              ) : (
+                                <FileText className="size-3" />
+                              )}
+                              <span className="max-w-[140px] truncate">{a.fileName}</span>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
                       {isAssistant && msg.handoffTriggered && (
                         <div className="mt-3 pt-2.5 border-t border-border/30">
                           <div className="flex items-center gap-2 p-2.5 rounded-lg bg-amber-50/80 border border-amber-200/60">
@@ -1120,10 +1227,73 @@ export default function AIChatbot() {
             </div>
           )}
 
+          {/* Attachment preview (image thumb / file chip) */}
+          {(attachment || isUploading) && (
+            <div className="mb-2 flex items-center gap-2.5 animate-in fade-in slide-in-from-bottom-1 duration-150">
+              {attachment?.previewUrl ? (
+                <div className="relative">
+                  <img
+                    src={attachment.previewUrl}
+                    alt={attachment.fileName}
+                    className="size-14 rounded-xl border border-border/60 bg-white object-cover shadow-[0_1px_3px_rgba(0,0,0,0.06)]"
+                  />
+                  <button
+                    onClick={removeAttachment}
+                    className="absolute -top-1.5 -right-1.5 flex size-5 items-center justify-center rounded-full bg-foreground/75 text-white shadow-sm hover:bg-destructive transition-colors"
+                    title="Remove attachment"
+                  >
+                    <X className="size-3" />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-white px-3 py-2 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+                  {isUploading && !attachment ? (
+                    <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                  ) : (
+                    <FileText className="size-4 text-[oklch(0.45_0.12_170)] shrink-0" />
+                  )}
+                  <span className="text-[12px] font-medium text-foreground/80 max-w-[180px] truncate">
+                    {isUploading && !attachment ? "Uploading…" : attachment?.fileName}
+                  </span>
+                  {attachment && !isUploading && (
+                    <button
+                      onClick={removeAttachment}
+                      className="text-muted-foreground hover:text-destructive transition-colors"
+                      title="Remove attachment"
+                    >
+                      <X className="size-3.5" />
+                    </button>
+                  )}
+                </div>
+              )}
+              {attachment && !isUploading && (
+                <span className="text-[10px] text-muted-foreground/60">
+                  {attachment.fileType === "application/pdf" ? "PDF" : "Image"} · sent with your message
+                </span>
+              )}
+            </div>
+          )}
+
           {/* Elevated input container */}
           <div className="bg-white border border-border/60 rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.05)] focus-within:border-[oklch(0.45_0.12_170)]/30 focus-within:shadow-[0_2px_16px_rgba(0,0,0,0.07)] focus-within:ring-2 focus-within:ring-[oklch(0.45_0.12_170)]/[0.08] transition-all duration-200">
             <div className="flex items-center gap-2 px-3 py-2">
-              {/* Plus / language quick toggle */}
+              {/* Attach photo / file */}
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isTyping || isUploading}
+                className={`flex size-8 items-center justify-center rounded-xl shrink-0 transition-all duration-200 ${
+                  isUploading
+                    ? "text-[oklch(0.45_0.12_170)]"
+                    : attachment
+                      ? "bg-[oklch(0.45_0.12_170)]/10 text-[oklch(0.45_0.12_170)]"
+                      : "text-muted-foreground/70 hover:text-foreground hover:bg-muted/60"
+                }`}
+                title={isUploading ? "Uploading…" : "Attach photo or file"}
+              >
+                {isUploading ? <Loader2 className="size-4.5 animate-spin" /> : <Plus className="size-4.5" />}
+              </button>
+
+              {/* Language quick toggle */}
               <button
                 onClick={() => setShowLangPicker(!showLangPicker)}
                 className={`flex size-8 items-center justify-center rounded-xl shrink-0 transition-all duration-200 ${
@@ -1133,8 +1303,18 @@ export default function AIChatbot() {
                 }`}
                 title="Language"
               >
-                <Plus className="size-4.5" />
+                <Languages className="size-4" />
               </button>
+
+              {/* Hidden file input (JPG / PNG / PDF — same as platform uploads) */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.pdf"
+                className="hidden"
+                onChange={handleFileSelect}
+                disabled={isTyping || isUploading}
+              />
 
               <input
                 ref={inputRef}
@@ -1165,9 +1345,9 @@ export default function AIChatbot() {
               {/* Send */}
               <button
                 onClick={() => handleSend()}
-                disabled={!input.trim() || isTyping}
+                disabled={(!input.trim() && !attachment) || isTyping || isUploading}
                 className={`flex size-8 items-center justify-center rounded-xl shrink-0 transition-all duration-200 ${
-                  input.trim() && !isTyping
+                  (input.trim() || attachment) && !isTyping && !isUploading
                     ? "bg-gradient-to-br from-[oklch(0.42_0.09_170)] to-[oklch(0.38_0.10_168)] text-white shadow-sm shadow-[oklch(0.45_0.12_170)]/25 hover:shadow-md active:scale-95"
                     : "bg-muted/40 text-muted-foreground/50 cursor-not-allowed"
                 }`}
