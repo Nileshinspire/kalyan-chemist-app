@@ -48,8 +48,8 @@ export default function NewArrivals() {
           vertical rhythm). The shared ProductCard and every other section
           stay untouched. */}
       <style>{`
-        .kc-new-arrival .h-44 { height: 8rem; }
-        .kc-new-arrival .p-4 { padding: 0.75rem 1rem; }
+        .kc-new-arrival .h-44 { height: 7rem; }
+        .kc-new-arrival .p-4 { padding: 0.625rem 1rem; }
         .kc-new-arrival .space-y-2\.5 > :not([hidden]) ~ :not([hidden]) {
           margin-top: 0.5rem;
           margin-bottom: 0rem;
