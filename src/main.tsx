@@ -35,6 +35,7 @@ const OrderDetail = lazy(() => import("./pages/OrderDetail.tsx"));
 const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
 const AdminProducts = lazy(() => import("./pages/admin/AdminProducts"));
 const AdminCategories = lazy(() => import("./pages/admin/AdminCategories"));
+const AdminHealthcareDevices = lazy(() => import("./pages/admin/AdminHealthcareDevices"));
 const AdminBrands = lazy(() => import("./pages/admin/AdminBrands"));
 const AdminInventory = lazy(() => import("./pages/admin/AdminInventory"));
 const AdminOrders = lazy(() => import("./pages/admin/AdminOrders"));
@@ -426,6 +427,15 @@ function AnimatedRoutes() {
           element={
             <RequireAuth adminOnly>
                 <AdminCategories />
+              </RequireAuth>
+            
+          }
+        />
+        <Route
+          path="/admin/healthcare-devices"
+          element={
+            <RequireAuth adminOnly>
+                <AdminHealthcareDevices />
               </RequireAuth>
             
           }

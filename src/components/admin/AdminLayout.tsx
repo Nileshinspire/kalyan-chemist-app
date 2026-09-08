@@ -31,12 +31,14 @@ import {
   FlaskConical,
   RefreshCw,
   Bot,
+  Activity,
 } from "lucide-react";
 
 const NAV_ITEMS = [
   { label: "Dashboard", path: "/admin", icon: LayoutDashboard },
   { label: "Products", path: "/admin/products", icon: Pill },
   { label: "Categories", path: "/admin/categories", icon: Tag },
+  { label: "Healthcare Devices", path: "/admin/healthcare-devices", icon: Activity },
   { label: "Brands", path: "/admin/brands", icon: Building2 },
   { label: "Inventory", path: "/admin/inventory", icon: Warehouse },
   { label: "Orders", path: "/admin/orders", icon: ClipboardList },
