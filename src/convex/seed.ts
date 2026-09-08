@@ -29,6 +29,16 @@ const CATEGORIES = [
   { name: "Sexual Health", slug: "sexual-health", description: "Sexual wellness, contraceptives, and intimate care products", sortOrder: 21 },
   { name: "Elderly Care", slug: "elderly-care", description: "Wellness and daily care essentials for seniors", sortOrder: 22 },
   { name: "Cold & Immunity", slug: "cold-immunity", description: "Cold relief, cough care, and immunity boosters", sortOrder: 23 },
+  // Healthcare-device categories used by the homepage "Healthcare Devices"
+  // section. Kept in sync with the Admin category list — admin selects one of
+  // these when adding a device product, and the customer homepage category
+  // card automatically shows that product via the existing category listing.
+  { name: "BP Monitors", slug: "bp-monitors", description: "Blood pressure monitors and cuffs for home use", sortOrder: 24 },
+  { name: "Glucometers", slug: "glucometers", description: "Blood glucose meters, strips, and lancing supplies", sortOrder: 25 },
+  { name: "Pulse Oximeters", slug: "pulse-oximeters", description: "Fingertip pulse oximeters for oxygen level monitoring", sortOrder: 26 },
+  { name: "Nebulizers", slug: "nebulizers", description: "Nebulizer machines and respiratory therapy devices", sortOrder: 27 },
+  { name: "Digital Thermometers", slug: "digital-thermometers", description: "Digital and infrared thermometers for accurate temperature readings", sortOrder: 28 },
+  { name: "Weighing Scales", slug: "weighing-scales", description: "Digital weighing scales for home health monitoring", sortOrder: 29 },
 ];
 
 const PRODUCTS: {
@@ -60,6 +70,41 @@ const PRODUCTS: {
   { name: "Digene Gel", slug: "digene-gel", description: "Antacid gel for instant relief from acidity, heartburn, and bloating. Fast-acting formula with natural ingredients.", price: 75, manufacturer: "Abbott", dosage: "N/A", packSize: "170ml", prescriptionRequired: false, stockQuantity: 170, categorySlug: "digestive-health" },
   { name: "Bifi Yogurt Sachets", slug: "bifi-yogurt-sachets", description: "Probiotic supplement with live good bacteria for gut health. Helps restore natural intestinal flora and improve digestion.", price: 210, manufacturer: "Synlab", dosage: "N/A", packSize: "10 sachets", prescriptionRequired: false, stockQuantity: 75, categorySlug: "digestive-health" },
 ];
+
+// ── Healthcare-device categories only ──
+// Idempotent: upserts the exact device category slugs from CATEGORIES above.
+// Existing categories are never renamed or duplicated, and no products are
+// touched. Keeps the Admin category list in sync with the homepage
+// "Healthcare Devices" section.
+export const seedHealthcareDeviceCategories = action({
+  args: {},
+  handler: async (ctx) => {
+    const slugs = new Set([
+      "bp-monitors",
+      "glucometers",
+      "pulse-oximeters",
+      "nebulizers",
+      "digital-thermometers",
+      "weighing-scales",
+    ]);
+    const results = { categories: 0, errors: [] as string[] };
+    for (const cat of CATEGORIES) {
+      if (!slugs.has(cat.slug)) continue;
+      try {
+        await ctx.runMutation(internal.categories.upsertCategory, {
+          name: cat.name,
+          slug: cat.slug,
+          description: cat.description,
+          sortOrder: cat.sortOrder,
+        });
+        results.categories++;
+      } catch (e) {
+        results.errors.push(`Category "${cat.name}": ${e}`);
+      }
+    }
+    return results;
+  },
+});
 
 // ── Health-condition categories only ──
 // Idempotent: upserts the exact health-condition category slugs from CATEGORIES
