@@ -31,6 +31,17 @@ export const adminList = query({
   },
 });
 
+/* ── PUBLIC: List all active tests (homepage "Popular Lab Tests") ── */
+export const listActive = query({
+  args: {},
+  handler: async (ctx) => {
+    const tests = await ctx.db.query("lab_tests").withIndex("by_createdAt").collect();
+    return tests
+      .filter((t) => t.active)
+      .sort((a, b) => b.createdAt - a.createdAt);
+  },
+});
+
 /* ── CUSTOMER: List active tests by category ── */
 export const listByCategory = query({
   args: { categorySlug: v.string() },
