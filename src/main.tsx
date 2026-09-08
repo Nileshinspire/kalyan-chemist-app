@@ -11,6 +11,7 @@ import { createRoot } from "react-dom/client";
 import { HashRouter, Route, Routes, useLocation } from "react-router";
 import ScrollRestorer from "@/components/ScrollRestorer";
 import { PageErrorBoundary } from "@/components/PageErrorBoundary";
+import AIChatbotFloat from "@/components/AIChatbotFloat";
 import "./index.css";
 
 const convex = new ConvexReactClient(
@@ -623,6 +624,8 @@ createRoot(document.getElementById("root")!).render(
                 <AnimatedRoutes />
               </Suspense>
             </PageErrorBoundary>
+            {/* Global floating AI assistant — one instance, customer side only */}
+            <AIChatbotFloat />
           </NavigationProvider>
         </HashRouter>
         <Toaster />
