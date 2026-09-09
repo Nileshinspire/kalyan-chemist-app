@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo, Fragment } from "react";
 import { useNavigate } from "react-router";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -15,7 +15,6 @@ import {
   ShoppingCart,
   RefreshCw,
   HelpCircle,
-  Bot,
   User,
   Volume2,
   VolumeX,
@@ -144,6 +143,7 @@ const CHAT_KEYFRAMES = `
 @keyframes kc-particle { 0%,100% { opacity:.2; transform: translate3d(0,0,0) scale(1); } 50% { opacity:.75; transform: translate3d(0,-10px,0) scale(1.3); } }
 @keyframes kc-ping { 0% { opacity:.55; transform: scale(1); } 80%,100% { opacity:0; transform: scale(2.1); } }
 @keyframes kc-dot { 0%,100% { opacity:.3; transform: translate3d(0,0,0) scale(.85); } 50% { opacity:1; transform: translate3d(0,-3px,0) scale(1.1); } }
+@keyframes kc-tilt { 0%,100% { transform: translate3d(0,0,0) rotate(0deg); } 25% { transform: translate3d(0,-6px,0) rotate(.7deg); } 75% { transform: translate3d(0,-4px,0) rotate(-.7deg); } }
 @media (prefers-reduced-motion: reduce) { .kc-anim, .kc-anim * { animation: none !important; } }
 `;
 
@@ -174,6 +174,63 @@ function ChatAmbient() {
       <span className="kc-anim absolute left-[30%] bottom-[30%] size-1 rounded-full bg-[oklch(0.6_0.1_150)]/25" style={{ animationName: "kc-particle", animationDuration: "8s", animationDelay: "4s" }} />
     </div>
   );
+}
+
+/* ══════════════════════════════════════════════════════════════
+   AI EMBLEM — bespoke Kalyan Chemist AI identity mark: a
+   dimensional emerald core with pharmacy-cross geometry, neural
+   orbit and glass sheen. Pure SVG; scales cleanly at any size.
+   ══════════════════════════════════════════════════════════════ */
+
+function AiEmblemMark({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 48 48" className={className} aria-hidden="true">
+      <defs>
+        <linearGradient id="kcEmblemBody" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stopColor="oklch(0.56_0.115_165)" />
+          <stop offset="55%" stopColor="oklch(0.42_0.09_170)" />
+          <stop offset="100%" stopColor="oklch(0.30_0.075_177)" />
+        </linearGradient>
+        <radialGradient id="kcEmblemGlow" cx="0.5" cy="0.2" r="0.8">
+          <stop offset="0%" stopColor="oklch(0.86_0.09_162)" stopOpacity="0.85" />
+          <stop offset="100%" stopColor="oklch(0.86_0.09_162)" stopOpacity="0" />
+        </radialGradient>
+        <linearGradient id="kcEmblemSheen" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#ffffff" stopOpacity="0.55" />
+          <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+        </linearGradient>
+        <clipPath id="kcEmblemClip">
+          <rect x="1" y="1" width="46" height="46" rx="13" />
+        </clipPath>
+      </defs>
+      <rect x="1" y="1" width="46" height="46" rx="13" fill="url(#kcEmblemBody)" />
+      <rect x="1" y="1" width="46" height="46" rx="13" fill="url(#kcEmblemGlow)" />
+      {/* neural orbit + nodes */}
+      <circle cx="24" cy="24" r="13.5" fill="none" stroke="oklch(0.95_0.03_165_/_0.4)" strokeWidth="1" strokeDasharray="2.5 3.5" />
+      <circle cx="24" cy="10.5" r="2" fill="oklch(0.93_0.05_160)" />
+      <circle cx="35.4" cy="30.2" r="1.6" fill="oklch(0.82_0.11_70)" />
+      {/* pharmacy cross core */}
+      <path d="M20.4 14.6h7.2v5.8h5.8v7.2h-5.8v5.8h-7.2v-5.8h-5.8v-7.2h5.8z" fill="oklch(0.985_0.005_160)" />
+      <path d="M20.4 14.6h7.2v5.8h5.8v3.4H20.4z" fill="oklch(0.88_0.045_168)" opacity="0.55" />
+      {/* glass sheen + bottom inner shadow */}
+      <g clipPath="url(#kcEmblemClip)">
+        <ellipse cx="24" cy="8.5" rx="18" ry="7" fill="url(#kcEmblemSheen)" opacity="0.5" />
+        <ellipse cx="24" cy="45.5" rx="16" ry="4" fill="oklch(0.2_0.05_180)" opacity="0.25" />
+      </g>
+      <rect x="1.5" y="1.5" width="45" height="45" rx="12.5" fill="none" stroke="oklch(0.98_0.01_160_/_0.38)" strokeWidth="1" />
+    </svg>
+  );
+}
+
+/* Contextual thinking status — derived visually from the user's own
+   last message (presentation only, no behaviour change). */
+function thinkingLabel(messages: any[] | undefined): string {
+  const lastUser = [...(messages || [])].reverse().find((m) => m.role === "user");
+  const t = (lastUser?.content || "").toLowerCase();
+  if (/order|track|deliver|shipment/.test(t)) return "Checking your order…";
+  if (/refill/.test(t)) return "Finding your refill…";
+  if (/available|stock|dolo|medicine|medicines|search|find|product|price|have /.test(t)) return "Searching medicines…";
+  return "Thinking…";
 }
 
 interface ProductCardData {
@@ -447,13 +504,14 @@ function useTextToSpeech() {
 
 function AiAvatar({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
   const dims = size === "lg" ? "size-16 rounded-[20px]" : size === "md" ? "size-9 rounded-xl" : "size-7 rounded-lg";
-  const icon = size === "lg" ? "size-7" : size === "md" ? "size-4" : "size-3.5";
+  const shadow =
+    size === "sm"
+      ? "shadow-[0_2px_6px_-2px_oklch(0.45_0.12_170_/_0.45)]"
+      : "shadow-[0_4px_12px_-3px_oklch(0.45_0.12_170_/_0.5),inset_0_1px_0_rgba(255,255,255,0.35)]";
   return (
-    <div
-      className={`relative flex ${dims} shrink-0 items-center justify-center bg-gradient-to-br from-[oklch(0.48_0.10_169)] via-[oklch(0.42_0.09_170)] to-[oklch(0.35_0.08_173)] text-white shadow-[0_3px_8px_-2px_oklch(0.45_0.12_170_/_0.4),inset_0_1px_0_rgba(255,255,255,0.3)] ring-1 ring-white/25`}
-    >
+    <div className={`relative flex ${dims} shrink-0 items-center justify-center ${shadow} ring-1 ring-white/25`}>
+      <AiEmblemMark className="absolute inset-0 size-full" />
       <span className="pointer-events-none absolute inset-0 rounded-[inherit] bg-gradient-to-b from-white/20 via-transparent to-transparent" />
-      <Bot className={`${icon} relative drop-shadow-[0_1px_2px_rgba(0,50,35,0.35)]`} />
     </div>
   );
 }
@@ -468,10 +526,10 @@ function ProductResultCards({ products }: { products: ProductCardData[] }) {
         return (
           <div
             key={i}
-            className="group rounded-xl border border-border/40 bg-white/90 backdrop-blur-sm p-3 shadow-[0_2px_10px_-4px_rgba(16,60,50,0.08)] transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-[oklch(0.45_0.12_170)]/30 hover:shadow-[0_8px_20px_-8px_oklch(0.45_0.12_170_/_0.22)]"
+            className="group/card rounded-xl border border-border/40 bg-white/90 backdrop-blur-sm p-3 shadow-[0_2px_10px_-4px_rgba(16,60,50,0.08)] transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-[oklch(0.45_0.12_170)]/30 hover:shadow-[0_8px_20px_-8px_oklch(0.45_0.12_170_/_0.22)]"
           >
             <div className="flex items-start gap-3">
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[oklch(0.96_0.03_170)] to-[oklch(0.93_0.05_175)] border border-[oklch(0.45_0.12_170)]/12 shadow-inner transition-transform duration-300 group-hover:scale-105">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[oklch(0.96_0.03_170)] to-[oklch(0.93_0.05_175)] border border-[oklch(0.45_0.12_170)]/12 shadow-inner transition-transform duration-300 ease-out group-hover/card:scale-110 group-hover/card:-translate-y-0.5">
                 <Pill className="size-5 text-[oklch(0.45_0.12_170)]" />
               </div>
               <div className="min-w-0 flex-1">
@@ -542,15 +600,21 @@ function OrderResultCards({ orders }: { orders: OrderCardData[] }) {
             dot: "bg-muted-foreground",
           };
         const Icon = meta.icon;
+        const isFinal = key === "delivered" || key === "cancelled" || key === "refunded";
         return (
+          <Fragment key={i}>
+          <div className="mb-1 h-1 overflow-hidden rounded-full bg-muted/60">
+            <div className={`h-full rounded-full ${meta.dot} ${isFinal ? "w-full" : "w-2/5"}`} />
+          </div>
           <div
-            key={i}
-            className="rounded-xl border border-border/40 bg-white/90 backdrop-blur-sm p-3 shadow-[0_2px_10px_-4px_rgba(16,60,50,0.08)] transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-[oklch(0.45_0.12_170)]/30 hover:shadow-[0_8px_20px_-8px_oklch(0.45_0.12_170_/_0.22)]"
+            className="group/card rounded-xl border border-border/40 bg-white/90 backdrop-blur-sm p-3 shadow-[0_2px_10px_-4px_rgba(16,60,50,0.08)] transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-[oklch(0.45_0.12_170)]/30 hover:shadow-[0_8px_20px_-8px_oklch(0.45_0.12_170_/_0.22)]"
           >
             <div className="flex items-center justify-between gap-2">
               <span className="text-[12px] font-bold text-foreground tracking-tight">{o.id.toUpperCase()}</span>
-              <span className={`inline-flex items-center gap-1.5 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${meta.tone}`}>
-                <span className={`size-1.5 rounded-full ${meta.dot}`} />
+              <span className={`inline-flex items-center gap-1.5 text-[10px] font-semibold px-2 py-0.5 rounded-full border shadow-sm ${meta.tone}`}>
+                <span className={`relative flex size-1.5 items-center justify-center rounded-full ${meta.dot}`}>
+                  <span className={`absolute size-1.5 rounded-full ${meta.dot} opacity-60 ${isFinal ? "" : "kc-anim"}`} style={{ animationName: "kc-ping", animationDuration: "2.2s" }} />
+                </span>
                 {meta.label}
               </span>
             </div>
@@ -562,6 +626,7 @@ function OrderResultCards({ orders }: { orders: OrderCardData[] }) {
               </p>
             )}
           </div>
+          </Fragment>
         );
       })}
     </div>
@@ -851,11 +916,10 @@ export default function AIChatbot() {
                 style={{ animationName: "kc-halo", animationDuration: "5.5s" }}
               />
               <div
-                className="kc-anim relative flex size-16 items-center justify-center rounded-[20px] bg-gradient-to-br from-[oklch(0.5_0.11_168)] via-[oklch(0.42_0.09_170)] to-[oklch(0.34_0.08_173)] text-white shadow-[0_16px_32px_-12px_oklch(0.45_0.12_170_/_0.5),inset_0_1px_0_rgba(255,255,255,0.35)]"
+                className="kc-anim relative size-16 rounded-[20px] shadow-[0_16px_32px_-12px_oklch(0.45_0.12_170_/_0.5)]"
                 style={{ animationName: "kc-float-y", animationDuration: "7s" }}
               >
-                <Bot className="size-7 relative" />
-                <span className="pointer-events-none absolute inset-0 rounded-[20px] bg-gradient-to-b from-white/25 via-transparent to-transparent" />
+                <AiEmblemMark className="absolute inset-0 size-full" />
               </div>
             </div>
             <h1 className="text-xl font-bold text-foreground">Kalyan Chemist AI</h1>
@@ -1015,7 +1079,7 @@ export default function AIChatbot() {
                 className="relative mb-6 animate-in fade-in slide-in-from-bottom-3 duration-500"
                 style={{ animationFillMode: "backwards" }}
               >
-                <div className="relative [perspective:900px]">
+                <div className="group relative [perspective:900px]">
                   {/* ambient halo */}
                   <div
                     className="kc-anim absolute -inset-7 rounded-full bg-[radial-gradient(circle,oklch(0.72_0.12_170_/_0.35),transparent_70%)]"
@@ -1025,11 +1089,10 @@ export default function AIChatbot() {
                   <div className="absolute -inset-2 rounded-[30px] border border-[oklch(0.45_0.12_170)]/15 bg-white/40 backdrop-blur-sm" />
                   {/* glass core */}
                   <div
-                    className="kc-anim relative flex size-[84px] items-center justify-center rounded-[26px] bg-gradient-to-br from-[oklch(0.52_0.11_168)] via-[oklch(0.42_0.09_170)] to-[oklch(0.33_0.08_173)] text-white shadow-[0_20px_40px_-14px_oklch(0.45_0.12_170_/_0.5),inset_0_1px_0_rgba(255,255,255,0.35)]"
-                    style={{ animationName: "kc-float-y", animationDuration: "7s" }}
+                    className="kc-anim relative size-[84px] rounded-[26px] shadow-[0_20px_40px_-14px_oklch(0.45_0.12_170_/_0.5)] transition-transform duration-500 ease-out group-hover:[transform:rotateX(6deg)_rotateY(-6deg)_scale(1.05)] group-hover:shadow-[0_26px_50px_-14px_oklch(0.45_0.12_170_/_0.6)]"
+                    style={{ animationName: "kc-tilt", animationDuration: "9s" }}
                   >
-                    <Bot className="size-9 relative drop-shadow-[0_3px_8px_rgba(0,55,40,0.35)]" />
-                    <span className="pointer-events-none absolute inset-0 rounded-[26px] bg-gradient-to-b from-white/25 via-transparent to-transparent" />
+                    <AiEmblemMark className="absolute inset-0 size-full" />
                   </div>
                   {/* online status */}
                   <span className="absolute -bottom-1 -right-1 size-5 rounded-full bg-emerald-400 border-[3px] border-[oklch(0.985_0.005_170)] flex items-center justify-center shadow-sm">
@@ -1311,6 +1374,7 @@ export default function AIChatbot() {
                 <div className="flex gap-2.5 animate-in fade-in duration-200">
                   <AiAvatar size="sm" />
                   <div className="bg-white/90 backdrop-blur-sm border border-border/45 rounded-2xl rounded-tl-md px-4 py-3.5 shadow-[0_2px_10px_-2px_rgba(16,60,50,0.07)]">
+                    <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[oklch(0.45_0.12_170)]/70">{thinkingLabel(messages)}</p>
                     <div className="flex items-center gap-1.5">
                       <span className="size-[6px] rounded-full bg-[oklch(0.45_0.12_170)]/50 shadow-[0_0_6px_oklch(0.45_0.12_170_/_0.4)] kc-anim" style={{ animationName: "kc-dot", animationDuration: "1.15s" }} />
                       <span className="size-[6px] rounded-full bg-[oklch(0.45_0.12_170)]/50 shadow-[0_0_6px_oklch(0.45_0.12_170_/_0.4)] kc-anim" style={{ animationName: "kc-dot", animationDuration: "1.15s", animationDelay: "0.16s" }} />
