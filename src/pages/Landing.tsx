@@ -544,7 +544,7 @@ export default function Landing() {
       {/* ── Hot Sellers (from DB) ── */}
       {hotSellers && hotSellers.length > 0 && (
         <section className="border-y border-border/50 bg-gradient-to-b from-card/50 to-background">
-          <div className="mx-auto max-w-7xl px-6 py-24">
+          <div className="mx-auto max-w-7xl px-6 pt-4 pb-24">
             <div className="flex items-end justify-between mb-10">
               <div>
                 <div className="inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary mb-4">
