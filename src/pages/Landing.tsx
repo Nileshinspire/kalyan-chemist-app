@@ -406,6 +406,9 @@ export default function Landing() {
       {/* ── Value Deals Under ₹100 ── */}
       <ValueDeals />
 
+      {/* ── How It Works ── */}
+      <HowItWorks />
+
       {/* ── Trust bar ── */}
       <section className="border-y border-border/50 bg-card/60 backdrop-blur-sm">
         <div className="mx-auto grid max-w-7xl grid-cols-2 gap-6 px-6 py-12 sm:grid-cols-4">
@@ -623,9 +626,6 @@ export default function Landing() {
           </div>
         </section>
       )}
-
-      {/* ── How It Works ── */}
-      <HowItWorks />
 
       {/* ── Features ── */}
       <motion.section
