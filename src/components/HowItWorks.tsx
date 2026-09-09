@@ -1,12 +1,6 @@
-import {
-  motion,
-  useMotionValue,
-  useReducedMotion,
-  useSpring,
-  useTransform,
-} from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { Plus, Zap } from "lucide-react";
-import { Fragment, useEffect, useState, type MouseEvent as ReactMouseEvent } from "react";
+import { Fragment } from "react";
 
 /* ── Premium soft-3D step illustrations (Kalyan Chemist palette) ── */
 
@@ -61,13 +55,13 @@ function SearchIllustration() {
       <circle cx="192" cy="30" r="2.6" fill="#0D9488" opacity="0.45" />
       <circle cx="32" cy="118" r="2.2" fill="#0D9488" opacity="0.4" />
 
-      <motion.g animate={{ y: [0, -3, 0] }} transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}>
+      <g data-kc-anim style={{ animation: "kc-floatA 5s ease-in-out infinite" }}>
         <g opacity="0.55">
           <rect x="16" y="34" width="70" height="18" rx="9" fill="#FFFFFF" />
           <rect x="25" y="40" width="34" height="6" rx="3" fill="#BFDBFE" />
           <rect x="16" y="58" width="52" height="10" rx="5" fill="#FFFFFF" opacity="0.85" />
         </g>
-      </motion.g>
+      </g>
 
       <ellipse cx="60" cy="133" rx="30" ry="6.5" fill="#0D9488" opacity="0.1" />
       <ellipse cx="156" cy="134" rx="42" ry="7" fill="#0D9488" opacity="0.12" />
@@ -89,7 +83,7 @@ function SearchIllustration() {
         <rect x="28" y="124" width="5" height="6" rx="2.5" fill="#FFFFFF" opacity="0.55" />
       </g>
 
-      <motion.g animate={{ x: [0, 1.2, 0], y: [0, -1.4, 0] }} transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}>
+      <g data-kc-anim style={{ animation: "kc-floatXY 8s ease-in-out infinite" }}>
         <g transform="rotate(-7 140 88)">
           <rect x="106" y="32" width="68" height="112" rx="17" fill="url(#siBody)" />
         <rect x="106" y="32" width="68" height="112" rx="17" fill="none" stroke="#0D9488" strokeWidth="2.2" />
@@ -114,15 +108,15 @@ function SearchIllustration() {
         <rect x="150" y="112" width="10" height="6" rx="3" fill="#14B8A6" opacity="0.85" />
         <rect x="119" y="121.5" width="18" height="3.8" rx="1.9" fill="#93C5FD" opacity="0.9" />
         </g>
-      </motion.g>
+      </g>
 
-      <motion.g animate={{ y: [0, -3.5, 0] }} transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}>
+      <g data-kc-anim style={{ animation: "kc-floatB 5s ease-in-out infinite" }}>
         <rect x="20" y="96" width="46" height="16" rx="8" fill="#FFFFFF" stroke="#99F6E4" strokeWidth="1.3" />
         <rect x="27" y="101" width="20" height="5" rx="2.5" fill="#FDBA74" />
         <rect x="51" y="100.5" width="11" height="6" rx="3" fill="#14B8A6" opacity="0.9" />
-      </motion.g>
+      </g>
 
-      <motion.g animate={{ y: [0, -4, 0] }} transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut" }}>
+      <g data-kc-anim style={{ animation: "kc-floatB 4.5s ease-in-out infinite" }}>
         <circle cx="182" cy="41" r="15" fill="url(#siGlass)" />
         <circle cx="182" cy="41" r="15" fill="none" stroke="#0D9488" strokeWidth="2.6" />
         <path d="M175 34.5 a10 10 0 0 1 6.5 -2.4" stroke="#FFFFFF" strokeWidth="2.4" strokeLinecap="round" fill="none" opacity="0.95" />
@@ -130,7 +124,7 @@ function SearchIllustration() {
         <path d="M186 46.5 l1.4 2.6 2.6 1.4 -2.6 1.4 -1.4 2.6 -1.4 -2.6 -2.6 -1.4 2.6 -1.4 Z" fill="#FB923C" opacity="0.9" />
         <line x1="194" y1="54" x2="202" y2="62" stroke="url(#siOrange)" strokeWidth="6" strokeLinecap="round" />
         <line x1="195" y1="54.5" x2="199" y2="58.5" stroke="#FFFFFF" strokeWidth="1.8" strokeLinecap="round" opacity="0.7" />
-      </motion.g>
+      </g>
     </svg>
   );
 }
@@ -189,7 +183,7 @@ function OrderIllustration() {
       <ellipse cx="102" cy="124" rx="42" ry="7" fill="#0D9488" opacity="0.1" />
       <ellipse cx="178" cy="126" rx="30" ry="5.5" fill="#0D9488" opacity="0.08" />
 
-      <motion.g animate={{ y: [0, -1.5, 0] }} transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}>
+      <g data-kc-anim style={{ animation: "kc-floatC 7s ease-in-out infinite" }}>
         <g>
           <rect x="80" y="38" width="27" height="28" rx="6" fill="url(#oiTeal)" />
         <rect x="80" y="38" width="27" height="9" rx="4.5" fill="#FFFFFF" opacity="0.92" />
@@ -211,23 +205,23 @@ function OrderIllustration() {
         <circle cx="84" cy="120" r="2.6" fill="#CCFBF1" />
         <circle cx="120" cy="120" r="2.6" fill="#CCFBF1" />
         </g>
-      </motion.g>
+      </g>
 
-      <motion.g animate={{ y: [0, -3, 0] }} transition={{ duration: 4.8, repeat: Infinity, ease: "easeInOut" }}>
+      <g data-kc-anim style={{ animation: "kc-floatA 4.8s ease-in-out infinite" }}>
         <g transform="rotate(8 190 40)">
           <rect x="179" y="30" width="20" height="15" rx="3.5" fill="#FFFFFF" stroke="#99F6E4" strokeWidth="1.4" />
           <rect x="179" y="30" width="20" height="5" rx="2.5" fill="#14B8A6" opacity="0.85" />
           <rect x="179" y="38.5" width="12" height="2.6" rx="1.3" fill="#99F6E4" />
         </g>
-      </motion.g>
+      </g>
 
-      <motion.g animate={{ y: [0, -3.5, 0] }} transition={{ duration: 4.2, repeat: Infinity, ease: "easeInOut" }}>
+      <g data-kc-anim style={{ animation: "kc-floatB 4.2s ease-in-out infinite" }}>
         <rect x="24" y="24" width="64" height="24" rx="12" fill="#FFFFFF" stroke="#99F6E4" strokeWidth="1.5" />
         <circle cx="36" cy="36" r="8" fill="url(#oiTeal)" />
         <path d="M32.2 36 l2.6 2.6 5.4 -5.6" stroke="#FFFFFF" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
         <rect x="49" y="33" width="20" height="3" rx="1.5" fill="#0F766E" opacity="0.85" />
         <rect x="49" y="39" width="14" height="2.4" rx="1.2" fill="#99F6E4" />
-      </motion.g>
+      </g>
 
       <g transform="rotate(-8 176 106)">
         <rect x="144" y="82" width="64" height="46" rx="10" fill="url(#oiCard)" />
@@ -242,13 +236,13 @@ function OrderIllustration() {
         <path d="M194.4 90 l4 4 l7.6 -8" stroke="#FFFFFF" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" />
       </g>
 
-      <motion.g animate={{ y: [0, -3, 0] }} transition={{ duration: 4.6, repeat: Infinity, ease: "easeInOut" }}>
+      <g data-kc-anim style={{ animation: "kc-floatA 4.6s ease-in-out infinite" }}>
         <circle cx="52" cy="130" r="10" fill="url(#oiGold)" />
         <circle cx="52" cy="130" r="10" fill="none" stroke="#F59E0B" strokeOpacity="0.5" strokeWidth="1.2" />
         <text x="52" y="134.5" textAnchor="middle" fontSize="11" fontWeight="700" fill="#B45309" fontFamily="inherit">
           ₹
         </text>
-      </motion.g>
+      </g>
       <g transform="rotate(10 188 112)">
         <rect x="182" y="108" width="12" height="8" rx="4" fill="#FB923C" />
         <rect x="189" y="108" width="12" height="8" rx="4" fill="#60A5FA" />
@@ -315,10 +309,10 @@ function DeliveryIllustration() {
       <rect x="43" y="92" width="14" height="14" rx="3.5" fill="#D6F7ED" stroke="#99F6E4" strokeWidth="1.8" />
       <path d="M50 94.5 v9 M45.5 99 h9" stroke="#0D9488" strokeWidth="1.6" strokeLinecap="round" opacity="0.55" />
       <rect x="34" y="80" width="58" height="7" rx="3.5" fill="#CCFBF1" opacity="0.55" />
-      <motion.g animate={{ y: [0, -2.5, 0] }} transition={{ duration: 5.2, repeat: Infinity, ease: "easeInOut" }}>
+      <g data-kc-anim style={{ animation: "kc-floatD 5.2s ease-in-out infinite" }}>
         <rect x="94" y="108" width="20" height="16" rx="3.5" fill="#FFFFFF" stroke="#99F6E4" strokeWidth="1.4" />
         <rect x="94" y="114" width="20" height="3.5" fill="#8B5CF6" opacity="0.85" />
-      </motion.g>
+      </g>
 
       <g>
         <rect x="116" y="96" width="24" height="19" rx="4" fill="url(#diTeal)" />
@@ -337,7 +331,7 @@ function DeliveryIllustration() {
         <rect x="162" y="119" width="7" height="5" rx="2.5" fill="#0F766E" />
       </g>
 
-      <motion.g animate={{ y: [0, -4, 0] }} transition={{ duration: 4.8, repeat: Infinity, ease: "easeInOut" }}>
+      <g data-kc-anim style={{ animation: "kc-floatB 4.8s ease-in-out infinite" }}>
         <path
           d="M188 26 c-11.5 0 -20.5 9 -20.5 20 c0 14.5 20.5 33 20.5 33 s20.5 -18.5 20.5 -33 c0 -11 -9 -20 -20.5 -20 Z"
           fill="url(#diTeal)"
@@ -348,15 +342,15 @@ function DeliveryIllustration() {
         <circle cx="188" cy="45" r="3.2" fill="#0D9488" />
         <path d="M181 22.5 a14 14 0 0 1 12 -3.5" stroke="#5EEAD4" strokeWidth="2.2" strokeLinecap="round" opacity="0.8" />
         <circle cx="188" cy="45" r="16.5" stroke="#2DD4BF" strokeWidth="1.5" strokeDasharray="2 4" opacity="0.55" fill="none" />
-      </motion.g>
+      </g>
 
-      <motion.g animate={{ y: [0, -3, 0] }} transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}>
+      <g data-kc-anim style={{ animation: "kc-floatA 5s ease-in-out infinite" }}>
         <rect x="16" y="18" width="54" height="17" rx="8.5" fill="#FFFFFF" stroke="#99F6E4" strokeWidth="1.3" />
         <circle cx="26" cy="26.5" r="6.5" fill="#14B8A6" />
         <path d="M23.4 26.5 l2 2 4 -4.4" stroke="#FFFFFF" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
         <rect x="37" y="23.5" width="20" height="3" rx="1.5" fill="#0F766E" opacity="0.8" />
         <rect x="37" y="28.5" width="13" height="2.4" rx="1.2" fill="#99F6E4" />
-      </motion.g>
+      </g>
     </svg>
   );
 }
@@ -365,39 +359,63 @@ function DeliveryIllustration() {
 export default function HowItWorks() {
   const prefersReducedMotion = useReducedMotion();
 
-  /* ── subtle mouse parallax (fine-pointer devices only) ── */
-  const [finePointer, setFinePointer] = useState(false);
-  const mx = useMotionValue(0);
-  const my = useMotionValue(0);
-  const sx = useSpring(mx, { stiffness: 50, damping: 18 });
-  const sy = useSpring(my, { stiffness: 50, damping: 18 });
-  const bgX = useTransform(sx, (v) => v * -5);
-  const bgY = useTransform(sy, (v) => v * -4);
-  const fgX = useTransform(sx, (v) => v * 6);
-  const fgY = useTransform(sy, (v) => v * 4);
-
-  useEffect(() => {
-    const mq = window.matchMedia("(pointer: fine)");
-    setFinePointer(mq.matches);
-    const onChange = (e: MediaQueryListEvent) => setFinePointer(e.matches);
-    mq.addEventListener("change", onChange);
-    return () => mq.removeEventListener("change", onChange);
-  }, []);
-
-  const parallaxOn = finePointer && !prefersReducedMotion;
-
-  const handleMouseMove = (e: ReactMouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    mx.set(((e.clientX - rect.left) / rect.width - 0.5) * 2);
-    my.set(((e.clientY - rect.top) / rect.height - 0.5) * 2);
-  };
-  const handleMouseLeave = () => {
-    mx.set(0);
-    my.set(0);
-  };
-
   return (
     <section className="border-y border-border/50 bg-gradient-to-b from-card/50 to-background overflow-hidden">
+      {/* lightweight GPU-friendly keyframes — transform/opacity only, compositor driven */}
+      <style>{`
+        @keyframes kc-floatA {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-3px); }
+        }
+        @keyframes kc-floatB {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-4px); }
+        }
+        @keyframes kc-floatC {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-1.5px); }
+        }
+        @keyframes kc-floatD {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-2.5px); }
+        }
+        @keyframes kc-floatXY {
+          0%, 100% { transform: translate(0, 0); }
+          50% { transform: translate(1.2px, -1.4px); }
+        }
+        @keyframes kc-orb-a {
+          0%, 100% { transform: translate(0, 0); }
+          50% { transform: translate(28px, -22px); }
+        }
+        @keyframes kc-orb-b {
+          0%, 100% { transform: translate(0, 0); }
+          50% { transform: translate(-24px, 20px); }
+        }
+        @keyframes kc-orb-c {
+          0%, 100% { transform: translate(0, 0); }
+          50% { transform: translate(20px, 16px); }
+        }
+        @keyframes kc-orb-d {
+          0%, 100% { transform: translate(0, 0); }
+          50% { transform: translate(-18px, -14px); }
+        }
+        @keyframes kc-orb-e {
+          0%, 100% { transform: translate(0, 0); }
+          50% { transform: translate(16px, -12px); }
+        }
+        @keyframes kc-orb-f {
+          0%, 100% { transform: translate(0, 0); }
+          50% { transform: translate(14px, 10px); }
+        }
+        @keyframes kc-dash {
+          to { stroke-dashoffset: -60; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          [data-kc-anim] {
+            animation: none !important;
+          }
+        }
+      `}</style>
       <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-6">
         {/* Compact header — badge + title inline, subtitle beside on desktop */}
         <div className="flex flex-col items-center gap-1.5 text-center lg:flex-row lg:items-center lg:justify-between lg:gap-4 lg:text-left">
@@ -416,71 +434,69 @@ export default function HowItWorks() {
         </div>
 
         {/* Process banner */}
-        <div
-          className="group/flow relative mt-4 overflow-hidden rounded-3xl border border-primary/10 bg-white shadow-glow sm:mt-4"
-          onMouseMove={parallaxOn ? handleMouseMove : undefined}
-          onMouseLeave={parallaxOn ? handleMouseLeave : undefined}
-        >
+        <div className="group/flow relative mt-4 overflow-hidden rounded-3xl border border-primary/10 bg-white shadow-glow sm:mt-4">
           {/* ── Premium layered healthcare backdrop (visual only) ── */}
-          <motion.div
-            aria-hidden
-            className="pointer-events-none absolute inset-0"
-            style={parallaxOn ? { x: bgX, y: bgY } : undefined}
-          >
+          <div aria-hidden className="pointer-events-none absolute inset-0">
             {/* base color wash */}
-            <div className="absolute inset-0 bg-gradient-to-br from-teal-50 via-white to-sky-50" />
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(45,212,191,0.14),transparent_55%)]" />
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,rgba(96,165,250,0.12),transparent_55%)]" />
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,rgba(251,146,60,0.10),transparent_50%)]" />
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(139,92,246,0.08),transparent_50%)]" />
-            {/* keep the center clean for readability */}
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.92),transparent_70%)]" />
+            <div className="absolute inset-0 bg-gradient-to-br from-emerald-100/60 via-teal-50/70 to-sky-100/60" />
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(45,212,191,0.22),transparent_55%)]" />
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,rgba(96,165,250,0.18),transparent_55%)]" />
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,rgba(251,146,60,0.16),transparent_50%)]" />
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(139,92,246,0.13),transparent_50%)]" />
+            {/* soft white vignette keeps the centre crisp while colours show through */}
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.55),transparent_65%)]" />
 
             {/* faint healthcare dot grid */}
             <div className="absolute inset-0 bg-[radial-gradient(circle,rgba(13,148,136,0.10)_1px,transparent_1px)] bg-[size:22px_22px] [mask-image:radial-gradient(ellipse_at_center,black_35%,transparent_85%)]" />
 
             {/* slowly drifting color orbs */}
-            <motion.div
-              animate={prefersReducedMotion ? undefined : { x: [0, 28, 0], y: [0, -22, 0] }}
-              transition={{ duration: 22, repeat: Infinity, ease: "easeInOut" }}
-              className="absolute -top-24 -left-24 size-72 rounded-full bg-teal-300/30 blur-3xl"
+            <div
+              data-kc-anim
+              className="absolute -top-24 -left-24 size-72 rounded-full bg-teal-300/35 blur-3xl"
+              style={{ animation: "kc-orb-a 22s ease-in-out infinite" }}
             />
-            <motion.div
-              animate={prefersReducedMotion ? undefined : { x: [0, -24, 0], y: [0, 20, 0] }}
-              transition={{ duration: 26, repeat: Infinity, ease: "easeInOut" }}
-              className="absolute -right-28 -bottom-28 size-80 rounded-full bg-orange-300/25 blur-3xl"
+            <div
+              data-kc-anim
+              className="absolute -right-28 -bottom-28 size-80 rounded-full bg-orange-300/30 blur-3xl"
+              style={{ animation: "kc-orb-b 26s ease-in-out infinite" }}
             />
-            <motion.div
-              animate={prefersReducedMotion ? undefined : { x: [0, 20, 0], y: [0, 16, 0] }}
-              transition={{ duration: 24, repeat: Infinity, ease: "easeInOut" }}
-              className="absolute -right-16 top-1/3 size-64 rounded-full bg-sky-300/25 blur-3xl"
+            <div
+              data-kc-anim
+              className="absolute -right-16 top-1/3 size-64 rounded-full bg-sky-300/30 blur-3xl"
+              style={{ animation: "kc-orb-c 24s ease-in-out infinite" }}
             />
-            <motion.div
-              animate={prefersReducedMotion ? undefined : { x: [0, -18, 0], y: [0, -14, 0] }}
-              transition={{ duration: 28, repeat: Infinity, ease: "easeInOut" }}
-              className="absolute -bottom-24 left-1/4 size-64 rounded-full bg-violet-300/20 blur-3xl"
+            <div
+              data-kc-anim
+              className="absolute -bottom-24 left-1/4 size-64 rounded-full bg-violet-300/25 blur-3xl"
+              style={{ animation: "kc-orb-d 28s ease-in-out infinite" }}
             />
-            <motion.div
-              animate={prefersReducedMotion ? undefined : { x: [0, 16, 0], y: [0, -12, 0] }}
-              transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
-              className="absolute -top-20 left-1/2 size-56 -translate-x-1/2 rounded-full bg-emerald-300/20 blur-3xl"
+            <div
+              data-kc-anim
+              className="absolute -top-20 left-1/2 size-56 -translate-x-1/2 rounded-full bg-emerald-300/25 blur-3xl"
+              style={{ animation: "kc-orb-e 20s ease-in-out infinite" }}
+            />
+            <div
+              data-kc-anim
+              className="absolute -bottom-14 left-[62%] size-48 rounded-full bg-orange-200/35 blur-3xl"
+              style={{ animation: "kc-orb-f 18s ease-in-out infinite" }}
             />
 
             {/* soft glows that seat the 3D illustrations into the banner */}
-            <div className="absolute top-1/2 left-[16.5%] hidden size-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-teal-400/15 blur-2xl lg:block" />
-            <div className="absolute top-1/2 left-1/2 hidden size-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-sky-400/15 blur-2xl lg:block" />
-            <div className="absolute top-1/2 left-[83.5%] hidden size-64 -translate-x-1/2 -translate-y-1/2 rounded-full bg-violet-400/15 blur-2xl lg:block" />
+            <div className="absolute top-1/2 left-[16.5%] hidden size-72 -translate-x-1/2 -translate-y-1/2 rounded-full bg-teal-400/20 blur-2xl lg:block" />
+            <div className="absolute top-1/2 left-1/2 hidden size-72 -translate-x-1/2 -translate-y-1/2 rounded-full bg-sky-400/20 blur-2xl lg:block" />
+            <div className="absolute top-[72%] left-1/2 hidden size-56 -translate-x-1/2 -translate-y-1/2 rounded-full bg-orange-300/15 blur-2xl lg:block" />
+            <div className="absolute top-1/2 left-[83.5%] hidden size-72 -translate-x-1/2 -translate-y-1/2 rounded-full bg-violet-400/20 blur-2xl lg:block" />
 
             {/* subtle translucent healthcare crosses */}
-            <Plus className="absolute top-4 left-[12%] size-5 rotate-12 text-teal-600/15" />
-            <Plus className="absolute bottom-5 left-[30%] size-4 rotate-45 text-sky-600/15" />
-            <Plus className="absolute top-6 left-[58%] size-4 -rotate-12 text-orange-500/15" />
-            <Plus className="absolute bottom-6 right-[16%] size-5 rotate-45 text-violet-500/15" />
+            <Plus className="absolute top-4 left-[12%] size-5 rotate-12 text-teal-600/20" />
+            <Plus className="absolute bottom-5 left-[30%] size-4 rotate-45 text-sky-600/20" />
+            <Plus className="absolute top-6 left-[58%] size-4 -rotate-12 text-orange-500/20" />
+            <Plus className="absolute bottom-6 right-[16%] size-5 rotate-45 text-violet-500/20" />
             <Plus className="absolute top-1/2 left-1/2 size-6 -translate-x-1/2 -translate-y-1/2 rotate-12 text-teal-600/[0.07]" />
 
             {/* faint heartbeat line along the top edge */}
             <svg
-              className="absolute inset-x-0 top-2 h-9 w-full text-teal-600/15"
+              className="absolute inset-x-0 top-2 h-9 w-full text-teal-600/20"
               viewBox="0 0 1200 40"
               preserveAspectRatio="none"
               fill="none"
@@ -497,12 +513,9 @@ export default function HowItWorks() {
             <div className="absolute top-1/3 -left-12 size-44 -translate-y-1/2 rounded-full border-2 border-teal-400/10" />
             <div className="absolute right-6 bottom-8 size-24 rounded-full border-2 border-dashed border-sky-400/15" />
             <div className="absolute -right-8 top-16 size-32 rounded-full border border-violet-400/10" />
-          </motion.div>
+          </div>
 
-          <motion.div
-            className="relative grid grid-cols-1 gap-y-2.5 px-4 py-4 sm:px-6 lg:grid-cols-[1fr_auto_1fr_auto_1fr] lg:items-center lg:gap-x-1 lg:px-4 lg:py-4"
-            style={parallaxOn ? { x: fgX, y: fgY } : undefined}
-          >
+          <div className="relative grid grid-cols-1 gap-y-2.5 px-4 py-4 sm:px-6 lg:grid-cols-[1fr_auto_1fr_auto_1fr] lg:items-center lg:gap-x-1 lg:px-3 lg:py-4">
             {[
               {
                 step: "01",
@@ -528,37 +541,32 @@ export default function HowItWorks() {
             ].map((item, i) => (
               <Fragment key={item.step}>
                 <motion.div
-                  initial={{ opacity: 0, y: 16 }}
+                  initial={prefersReducedMotion ? false : { opacity: 0, y: 16 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true, margin: "-40px" }}
                   transition={{ delay: i * 0.12, duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
                   className="group"
                 >
                   <div className="flex w-full items-center gap-4 transition-opacity duration-300 group-hover/flow:opacity-60 hover:opacity-100! sm:gap-5 lg:flex-col lg:justify-start lg:gap-0 lg:px-1 lg:text-center">
-                    <div className="relative shrink-0 [perspective:900px] lg:mx-auto lg:w-full lg:max-w-[320px]">
+                    <div className="relative shrink-0 [perspective:900px] lg:mx-auto lg:w-full lg:max-w-[340px]">
                     {/* soft teal glow that blooms behind the card on hover */}
                     <div
                       aria-hidden
                       className="absolute inset-x-1 -inset-y-1.5 rounded-3xl bg-teal-400/25 opacity-0 blur-lg transition-opacity duration-300 group-hover:opacity-100"
                     />
-                    <motion.div
-                      whileHover={{ y: -7, rotateX: 4, rotateY: -3, scale: 1.045 }}
-                      transition={{ type: "spring", stiffness: 320, damping: 22, mass: 0.7 }}
-                      className="relative flex h-20 w-32 items-center justify-center overflow-hidden rounded-2xl border border-teal-900/5 bg-white shadow-card-hover transition-shadow duration-300 hover:shadow-xl hover:shadow-teal-500/20 hover:ring-2 hover:ring-teal-400/25 sm:h-24 sm:w-44 lg:h-24 lg:w-full"
+                    {/* pure CSS hover — GPU transform + box-shadow only, 250ms ease-out */}
+                    <div
+                      className="relative flex h-20 w-32 items-center justify-center overflow-hidden rounded-2xl border border-teal-900/5 bg-white shadow-card-hover transition-[transform,box-shadow] duration-300 ease-out will-change-transform group-hover:shadow-xl group-hover:shadow-teal-500/25 group-hover:ring-2 group-hover:ring-teal-400/30 group-hover:[transform:translateY(-7px)_scale(1.045)_rotateX(4deg)_rotateY(-3deg)] sm:h-24 sm:w-44 lg:h-24 lg:w-full"
                     >
                       {/* keep the existing gentle float on its own layer */}
-                      <motion.div
-                        animate={{ y: [0, -2.5, 0] }}
-                        transition={{ duration: 5.5, repeat: Infinity, ease: "easeInOut" }}
-                        className="size-full"
-                      >
-                        <div className="size-full transition-transform duration-500 group-hover:scale-105">
+                      <div data-kc-anim className="size-full" style={{ animation: "kc-floatA 5.5s ease-in-out infinite" }}>
+                        <div className="size-full transition-transform duration-300 group-hover:scale-105">
                           <item.Illustration />
                         </div>
-                      </motion.div>
+                      </div>
                       {/* subtle Kalyan teal accent overlay — original illustration colors stay visible */}
                       <div className="pointer-events-none absolute inset-0 rounded-2xl bg-[radial-gradient(ellipse_at_top,rgba(45,212,191,0.16),transparent_62%)] opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-                    </motion.div>
+                    </div>
                     <div className="absolute -top-2 left-1/2 flex size-7 -translate-x-1/2 items-center justify-center rounded-xl gradient-primary text-white text-[10px] font-bold shadow-md ring-2 ring-white transition-all duration-300 group-hover:-translate-y-0.5 group-hover:scale-110 group-hover:shadow-lg group-hover:shadow-teal-500/40 lg:-top-2.5 lg:size-8 lg:text-[11px]">
                       {item.step}
                     </div>
@@ -576,17 +584,19 @@ export default function HowItWorks() {
 
                 {/* Connector between steps */}
                 {i < 2 && (
-                  <div aria-hidden className="flex items-center justify-center py-0.5 lg:w-16 lg:shrink-0 lg:py-0 lg:-mt-8">
+                  <div aria-hidden className="flex items-center justify-center py-0.5 lg:w-12 lg:shrink-0 lg:py-0 lg:-mt-8">
                     {/* mobile: downward flowing journey path */}
                     <svg viewBox="0 0 40 46" className="h-11 w-9 lg:hidden" fill="none">
                       <path d="M20 3 C 9 17, 31 30, 20 43" stroke="#99F6E4" strokeWidth="2.5" strokeLinecap="round" strokeDasharray="1 7" />
                       <path d="M20 3 C 9 17, 31 30, 20 43" stroke="#2DD4BF" strokeWidth="4.5" strokeLinecap="round" opacity="0.12" />
-                      <motion.circle
-                        r="2.6"
-                        fill="#0D9488"
-                        style={{ offsetPath: 'path("M20 3 C 9 17, 31 30, 20 43")', offsetRotate: "0deg" }}
-                        animate={prefersReducedMotion ? undefined : { offsetDistance: ["0%", "100%"] }}
-                        transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut", delay: i * 0.45 }}
+                      <path
+                        d="M20 3 C 9 17, 31 30, 20 43"
+                        stroke="#0D9488"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeDasharray="6 16"
+                        data-kc-anim
+                        style={{ animation: "kc-dash 3.2s linear infinite", animationDelay: `${i * 0.45}s` }}
                       />
                       <path d="M20 43 l-4.4 -2.1 m4.4 2.1 l2.1 -4.4" stroke="#F97316" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
@@ -594,12 +604,14 @@ export default function HowItWorks() {
                     <svg viewBox="0 0 64 48" className="hidden h-12 w-16 lg:block" fill="none">
                       <path d="M5 40 C 20 8, 45 38, 59 10" stroke="#99F6E4" strokeWidth="2.5" strokeLinecap="round" strokeDasharray="1 7" />
                       <path d="M5 40 C 20 8, 45 38, 59 10" stroke="#2DD4BF" strokeWidth="5" strokeLinecap="round" opacity="0.12" />
-                      <motion.circle
-                        r="2.6"
-                        fill="#0D9488"
-                        style={{ offsetPath: 'path("M5 40 C 20 8, 45 38, 59 10")', offsetRotate: "0deg" }}
-                        animate={prefersReducedMotion ? undefined : { offsetDistance: ["0%", "100%"] }}
-                        transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut", delay: i * 0.45 }}
+                      <path
+                        d="M5 40 C 20 8, 45 38, 59 10"
+                        stroke="#0D9488"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeDasharray="10 20"
+                        data-kc-anim
+                        style={{ animation: "kc-dash 3.6s linear infinite", animationDelay: `${i * 0.45}s` }}
                       />
                       <path d="M59 10 l-5.2 -1.6 m5.2 1.6 l-1.6 5.2" stroke="#F97316" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
@@ -607,7 +619,7 @@ export default function HowItWorks() {
                 )}
               </Fragment>
             ))}
-          </motion.div>
+          </div>
         </div>
       </div>
     </section>
