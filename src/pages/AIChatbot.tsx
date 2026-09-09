@@ -144,6 +144,11 @@ const CHAT_KEYFRAMES = `
 @keyframes kc-ping { 0% { opacity:.55; transform: scale(1); } 80%,100% { opacity:0; transform: scale(2.1); } }
 @keyframes kc-dot { 0%,100% { opacity:.3; transform: translate3d(0,0,0) scale(.85); } 50% { opacity:1; transform: translate3d(0,-3px,0) scale(1.1); } }
 @keyframes kc-tilt { 0%,100% { transform: translate3d(0,0,0) rotate(0deg); } 25% { transform: translate3d(0,-6px,0) rotate(.7deg); } 75% { transform: translate3d(0,-4px,0) rotate(-.7deg); } }
+@keyframes kc-ring { to { transform: rotate(360deg); } }
+@keyframes kc-core-pulse { 0%,100% { opacity:.4; transform: scale(1); } 50% { opacity:.9; transform: scale(1.18); } }
+@keyframes kc-shimmer { 0% { transform: translate3d(-130%,0,0); } 100% { transform: translate3d(320%,0,0); } }
+@keyframes kc-trail-up { 0% { opacity:0; transform: translate3d(0,46px,0) scale(.7); } 30% { opacity:.65; } 100% { opacity:0; transform: translate3d(0,-130px,0) scale(1.05); } }
+.kc-anim { animation-iteration-count: infinite; }
 @media (prefers-reduced-motion: reduce) { .kc-anim, .kc-anim * { animation: none !important; } }
 `;
 
@@ -178,6 +183,47 @@ function ChatAmbient() {
       <span className="kc-anim absolute left-[18%] top-[55%] size-1.5 rounded-full bg-[oklch(0.55_0.12_170)]/30" style={{ animationName: "kc-particle", animationDuration: "6.5s" }} />
       <span className="kc-anim absolute right-[24%] top-[16%] size-1 rounded-full bg-[oklch(0.55_0.1_195)]/30" style={{ animationName: "kc-particle", animationDuration: "7.5s", animationDelay: "2s" }} />
       <span className="kc-anim absolute left-[30%] bottom-[30%] size-1 rounded-full bg-[oklch(0.6_0.1_150)]/25" style={{ animationName: "kc-particle", animationDuration: "8s", animationDelay: "4s" }} />
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
+   AI PROCESSING MODE — layered atmosphere that fades in while
+   the assistant thinks and fades back out when done. Always
+   mounted (opacity-driven) so both transitions are seamless.
+   Pure CSS gradients + transform/opacity keyframes only.
+   ══════════════════════════════════════════════════════════════ */
+
+function ChatProcessingAmbient({ active }: { active: boolean }) {
+  return (
+    <div
+      aria-hidden
+      className={`pointer-events-none absolute inset-0 z-0 overflow-hidden select-none transition-opacity duration-[400ms] ease-out ${active ? "opacity-100" : "opacity-0"}`}
+    >
+      {/* BACKGROUND — deep emerald/teal tint + radial light zones */}
+      <div className="absolute inset-0 bg-[radial-gradient(75%_60%_at_50%_0%,oklch(0.42_0.09_170_/_0.16),transparent_65%),radial-gradient(55%_45%_at_12%_100%,oklch(0.30_0.075_177_/_0.22),transparent_70%),radial-gradient(50%_40%_at_92%_82%,oklch(0.52_0.09_200_/_0.16),transparent_70%),linear-gradient(180deg,oklch(0.62_0.09_172_/_0.10),oklch(0.36_0.08_174_/_0.14))]" />
+      {/* drifting glow zones — emerald, aqua, mint, warm coral (2 on mobile) */}
+      <div className="kc-anim absolute -top-24 left-[6%] size-96 rounded-full bg-[oklch(0.62_0.12_168)]/25 blur-3xl" style={{ animationName: "kc-orb-a", animationDuration: "22s" }} />
+      <div className="kc-anim absolute bottom-[4%] right-[4%] size-80 rounded-full bg-[oklch(0.6_0.1_200)]/20 blur-3xl" style={{ animationName: "kc-orb-b", animationDuration: "26s" }} />
+      <div className="kc-anim absolute top-[40%] left-1/3 hidden sm:block size-72 rounded-full bg-[oklch(0.72_0.11_165)]/18 blur-3xl" style={{ animationName: "kc-orb-a", animationDuration: "30s", animationDelay: "-11s" }} />
+      <div className="kc-anim absolute top-[22%] right-[24%] hidden sm:block size-44 rounded-full bg-[oklch(0.8_0.09_55)]/12 blur-3xl" style={{ animationName: "kc-orb-b", animationDuration: "24s", animationDelay: "-6s" }} />
+      {/* MIDDLE — floating translucent shapes */}
+      <div className="kc-anim absolute left-[13%] top-[30%] hidden sm:block size-24 rounded-full border border-white/25" style={{ animationName: "kc-float-y-soft", animationDuration: "9s" }} />
+      <div className="kc-anim absolute right-[15%] top-[54%] hidden sm:flex size-9 items-center justify-center rounded-xl border border-white/25 bg-white/10 text-white/60 shadow-sm" style={{ animationName: "kc-float-y-soft", animationDuration: "8s", animationDelay: "1.4s" }}>
+        <Plus className="size-4" />
+      </div>
+      <div className="kc-anim absolute left-[24%] bottom-[22%] hidden md:block size-16 rotate-12 rounded-[30%] border border-white/15" style={{ animationName: "kc-float-y-soft", animationDuration: "10s", animationDelay: "2.2s" }} />
+      {/* tiny particles */}
+      <span className="kc-anim absolute left-[30%] top-[26%] size-1 rounded-full bg-white/50" style={{ animationName: "kc-particle", animationDuration: "5.5s" }} />
+      <span className="kc-anim absolute right-[28%] top-[38%] size-1.5 rounded-full bg-[oklch(0.9_0.05_165)]/60" style={{ animationName: "kc-particle", animationDuration: "6.5s", animationDelay: "1.2s" }} />
+      <span className="kc-anim absolute left-[48%] top-[58%] size-1 rounded-full bg-[oklch(0.9_0.06_55)]/50" style={{ animationName: "kc-particle", animationDuration: "7s", animationDelay: "2.4s" }} />
+      <span className="kc-anim absolute right-[38%] bottom-[20%] size-1 rounded-full bg-white/40" style={{ animationName: "kc-particle", animationDuration: "6s", animationDelay: "3s" }} />
+      {/* thin light trails drifting toward the AI core (desktop only) */}
+      <span className="kc-anim absolute left-[42%] bottom-[6%] hidden sm:block h-20 w-px bg-gradient-to-t from-transparent via-[oklch(0.9_0.06_165)]/70 to-transparent" style={{ animationName: "kc-trail-up", animationDuration: "3.6s" }} />
+      <span className="kc-anim absolute left-[53%] bottom-[4%] hidden sm:block h-24 w-px bg-gradient-to-t from-transparent via-white/60 to-transparent" style={{ animationName: "kc-trail-up", animationDuration: "4.2s", animationDelay: "1.1s" }} />
+      <span className="kc-anim absolute right-[40%] bottom-[7%] hidden md:block h-16 w-px bg-gradient-to-t from-transparent via-[oklch(0.9_0.07_55)]/60 to-transparent" style={{ animationName: "kc-trail-up", animationDuration: "3.9s", animationDelay: "2s" }} />
+      {/* gentle vignette keeps chat content readable */}
+      <div className="absolute inset-0 bg-[radial-gradient(75%_65%_at_50%_50%,transparent_55%,rgba(238,248,243,0.45)_100%)]" />
     </div>
   );
 }
@@ -949,6 +995,7 @@ export default function AIChatbot() {
   return (
     <div className="relative h-screen flex flex-col bg-[oklch(0.985_0.005_170)] overflow-hidden">
       <ChatAmbient />
+      <ChatProcessingAmbient active={isTyping} />
       {/* ═══════ MINIMAL PREMIUM HEADER ═══════ */}
       <header className="relative z-10 h-14 shrink-0 bg-white/65 backdrop-blur-xl border-b border-border/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] flex items-center px-3 sm:px-6 gap-2">          <Button
             size="sm"
@@ -961,7 +1008,20 @@ export default function AIChatbot() {
         </Button>
 
         <div className="relative">
+          {isTyping && (
+            <span
+              aria-hidden
+              className="kc-anim absolute -inset-2 rounded-2xl bg-[radial-gradient(circle,oklch(0.72_0.12_170_/_0.4),transparent_70%)]"
+              style={{ animationName: "kc-core-pulse", animationDuration: "2.4s" }}
+            />
+          )}
           <AiAvatar size="md" />
+          {/* AI core processing ring — fades in while the assistant thinks */}
+          <span
+            aria-hidden
+            className={`pointer-events-none absolute -inset-1 rounded-xl border border-dashed border-[oklch(0.45_0.12_170)]/45 transition-opacity duration-300 ${isTyping ? "opacity-100" : "opacity-0"}`}
+            style={isTyping ? { animationName: "kc-ring", animationDuration: "6s", animationTimingFunction: "linear" } : undefined}
+          />
           <span className="absolute -bottom-0.5 -right-0.5 flex size-2.5 items-center justify-center rounded-full bg-emerald-400 border-2 border-white">
             <span className="kc-anim absolute size-2.5 rounded-full bg-emerald-400/60" style={{ animationName: "kc-ping", animationDuration: "2.4s" }} />
           </span>
@@ -1379,12 +1439,21 @@ export default function AIChatbot() {
               {isTyping && (
                 <div className="flex gap-2.5 animate-in fade-in duration-200">
                   <AiAvatar size="sm" />
-                  <div className="bg-white/90 backdrop-blur-sm border border-border/45 rounded-2xl rounded-tl-md px-4 py-3.5 shadow-[0_2px_10px_-2px_rgba(16,60,50,0.07)]">
-                    <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[oklch(0.45_0.12_170)]/70">{thinkingLabel(messages)}</p>
-                    <div className="flex items-center gap-1.5">
-                      <span className="size-[6px] rounded-full bg-[oklch(0.45_0.12_170)]/50 shadow-[0_0_6px_oklch(0.45_0.12_170_/_0.4)] kc-anim" style={{ animationName: "kc-dot", animationDuration: "1.15s" }} />
-                      <span className="size-[6px] rounded-full bg-[oklch(0.45_0.12_170)]/50 shadow-[0_0_6px_oklch(0.45_0.12_170_/_0.4)] kc-anim" style={{ animationName: "kc-dot", animationDuration: "1.15s", animationDelay: "0.16s" }} />
-                      <span className="size-[6px] rounded-full bg-[oklch(0.45_0.12_170)]/50 shadow-[0_0_6px_oklch(0.45_0.12_170_/_0.4)] kc-anim" style={{ animationName: "kc-dot", animationDuration: "1.15s", animationDelay: "0.32s" }} />
+                  <div className="relative overflow-hidden bg-gradient-to-br from-white/80 via-[oklch(0.97_0.02_170)]/70 to-[oklch(0.93_0.05_172)]/60 backdrop-blur-md border border-[oklch(0.45_0.12_170)]/20 rounded-2xl rounded-tl-md px-4 py-3.5 shadow-[0_10px_28px_-10px_oklch(0.35_0.08_172_/_0.35),inset_0_1px_0_rgba(255,255,255,0.6)]">
+                    {/* moving light sweep — active computation */}
+                    <span aria-hidden className="kc-anim pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-white/60 to-transparent" style={{ animationName: "kc-shimmer", animationDuration: "2.6s" }} />
+                    <div className="relative flex items-center gap-2">
+                      <span className="relative flex size-1.5 items-center justify-center rounded-full bg-emerald-400">
+                        <span className="kc-anim absolute size-1.5 rounded-full bg-emerald-400/60" style={{ animationName: "kc-ping", animationDuration: "1.6s" }} />
+                      </span>
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.14em] bg-gradient-to-r from-[oklch(0.42_0.09_170)] to-[oklch(0.55_0.1_200)] bg-clip-text text-transparent">
+                        {thinkingLabel(messages)}
+                      </p>
+                    </div>
+                    <div className="relative mt-2 flex items-center gap-1.5">
+                      <span className="size-2 rounded-full bg-gradient-to-br from-[oklch(0.62_0.12_168)] to-[oklch(0.42_0.09_170)] shadow-[0_0_8px_oklch(0.45_0.12_170_/_0.45)] kc-anim" style={{ animationName: "kc-dot", animationDuration: "1.1s" }} />
+                      <span className="size-2 rounded-full bg-gradient-to-br from-[oklch(0.6_0.1_200)] to-[oklch(0.42_0.09_170)] shadow-[0_0_8px_oklch(0.5_0.1_195_/_0.4)] kc-anim" style={{ animationName: "kc-dot", animationDuration: "1.1s", animationDelay: "0.16s" }} />
+                      <span className="size-2 rounded-full bg-gradient-to-br from-[oklch(0.82_0.11_55)] to-[oklch(0.5_0.09_170)] shadow-[0_0_8px_oklch(0.75_0.1_55_/_0.4)] kc-anim" style={{ animationName: "kc-dot", animationDuration: "1.1s", animationDelay: "0.32s" }} />
                     </div>
                   </div>
                 </div>
