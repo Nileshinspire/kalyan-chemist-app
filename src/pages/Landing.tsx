@@ -481,7 +481,7 @@ export default function Landing() {
         whileInView="visible"
         viewport={{ once: true, margin: "-80px" }}
         variants={stagger}
-        className="mx-auto max-w-7xl px-6 py-24"
+        className="mx-auto max-w-7xl px-6 py-16 pb-10"
       >
         <motion.div variants={fadeUp} className="flex flex-wrap items-end justify-between gap-4">
           <div className="max-w-xl">
