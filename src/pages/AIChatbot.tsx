@@ -151,12 +151,17 @@ function ChatAmbient() {
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0 z-0 overflow-hidden select-none">
       <style>{CHAT_KEYFRAMES}</style>
-      {/* layered color washes — teal / mint / soft blue / warm base */}
-      <div className="absolute inset-0 bg-[radial-gradient(60%_45%_at_12%_-2%,oklch(0.9_0.06_170_/_0.55),transparent_70%),radial-gradient(55%_40%_at_88%_8%,oklch(0.9_0.05_210_/_0.4),transparent_70%),radial-gradient(60%_40%_at_50%_108%,oklch(0.93_0.04_160_/_0.5),transparent_70%)]" />
+      {/* layered color washes — teal / mint / soft blue / violet / warm base */}
+      <div className="absolute inset-0 bg-[radial-gradient(60%_45%_at_12%_-2%,oklch(0.9_0.06_170_/_0.6),transparent_70%),radial-gradient(55%_40%_at_88%_8%,oklch(0.9_0.05_210_/_0.45),transparent_70%),radial-gradient(45%_38%_at_50%_104%,oklch(0.93_0.04_160_/_0.55),transparent_70%),radial-gradient(30%_28%_at_38%_38%,oklch(0.94_0.03_300_/_0.16),transparent_70%),radial-gradient(28%_26%_at_70%_55%,oklch(0.91_0.06_55_/_0.14),transparent_70%),radial-gradient(35%_30%_at_15%_72%,oklch(0.9_0.04_195_/_0.18),transparent_70%)]" />
       {/* slow drifting ambient orbs */}
       <div className="kc-anim absolute -top-24 -left-24 size-80 rounded-full bg-[oklch(0.72_0.11_170)]/20 blur-3xl" style={{ animationName: "kc-orb-a", animationDuration: "26s" }} />
       <div className="kc-anim absolute top-1/3 -right-28 size-80 rounded-full bg-[oklch(0.76_0.08_210)]/15 blur-3xl" style={{ animationName: "kc-orb-b", animationDuration: "32s" }} />
       <div className="kc-anim absolute -bottom-28 left-1/4 size-80 rounded-full bg-[oklch(0.8_0.07_130)]/15 blur-3xl" style={{ animationName: "kc-orb-a", animationDuration: "30s", animationDelay: "-9s" }} />
+      <div className="kc-anim absolute top-[8%] left-[38%] size-64 rounded-full bg-[oklch(0.82_0.07_55)]/12 blur-3xl" style={{ animationName: "kc-orb-b", animationDuration: "36s", animationDelay: "-14s" }} />
+      {/* translucent abstract depth shapes */}
+      <div className="absolute -right-10 top-[42%] hidden sm:block size-64 rotate-12 rounded-[38%] border border-[oklch(0.45_0.12_170)]/[0.07] bg-gradient-to-br from-white/25 to-transparent" />
+      <div className="absolute -left-14 bottom-[8%] hidden sm:block size-56 -rotate-6 rounded-[42%] border border-[oklch(0.45_0.12_170)]/[0.06] bg-gradient-to-tr from-[oklch(0.72_0.1_170)]/8 to-transparent" />
+
       {/* subtle depth rings */}
       <div className="absolute right-[10%] top-[20%] size-44 rounded-full border border-[oklch(0.45_0.12_170)]/[0.06]" />
       <div className="absolute left-[6%] bottom-[22%] size-28 rounded-full border border-[oklch(0.45_0.12_170)]/[0.05]" />
@@ -169,6 +174,7 @@ function ChatAmbient() {
         <Plus className="size-2.5" />
       </span>
       {/* tiny glowing particles */}
+      <span className="kc-anim absolute right-[10%] bottom-[38%] hidden md:block size-1.5 rotate-45 rounded-[2px] bg-[oklch(0.82_0.1_55)]/35" style={{ animationName: "kc-particle", animationDuration: "7s", animationDelay: "1s" }} />
       <span className="kc-anim absolute left-[18%] top-[55%] size-1.5 rounded-full bg-[oklch(0.55_0.12_170)]/30" style={{ animationName: "kc-particle", animationDuration: "6.5s" }} />
       <span className="kc-anim absolute right-[24%] top-[16%] size-1 rounded-full bg-[oklch(0.55_0.1_195)]/30" style={{ animationName: "kc-particle", animationDuration: "7.5s", animationDelay: "2s" }} />
       <span className="kc-anim absolute left-[30%] bottom-[30%] size-1 rounded-full bg-[oklch(0.6_0.1_150)]/25" style={{ animationName: "kc-particle", animationDuration: "8s", animationDelay: "4s" }} />
@@ -187,13 +193,13 @@ function AiEmblemMark({ className }: { className?: string }) {
     <svg viewBox="0 0 48 48" className={className} aria-hidden="true">
       <defs>
         <linearGradient id="kcEmblemBody" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stopColor="oklch(0.56_0.115_165)" />
-          <stop offset="55%" stopColor="oklch(0.42_0.09_170)" />
-          <stop offset="100%" stopColor="oklch(0.30_0.075_177)" />
+          <stop offset="0%" stopColor="#0d8963" />
+          <stop offset="55%" stopColor="#005c45" />
+          <stop offset="100%" stopColor="#00392d" />
         </linearGradient>
         <radialGradient id="kcEmblemGlow" cx="0.5" cy="0.2" r="0.8">
-          <stop offset="0%" stopColor="oklch(0.86_0.09_162)" stopOpacity="0.85" />
-          <stop offset="100%" stopColor="oklch(0.86_0.09_162)" stopOpacity="0" />
+          <stop offset="0%" stopColor="#9ae4bf" stopOpacity="0.85" />
+          <stop offset="100%" stopColor="#9ae4bf" stopOpacity="0" />
         </radialGradient>
         <linearGradient id="kcEmblemSheen" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor="#ffffff" stopOpacity="0.55" />
@@ -206,18 +212,18 @@ function AiEmblemMark({ className }: { className?: string }) {
       <rect x="1" y="1" width="46" height="46" rx="13" fill="url(#kcEmblemBody)" />
       <rect x="1" y="1" width="46" height="46" rx="13" fill="url(#kcEmblemGlow)" />
       {/* neural orbit + nodes */}
-      <circle cx="24" cy="24" r="13.5" fill="none" stroke="oklch(0.95_0.03_165_/_0.4)" strokeWidth="1" strokeDasharray="2.5 3.5" />
-      <circle cx="24" cy="10.5" r="2" fill="oklch(0.93_0.05_160)" />
-      <circle cx="35.4" cy="30.2" r="1.6" fill="oklch(0.82_0.11_70)" />
+      <circle cx="24" cy="24" r="13.5" fill="none" stroke="#ddf5e9" strokeOpacity="0.4" strokeWidth="1" strokeDasharray="2.5 3.5" />
+      <circle cx="24" cy="10.5" r="2" fill="#ccf3dd" />
+      <circle cx="35.4" cy="30.2" r="1.6" fill="#f2b772" />
       {/* pharmacy cross core */}
-      <path d="M20.4 14.6h7.2v5.8h5.8v7.2h-5.8v5.8h-7.2v-5.8h-5.8v-7.2h5.8z" fill="oklch(0.985_0.005_160)" />
-      <path d="M20.4 14.6h7.2v5.8h5.8v3.4H20.4z" fill="oklch(0.88_0.045_168)" opacity="0.55" />
+      <path d="M20.4 14.6h7.2v5.8h5.8v7.2h-5.8v5.8h-7.2v-5.8h-5.8v-7.2h5.8z" fill="#f7fbf9" />
+      <path d="M20.4 14.6h7.2v5.8h5.8v3.4H20.4z" fill="#bce2d2" opacity="0.55" />
       {/* glass sheen + bottom inner shadow */}
       <g clipPath="url(#kcEmblemClip)">
         <ellipse cx="24" cy="8.5" rx="18" ry="7" fill="url(#kcEmblemSheen)" opacity="0.5" />
-        <ellipse cx="24" cy="45.5" rx="16" ry="4" fill="oklch(0.2_0.05_180)" opacity="0.25" />
+        <ellipse cx="24" cy="45.5" rx="16" ry="4" fill="#001d17" opacity="0.25" />
       </g>
-      <rect x="1.5" y="1.5" width="45" height="45" rx="12.5" fill="none" stroke="oklch(0.98_0.01_160_/_0.38)" strokeWidth="1" />
+      <rect x="1.5" y="1.5" width="45" height="45" rx="12.5" fill="none" stroke="#f3fbf6" strokeOpacity="0.38" strokeWidth="1" />
     </svg>
   );
 }
