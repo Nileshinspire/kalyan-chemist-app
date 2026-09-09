@@ -572,7 +572,7 @@ export default function HowItWorks() {
                     </div>
                   </div>
                   <div className="min-w-0 flex-1 text-left lg:mt-2 lg:flex-none lg:text-center">
-                    <h3 className="text-[13px] font-semibold text-foreground transition-all duration-300 group-hover:-translate-y-0.5 group-hover:text-teal-700 sm:text-sm">
+                    <h3 className="text-[15px] leading-tight font-semibold text-foreground transition-all duration-300 group-hover:-translate-y-0.5 group-hover:text-teal-700 sm:text-[17px]">
                       {item.title}
                     </h3>
                     <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground lg:mx-auto lg:mt-1 lg:max-w-[240px]">
