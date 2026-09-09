@@ -37,6 +37,7 @@ import HealthcareDevices from "@/components/HealthcareDevices";
 import NewArrivals from "@/components/NewArrivals";
 import ValueDeals from "@/components/ValueDeals";
 import HowItWorks from "@/components/HowItWorks";
+import PromotionalCarousel from "@/components/PromotionalCarousel";
 import WriteReview from "@/components/WriteReview";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -429,6 +430,9 @@ export default function Landing() {
           </div>
         </div>
       </section>
+
+      {/* ── Promotional Campaign Carousel ── */}
+      <PromotionalCarousel />
 
       {/* ── Browse by Health Conditions ── */}
       <HealthConditions />

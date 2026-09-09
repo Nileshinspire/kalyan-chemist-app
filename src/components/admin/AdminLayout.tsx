@@ -32,6 +32,7 @@ import {
   RefreshCw,
   Bot,
   Activity,
+  Megaphone,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -49,6 +50,7 @@ const NAV_ITEMS = [
   { label: "Reviews", path: "/admin/reviews", icon: Star },
   { label: "Reports", path: "/admin/reports", icon: BarChart3 },
   { label: "Delivery Settings", path: "/admin/delivery", icon: Truck },
+  { label: "Campaigns", path: "/admin/campaigns", icon: Megaphone },
   { label: "WhatsApp Enquiries", path: "/admin/whatsapp", icon: MessageCircle },
   { label: "Doctors", path: "/admin/doctors", icon: Stethoscope },
   { label: "Lab Tests", path: "/admin/lab-tests", icon: FlaskConical },

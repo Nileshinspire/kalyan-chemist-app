@@ -80,6 +80,7 @@ const MedicineRefill = lazy(() => import("./pages/MedicineRefill"));
 const AIChatbot = lazy(() => import("./pages/AIChatbot"));
 const AdminRefills = lazy(() => import("./pages/admin/AdminRefills"));
 const AdminChatbot = lazy(() => import("./pages/admin/AdminChatbot"));
+const AdminCampaigns = lazy(() => import("./pages/admin/AdminCampaigns"));
 
 /** Animated loading skeleton for route transitions */
 function RouteLoading() {
@@ -583,6 +584,16 @@ function AnimatedRoutes() {
                 <AdminRefills />
               </RequireAuth>
             
+          }
+        />
+        <Route
+          path="/admin/campaigns"
+          element={
+            <RequireAuth adminOnly>
+              <Suspense fallback={<RouteLoading />}>
+                <AdminCampaigns />
+              </Suspense>
+            </RequireAuth>
           }
         />
         <Route
