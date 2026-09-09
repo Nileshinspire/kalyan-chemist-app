@@ -74,19 +74,58 @@ const scaleIn: Variants = {
   },
 };
 
+/* ── Minimalist line-art category icons (consistent sketch/healthcare style) ── */
+const iconStroke = { fill: "none", stroke: "currentColor", strokeWidth: 1.5, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+const VitaminsIcon = (p: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={p.className} {...iconStroke}><path d="M11 21c4-4 7-8 7-11 0-2.5-2-4-4-4s-3 2-3 4c0 3-3 7-7 11h7z" /><path d="M11 10v5" /><path d="M9 12.5h4" /></svg>
+);
+const BabyMotherIcon = (p: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={p.className} {...iconStroke}><circle cx="12" cy="7" r="3.5" /><path d="M8 12c0 3 1.5 5 4 6.5 2.5-1.5 4-3.5 4-6.5" /><path d="M10 6.5l1 1 1-1" /><path d="M12 19v2" /></svg>
+);
+const SkinCareIcon = (p: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={p.className} {...iconStroke}><path d="M12 3c-2.5 3.5-4 6.5-4 9a4 4 0 0 0 8 0c0-2.5-1.5-5.5-4-9z" /><path d="M12 10v3" /><path d="M11 11.5h2" /></svg>
+);
+const AntibioticsIcon = (p: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={p.className} {...iconStroke}><path d="M12 2l7 3.5v5c0 5.5-3 9-7 10.5-4-1.5-7-5-7-10.5v-5L12 2z" /><path d="M9 11h6" /><path d="M12 8v6" /></svg>
+);
+const FamilyCareIcon = (p: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={p.className} {...iconStroke}><circle cx="9" cy="7" r="3" /><circle cx="17" cy="8" r="2.5" /><path d="M3 21v-1a5 5 0 0 1 10 0v1" /><path d="M17 13c2 0 4 1.5 4 3v1" /></svg>
+);
+const PersonalCareIcon = (p: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={p.className} {...iconStroke}><path d="M8 3c-.5 0-1 .5-1 1.5v3c0 1.5 1 3 5 3.5 4-.5 5-2 5-3.5v-3c0-1-.5-1.5-1-1.5" /><path d="M12 11v9" /><path d="M8 14h8" /><path d="M9 17h6" /></svg>
+);
+const NutritionIcon = (p: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={p.className} {...iconStroke}><path d="M12 4c1.5-1 3.5-.5 4.5.5s1 2.5 0 4.5c-1.5 3-3 5.5-3 7.5" /><path d="M12 4c-1.5-1-3.5-.5-4.5.5S6.5 7 8 9.5c1 1.5 2 3.5 2 5" /><path d="M12 19c-3 0-5-1.5-5-4 0-2 1-3 2-4" /><path d="M12 19c3 0 5-1.5 5-4 0-2-1-3-2-4" /><path d="M12 4v2" /></svg>
+);
+const AltMedIcon = (p: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={p.className} {...iconStroke}><path d="M5 12h14c0 5-3 8-7 8s-7-3-7-8z" /><path d="M5 12c0-2 1-3 3-3h8c2 0 3 1 3 3" /><path d="M16 9V5" /><path d="M14 7h4" /></svg>
+);
+const HealthcareIcon = (p: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={p.className} {...iconStroke}><circle cx="12" cy="12" r="9" /><path d="M9 12h6" /><path d="M12 9v6" /></svg>
+);
+const RxIcon = (p: { className?: string }) => (
+  <svg viewBox="0 0 24 24" className={p.className} {...iconStroke}><rect x="5" y="2" width="14" height="20" rx="2" /><path d="M9 7h3c1.5 0 2.5 1 2.5 2S13.5 11 12 11H9v5" /><path d="M15 7l3 9" /><path d="M15 12h3" /></svg>
+);
+
 // Map category slugs to icons and colors
-const CATEGORY_STYLES: Record<string, { icon: typeof Pill; color: string; hoverBg: string; iconColor: string }> = {
+const CATEGORY_STYLES: Record<string, { icon: React.ComponentType<{ className?: string }>; color: string; hoverBg: string; iconColor: string }> = {
   "pain-relief": { icon: Pill, color: "from-orange-500/15 to-red-500/15", hoverBg: "hover:from-orange-500/20 hover:to-red-500/20", iconColor: "text-orange-600" },
   "heart-cardio": { icon: HeartPulse, color: "from-rose-500/15 to-pink-500/15", hoverBg: "hover:from-rose-500/20 hover:to-pink-500/20", iconColor: "text-rose-600" },
   "diabetes-care": { icon: Stethoscope, color: "from-blue-500/15 to-cyan-500/15", hoverBg: "hover:from-blue-500/20 hover:to-cyan-500/20", iconColor: "text-blue-600" },
-  "baby-mother": { icon: Baby, color: "from-violet-500/15 to-purple-500/15", hoverBg: "hover:from-violet-500/20 hover:to-purple-500/20", iconColor: "text-violet-600" },
-  "vitamins-supplements": { icon: Leaf, color: "from-emerald-500/15 to-green-500/15", hoverBg: "hover:from-emerald-500/20 hover:to-green-500/20", iconColor: "text-emerald-600" },
-  "skin-personal-care": { icon: Sparkles, color: "from-pink-500/15 to-fuchsia-500/15", hoverBg: "hover:from-pink-500/20 hover:to-fuchsia-500/20", iconColor: "text-pink-600" },
-  "antibiotics": { icon: Shield, color: "from-teal-500/15 to-cyan-500/15", hoverBg: "hover:from-teal-500/20 hover:to-cyan-500/20", iconColor: "text-teal-600" },
+  "baby-mother": { icon: BabyMotherIcon, color: "from-violet-500/15 to-purple-500/15", hoverBg: "hover:from-violet-500/20 hover:to-purple-500/20", iconColor: "text-violet-600" },
+  "vitamins-supplements": { icon: VitaminsIcon, color: "from-emerald-500/15 to-green-500/15", hoverBg: "hover:from-emerald-500/20 hover:to-green-500/20", iconColor: "text-emerald-600" },
+  "skin-personal-care": { icon: SkinCareIcon, color: "from-pink-500/15 to-fuchsia-500/15", hoverBg: "hover:from-pink-500/20 hover:to-fuchsia-500/20", iconColor: "text-pink-600" },
+  "antibiotics": { icon: AntibioticsIcon, color: "from-teal-500/15 to-cyan-500/15", hoverBg: "hover:from-teal-500/20 hover:to-cyan-500/20", iconColor: "text-teal-600" },
   "digestive-health": { icon: Stethoscope, color: "from-amber-500/15 to-yellow-500/15", hoverBg: "hover:from-amber-500/20 hover:to-yellow-500/20", iconColor: "text-amber-600" },
+  "family-care": { icon: FamilyCareIcon, color: "from-fuchsia-500/15 to-rose-500/15", hoverBg: "hover:from-fuchsia-500/20 hover:to-rose-500/20", iconColor: "text-fuchsia-600" },
+  "personal-care": { icon: PersonalCareIcon, color: "from-sky-500/15 to-blue-500/15", hoverBg: "hover:from-sky-500/20 hover:to-blue-500/20", iconColor: "text-sky-600" },
+  "nutrition": { icon: NutritionIcon, color: "from-lime-500/15 to-green-500/15", hoverBg: "hover:from-lime-500/20 hover:to-green-500/20", iconColor: "text-lime-600" },
+  "alternative-medicine": { icon: AltMedIcon, color: "from-green-600/15 to-emerald-500/15", hoverBg: "hover:from-green-600/20 hover:to-emerald-500/20", iconColor: "text-green-600" },
+  "other-healthcare": { icon: HealthcareIcon, color: "from-slate-500/15 to-gray-500/15", hoverBg: "hover:from-slate-500/20 hover:to-gray-500/20", iconColor: "text-slate-600" },
+  "prescription-required": { icon: RxIcon, color: "from-amber-600/15 to-yellow-600/15", hoverBg: "hover:from-amber-600/20 hover:to-yellow-600/20", iconColor: "text-amber-600" },
 };
 
-const DEFAULT_STYLE = { icon: Pill, color: "from-primary/15 to-primary/10", hoverBg: "hover:from-primary/20 hover:to-primary/15", iconColor: "text-primary" };
+const DEFAULT_STYLE: (typeof CATEGORY_STYLES)[string] = { icon: Pill, color: "from-primary/15 to-primary/10", hoverBg: "hover:from-primary/20 hover:to-primary/15", iconColor: "text-primary" };
 
 // Health-condition categories that are already represented by the
 // "Browse by Health Conditions" section — excluded from "Find What You Need"
@@ -480,7 +519,7 @@ export default function Landing() {
                 className="[perspective:1000px]"
               >
                 <div
-                  className="group inline-flex h-full w-full cursor-pointer items-center gap-2.5 overflow-hidden rounded-lg border border-border/60 bg-card px-3 py-2.5 sm:px-4 sm:py-3 transition-[transform,box-shadow] duration-300 ease-out will-change-transform shadow-sm hover:shadow-xl hover:shadow-teal-500/20 hover:border-primary/25 hover:ring-2 hover:ring-teal-400/30 hover:[transform:translateY(-3px)_scale(1.015)]"
+                  className="group inline-flex h-full w-full cursor-pointer items-center gap-2.5 overflow-hidden rounded-lg border border-border/30 bg-card px-3 py-2.5 sm:px-4 sm:py-3 transition-[transform,box-shadow] duration-300 ease-out will-change-transform shadow-sm hover:shadow-xl hover:shadow-teal-500/20 hover:border-primary/25 hover:ring-2 hover:ring-teal-400/30 hover:[transform:translateY(-3px)_scale(1.015)]"
                   onClick={() => navigate(`/products?category=${cat.slug}`)}
                 >
                   <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary transition-all duration-300 group-hover:bg-primary group-hover:text-white group-hover:scale-110 group-hover:shadow-glow">
@@ -494,7 +533,7 @@ export default function Landing() {
                       {cat.productCount} products
                     </p>
                   </div>
-                  <ArrowRight className="size-4 shrink-0 text-muted-foreground transition-all duration-300 group-hover:translate-x-1 group-hover:text-primary" />
+
                 </div>
               </motion.div>
             );
