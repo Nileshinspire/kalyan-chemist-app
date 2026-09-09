@@ -444,48 +444,60 @@ export default function Landing() {
         variants={stagger}
         className="mx-auto max-w-7xl px-6 py-24"
       >
-        <motion.div variants={fadeUp} className="max-w-xl">
-          <div className="inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary mb-4">
-            <Sparkles className="size-3" />
-            Browse by Category
+        <motion.div variants={fadeUp} className="flex flex-wrap items-end justify-between gap-4">
+          <div className="max-w-xl">
+            <div className="inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary mb-4">
+              <Sparkles className="size-3" />
+              Browse by Category
+            </div>
+            <h2 className="text-3xl font-bold tracking-tight sm:text-5xl">
+              Find What You Need
+            </h2>
+            <p className="mt-3 text-muted-foreground leading-relaxed text-lg">
+              Find exactly what you need across our carefully organised medicine
+              and wellness categories.
+            </p>
           </div>
-          <h2 className="text-3xl font-bold tracking-tight sm:text-5xl">
-            Find What You Need
-          </h2>
-          <p className="mt-3 text-muted-foreground leading-relaxed text-lg">
-            Find exactly what you need across our carefully organised medicine
-            and wellness categories.
-          </p>
+          <button
+            type="button"
+            onClick={() => navigate("/categories")}
+            className="group inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border/70 bg-card px-4 py-2 text-sm font-semibold text-primary shadow-sm transition-all duration-300 hover:border-primary/30 hover:shadow-glow active:scale-95 cursor-pointer"
+          >
+            View All
+            <ArrowRight className="size-4 transition-transform duration-300 group-hover:translate-x-0.5" />
+          </button>
         </motion.div>
-        <div className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6 lg:gap-4">
           {(categories ?? [])
             .filter((cat) => !HEALTH_CONDITION_SLUGS.has(cat.slug))
+            .slice(0, 6)
             .map((cat) => {
             const style = CATEGORY_STYLES[cat.slug] ?? DEFAULT_STYLE;
             return (
               <motion.div
                 key={cat._id}
                 variants={scaleIn}
-                className="group relative overflow-hidden rounded-2xl border border-border/70 bg-card p-6 transition-all duration-500 hover:shadow-card-hover hover:border-primary/20 cursor-pointer hover:-translate-y-1"
-                onClick={() => navigate(`/products?category=${cat.slug}`)}
+                className="[perspective:1000px]"
               >
-                <div className={`absolute inset-0 bg-gradient-to-br ${style.color} ${style.hoverBg} opacity-0 group-hover:opacity-100 transition-all duration-500`} />
-                <div className="relative flex items-start gap-4">
-                  <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary transition-all duration-500 group-hover:bg-primary group-hover:text-white group-hover:scale-110 group-hover:shadow-glow">
+                <div
+                  className="group relative flex h-full cursor-pointer flex-col items-center overflow-hidden rounded-2xl border border-border/70 bg-card px-3 py-5 text-center transition-[transform,box-shadow] duration-300 ease-out will-change-transform hover:border-primary/25 hover:shadow-xl hover:shadow-teal-500/20 hover:ring-2 hover:ring-teal-400/30 hover:[transform:translateY(-6px)_scale(1.04)_rotateX(5deg)_rotateY(-4deg)]"
+                  onClick={() => navigate(`/products?category=${cat.slug}`)}
+                >
+                  <div className={`absolute inset-0 bg-gradient-to-br ${style.color} opacity-0 transition-opacity duration-300 group-hover:opacity-100`} />
+                  <div className="absolute top-3 right-3 translate-x-1.5 opacity-0 transition-all duration-300 group-hover:translate-x-0 group-hover:opacity-100">
+                    <ArrowUpRight className="size-4 text-primary/60" />
+                  </div>
+                  <div className="relative flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary shadow-sm transition-all duration-300 group-hover:-translate-y-0.5 group-hover:scale-110 group-hover:bg-primary group-hover:text-white group-hover:shadow-glow">
                     <style.icon className="size-5" />
                   </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors duration-300">{cat.name}</h3>
-                      <Badge variant="secondary" className="text-[10px]">{cat.productCount}</Badge>
-                    </div>
-                    <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-                      {cat.description}
-                    </p>
+                  <div className="relative mt-2.5 flex min-h-[2.5rem] items-center justify-center">
+                    <h3 className="line-clamp-2 text-sm font-semibold leading-tight text-foreground transition-colors duration-300 group-hover:text-primary">
+                      {cat.name}
+                    </h3>
                   </div>
-                </div>
-                <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
-                  <ArrowUpRight className="size-4 text-primary/60" />
+                  <Badge variant="secondary" className="relative mt-1.5 text-[10px]">
+                    {cat.productCount}
+                  </Badge>
                 </div>
               </motion.div>
             );
