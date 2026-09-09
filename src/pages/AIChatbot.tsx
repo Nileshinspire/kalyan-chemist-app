@@ -129,6 +129,53 @@ function renderMarkdown(text: string): React.ReactNode {
    backend changes; only presentation of existing data.
    ══════════════════════════════════════════════════════════════ */
 
+/* ══════════════════════════════════════════════════════════════
+   AMBIENT BACKGROUND — layered 3D atmosphere. Pure CSS, GPU
+   transforms only; decorative motion disabled under
+   prefers-reduced-motion. No JS animation loops.
+   ══════════════════════════════════════════════════════════════ */
+
+const CHAT_KEYFRAMES = `
+@keyframes kc-float-y { 0%,100% { transform: translate3d(0,0,0); } 50% { transform: translate3d(0,-7px,0); } }
+@keyframes kc-float-y-soft { 0%,100% { transform: translate3d(0,0,0) rotate(0deg); } 50% { transform: translate3d(0,-6px,0) rotate(4deg); } }
+@keyframes kc-orb-a { 0%,100% { transform: translate3d(0,0,0) scale(1); } 50% { transform: translate3d(26px,-20px,0) scale(1.08); } }
+@keyframes kc-orb-b { 0%,100% { transform: translate3d(0,0,0) scale(1); } 50% { transform: translate3d(-22px,18px,0) scale(1.06); } }
+@keyframes kc-halo { 0%,100% { opacity:.55; transform: scale(1); } 50% { opacity:.9; transform: scale(1.07); } }
+@keyframes kc-particle { 0%,100% { opacity:.2; transform: translate3d(0,0,0) scale(1); } 50% { opacity:.75; transform: translate3d(0,-10px,0) scale(1.3); } }
+@keyframes kc-ping { 0% { opacity:.55; transform: scale(1); } 80%,100% { opacity:0; transform: scale(2.1); } }
+@keyframes kc-dot { 0%,100% { opacity:.3; transform: translate3d(0,0,0) scale(.85); } 50% { opacity:1; transform: translate3d(0,-3px,0) scale(1.1); } }
+@media (prefers-reduced-motion: reduce) { .kc-anim, .kc-anim * { animation: none !important; } }
+`;
+
+function ChatAmbient() {
+  return (
+    <div aria-hidden className="pointer-events-none absolute inset-0 z-0 overflow-hidden select-none">
+      <style>{CHAT_KEYFRAMES}</style>
+      {/* layered color washes — teal / mint / soft blue / warm base */}
+      <div className="absolute inset-0 bg-[radial-gradient(60%_45%_at_12%_-2%,oklch(0.9_0.06_170_/_0.55),transparent_70%),radial-gradient(55%_40%_at_88%_8%,oklch(0.9_0.05_210_/_0.4),transparent_70%),radial-gradient(60%_40%_at_50%_108%,oklch(0.93_0.04_160_/_0.5),transparent_70%)]" />
+      {/* slow drifting ambient orbs */}
+      <div className="kc-anim absolute -top-24 -left-24 size-80 rounded-full bg-[oklch(0.72_0.11_170)]/20 blur-3xl" style={{ animationName: "kc-orb-a", animationDuration: "26s" }} />
+      <div className="kc-anim absolute top-1/3 -right-28 size-80 rounded-full bg-[oklch(0.76_0.08_210)]/15 blur-3xl" style={{ animationName: "kc-orb-b", animationDuration: "32s" }} />
+      <div className="kc-anim absolute -bottom-28 left-1/4 size-80 rounded-full bg-[oklch(0.8_0.07_130)]/15 blur-3xl" style={{ animationName: "kc-orb-a", animationDuration: "30s", animationDelay: "-9s" }} />
+      {/* subtle depth rings */}
+      <div className="absolute right-[10%] top-[20%] size-44 rounded-full border border-[oklch(0.45_0.12_170)]/[0.06]" />
+      <div className="absolute left-[6%] bottom-[22%] size-28 rounded-full border border-[oklch(0.45_0.12_170)]/[0.05]" />
+      {/* floating healthcare motifs (desktop only, very slow) */}
+      <span className="kc-anim absolute left-[9%] top-[30%] hidden sm:flex size-6 items-center justify-center rounded-xl border border-[oklch(0.45_0.12_170)]/10 bg-white/70 text-[oklch(0.45_0.12_170)]/45 shadow-sm" style={{ animationName: "kc-float-y-soft", animationDuration: "7s" }}>
+        <Plus className="size-3" />
+      </span>
+      <span className="kc-anim absolute right-[13%] top-[38%] hidden sm:block h-2.5 w-5 rotate-45 rounded-full border border-[oklch(0.45_0.12_170)]/15 bg-gradient-to-r from-white to-[oklch(0.72_0.1_170)]/50 shadow-sm" style={{ animationName: "kc-float-y-soft", animationDuration: "8s", animationDelay: "1.2s" }} />
+      <span className="kc-anim absolute right-[22%] bottom-[16%] hidden lg:flex size-5 items-center justify-center rounded-lg border border-[oklch(0.45_0.12_170)]/10 bg-white/60 text-[oklch(0.45_0.12_170)]/40 shadow-sm" style={{ animationName: "kc-float-y-soft", animationDuration: "7.5s", animationDelay: "2.4s" }}>
+        <Plus className="size-2.5" />
+      </span>
+      {/* tiny glowing particles */}
+      <span className="kc-anim absolute left-[18%] top-[55%] size-1.5 rounded-full bg-[oklch(0.55_0.12_170)]/30" style={{ animationName: "kc-particle", animationDuration: "6.5s" }} />
+      <span className="kc-anim absolute right-[24%] top-[16%] size-1 rounded-full bg-[oklch(0.55_0.1_195)]/30" style={{ animationName: "kc-particle", animationDuration: "7.5s", animationDelay: "2s" }} />
+      <span className="kc-anim absolute left-[30%] bottom-[30%] size-1 rounded-full bg-[oklch(0.6_0.1_150)]/25" style={{ animationName: "kc-particle", animationDuration: "8s", animationDelay: "4s" }} />
+    </div>
+  );
+}
+
 interface ProductCardData {
   name: string;
   detail: string;
@@ -403,9 +450,10 @@ function AiAvatar({ size = "md" }: { size?: "sm" | "md" | "lg" }) {
   const icon = size === "lg" ? "size-7" : size === "md" ? "size-4" : "size-3.5";
   return (
     <div
-      className={`relative flex ${dims} shrink-0 items-center justify-center bg-gradient-to-br from-[oklch(0.42_0.09_170)] to-[oklch(0.36_0.09_173)] text-white shadow-sm shadow-[oklch(0.45_0.12_170)]/20`}
+      className={`relative flex ${dims} shrink-0 items-center justify-center bg-gradient-to-br from-[oklch(0.48_0.10_169)] via-[oklch(0.42_0.09_170)] to-[oklch(0.35_0.08_173)] text-white shadow-[0_3px_8px_-2px_oklch(0.45_0.12_170_/_0.4),inset_0_1px_0_rgba(255,255,255,0.3)] ring-1 ring-white/25`}
     >
-      <Bot className={icon} />
+      <span className="pointer-events-none absolute inset-0 rounded-[inherit] bg-gradient-to-b from-white/20 via-transparent to-transparent" />
+      <Bot className={`${icon} relative drop-shadow-[0_1px_2px_rgba(0,50,35,0.35)]`} />
     </div>
   );
 }
@@ -420,10 +468,10 @@ function ProductResultCards({ products }: { products: ProductCardData[] }) {
         return (
           <div
             key={i}
-            className="group rounded-xl border border-border/50 bg-white p-3 shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-all duration-200 hover:border-[oklch(0.45_0.12_170)]/25 hover:shadow-md"
+            className="group rounded-xl border border-border/40 bg-white/90 backdrop-blur-sm p-3 shadow-[0_2px_10px_-4px_rgba(16,60,50,0.08)] transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-[oklch(0.45_0.12_170)]/30 hover:shadow-[0_8px_20px_-8px_oklch(0.45_0.12_170_/_0.22)]"
           >
             <div className="flex items-start gap-3">
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[oklch(0.96_0.03_170)] border border-[oklch(0.45_0.12_170)]/10">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[oklch(0.96_0.03_170)] to-[oklch(0.93_0.05_175)] border border-[oklch(0.45_0.12_170)]/12 shadow-inner transition-transform duration-300 group-hover:scale-105">
                 <Pill className="size-5 text-[oklch(0.45_0.12_170)]" />
               </div>
               <div className="min-w-0 flex-1">
@@ -497,7 +545,7 @@ function OrderResultCards({ orders }: { orders: OrderCardData[] }) {
         return (
           <div
             key={i}
-            className="rounded-xl border border-border/50 bg-white p-3 shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-all duration-200 hover:border-[oklch(0.45_0.12_170)]/25 hover:shadow-md"
+            className="rounded-xl border border-border/40 bg-white/90 backdrop-blur-sm p-3 shadow-[0_2px_10px_-4px_rgba(16,60,50,0.08)] transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-[oklch(0.45_0.12_170)]/30 hover:shadow-[0_8px_20px_-8px_oklch(0.45_0.12_170_/_0.22)]"
           >
             <div className="flex items-center justify-between gap-2">
               <span className="text-[12px] font-bold text-foreground tracking-tight">{o.id.toUpperCase()}</span>
@@ -526,7 +574,7 @@ function RefillResultCards({ refills }: { refills: RefillCardData[] }) {
       {refills.map((r, i) => (
         <div
           key={i}
-          className="rounded-xl border border-border/50 bg-white p-3 shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-all duration-200 hover:border-[oklch(0.45_0.12_170)]/25 hover:shadow-md"
+          className="rounded-xl border border-border/40 bg-white/90 backdrop-blur-sm p-3 shadow-[0_2px_10px_-4px_rgba(16,60,50,0.08)] transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-[oklch(0.45_0.12_170)]/30 hover:shadow-[0_8px_20px_-8px_oklch(0.45_0.12_170_/_0.22)]"
         >
           <div className="flex items-start gap-3">
             <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-[oklch(0.96_0.03_170)] border border-[oklch(0.45_0.12_170)]/10">
@@ -781,8 +829,10 @@ export default function AIChatbot() {
   /* ────────────── NOT LOGGED IN ────────────── */
   if (!user) {
     return (
-      <div className="min-h-screen flex flex-col bg-[oklch(0.985_0.005_170)]">
-        <header className="h-16 shrink-0 bg-white/80 backdrop-blur-md border-b border-border/40 flex items-center px-4 sm:px-6">
+      <div className="relative min-h-screen flex flex-col bg-[oklch(0.985_0.005_170)] overflow-hidden">
+        <ChatAmbient />
+        <div className="relative z-10 flex min-h-screen flex-col">
+        <header className="h-16 shrink-0 bg-white/65 backdrop-blur-xl border-b border-border/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] flex items-center px-4 sm:px-6">
           <Button
             size="sm"
             variant="ghost"
@@ -795,8 +845,18 @@ export default function AIChatbot() {
         </header>
         <main className="flex-1 flex items-center justify-center px-4 py-16">
           <div className="max-w-sm w-full text-center">
-            <div className="mx-auto mb-6 flex size-16 items-center justify-center rounded-[20px] bg-gradient-to-br from-[oklch(0.42_0.09_170)] to-[oklch(0.36_0.09_173)] text-white shadow-lg shadow-[oklch(0.45_0.12_170)]/20">
-              <Bot className="size-7" />
+            <div className="relative mx-auto mb-6 [perspective:800px]">
+              <div
+                className="kc-anim absolute -inset-5 rounded-full bg-[radial-gradient(circle,oklch(0.72_0.12_170_/_0.3),transparent_70%)]"
+                style={{ animationName: "kc-halo", animationDuration: "5.5s" }}
+              />
+              <div
+                className="kc-anim relative flex size-16 items-center justify-center rounded-[20px] bg-gradient-to-br from-[oklch(0.5_0.11_168)] via-[oklch(0.42_0.09_170)] to-[oklch(0.34_0.08_173)] text-white shadow-[0_16px_32px_-12px_oklch(0.45_0.12_170_/_0.5),inset_0_1px_0_rgba(255,255,255,0.35)]"
+                style={{ animationName: "kc-float-y", animationDuration: "7s" }}
+              >
+                <Bot className="size-7 relative" />
+                <span className="pointer-events-none absolute inset-0 rounded-[20px] bg-gradient-to-b from-white/25 via-transparent to-transparent" />
+              </div>
             </div>
             <h1 className="text-xl font-bold text-foreground">Kalyan Chemist AI</h1>
             <p className="text-sm text-muted-foreground mt-2 mb-6 leading-relaxed">
@@ -810,28 +870,31 @@ export default function AIChatbot() {
             </Button>
           </div>
         </main>
+        </div>
       </div>
     );
   }
 
   /* ────────────── MAIN UI ────────────── */
   return (
-    <div className="h-screen flex flex-col bg-[oklch(0.985_0.005_170)] overflow-hidden">
+    <div className="relative h-screen flex flex-col bg-[oklch(0.985_0.005_170)] overflow-hidden">
+      <ChatAmbient />
       {/* ═══════ MINIMAL PREMIUM HEADER ═══════ */}
-      <header className="h-14 shrink-0 bg-white/70 backdrop-blur-xl border-b border-border/30 flex items-center px-3 sm:px-6 gap-2">
-        <Button
-          size="sm"
-          variant="ghost"
-          className="h-8 w-8 p-0 rounded-lg text-muted-foreground hover:text-foreground"
-          onClick={() => navigate(-1)}
-          title="Back"
-        >
+      <header className="relative z-10 h-14 shrink-0 bg-white/65 backdrop-blur-xl border-b border-border/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] flex items-center px-3 sm:px-6 gap-2">          <Button
+            size="sm"
+            variant="ghost"
+            className="h-8 w-8 p-0 rounded-lg text-muted-foreground transition-all duration-200 ease-out hover:-translate-y-px hover:bg-muted/70 hover:text-foreground hover:shadow-[0_3px_8px_-3px_rgba(16,60,50,0.18)] active:translate-y-0 active:scale-95"
+            onClick={() => navigate(-1)}
+            title="Back"
+          >
           <ChevronLeft className="size-4.5" />
         </Button>
 
         <div className="relative">
           <AiAvatar size="md" />
-          <span className="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full bg-emerald-400 border-2 border-white" />
+          <span className="absolute -bottom-0.5 -right-0.5 flex size-2.5 items-center justify-center rounded-full bg-emerald-400 border-2 border-white">
+            <span className="kc-anim absolute size-2.5 rounded-full bg-emerald-400/60" style={{ animationName: "kc-ping", animationDuration: "2.4s" }} />
+          </span>
         </div>
 
         <div className="flex-1 min-w-0">
@@ -849,7 +912,7 @@ export default function AIChatbot() {
           <Button
             size="sm"
             variant="ghost"
-            className={`h-8 w-8 p-0 rounded-lg ${ttsOn ? "text-[oklch(0.45_0.12_170)]" : "text-muted-foreground"} hover:text-foreground`}
+            className={`h-8 w-8 p-0 rounded-lg transition-all duration-200 ease-out hover:-translate-y-px hover:bg-muted/70 hover:shadow-[0_3px_8px_-3px_rgba(16,60,50,0.18)] active:translate-y-0 active:scale-95 ${ttsOn ? "text-[oklch(0.45_0.12_170)]" : "text-muted-foreground"} hover:text-foreground`}
             onClick={() => setTts(!ttsOn)}
             title={ttsOn ? "Mute voice" : "Enable voice"}
           >
@@ -858,7 +921,7 @@ export default function AIChatbot() {
           <Button
             size="sm"
             variant="ghost"
-            className="h-8 w-8 p-0 rounded-lg text-muted-foreground hover:text-foreground"
+            className="h-8 w-8 p-0 rounded-lg text-muted-foreground transition-all duration-200 ease-out hover:-translate-y-px hover:bg-muted/70 hover:text-foreground hover:shadow-[0_3px_8px_-3px_rgba(16,60,50,0.18)] active:translate-y-0 active:scale-95"
             onClick={() => setShowHistory((s) => !s)}
             title="Chat history"
           >
@@ -867,7 +930,7 @@ export default function AIChatbot() {
           <Button
             size="sm"
             variant="ghost"
-            className="h-8 w-8 p-0 rounded-lg text-muted-foreground hover:text-foreground"
+            className="h-8 w-8 p-0 rounded-lg text-muted-foreground transition-all duration-200 ease-out hover:-translate-y-px hover:bg-muted/70 hover:text-foreground hover:shadow-[0_3px_8px_-3px_rgba(16,60,50,0.18)] active:translate-y-0 active:scale-95"
             onClick={handleNewChat}
             title="New conversation"
           >
@@ -941,46 +1004,97 @@ export default function AIChatbot() {
       )}
 
       {/* ═══════ SCROLL AREA ═══════ */}
-      <div ref={scrollAreaRef} className="flex-1 overflow-y-auto">
+      <div ref={scrollAreaRef} className="relative z-10 flex-1 overflow-y-auto">
         <div className="max-w-[720px] mx-auto px-4 sm:px-6">
 
           {/* ═══ WELCOME ═══ */}
           {showWelcome && (
-            <div className="flex flex-col items-center text-center pt-[10vh] pb-8 animate-in fade-in duration-500">
-              {/* Identity */}
-              <div className="relative mb-5">
-                <div className="flex size-[76px] items-center justify-center rounded-[24px] bg-gradient-to-br from-[oklch(0.42_0.09_170)] to-[oklch(0.35_0.08_172)] text-white shadow-xl shadow-[oklch(0.45_0.12_170)]/20">
-                  <Bot className="size-8" />
+            <div className="flex flex-col items-center text-center pt-[10vh] pb-8">
+              {/* Identity — layered 3D AI emblem */}
+              <div
+                className="relative mb-6 animate-in fade-in slide-in-from-bottom-3 duration-500"
+                style={{ animationFillMode: "backwards" }}
+              >
+                <div className="relative [perspective:900px]">
+                  {/* ambient halo */}
+                  <div
+                    className="kc-anim absolute -inset-7 rounded-full bg-[radial-gradient(circle,oklch(0.72_0.12_170_/_0.35),transparent_70%)]"
+                    style={{ animationName: "kc-halo", animationDuration: "5.5s" }}
+                  />
+                  {/* dimensional glass ring */}
+                  <div className="absolute -inset-2 rounded-[30px] border border-[oklch(0.45_0.12_170)]/15 bg-white/40 backdrop-blur-sm" />
+                  {/* glass core */}
+                  <div
+                    className="kc-anim relative flex size-[84px] items-center justify-center rounded-[26px] bg-gradient-to-br from-[oklch(0.52_0.11_168)] via-[oklch(0.42_0.09_170)] to-[oklch(0.33_0.08_173)] text-white shadow-[0_20px_40px_-14px_oklch(0.45_0.12_170_/_0.5),inset_0_1px_0_rgba(255,255,255,0.35)]"
+                    style={{ animationName: "kc-float-y", animationDuration: "7s" }}
+                  >
+                    <Bot className="size-9 relative drop-shadow-[0_3px_8px_rgba(0,55,40,0.35)]" />
+                    <span className="pointer-events-none absolute inset-0 rounded-[26px] bg-gradient-to-b from-white/25 via-transparent to-transparent" />
+                  </div>
+                  {/* online status */}
+                  <span className="absolute -bottom-1 -right-1 size-5 rounded-full bg-emerald-400 border-[3px] border-[oklch(0.985_0.005_170)] flex items-center justify-center shadow-sm">
+                    <span className="size-1.5 rounded-full bg-white" />
+                  </span>
+                  {/* floating micro-elements */}
+                  <span
+                    className="kc-anim absolute -left-8 top-1 flex size-6 items-center justify-center rounded-xl border border-[oklch(0.45_0.12_170)]/12 bg-white/80 text-[oklch(0.45_0.12_170)]/60 shadow-sm"
+                    style={{ animationName: "kc-float-y-soft", animationDuration: "6s", animationDelay: "0.6s" }}
+                  >
+                    <Plus className="size-3" />
+                  </span>
+                  <span
+                    className="kc-anim absolute -right-7 top-6 hidden sm:block h-2.5 w-5 rotate-45 rounded-full border border-[oklch(0.45_0.12_170)]/15 bg-gradient-to-r from-white to-[oklch(0.72_0.1_170)]/50 shadow-sm"
+                    style={{ animationName: "kc-float-y-soft", animationDuration: "7s", animationDelay: "1.4s" }}
+                  />
+                  <span
+                    className="kc-anim absolute -left-4 bottom-1 hidden sm:block h-2 w-4 -rotate-12 rounded-full border border-amber-300/40 bg-gradient-to-r from-white to-amber-200/60 shadow-sm"
+                    style={{ animationName: "kc-float-y-soft", animationDuration: "6.5s", animationDelay: "2s" }}
+                  />
+                  <span className="kc-anim absolute -right-9 -top-1 size-1.5 rounded-full bg-[oklch(0.55_0.12_170)]/40" style={{ animationName: "kc-particle", animationDuration: "6s", animationDelay: "0.4s" }} />
+                  <span className="kc-anim absolute -left-10 bottom-6 size-1 rounded-full bg-[oklch(0.55_0.1_190)]/40" style={{ animationName: "kc-particle", animationDuration: "7s", animationDelay: "1.6s" }} />
                 </div>
-                <span className="absolute -bottom-1 -right-1 size-5 rounded-full bg-emerald-400 border-[3px] border-[oklch(0.985_0.005_170)] flex items-center justify-center">
-                  <span className="size-1.5 rounded-full bg-white" />
+              </div>
+
+              <div
+                className="inline-flex items-center gap-1.5 rounded-full border border-[oklch(0.45_0.12_170)]/15 bg-white/70 backdrop-blur px-3 py-1 shadow-[0_1px_3px_rgba(16,60,50,0.06)] animate-in fade-in slide-in-from-bottom-3 duration-500"
+                style={{ animationDelay: "80ms", animationFillMode: "backwards" }}
+              >
+                <Sparkles className="size-3 text-[oklch(0.45_0.12_170)]" />
+                <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[oklch(0.45_0.12_170)]/80">
+                  Kalyan Chemist AI Assistant
                 </span>
               </div>
 
-              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[oklch(0.45_0.12_170)]/70 mb-3">
-                Kalyan Chemist AI Assistant
-              </p>
-
-              <h1 className="text-[28px] sm:text-[32px] font-bold text-foreground tracking-tight leading-tight">
+              <h1
+                className="mt-4 text-[30px] sm:text-[36px] font-bold tracking-tight leading-tight bg-gradient-to-br from-foreground via-foreground to-[oklch(0.45_0.12_170)] bg-clip-text text-transparent animate-in fade-in slide-in-from-bottom-3 duration-500"
+                style={{ animationDelay: "140ms", animationFillMode: "backwards" }}
+              >
                 Hello <span className="inline-block">👋</span>
               </h1>
-              <p className="text-[15px] font-medium text-foreground/80 mt-1.5">
+              <p
+                className="text-[16px] sm:text-[17px] font-semibold text-foreground/85 mt-1.5 animate-in fade-in slide-in-from-bottom-3 duration-500"
+                style={{ animationDelay: "200ms", animationFillMode: "backwards" }}
+              >
                 How can I help you today?
               </p>
-              <p className="text-[13px] text-muted-foreground mt-3 max-w-md leading-relaxed">
+              <p
+                className="text-[13px] text-muted-foreground mt-3 max-w-md leading-relaxed animate-in fade-in slide-in-from-bottom-3 duration-500"
+                style={{ animationDelay: "260ms", animationFillMode: "backwards" }}
+              >
                 Your Kalyan Chemist AI Assistant can help you find medicines, check availability, track orders,
                 manage refills and connect you with our pharmacy team.
               </p>
 
-              {/* Topic pills */}
+              {/* Topic pills — premium chips with gentle stagger */}
               <div className="flex flex-wrap justify-center gap-2 w-full max-w-xl mt-8">
-                {TOPIC_PILLS.map((pill) => (
+                {TOPIC_PILLS.map((pill, i) => (
                   <button
                     key={pill.label}
                     onClick={() => handleSend(pill.prompt)}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-white px-3.5 py-2 text-[12px] font-medium text-foreground/85 shadow-[0_1px_2px_rgba(0,0,0,0.03)] transition-all duration-200 hover:border-[oklch(0.45_0.12_170)]/30 hover:text-[oklch(0.45_0.12_170)] hover:shadow-sm active:scale-[0.97]"
+                    className="group inline-flex items-center gap-1.5 rounded-full border border-[oklch(0.45_0.12_170)]/12 bg-gradient-to-b from-white to-[oklch(0.975_0.012_170)] px-3.5 py-2 text-[12px] font-medium text-foreground/85 shadow-[0_1px_2px_rgba(16,60,50,0.05),0_5px_12px_-5px_rgba(16,60,50,0.1)] transition-all duration-300 ease-out hover:-translate-y-0.5 hover:scale-[1.03] hover:border-[oklch(0.45_0.12_170)]/30 hover:text-[oklch(0.45_0.12_170)] hover:shadow-[0_8px_18px_-6px_oklch(0.45_0.12_170_/_0.3)] active:scale-[0.97] animate-in fade-in slide-in-from-bottom-2 duration-500"
+                    style={{ animationDelay: `${320 + i * 55}ms`, animationFillMode: "backwards" }}
                   >
-                    <pill.icon className="size-3.5 text-[oklch(0.45_0.12_170)]" />
+                    <pill.icon className="size-3.5 text-[oklch(0.45_0.12_170)] transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-6" />
                     {pill.label}
                   </button>
                 ))}
@@ -988,7 +1102,10 @@ export default function AIChatbot() {
 
               {/* Proactive suggestions */}
               {proactiveSuggestions && proactiveSuggestions.length > 0 && (
-                <div className="mt-8 w-full max-w-lg text-left">
+                <div
+                  className="mt-9 w-full max-w-lg text-left animate-in fade-in slide-in-from-bottom-3 duration-500"
+                  style={{ animationDelay: "520ms", animationFillMode: "backwards" }}
+                >
                   <div className="flex items-center gap-1.5 mb-2.5 justify-center">
                     <Sparkles className="size-3 text-[oklch(0.45_0.12_170)]" />
                     <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Suggested for you</p>
@@ -998,7 +1115,7 @@ export default function AIChatbot() {
                       <button
                         key={i}
                         onClick={() => handleSend(sug.replace(/\*\*/g, ""))}
-                        className="w-full p-3.5 rounded-xl bg-white border border-border/40 text-[13px] text-foreground/90 hover:border-[oklch(0.45_0.12_170)]/25 hover:shadow-sm transition-all text-left leading-relaxed"
+                        className="w-full p-3.5 rounded-xl bg-white/85 backdrop-blur-sm border border-border/40 text-[13px] text-foreground/90 transition-all duration-300 ease-out hover:-translate-y-0.5 hover:border-[oklch(0.45_0.12_170)]/25 hover:bg-white hover:shadow-[0_8px_20px_-8px_oklch(0.45_0.12_170_/_0.22)] text-left leading-relaxed"
                       >
                         {renderMarkdown(sug)}
                       </button>
@@ -1007,23 +1124,30 @@ export default function AIChatbot() {
                 </div>
               )}
 
-              {/* Try asking about */}
-              <div className="mt-10 w-full text-left max-w-[720px]">
+              {/* Try asking about — premium question pills */}
+              <div
+                className="mt-10 w-full text-left max-w-[720px] animate-in fade-in slide-in-from-bottom-3 duration-500"
+                style={{ animationDelay: "600ms", animationFillMode: "backwards" }}
+              >
                 <p className="text-[11px] text-muted-foreground/80 mb-2.5">Try asking about...</p>
                 <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 [scrollbar-width:thin]">
                   {TRY_ASKING.map((q) => (
                     <button
                       key={q}
                       onClick={() => handleSend(q)}
-                      className="shrink-0 whitespace-nowrap rounded-full bg-white border border-border/50 px-3.5 py-2 text-[12px] text-muted-foreground transition-all duration-200 hover:text-foreground hover:border-[oklch(0.45_0.12_170)]/30 hover:shadow-sm active:scale-[0.97]"
+                      className="group shrink-0 inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-white/85 backdrop-blur-sm border border-border/50 px-3.5 py-2 text-[12px] text-muted-foreground transition-all duration-200 ease-out hover:-translate-y-0.5 hover:text-[oklch(0.45_0.12_170)] hover:border-[oklch(0.45_0.12_170)]/30 hover:bg-white hover:shadow-[0_6px_14px_-6px_oklch(0.45_0.12_170_/_0.25)] active:scale-[0.97]"
                     >
                       {q}
+                      <ArrowUpRight className="size-3 text-[oklch(0.45_0.12_170)] opacity-0 -translate-x-0.5 translate-y-0.5 transition-all duration-200 group-hover:opacity-100 group-hover:translate-x-0 group-hover:translate-y-0" />
                     </button>
                   ))}
                 </div>
               </div>
 
-              <p className="mt-10 text-[10px] text-muted-foreground/50 font-medium tracking-wide uppercase">
+              <p
+                className="mt-10 text-[10px] text-muted-foreground/50 font-medium tracking-wide uppercase animate-in fade-in duration-700"
+                style={{ animationDelay: "700ms", animationFillMode: "backwards" }}
+              >
                 Powered by Kalyan Chemist
               </p>
             </div>
@@ -1046,7 +1170,7 @@ export default function AIChatbot() {
                     <div key={msg._id} className="flex gap-2.5 animate-in fade-in slide-in-from-bottom-2 duration-300">
                       <AiAvatar size="sm" />
                       <div className="min-w-0 flex-1">
-                        <div className="rounded-2xl rounded-tl-md bg-white border border-border/50 px-4 py-3 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+                        <div className="rounded-2xl rounded-tl-md bg-white/90 backdrop-blur-sm border border-border/45 px-4 py-3 shadow-[0_2px_10px_-2px_rgba(16,60,50,0.07)]">
                           {s.kind === "order" ? (
                             <>
                               {s.intro && <div>{renderMarkdown(s.intro)}</div>}
@@ -1099,7 +1223,7 @@ export default function AIChatbot() {
                               <button
                                 key={chip.label}
                                 onClick={() => handleChipAction(chip.action)}
-                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white border border-border/50 text-[11px] font-medium text-muted-foreground hover:text-[oklch(0.45_0.12_170)] hover:border-[oklch(0.45_0.12_170)]/25 transition-all"
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white border border-border/50 text-[11px] font-medium text-muted-foreground transition-all duration-200 ease-out hover:-translate-y-0.5 hover:bg-white hover:text-[oklch(0.45_0.12_170)] hover:border-[oklch(0.45_0.12_170)]/25 hover:shadow-[0_4px_10px_-4px_oklch(0.45_0.12_170_/_0.25)]"
                               >
                                 {chip.label}
                                 <ArrowRight className="size-2.5" />
@@ -1123,8 +1247,8 @@ export default function AIChatbot() {
                     <div
                       className={`max-w-[82%] sm:max-w-[76%] ${
                         isUser
-                          ? "bg-[oklch(0.45_0.12_170)] text-white rounded-2xl rounded-br-md px-4 py-2.5 shadow-sm shadow-[oklch(0.45_0.12_170)]/20"
-                          : "bg-white border border-border/50 rounded-2xl rounded-tl-md px-4 py-3 shadow-[0_1px_3px_rgba(0,0,0,0.04)]"
+                          ? "bg-gradient-to-br from-[oklch(0.47_0.11_169)] to-[oklch(0.40_0.10_172)] text-white rounded-2xl rounded-br-md px-4 py-2.5 shadow-[0_4px_12px_-4px_oklch(0.45_0.12_170_/_0.45)] ring-1 ring-white/20"
+                          : "bg-white/90 backdrop-blur-sm border border-border/45 rounded-2xl rounded-tl-md px-4 py-3 shadow-[0_2px_10px_-2px_rgba(16,60,50,0.07)]"
                       }`}
                     >
                       <div className={isUser ? "[&_strong]:text-white [&_a]:text-white/90 [&_span]:text-white/80" : ""}>
@@ -1174,7 +1298,7 @@ export default function AIChatbot() {
                     </div>
 
                     {isUser && (
-                      <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-foreground/[0.06] text-foreground/60 mt-0.5 text-[11px] font-bold">
+                      <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[oklch(0.5_0.1_170)]/15 to-foreground/[0.06] ring-1 ring-[oklch(0.45_0.12_170)]/12 text-foreground/60 mt-0.5 text-[11px] font-bold">
                         {userInitial}
                       </div>
                     )}
@@ -1186,11 +1310,11 @@ export default function AIChatbot() {
               {isTyping && (
                 <div className="flex gap-2.5 animate-in fade-in duration-200">
                   <AiAvatar size="sm" />
-                  <div className="bg-white border border-border/50 rounded-2xl rounded-tl-md px-4 py-3 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-                    <div className="flex items-center gap-1">
-                      <span className="size-[6px] rounded-full bg-[oklch(0.45_0.12_170)]/35 animate-bounce" style={{ animationDelay: "0ms" }} />
-                      <span className="size-[6px] rounded-full bg-[oklch(0.45_0.12_170)]/35 animate-bounce" style={{ animationDelay: "120ms" }} />
-                      <span className="size-[6px] rounded-full bg-[oklch(0.45_0.12_170)]/35 animate-bounce" style={{ animationDelay: "240ms" }} />
+                  <div className="bg-white/90 backdrop-blur-sm border border-border/45 rounded-2xl rounded-tl-md px-4 py-3.5 shadow-[0_2px_10px_-2px_rgba(16,60,50,0.07)]">
+                    <div className="flex items-center gap-1.5">
+                      <span className="size-[6px] rounded-full bg-[oklch(0.45_0.12_170)]/50 shadow-[0_0_6px_oklch(0.45_0.12_170_/_0.4)] kc-anim" style={{ animationName: "kc-dot", animationDuration: "1.15s" }} />
+                      <span className="size-[6px] rounded-full bg-[oklch(0.45_0.12_170)]/50 shadow-[0_0_6px_oklch(0.45_0.12_170_/_0.4)] kc-anim" style={{ animationName: "kc-dot", animationDuration: "1.15s", animationDelay: "0.16s" }} />
+                      <span className="size-[6px] rounded-full bg-[oklch(0.45_0.12_170)]/50 shadow-[0_0_6px_oklch(0.45_0.12_170_/_0.4)] kc-anim" style={{ animationName: "kc-dot", animationDuration: "1.15s", animationDelay: "0.32s" }} />
                     </div>
                   </div>
                 </div>
@@ -1203,7 +1327,7 @@ export default function AIChatbot() {
       </div>
 
       {/* ═══════ PREMIUM INPUT AREA ═══════ */}
-      <div className="shrink-0 bg-gradient-to-t from-[oklch(0.985_0.005_170)] via-[oklch(0.985_0.005_170)] to-transparent pt-2">
+      <div className="relative z-10 shrink-0 bg-gradient-to-t from-[oklch(0.985_0.005_170)] via-[oklch(0.985_0.005_170)] to-transparent pt-2">
         <div className="max-w-[720px] mx-auto px-4 sm:px-6 pb-3">
           {/* Language bar */}
           {showLangPicker && (
@@ -1278,13 +1402,13 @@ export default function AIChatbot() {
           )}
 
           {/* Elevated input container */}
-          <div className="bg-white border border-border/60 rounded-2xl shadow-[0_2px_12px_rgba(0,0,0,0.05)] focus-within:border-[oklch(0.45_0.12_170)]/30 focus-within:shadow-[0_2px_16px_rgba(0,0,0,0.07)] focus-within:ring-2 focus-within:ring-[oklch(0.45_0.12_170)]/[0.08] transition-all duration-200">
+          <div className="relative bg-white/85 backdrop-blur-xl border border-border/60 rounded-2xl shadow-[0_10px_30px_-10px_rgba(16,60,50,0.18),0_2px_6px_rgba(16,60,50,0.05),inset_0_1px_0_rgba(255,255,255,0.9)] transition-all duration-300 ease-out focus-within:border-[oklch(0.45_0.12_170)]/35 focus-within:shadow-[0_14px_36px_-10px_oklch(0.45_0.12_170_/_0.3),0_2px_6px_rgba(16,60,50,0.05),inset_0_1px_0_rgba(255,255,255,0.9)] focus-within:ring-2 focus-within:ring-[oklch(0.45_0.12_170)]/10 focus-within:-translate-y-0.5">
             <div className="flex items-center gap-2 px-3 py-2">
               {/* Attach photo / file */}
               <button
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isTyping || isUploading}
-                className={`flex size-8 items-center justify-center rounded-xl shrink-0 transition-all duration-200 ${
+                className={`flex size-8 items-center justify-center rounded-xl shrink-0 transition-all duration-200 ease-out hover:-translate-y-px hover:shadow-[0_3px_8px_-3px_rgba(16,60,50,0.2)] active:translate-y-0 active:scale-95 ${
                   isUploading
                     ? "text-[oklch(0.45_0.12_170)]"
                     : attachment
@@ -1299,7 +1423,7 @@ export default function AIChatbot() {
               {/* Language quick toggle */}
               <button
                 onClick={() => setShowLangPicker(!showLangPicker)}
-                className={`flex size-8 items-center justify-center rounded-xl shrink-0 transition-all duration-200 ${
+                className={`flex size-8 items-center justify-center rounded-xl shrink-0 transition-all duration-200 ease-out hover:-translate-y-px hover:shadow-[0_3px_8px_-3px_rgba(16,60,50,0.2)] active:translate-y-0 active:scale-95 ${
                   showLangPicker
                     ? "bg-[oklch(0.45_0.12_170)]/10 text-[oklch(0.45_0.12_170)]"
                     : "text-muted-foreground/70 hover:text-foreground hover:bg-muted/60"
@@ -1334,7 +1458,7 @@ export default function AIChatbot() {
               {voiceSupported && (
                 <button
                   onClick={toggleVoice}
-                  className={`flex size-8 items-center justify-center rounded-xl shrink-0 transition-all duration-200 ${
+                  className={`flex size-8 items-center justify-center rounded-xl shrink-0 transition-all duration-200 ease-out hover:-translate-y-px hover:shadow-[0_3px_8px_-3px_rgba(16,60,50,0.2)] active:translate-y-0 active:scale-95 ${
                     isListening
                       ? "bg-red-500 text-white shadow-sm shadow-red-500/25 animate-pulse"
                       : "text-muted-foreground/70 hover:text-foreground hover:bg-muted/60"
@@ -1349,9 +1473,9 @@ export default function AIChatbot() {
               <button
                 onClick={() => handleSend()}
                 disabled={(!input.trim() && !attachment) || isTyping || isUploading}
-                className={`flex size-8 items-center justify-center rounded-xl shrink-0 transition-all duration-200 ${
+                className={`flex size-8 items-center justify-center rounded-xl shrink-0 transition-all duration-200 ease-out hover:-translate-y-px hover:shadow-[0_3px_8px_-3px_rgba(16,60,50,0.2)] active:translate-y-0 active:scale-95 ${
                   (input.trim() || attachment) && !isTyping && !isUploading
-                    ? "bg-gradient-to-br from-[oklch(0.42_0.09_170)] to-[oklch(0.38_0.10_168)] text-white shadow-sm shadow-[oklch(0.45_0.12_170)]/25 hover:shadow-md active:scale-95"
+                    ? "bg-gradient-to-br from-[oklch(0.42_0.09_170)] to-[oklch(0.38_0.10_168)] text-white shadow-[0_4px_10px_-3px_oklch(0.45_0.12_170_/_0.5),inset_0_1px_0_rgba(255,255,255,0.3)] ring-1 ring-white/20 hover:-translate-y-0.5 hover:scale-105 hover:shadow-[0_7px_16px_-4px_oklch(0.45_0.12_170_/_0.55)] active:translate-y-0 active:scale-95"
                     : "bg-muted/40 text-muted-foreground/50 cursor-not-allowed"
                 }`}
               >
