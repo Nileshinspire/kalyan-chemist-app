@@ -467,10 +467,10 @@ export default function Landing() {
             <ArrowRight className="size-4 transition-transform duration-300 group-hover:translate-x-0.5" />
           </button>
         </motion.div>
-        <div className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6 lg:gap-4">
+        <div className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 lg:gap-4">
           {(categories ?? [])
             .filter((cat) => !HEALTH_CONDITION_SLUGS.has(cat.slug))
-            .slice(0, 6)
+            .slice(0, 10)
             .map((cat) => {
             const style = CATEGORY_STYLES[cat.slug] ?? DEFAULT_STYLE;
             return (
@@ -480,24 +480,21 @@ export default function Landing() {
                 className="[perspective:1000px]"
               >
                 <div
-                  className="group relative flex h-full cursor-pointer flex-col items-center overflow-hidden rounded-2xl border border-border/70 bg-card px-3 py-5 text-center transition-[transform,box-shadow] duration-300 ease-out will-change-transform hover:border-primary/25 hover:shadow-xl hover:shadow-teal-500/20 hover:ring-2 hover:ring-teal-400/30 hover:[transform:translateY(-6px)_scale(1.04)_rotateX(5deg)_rotateY(-4deg)]"
+                  className="group inline-flex h-full w-full cursor-pointer items-center gap-2.5 overflow-hidden rounded-lg border border-border/60 bg-card px-3 py-2.5 sm:px-4 sm:py-3 transition-[transform,box-shadow] duration-300 ease-out will-change-transform shadow-sm hover:shadow-xl hover:shadow-teal-500/20 hover:border-primary/25 hover:ring-2 hover:ring-teal-400/30 hover:[transform:translateY(-3px)_scale(1.015)]"
                   onClick={() => navigate(`/products?category=${cat.slug}`)}
                 >
-                  <div className={`absolute inset-0 bg-gradient-to-br ${style.color} opacity-0 transition-opacity duration-300 group-hover:opacity-100`} />
-                  <div className="absolute top-3 right-3 translate-x-1.5 opacity-0 transition-all duration-300 group-hover:translate-x-0 group-hover:opacity-100">
-                    <ArrowUpRight className="size-4 text-primary/60" />
+                  <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary transition-all duration-300 group-hover:bg-primary group-hover:text-white group-hover:scale-110 group-hover:shadow-glow">
+                    <style.icon className="size-[18px]" />
                   </div>
-                  <div className="relative flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary shadow-sm transition-all duration-300 group-hover:-translate-y-0.5 group-hover:scale-110 group-hover:bg-primary group-hover:text-white group-hover:shadow-glow">
-                    <style.icon className="size-5" />
-                  </div>
-                  <div className="relative mt-2.5 flex min-h-[2.5rem] items-center justify-center">
-                    <h3 className="line-clamp-2 text-sm font-semibold leading-tight text-foreground transition-colors duration-300 group-hover:text-primary">
+                  <div className="min-w-0 flex-1 text-left">
+                    <h3 className="truncate text-sm font-semibold text-foreground transition-colors duration-300 group-hover:text-primary sm:text-base">
                       {cat.name}
                     </h3>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {cat.productCount} products
+                    </p>
                   </div>
-                  <Badge variant="secondary" className="relative mt-1.5 text-[10px]">
-                    {cat.productCount}
-                  </Badge>
+                  <ArrowRight className="size-4 shrink-0 text-muted-foreground transition-all duration-300 group-hover:translate-x-1 group-hover:text-primary" />
                 </div>
               </motion.div>
             );
