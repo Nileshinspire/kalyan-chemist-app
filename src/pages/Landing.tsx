@@ -229,7 +229,7 @@ export default function Landing() {
 
   // Real data from Convex
   const categories = useQuery(api.categories.list);
-  const popularProducts = useQuery(api.publicProducts.popular, { limit: 8 });
+  const hotSellers = useQuery(api.publicProducts.hotSellers, { limit: 4 });
   const featuredProducts = useQuery(api.publicProducts.featured, { limit: 4 });
 
   const handleAddToCart = async (productId: string) => {
@@ -541,21 +541,21 @@ export default function Landing() {
         </div>
       </motion.section>
 
-      {/* ── Popular Medicines (from DB) ── */}
-      {popularProducts && popularProducts.length > 0 && (
+      {/* ── Hot Sellers (from DB) ── */}
+      {hotSellers && hotSellers.length > 0 && (
         <section className="border-y border-border/50 bg-gradient-to-b from-card/50 to-background">
           <div className="mx-auto max-w-7xl px-6 py-24">
             <div className="flex items-end justify-between mb-10">
               <div>
                 <div className="inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary mb-4">
                   <Pill className="size-3" />
-                  Most Ordered
+                  Bestselling
                 </div>
                 <h2 className="text-3xl font-bold tracking-tight sm:text-5xl">
-                  Popular Medicines
+                  Hot Sellers
                 </h2>
                 <p className="mt-3 text-muted-foreground text-lg">
-                  Trusted by thousands of customers across India.
+                  Our most-purchased medicines, ranked by real sales.
                 </p>
               </div>
               <Button variant="outline" className="hidden sm:flex rounded-xl" onClick={() => navigate("/products")}>
@@ -563,7 +563,7 @@ export default function Landing() {
               </Button>
             </div>
             <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-              {popularProducts.map((product) => {
+              {hotSellers.map((product) => {
                 const hasDiscount = product.discountPrice && product.discountPrice < product.price;
                 const discountPct = hasDiscount ? Math.round(((product.price - product.discountPrice!) / product.price) * 100) : 0;
                 return (
@@ -609,7 +609,7 @@ export default function Landing() {
             </div>
             <div className="mt-6 text-center sm:hidden">
               <Button variant="outline" className="rounded-xl" onClick={() => navigate("/products")}>
-                View All Medicines <ArrowRight className="ml-1.5 size-3.5" />
+                View All <ArrowRight className="ml-1.5 size-3.5" />
               </Button>
             </div>
           </div>

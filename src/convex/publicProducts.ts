@@ -219,6 +219,51 @@ export const popular = query({
   },
 });
 
+// ── Hot Sellers (ranked by real successful sales, excluding cancelled orders) ──
+export const hotSellers = query({
+  args: { limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const products = await ctx.db
+      .query("products")
+      .withIndex("by_isActive", (q) => q.eq("isActive", true))
+      .collect();
+
+    // Count units sold from successful orders only (exclude cancelled).
+    const orders = await ctx.db.query("orders").collect();
+    const productSales = new Map<string, number>();
+    const productLastSale = new Map<string, number>();
+    for (const order of orders) {
+      if (order.status === "cancelled") continue;
+      const orderTime = order.updatedAt ?? order.createdAt;
+      for (const item of order.items) {
+        const key = item.productId as string;
+        productSales.set(key, (productSales.get(key) ?? 0) + item.quantity);
+        const prev = productLastSale.get(key) ?? 0;
+        if (orderTime > prev) productLastSale.set(key, orderTime);
+      }
+    }
+
+    const enriched = await Promise.all(
+      products.map(async (p) => {
+        const category = await ctx.db.get(p.categoryId);
+        const brand = p.brandId ? await ctx.db.get(p.brandId) : null;
+        return {
+          ...p,
+          categoryName: category?.name ?? "Uncategorized",
+          categorySlug: category?.slug ?? "",
+          brandName: brand?.name ?? null,
+          totalSold: productSales.get(p._id as string) ?? 0,
+          lastSoldAt: productLastSale.get(p._id as string) ?? 0,
+        };
+      })
+    );
+
+    // Rank by total units sold descending, then most recent sale as tiebreaker.
+    enriched.sort((a, b) => b.totalSold - a.totalSold || b.lastSoldAt - a.lastSoldAt);
+    return enriched.slice(0, args.limit ?? 8);
+  },
+});
+
 // ── New arrivals (products added within the last 30 days, newest first) ──
 export const newArrivals = query({
   args: { limit: v.optional(v.number()) },
