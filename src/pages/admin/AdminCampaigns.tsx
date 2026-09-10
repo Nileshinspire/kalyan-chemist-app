@@ -174,6 +174,7 @@ export default function AdminCampaigns() {
   const [uploading, setUploading] = useState(false);
   const [generatedUrl, setGeneratedUrl] = useState<string | null>(null);
   const [stagedFile, setStagedFile] = useState<File | null>(null);
+  const [generationError, setGenerationError] = useState<string | null>(null);
 
   const campaigns = useQuery(api.campaigns.list);
   const upsertCampaign = useMutation(api.campaigns.upsert);
@@ -195,10 +196,15 @@ export default function AdminCampaigns() {
 
   const ALLOWED_BANNER_MIME = ["image/jpeg", "image/png", "image/webp"];
   const isAiGenerationAvailable = aiImageStatusQuery?.configured === true;
-  const isUrlValid = useRef<boolean | null>(null);
+  const urlValidityRef = useRef<boolean | null>(null);
+
   // In-flight guard so only ONE AI generation request can run at a time
   // (protects against double-clicks, rerenders and repeated submissions).
   const generatingRef = useRef(false);
+
+  // Track whether a generated/banner image exists for this campaign so that
+  // React rerenders/modal reopens cannot accidentally re-request generation.
+  const hasGeneratedImage = useRef(false);
 
   /** Upload an optimized banner file to Convex storage and attach it. */
   const uploadOptimizedBanner = async (file: File, campaignId: any) => {
@@ -227,14 +233,14 @@ export default function AdminCampaigns() {
   const validateUrl = useCallback(
     async (url: string) => {
       if (!url.trim()) {
-        isUrlValid.current = false;
+        urlValidityRef.current = false;
         return;
       }
       try {
         await validateImageUrl({ url: url.trim() });
-        isUrlValid.current = true;
+        urlValidityRef.current = true;
       } catch (err: any) {
-        isUrlValid.current = false;
+        urlValidityRef.current = false;
         toast.error(err.message || "Image URL is not valid");
       }
     },
@@ -467,53 +473,76 @@ export default function AdminCampaigns() {
       // The generated image is attached to the campaign record, so the
       // campaign must exist first. Create it (with current details) if needed.
       let campaignId = editingId;
-      if (!campaignId) {
-        const startMs = new Date(form.startDate).getTime();
-        const endMs = new Date(form.endDate).getTime();
-        if (isNaN(startMs) || isNaN(endMs)) {
-          toast.error("Please enter valid start and end dates first");
-          return;
-        }
-        if (startMs >= endMs) {
-          toast.error("End date must be after start date");
-          return;
-        }
-        campaignId = (await upsertCampaign({
-          title: form.title.trim(),
-          subtitle: form.subtitle.trim() || undefined,
-          imageSource: "generated",
-          targetType: form.targetType,
-          startDate: startMs,
-          endDate: endMs,
-          isActive: form.isActive,
-          priority: form.priority,
-        })) as any;
-        setEditingId(campaignId as any);
-      }
-
-      const url = (await generateCampaignImage({
-        campaignId: campaignId as any,
-        title: form.title.trim(),
-        subtitle: form.subtitle.trim() || undefined,
-      })) as string;
-      if (!url) {
-        toast.error("Image generation did not return a valid image URL.");
+      // Creating the campaign just to attach a generated banner: reusing the
+    // existing campaign is preferred, but if there isn't one yet we create it
+    // here (without an image) first.
+    if (!campaignId) {
+      const startMs = new Date(form.startDate).getTime();
+      const endMs = new Date(form.endDate).getTime();
+      if (isNaN(startMs) || isNaN(endMs)) {
+        toast.error("Please enter valid start and end dates first");
         return;
       }
-      setGeneratedUrl(url);
-      setPreviewUrl(url);
-      setForm((prev) => ({
-        ...prev,
-        publicUrl: url,
-        bannerImage: url,
+      if (startMs >= endMs) {
+        toast.error("End date must be after start date");
+        return;
+      }
+      campaignId = (await upsertCampaign({
+        title: form.title.trim(),
+        subtitle: form.subtitle.trim() || undefined,
         imageSource: "generated",
-      }));
-      toast.success("AI banner generated and saved to the campaign");
+        targetType: form.targetType,
+        startDate: startMs,
+        endDate: endMs,
+        isActive: form.isActive,
+        priority: form.priority,
+      })) as any;
+      setEditingId(campaignId);
+    }
+
+    // If this campaign already has a generated banner, reuse it instead of
+    // requesting a new image (avoids wasted generation quota and duplicate
+    // requests across reopens/rerenders).
+    if (hasGeneratedImage.current) {
+      if (previewUrl) {
+        toast.info("This campaign already has a generated banner image.");
+        setActiveTab("generated");
+      }
+      return;
+    }    const url = (await generateCampaignImage({
+      campaignId: campaignId as any,
+      title: form.title.trim(),
+      subtitle: form.subtitle.trim() || undefined,
+    })) as string;
+    if (!url) {
+      toast.error("Image generation did not return a valid image URL.");
+      return;
+    }
+    hasGeneratedImage.current = true;
+    setGeneratedUrl(url);
+    setPreviewUrl(url);
+    setForm((prev) => ({
+      ...prev,
+      publicUrl: url,
+      bannerImage: url,
+      imageSource: "generated",
+    }));
+    toast.success("AI banner generated and saved to the campaign");
     } catch (err: any) {
-      toast.error(err.message || "Image generation failed");
+      // Present the real cause to the admin — never fake a success or a
+      // placeholder. Upload Image / Image URL remain usable otherwise.
+      const msg = err?.message || "Image generation failed";
+      // Keep any existing preview so the admin isn't stranded.
+      setGenerationError(
+        msg.includes("quota")
+          ? "AI image generation is temporarily unavailable: the Gemini API key has exhausted its image-generation quota. Please try again later, or use Upload Image / Image URL instead."
+          : msg,
+      );
+      toast.error(msg);
     } finally {
       generatingRef.current = false;
       setUploading(false);
+      setGenerationError(null);
     }
   };
 
@@ -827,9 +856,9 @@ export default function AdminCampaigns() {
                       >
                         Validate URL
                       </Button>
-                      {isUrlValid.current !== null && (
+                      {urlValidityRef.current !== null && (
                         <span className="text-[11px] text-muted-foreground self-center">
-                          {isUrlValid.current
+                          {urlValidityRef.current
                             ? "Looks valid"
                             : "Invalid or unreachable"}
                         </span>
@@ -858,6 +887,16 @@ export default function AdminCampaigns() {
                           Add a GEMINI_API_KEY to enable it — meanwhile use
                           &ldquo;Upload Image&rdquo; or &ldquo;Use Image
                           URL&rdquo;.
+                        </p>
+                      </>
+                    ) : generationError ? (
+                      <>
+                        <p className="text-sm text-muted-foreground">
+                          {generationError}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground mt-1">
+                          You can use &ldquo;Upload Image&rdquo; or &ldquo;Use
+                          Image URL&rdquo; instead.
                         </p>
                       </>
                     ) : (

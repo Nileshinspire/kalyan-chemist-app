@@ -3,8 +3,9 @@ import { v } from "convex/values";
 import { api } from "./_generated/api";
 
 // Best-effort server-side guard: only ONE AI generation may run per campaign
-// at a time. Complements the frontend in-flight flag against double-submits.
-const inFlightGenerations = new Set<string>();
+// at a time. Complements the frontend in-flight flag against double-submits.    // In-flight guard: only ONE AI generation may run for a given campaign at a
+    // time. Complements the frontend in-flight flag against double-submits.
+    const inFlightGenerations = new Set<string>();
 
 // ── Public: active campaigns for homepage carousel ──
 export const active = query({
@@ -412,10 +413,10 @@ async function generateCampaignImageInner(
             headers,
             body: buildBody(true),
           });
+          // Some image models reject an explicit responseModalities config —
+          // retry once without it (they default to image output).
           if (!response.ok) {
             const errText = await response.text().catch(() => "");
-            // Some image models reject an explicit responseModalities config —
-            // retry once without it (they default to image output).
             if (/modalit/i.test(errText)) {
               response = await fetch(generateUrl, {
                 method: "POST",
@@ -461,6 +462,10 @@ async function generateCampaignImageInner(
                   ? 2000
                   : 5000;
                 await sleep(waitMs);
+                // For a transient 429, retry using the SAME request shape that
+                // produced it (with or without responseModalities). Keep the
+                // request format consistent, otherwise we may trip the same
+                // rejection again.
                 continue;
               }
               lastError = `${modelName}: rate limited (429) after ${MAX_ATTEMPTS} attempts.`;
