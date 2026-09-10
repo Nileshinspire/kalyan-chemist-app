@@ -93,24 +93,38 @@ export const upsert = mutation({
       updatedAt: now,
     };
 
-    const id =
-      args.id !== undefined
-        ? await ctx.db.patch(args.id, campaignFields)
-        : await ctx.db.insert("campaigns", {
-            ...campaignFields,
-            createdAt: now,
-          });
-
-    if (id === undefined || id === null) {
-      throw new Error("Campaign storage returned no record");
+    // External image URLs are stored directly as the image source — they are
+    // NOT uploaded to Convex storage and must never be treated as storage IDs.
+    if (args.imageSource === "url") {
+      const urlValue = (args.publicUrl ?? args.bannerImage ?? "").trim();
+      if (urlValue) {
+        let parsed: URL;
+        try {
+          parsed = new URL(urlValue);
+        } catch {
+          throw new Error(
+            "Invalid image URL. Please paste a full absolute URL starting with http:// or https://"
+          );
+        }
+        if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+          throw new Error(
+            "Invalid image URL protocol. Only http:// and https:// image URLs are supported."
+          );
+        }
+      }
     }
 
-    // Backfill the public URL field from whichever source was used.
-    if (args.publicUrl) {
-      await ctx.db.patch(id as any, { publicUrl: args.publicUrl });
+    // NOTE: ctx.db.patch() returns void, not the document id — the id for an
+    // update is the one we were given. Only inserts return a new id.
+    if (args.id !== undefined) {
+      await ctx.db.patch(args.id, campaignFields);
+      return args.id as any;
     }
 
-    return id as any;
+    return (await ctx.db.insert("campaigns", {
+      ...campaignFields,
+      createdAt: now,
+    })) as any;
   },
 });
 
@@ -184,6 +198,9 @@ export const updateBannerUrl = mutation({
 });
 
 // ── Admin: validate an image URL ──
+// Purely syntactic validation. Convex mutations cannot perform network
+// requests (fetch is only available in actions/queries), so actual
+// loadability is verified by the browser preview of the image.
 export const validateImageUrl = mutation({
   args: { url: v.string() },
   handler: async (_ctx, args) => {
@@ -192,66 +209,29 @@ export const validateImageUrl = mutation({
       throw new Error("URL cannot be empty");
     }
 
-    // Basic URL format check
-    try {
-      new URL(trimmed);
-    } catch {
-      throw new Error("Invalid URL format");
-    }
-
-    // Check that it looks like an image URL
-    const imageExtensions = /\.(jpg|jpeg|png|webp|gif|svg)(\?.*)?$/i;
-    const isImageByExtension = imageExtensions.test(trimmed);
-    const isDataUrl = trimmed.startsWith("data:image/");
-
-    // Allow data URLs for preview, but warn they won't work as public URLs
-    if (isDataUrl) {
+    if (trimmed.startsWith("data:")) {
       throw new Error(
-        "Data URLs cannot be used as public banner images. Please upload the file instead."
+        "Data URLs cannot be used as banner images. Please upload the file instead."
       );
     }
 
-    if (!isImageByExtension) {
-      // Could be a valid image hosting URL without extension, just warn
-      // The actual validation happens when the browser tries to load it
+    let parsed: URL;
+    try {
+      parsed = new URL(trimmed);
+    } catch {
+      throw new Error(
+        "Invalid URL format. Please paste a full absolute URL starting with http:// or https://"
+      );
     }
 
-    // Try to HEAD the URL to check accessibility
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
-      const response = await fetch(trimmed, {
-        method: "HEAD",
-        signal: controller.signal,
-        mode: "cors",
-      });
-      clearTimeout(timeoutId);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      throw new Error(
+        "Only http:// and https:// image URLs are supported."
+      );
+    }
 
-      if (!response.ok) {
-        throw new Error(
-          `Image URL returned status ${response.status}. The URL may be invalid or the image may not be accessible.`
-        );
-      }
-
-      // Check content type if available
-      const contentType = response.headers.get("content-type");
-      if (contentType && !contentType.startsWith("image/")) {
-        throw new Error(
-          `URL does not point to an image (content type: ${contentType})`
-        );
-      }
-    } catch (fetchError: any) {
-      if (fetchError.name === "AbortError") {
-        throw new Error(
-          "Image URL validation timed out. The server may be slow or unreachable."
-        );
-      }
-      // CORS might block HEAD requests, but the URL might still be valid
-      // for <img> tags. Only throw if it's not a CORS issue.
-      if (!fetchError.message?.includes("Failed to fetch")) {
-        throw fetchError;
-      }
-      // CORS blocked the HEAD request, but it could still work in an <img> tag
+    if (!parsed.hostname) {
+      throw new Error("Invalid URL: hostname is missing.");
     }
 
     return { valid: true };
@@ -301,55 +281,156 @@ export const generateCampaignImage = action({
       .filter(Boolean)
       .join(" ");
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-preview-image-generation:generateContent?key=${encodeURIComponent(apiKey)}`;
-
-    let response: Response;
+    // ── Discover a currently supported image-generation model ──
+    // The previously hardcoded preview model
+    // (gemini-2.0-flash-preview-image-generation) has been shut down. Instead
+    // of guessing model names, ask the Gemini API which models are actually
+    // available to this key and use the best one that supports image
+    // generation via generateContent.
+    const allModels: Array<{
+      name?: string;
+      supportedGenerationMethods?: string[];
+    }> = [];
+    let pageToken: string | undefined;
     try {
-      response = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
-          generationConfig: {
-            responseModalities: ["TEXT", "IMAGE"],
-          },
-        }),
-      });
+      do {
+        const pageUrl = `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ""}`;
+        const pageResponse = await fetch(pageUrl);
+        if (!pageResponse.ok) {
+          let detail = `status ${pageResponse.status}`;
+          try {
+            const errJson = await pageResponse.json();
+            detail = errJson?.error?.message || detail;
+          } catch {
+            // keep default detail
+          }
+          throw new Error(
+            `Could not list available AI models (${detail}).`
+          );
+        }
+        const pageData = await pageResponse.json();
+        if (Array.isArray(pageData?.models)) allModels.push(...pageData.models);
+        pageToken = pageData?.nextPageToken;
+      } while (pageToken);
     } catch (err: any) {
+      if (err?.message?.startsWith("Could not list")) throw err;
       throw new Error(
         `Image generation service is unreachable: ${err?.message || "network error"}`
       );
     }
 
-    if (!response.ok) {
-      let detail = `status ${response.status}`;
-      try {
-        const errJson = await response.json();
-        detail = errJson?.error?.message || detail;
-      } catch {
-        // keep default detail
-      }
-      throw new Error(`Image generation failed (${detail}).`);
-    }
+    const imageModels = allModels
+      .filter(
+        (m) =>
+          (m.name ?? "").includes("image") &&
+          (m.supportedGenerationMethods ?? []).includes("generateContent")
+      )
+      .map((m) => m.name!.replace(/^models\//, ""));
 
-    const data = await response.json();
-    const parts: any[] = data?.candidates?.[0]?.content?.parts ?? [];
-    const imagePart = parts.find((p) => p.inlineData?.data || p.inline_data?.data);
-    const base64 = imagePart?.inlineData?.data || imagePart?.inline_data?.data;
-    const mimeType =
-      imagePart?.inlineData?.mimeType ||
-      imagePart?.inline_data?.mime_type ||
-      "image/png";
+    // Prefer the newest generally-available image models first.
+    const preference = [
+      /gemini-3(\.\d+)?-flash-image$/,
+      /gemini-3(\.\d+)?-flash-lite-image$/,
+      /gemini-3(\.\d+)?-pro-image$/,
+      /gemini-2\.5-flash-image$/,
+    ];
+    imageModels.sort((a, b) => {
+      const rank = (n: string) => {
+        const i = preference.findIndex((re) => re.test(n));
+        return i === -1 ? preference.length : i;
+      };
+      const byRank = rank(a) - rank(b);
+      if (byRank !== 0) return byRank;
+      // Prefer GA names over -preview variants within the same tier.
+      return Number(a.includes("preview")) - Number(b.includes("preview"));
+    });
 
-    if (!base64) {
+    if (imageModels.length === 0) {
       throw new Error(
-        "The AI service did not return an image for this campaign. Try rephrasing the title or use Upload Image instead."
+        "No AI image-generation model is available for the configured Gemini API key. Use Upload Image or Image URL instead."
       );
     }
 
-    const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+    const contents = [{ role: "user", parts: [{ text: prompt }] }];
+    const headers = { "Content-Type": "application/json" };
+    const buildBody = (withModalities: boolean) =>
+      JSON.stringify(
+        withModalities
+          ? { contents, generationConfig: { responseModalities: ["IMAGE"] } }
+          : { contents }
+      );
+
+    let generated: { base64: string; mimeType: string; model: string } | null =
+      null;
+    let lastError = "the AI service returned no usable response";
+
+    for (const modelName of imageModels.slice(0, 4)) {
+      const generateUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(apiKey)}`;
+      try {
+        let response = await fetch(generateUrl, {
+          method: "POST",
+          headers,
+          body: buildBody(true),
+        });
+        if (!response.ok) {
+          const errText = await response.text().catch(() => "");
+          // Some image models reject an explicit responseModalities config —
+          // retry once without it (they default to image output).
+          if (/modalit/i.test(errText)) {
+            response = await fetch(generateUrl, {
+              method: "POST",
+              headers,
+              body: buildBody(false),
+            });
+          }
+        }
+        if (!response.ok) {
+          let detail = `status ${response.status}`;
+          try {
+            const errJson = await response.json();
+            detail = errJson?.error?.message || detail;
+          } catch {
+            // keep default detail
+          }
+          lastError = `${modelName}: ${detail}`;
+          continue; // try the next available model
+        }
+
+        const result = await response.json();
+        const parts: any[] = result?.candidates?.[0]?.content?.parts ?? [];
+        const imagePart = parts.find(
+          (p) => p.inlineData?.data || p.inline_data?.data
+        );
+        const base64 =
+          imagePart?.inlineData?.data || imagePart?.inline_data?.data;
+        if (base64) {
+          generated = {
+            base64,
+            mimeType:
+              imagePart?.inlineData?.mimeType ||
+              imagePart?.inline_data?.mime_type ||
+              "image/png",
+            model: modelName,
+          };
+          break;
+        }
+        lastError = `${modelName}: the model returned no image (it may have refused this prompt).`;
+      } catch (err: any) {
+        lastError = `${modelName}: ${err?.message || "network error"}`;
+      }
+    }
+
+    if (!generated) {
+      throw new Error(
+        `Image generation failed (${lastError}). Try rephrasing the campaign title, or use Upload Image / Image URL instead.`
+      );
+    }
+
+    const bytes = Uint8Array.from(atob(generated.base64), (c) =>
+      c.charCodeAt(0)
+    );
     const storageId = await ctx.storage.store(
-      new Blob([bytes.buffer as ArrayBuffer], { type: mimeType })
+      new Blob([bytes.buffer as ArrayBuffer], { type: generated.mimeType })
     );
     const publicUrl = await ctx.storage.getUrl(storageId);
     if (!publicUrl) {
