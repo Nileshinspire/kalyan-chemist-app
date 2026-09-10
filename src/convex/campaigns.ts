@@ -123,31 +123,43 @@ export const remove = mutation({
 });
 
 // ── Admin: upload campaign banner image to Convex file storage ──
-// Accepts the file as a Blob and returns the public URL.
-export const uploadBanner = action({
+// Proper large-file flow: the client requests a short-lived upload URL, POSTs
+// the (already optimized) file directly to Convex storage, then calls
+// attachBanner with the returned storageId. This avoids the ~1MB function
+// argument limit that broke uploads of reasonably-sized images.
+export const generateBannerUploadUrl = mutation({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.storage.generateUploadUrl();
+  },
+});
+
+export const attachBanner = mutation({
   args: {
     campaignId: v.id("campaigns"),
-    blob: v.bytes(),
-    contentType: v.string(),
-    fileName: v.string(),
+    storageId: v.id("_storage"),
+    imageSource: v.optional(
+      v.union(
+        v.literal("upload"),
+        v.literal("url"),
+        v.literal("generated"),
+        v.literal("none")
+      )
+    ),
   },
   handler: async (ctx, args) => {
-    // Store the file in Convex file storage
-    const storageId = await ctx.storage.store(
-      new Blob([args.blob], { type: args.contentType })
-    );
-
-    // Get a public URL for the stored file
-    const url = await ctx.storage.getUrl(storageId);
+    const url = await ctx.storage.getUrl(args.storageId);
     if (!url) {
-      throw new Error("Failed to generate public URL for uploaded banner");
+      throw new Error(
+        "Uploaded image could not be resolved to a public URL. Upload failed."
+      );
     }
 
-    // Update the campaign record with the real public URL using a mutation
-    await ctx.runMutation(api.campaigns.updateBannerUrl, {
-      campaignId: args.campaignId,
+    await ctx.db.patch(args.campaignId, {
       publicUrl: url,
       bannerImage: url,
+      imageSource: args.imageSource ?? "upload",
+      updatedAt: Date.now(),
     });
 
     return url;
@@ -246,19 +258,140 @@ export const validateImageUrl = mutation({
   },
 });
 
-// ── Admin: generate campaign banner image with AI ──
-// Placeholder for future AI image generation integration.
+// ── DEPRECATED shim kept only so the pre-existing admin page type-checks ──
+// during migration; removed once AdminCampaigns.tsx uses the upload-URL flow.
+export const uploadBanner = action({
+  args: {
+    campaignId: v.id("campaigns"),
+    blob: v.bytes(),
+    contentType: v.string(),
+    fileName: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const storageId = await ctx.storage.store(
+      new Blob([args.blob], { type: args.contentType })
+    );
+    const url = await ctx.storage.getUrl(storageId);
+    if (!url) {
+      throw new Error("Failed to generate public URL for uploaded banner");
+    }
+    await ctx.runMutation(api.campaigns.updateBannerUrl, {
+      campaignId: args.campaignId,
+      publicUrl: url,
+      bannerImage: url,
+    });
+    return url;
+  },
+});
+
+// ── Admin: is AI image generation available? ──
+export const aiImageStatus = query({
+  args: {},
+  handler: async () => {
+    return { configured: Boolean(process.env.GEMINI_API_KEY) };
+  },
+});
+
+// ── Admin: generate campaign banner image with AI (Gemini image model) ──
+// Server-side only: the API key never leaves the server. The generated image
+// is stored in Convex file storage and attached to the campaign, so the
+// returned URL is a persistent public reference (not a temporary/local URL).
 export const generateCampaignImage = action({
   args: {
+    campaignId: v.optional(v.id("campaigns")),
     title: v.string(),
     subtitle: v.optional(v.string()),
   },
-  handler: async (_ctx, args) => {
-    // AI image generation is not yet configured.
-    // When an image generation service is available (e.g. OpenAI DALL-E, Stability AI),
-    // implement it here and return the public URL of the generated image.
-    throw new Error(
-      "AI image generation is not configured yet. Please use Upload Image or Image URL instead."
+  handler: async (ctx, args) => {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error(
+        "AI image generation is not configured. Add a GEMINI_API_KEY to enable it — meanwhile use Upload Image or Image URL."
+      );
+    }
+    if (!args.campaignId) {
+      throw new Error("A saved campaign is required before generating an image.");
+    }
+
+    const title = args.title.trim();
+    if (!title) {
+      throw new Error("Campaign title is required to generate an image.");
+    }
+
+    // Careful prompt: brand-appropriate promotional banner, no medical claims,
+    // no invented discount figures, no text beyond the supplied title.
+    const prompt = [
+      "Create a premium wide promotional e-commerce banner (21:9 landscape) for Kalyan Chemist, a modern local pharmacy.",
+      `Campaign topic: "${title}".`,
+      args.subtitle?.trim() ? `Campaign description: "${args.subtitle.trim()}".` : "",
+      "Style: clean modern healthcare retail aesthetic, soft emerald green and deep teal gradients with subtle mint highlights, elegant studio product photography feel, generous empty space on the left half of the image for overlaid text, warm coral accent details.",
+      "Rules: no medical claims, no prices, no discount percentages, no promo codes, no watermarks, no brand logos, no text or lettering other than short decorative shapes. Photorealistic, well-lit, calm and professional.",
+    ]
+      .filter(Boolean)
+      .join(" ");
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-preview-image-generation:generateContent?key=${encodeURIComponent(apiKey)}`;
+
+    let response: Response;
+    try {
+      response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+          generationConfig: {
+            responseModalities: ["TEXT", "IMAGE"],
+          },
+        }),
+      });
+    } catch (err: any) {
+      throw new Error(
+        `Image generation service is unreachable: ${err?.message || "network error"}`
+      );
+    }
+
+    if (!response.ok) {
+      let detail = `status ${response.status}`;
+      try {
+        const errJson = await response.json();
+        detail = errJson?.error?.message || detail;
+      } catch {
+        // keep default detail
+      }
+      throw new Error(`Image generation failed (${detail}).`);
+    }
+
+    const data = await response.json();
+    const parts: any[] = data?.candidates?.[0]?.content?.parts ?? [];
+    const imagePart = parts.find((p) => p.inlineData?.data || p.inline_data?.data);
+    const base64 = imagePart?.inlineData?.data || imagePart?.inline_data?.data;
+    const mimeType =
+      imagePart?.inlineData?.mimeType ||
+      imagePart?.inline_data?.mime_type ||
+      "image/png";
+
+    if (!base64) {
+      throw new Error(
+        "The AI service did not return an image for this campaign. Try rephrasing the title or use Upload Image instead."
+      );
+    }
+
+    const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+    const storageId = await ctx.storage.store(
+      new Blob([bytes.buffer as ArrayBuffer], { type: mimeType })
     );
+    const publicUrl = await ctx.storage.getUrl(storageId);
+    if (!publicUrl) {
+      throw new Error("Generated image was stored but no public URL could be created.");
+    }
+
+    // Persist on the campaign record so it survives refresh.
+    await ctx.runMutation(api.campaigns.attachBanner, {
+      campaignId: args.campaignId,
+      storageId,
+      imageSource: "generated",
+    });
+
+    return publicUrl;
   },
 });
