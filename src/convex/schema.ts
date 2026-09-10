@@ -948,9 +948,15 @@ const schema = defineSchema(
     campaigns: defineTable({
       title: v.string(),
       subtitle: v.optional(v.string()),
-      bannerImage: v.string(),
+      bannerImage: v.optional(v.string()),
       desktopBannerImage: v.optional(v.string()),
       mobileBannerImage: v.optional(v.string()),
+      imageSource: v.union(
+        v.literal("upload"),
+        v.literal("url"),
+        v.literal("generated"),
+        v.literal("none")
+      ),
       ctaText: v.optional(v.string()),
       ctaDestination: v.optional(v.string()),
       targetType: v.union(
@@ -967,6 +973,8 @@ const schema = defineSchema(
       priority: v.number(),
       createdAt: v.number(),
       updatedAt: v.number(),
+      // Public image URL for the primary banner (set from upload, URL, or generation)
+      publicUrl: v.optional(v.string()),
     })
       .index("by_active_dates", ["isActive", "startDate", "endDate"])
       .index("by_priority", ["priority"]),

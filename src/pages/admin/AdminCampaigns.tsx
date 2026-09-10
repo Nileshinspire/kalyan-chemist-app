@@ -27,8 +27,12 @@ import {
   Eye,
   EyeOff,
   Calendar,
+  Upload,
+  Image,
+  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
+import { api } from "@/convex/_generated/api";
 
 interface CampaignForm {
   title: string;
@@ -36,6 +40,8 @@ interface CampaignForm {
   bannerImage: string;
   desktopBannerImage: string;
   mobileBannerImage: string;
+  imageSource: "upload" | "url" | "generated" | "none";
+  publicUrl: string;
   ctaText: string;
   ctaDestination: string;
   targetType: "category" | "product" | "page" | "external" | "none";
@@ -52,6 +58,8 @@ const EMPTY_FORM: CampaignForm = {
   bannerImage: "",
   desktopBannerImage: "",
   mobileBannerImage: "",
+  imageSource: "url",
+  publicUrl: "",
   ctaText: "Shop Now",
   ctaDestination: "",
   targetType: "none",
@@ -77,10 +85,17 @@ export default function AdminCampaigns() {
   const [form, setForm] = useState<CampaignForm>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [deleteDialogId, setDeleteDialogId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"upload" | "url" | "generated">("url");
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [generatedUrl, setGeneratedUrl] = useState<string | null>(null);
 
   const campaigns = useQuery(api.campaigns.list);
   const upsertCampaign = useMutation(api.campaigns.upsert);
   const deleteCampaign = useMutation(api.campaigns.remove);
+  const uploadBanner = useMutation(api.campaigns.uploadBanner);
+  const validateImageUrl = useMutation(api.campaigns.validateImageUrl);
+  const generateCampaignImage = useMutation(api.campaigns.generateCampaignImage);
 
   const filteredCampaigns = campaigns?.filter((c: any) => {
     if (!search) return true;
@@ -98,9 +113,11 @@ export default function AdminCampaigns() {
     setForm({
       title: campaign.title,
       subtitle: campaign.subtitle || "",
-      bannerImage: campaign.bannerImage,
+      bannerImage: campaign.bannerImage || "",
       desktopBannerImage: campaign.desktopBannerImage || "",
       mobileBannerImage: campaign.mobileBannerImage || "",
+      imageSource: (campaign.imageSource as CampaignForm["imageSource"]) || "url",
+      publicUrl: campaign.publicUrl || "",
       ctaText: campaign.ctaText || "Shop Now",
       ctaDestination: campaign.ctaDestination || "",
       targetType: campaign.targetType || "none",
@@ -110,16 +127,14 @@ export default function AdminCampaigns() {
       isActive: campaign.isActive,
       priority: campaign.priority,
     });
+    setPreviewUrl(campaign.publicUrl || campaign.bannerImage || "");
+    setActiveTab(campaign.imageSource === "upload" ? "upload" : campaign.imageSource === "generated" ? "generated" : "url");
     setDialogOpen(true);
   };
 
   const handleSave = async () => {
     if (!form.title.trim()) {
       toast.error("Campaign title is required");
-      return;
-    }
-    if (!form.bannerImage.trim()) {
-      toast.error("Banner image URL is required");
       return;
     }
 
@@ -140,14 +155,34 @@ export default function AdminCampaigns() {
       return;
     }
 
+    if (!previewUrl && activeTab !== "generated") {
+      toast.error("Please provide a banner image (upload, URL, or generated).");
+      return;
+    }
+
+    const finalPublicUrl =
+      activeTab === "upload"
+        ? previewUrl
+        : activeTab === "generated"
+        ? generatedUrl ?? previewUrl
+        : form.bannerImage.trim();
+
+    if (!finalPublicUrl) {
+      toast.error("Please provide a valid banner image source.");
+      return;
+    }
+
     setSaving(true);
     try {
       const payload: any = {
         title: form.title.trim(),
         subtitle: form.subtitle.trim() || undefined,
-        bannerImage: form.bannerImage.trim(),
+        bannerImage: form.bannerImage.trim() || undefined,
         desktopBannerImage: form.desktopBannerImage.trim() || undefined,
         mobileBannerImage: form.mobileBannerImage.trim() || undefined,
+        imageSource:
+          activeTab === "generated" ? "generated" : activeTab,
+        publicUrl: finalPublicUrl,
         ctaText: form.ctaText.trim() || undefined,
         ctaDestination: form.ctaDestination.trim() || undefined,
         targetType: form.targetType,
@@ -181,6 +216,76 @@ export default function AdminCampaigns() {
   };
 
   const now = Date.now();
+
+  const handleBannerFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!ALLOWED_BANNER_MIME.includes(file.type)) {
+      toast.error(
+        `Unsupported file type "${file.type}". Supported types: ${ALLOWED_BANNER_MIME.join(", ")}`
+      );
+      return;
+    }
+
+    setUploading(true);
+    try {
+      if (editingId) {
+        const url = (await uploadBanner({ campaignId: editingId, file })) as string;
+        setPreviewUrl(url);
+        setForm((prev) => ({
+          ...prev,
+          bannerImage: url,
+          publicUrl: url,
+          imageSource: "upload",
+        }));
+      } else {
+        // For a new campaign, we cannot upload until the record exists, so stage the
+        // file locally as a preview and upload on save.
+        const staged = await readFileAsDataUrl(file);
+        setPreviewUrl(staged);
+        setForm((prev) => ({
+          ...prev,
+          bannerImage: staged,
+          publicUrl: staged,
+          imageSource: "upload",
+        }));
+      }
+    } catch (err: any) {
+      toast.error(err.message || "Image upload failed");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleGenerateImage = async () => {
+    if (!form.title.trim()) {
+      toast.error("Add a campaign title before generating an image.");
+      return;
+    }
+    setUploading(true);
+    try {
+      const url = (await generateCampaignImage({
+        title: form.title.trim(),
+        subtitle: form.subtitle.trim() || undefined,
+      })) as string | null;
+      if (!url) {
+        toast.error("Image generation did not return a valid image URL.");
+        return;
+      }
+      setGeneratedUrl(url);
+      setPreviewUrl(url);
+      setForm((prev) => ({
+        ...prev,
+        publicUrl: url,
+        imageSource: "generated",
+      }));
+    } catch (err: any) {
+      toast.error(err.message || "Image generation failed");
+    } finally {
+      setUploading(false);
+    }
+  };
 
   return (
     <AdminLayout>
@@ -327,22 +432,171 @@ export default function AdminCampaigns() {
                 />
               </div>
 
-              {/* Banner Image */}
-              <div className="space-y-1.5">
-                <Label>Banner Image URL *</Label>
-                <Input
-                  value={form.bannerImage}
-                  onChange={(e) => setForm({ ...form, bannerImage: e.target.value })}
-                  placeholder="https://example.com/banner.jpg"
-                />
-                {form.bannerImage && (
-                  <div className="mt-2 rounded-lg overflow-hidden border border-border/40 h-24 bg-muted">
-                    <img src={form.bannerImage} alt="Preview" className="w-full h-full object-cover" onError={(e) => (e.currentTarget.style.display = "none")} />
+              {/* Campaign Creative */}
+              <div className="space-y-3">
+                <Label className="!mb-1">Campaign Creative</Label>
+
+                {/* Source tabs */}
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTab("url");
+                      setPreviewUrl(form.bannerImage || "");
+                    }}
+                    className={`flex-1 rounded-lg border p-2 text-sm font-medium transition-colors ${
+                      activeTab === "url"
+                        ? "border-primary/60 bg-primary/10 text-primary"
+                        : "border-border/60 bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    <Image className="size-4 mr-1.5" />
+                    Use Image URL
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTab("upload");
+                      if (!previewUrl) setPreviewUrl(null);
+                    }}
+                    className={`flex-1 rounded-lg border p-2 text-sm font-medium transition-colors ${
+                      activeTab === "upload"
+                        ? "border-primary/60 bg-primary/10 text-primary"
+                        : "border-border/60 bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    <Upload className="size-4 mr-1.5" />
+                    Upload Image
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTab("generated");
+                      if (!generatedUrl) setPreviewUrl(null);
+                    }}
+                    className={`flex-1 rounded-lg border p-2 text-sm font-medium transition-colors ${
+                      activeTab === "generated"
+                        ? "border-primary/60 bg-primary/10 text-primary"
+                        : "border-border/60 bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    <Sparkles className="size-4 mr-1.5" />
+                    Generate with AI
+                  </button>
+                </div>
+
+                {/* URL source */}
+                {activeTab === "url" && (
+                  <div className="space-y-1.5">
+                    <Label>Image URL</Label>
+                    <Input
+                      value={form.bannerImage}
+                      onChange={(e) => {
+                        setForm({ ...form, bannerImage: e.target.value });
+                        setPreviewUrl(e.target.value || null);
+                      }}
+                      placeholder="https://example.com/banner.jpg"
+                    />
+                    <p className="text-[11px] text-muted-foreground">
+                      Paste a publicly accessible image URL (JPG, PNG, WebP).
+                    </p>
+                  </div>
+                )}
+
+                {/* Upload source */}
+                {activeTab === "upload" && (
+                  <div className="space-y-1.5">
+                    <Label>Upload Banner Image</Label>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="hidden"
+                      id="campaign-banner-upload"
+                      onChange={handleBannerFileChange}
+                    />
+                    <label
+                      htmlFor="campaign-banner-upload"
+                      className={`flex cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-dashed px-4 py-5 text-sm transition-colors ${
+                        previewUrl
+                          ? "border-primary/30 bg-primary/5"
+                          : "border-border/40 bg-muted/50 text-muted-foreground"
+                      } hover:bg-muted/80`}
+                    >
+                      {previewUrl ? (
+                        <>
+                          <Image className="size-4 text-primary" />
+                          Image selected — choose a different file to replace
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="size-4" />
+                          Select banner image
+                        </>
+                      )}
+                    </label>
+                    <p className="text-[11px] text-muted-foreground">
+                      Supports JPG, PNG, WebP. The file is stored and used directly on the homepage.
+                    </p>
+                  </div>
+                )}
+
+                {/* AI generation source — disabled unless an existing image-generation capability is configured */}
+                {activeTab === "generated" && (
+                  <div className="space-y-1.5">
+                    <Label>Generate Banner with AI</Label>
+                    {generatedUrl ? (
+                      <div className="flex items-center gap-2">
+                        <Sparkles className="size-4 text-primary" />
+                        <span className="text-sm text-muted-foreground">
+                          AI banner is configured for this campaign.
+                        </span>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="ml-auto"
+                          onClick={() => {
+                            setGeneratedUrl(null);
+                            setPreviewUrl(null);
+                          }}
+                        >
+                          Remove generated banner
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="rounded-lg border border-dashed border-border/40 bg-muted/40 p-4 text-center">
+                        <Sparkles className="size-6 mx-auto mb-2 text-muted-foreground/50" />
+                        <p className="text-sm text-muted-foreground">
+                          AI image generation is not configured yet.
+                        </p>
+                        <p className="text-[11px] text-muted-foreground mt-1">
+                          Choose “Upload Image” or “Use Image URL” in the meantime.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Preview */}
+                {previewUrl && (
+                  <div className="mt-2">
+                    <Label className="!mb-1.5">Banner Preview</Label>
+                    <div className="rounded-lg overflow-hidden border border-border/40 h-32 sm:h-40 bg-muted">
+                      <img
+                        src={previewUrl}
+                        alt="Banner preview"
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).style.display = "none";
+                          toast.error("Preview could not be loaded. Check the image source.");
+                        }}
+                      />
+                    </div>
                   </div>
                 )}
               </div>
 
-              {/* Desktop / Mobile images */}
+              {/* Optional desktop / mobile overrides */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label>Desktop Banner (optional)</Label>
@@ -351,6 +605,9 @@ export default function AdminCampaigns() {
                     onChange={(e) => setForm({ ...form, desktopBannerImage: e.target.value })}
                     placeholder="Desktop image URL"
                   />
+                  <p className="text-[11px] text-muted-foreground">
+                    If provided, this is used on desktop instead of the main banner.
+                  </p>
                 </div>
                 <div className="space-y-1.5">
                   <Label>Mobile Banner (optional)</Label>
@@ -359,8 +616,57 @@ export default function AdminCampaigns() {
                     onChange={(e) => setForm({ ...form, mobileBannerImage: e.target.value })}
                     placeholder="Mobile image URL"
                   />
+                  <p className="text-[11px] text-muted-foreground">
+                    If provided, this is used on mobile instead of the main banner.
+                  </p>
                 </div>
               </div>
+
+              {/* AI banner generation (only if configured) */}
+              {activeTab === "generated" && (
+                <div className="rounded-lg border border-border/40 bg-muted/30 p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Sparkles className="size-4 text-primary" />
+                    <Label className="!mb-0">Generate a Banner from the Campaign Details</Label>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    If an image-generation service is available, it can create a desktop-appropriate promotional banner using the title and subtitle you provided.
+                  </p>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="flex-1 gap-2"
+                      disabled={saving || uploading}
+                      onClick={handleGenerateImage}
+                    >
+                      {uploading ? (
+                        <>
+                          <Loader2 className="size-4 animate-spin" />
+                          Generating...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="size-4" />
+                          Generate Banner
+                        </>
+                      )}
+                    </Button>
+                    {generatedUrl && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setGeneratedUrl(null);
+                          setPreviewUrl(null);
+                        }}
+                      >
+                        Clear
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* CTA */}
               <div className="grid grid-cols-2 gap-3">
