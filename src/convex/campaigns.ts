@@ -2,6 +2,10 @@ import { query, mutation, action } from "./_generated/server";
 import { v } from "convex/values";
 import { api } from "./_generated/api";
 
+// Best-effort server-side guard: only ONE AI generation may run per campaign
+// at a time. Complements the frontend in-flight flag against double-submits.
+const inFlightGenerations = new Set<string>();
+
 // ── Public: active campaigns for homepage carousel ──
 export const active = query({
   handler: async (ctx) => {
@@ -266,6 +270,25 @@ export const generateCampaignImage = action({
     subtitle: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    if (inFlightGenerations.has(args.campaignId)) {
+      throw new Error(
+        "A banner image is already being generated for this campaign. Please wait for it to finish."
+      );
+    }
+    inFlightGenerations.add(args.campaignId);
+    try {
+      return await generateCampaignImageInner(ctx, args);
+    } finally {
+      inFlightGenerations.delete(args.campaignId);
+    }
+  },
+});
+
+async function generateCampaignImageInner(
+  ctx: any,
+  args: { campaignId: any; title: string; subtitle?: string }
+) {
+  {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       throw new Error(
@@ -417,9 +440,11 @@ export const generateCampaignImage = action({
               const quotaExhausted =
                 errorStatus === "RESOURCE_EXHAUSTED" || /quota/i.test(detail);
               if (quotaExhausted) {
-                // Quota exhaustion is not transient — do NOT keep retrying.
-                lastError = `${modelName}: Gemini quota exhausted for this API key. Try again later.`;
-                break; // move to the next model (at most one more)
+                // Quota exhaustion is per API key, not per model — do NOT keep
+                // retrying or try other models on the same exhausted key.
+                throw new Error(
+                  "AI image generation is temporarily unavailable: the Gemini API key has exhausted its image-generation quota. Please try again later, or use Upload Image / Image URL instead."
+                );
               }
               // Transient rate limit: bounded exponential backoff (2s, 5s),
               // honoring Retry-After when the provider supplies it.
@@ -499,5 +524,5 @@ export const generateCampaignImage = action({
     });
 
     return publicUrl;
-  },
-});
+  }
+}

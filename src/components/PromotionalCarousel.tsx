@@ -57,7 +57,7 @@ function primaryImageOf(campaign: any): string {
   );
 }
 
-const AUTOPLAY_MS = 5000;
+const AUTOPLAY_MS = 4000; // Campaign changes every EXACTLY 4 seconds.
 const FADE_DURATION = 0.55; // seconds — premium crossfade (400–700ms range)
 
 export default function PromotionalCarousel() {
@@ -103,8 +103,9 @@ export default function PromotionalCarousel() {
     []
   );
 
-  useEffect(() => {
-    if (!hasMultiple) return;
+  // Single autoplay interval, (re)started by mount and by manual navigation.
+  // Always clears the previous handle first, so exactly one timer can exist.
+  const startAutoplay = useCallback(() => {
     if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
       if (pausedRef.current) return;
@@ -118,12 +119,16 @@ export default function PromotionalCarousel() {
       if (src && !loadedRef.current[src]) return; // try again next tick
       nextRef.current();
     }, AUTOPLAY_MS);
-    const t = timerRef.current;
+  }, []);
+
+  useEffect(() => {
+    if (!hasMultiple) return;
+    startAutoplay();
     return () => {
-      clearInterval(t);
+      if (timerRef.current) clearInterval(timerRef.current);
       timerRef.current = null;
     };
-  }, [hasMultiple]);
+  }, [hasMultiple, startAutoplay]);
 
   // Manual navigation (arrows, dots, swipe) uses the same smooth transition
   // and correctly resets the autoplay timer afterwards.
@@ -132,15 +137,10 @@ export default function PromotionalCarousel() {
       if (countRef.current === 0) return;
       const wrapped = ((idx % countRef.current) + countRef.current) % countRef.current;
       setCurrent(wrapped);
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-        timerRef.current = setInterval(() => {
-          if (pausedRef.current) return;
-          nextRef.current();
-        }, AUTOPLAY_MS);
-      }
+      // Reset the 4-second autoplay cleanly (single timer, preload-gated).
+      startAutoplay();
     },
-    []
+    [startAutoplay]
   );
 
   // Preload every campaign image (desktop, mobile and fallback variants) as
