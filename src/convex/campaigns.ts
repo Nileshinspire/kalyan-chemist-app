@@ -258,32 +258,6 @@ export const validateImageUrl = mutation({
   },
 });
 
-// ── DEPRECATED shim kept only so the pre-existing admin page type-checks ──
-// during migration; removed once AdminCampaigns.tsx uses the upload-URL flow.
-export const uploadBanner = action({
-  args: {
-    campaignId: v.id("campaigns"),
-    blob: v.bytes(),
-    contentType: v.string(),
-    fileName: v.string(),
-  },
-  handler: async (ctx, args) => {
-    const storageId = await ctx.storage.store(
-      new Blob([args.blob], { type: args.contentType })
-    );
-    const url = await ctx.storage.getUrl(storageId);
-    if (!url) {
-      throw new Error("Failed to generate public URL for uploaded banner");
-    }
-    await ctx.runMutation(api.campaigns.updateBannerUrl, {
-      campaignId: args.campaignId,
-      publicUrl: url,
-      bannerImage: url,
-    });
-    return url;
-  },
-});
-
 // ── Admin: is AI image generation available? ──
 export const aiImageStatus = query({
   args: {},
@@ -298,7 +272,7 @@ export const aiImageStatus = query({
 // returned URL is a persistent public reference (not a temporary/local URL).
 export const generateCampaignImage = action({
   args: {
-    campaignId: v.optional(v.id("campaigns")),
+    campaignId: v.id("campaigns"),
     title: v.string(),
     subtitle: v.optional(v.string()),
   },
@@ -308,9 +282,6 @@ export const generateCampaignImage = action({
       throw new Error(
         "AI image generation is not configured. Add a GEMINI_API_KEY to enable it — meanwhile use Upload Image or Image URL."
       );
-    }
-    if (!args.campaignId) {
-      throw new Error("A saved campaign is required before generating an image.");
     }
 
     const title = args.title.trim();

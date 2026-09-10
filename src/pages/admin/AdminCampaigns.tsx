@@ -78,6 +78,82 @@ function formatDate(ts: number) {
   });
 }
 
+/* ── Banner image optimization ─────────────────────────────────
+   Accepts any reasonably-sized source image and automatically
+   resizes/compresses it to the homepage carousel's banner format
+   (21:8 wide JPEG) before upload. Large images are optimized
+   client-side instead of being rejected — no manual resizing,
+   no distortion (cover-fit, center-crop, never stretched).
+   ─────────────────────────────────────────────────────────── */
+const BANNER_TARGET_WIDTH = 1600;
+const BANNER_TARGET_HEIGHT = Math.round((BANNER_TARGET_WIDTH * 8) / 21); // ≈ 610
+const MAX_SOURCE_FILE_BYTES = 25 * 1024 * 1024; // generous hard cap on raw source
+
+function readFileAsDataUrl(file: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") resolve(reader.result);
+      else reject(new Error("File read returned no data"));
+    };
+    reader.onerror = () => reject(new Error("Failed to read file"));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function optimizeBannerImage(
+  file: File
+): Promise<{ file: File; dataUrl: string }> {
+  let bitmap: ImageBitmap;
+  try {
+    bitmap = await createImageBitmap(file);
+  } catch {
+    throw new Error(
+      "This file could not be read as an image. Please choose a valid JPG, PNG, or WebP image."
+    );
+  }
+
+  try {
+    // Cover-fit into the banner box: scale so the image fully covers,
+    // then center-crop the overflow. Never stretches or distorts.
+    const scale = Math.max(
+      BANNER_TARGET_WIDTH / bitmap.width,
+      BANNER_TARGET_HEIGHT / bitmap.height
+    );
+    const scaledW = Math.round(bitmap.width * scale);
+    const scaledH = Math.round(bitmap.height * scale);
+    const offsetX = Math.round((scaledW - BANNER_TARGET_WIDTH) / 2);
+    const offsetY = Math.round((scaledH - BANNER_TARGET_HEIGHT) / 2);
+
+    const canvas = document.createElement("canvas");
+    canvas.width = BANNER_TARGET_WIDTH;
+    canvas.height = BANNER_TARGET_HEIGHT;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      throw new Error("Image optimization is not supported in this browser.");
+    }
+    ctx.drawImage(bitmap, -offsetX, -offsetY, scaledW, scaledH);
+
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob((b) => resolve(b), "image/jpeg", 0.85)
+    );
+    if (!blob) {
+      throw new Error(
+        "Image optimization failed. Please try a different image."
+      );
+    }
+
+    const baseName = file.name.replace(/\.[^.]+$/, "");
+    const optimized = new File([blob], `${baseName}-banner.jpg`, {
+      type: "image/jpeg",
+    });
+    const dataUrl = await readFileAsDataUrl(optimized);
+    return { file: optimized, dataUrl };
+  } finally {
+    bitmap.close?.();
+  }
+}
+
 export default function AdminCampaigns() {
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -96,11 +172,15 @@ export default function AdminCampaigns() {
   const campaigns = useQuery(api.campaigns.list);
   const upsertCampaign = useMutation(api.campaigns.upsert);
   const deleteCampaign = useMutation(api.campaigns.remove);
-  const uploadBanner = useAction(api.campaigns.uploadBanner);
+  const generateBannerUploadUrl = useMutation(
+    api.campaigns.generateBannerUploadUrl
+  );
+  const attachBanner = useMutation(api.campaigns.attachBanner);
   const validateImageUrl = useMutation(api.campaigns.validateImageUrl);
   const generateCampaignImage = useAction(
     api.campaigns.generateCampaignImage
   );
+  const aiImageStatusQuery = useQuery(api.campaigns.aiImageStatus);
 
   const filteredCampaigns = campaigns?.filter((c: any) => {
     if (!search) return true;
@@ -108,8 +188,32 @@ export default function AdminCampaigns() {
   });
 
   const ALLOWED_BANNER_MIME = ["image/jpeg", "image/png", "image/webp"];
-  const isAiGenerationAvailable = false;
+  const isAiGenerationAvailable = aiImageStatusQuery?.configured === true;
   const isUrlValid = useRef<boolean | null>(null);
+
+  /** Upload an optimized banner file to Convex storage and attach it. */
+  const uploadOptimizedBanner = async (file: File, campaignId: any) => {
+    const postUrl = await generateBannerUploadUrl({});
+    const result = await fetch(postUrl, {
+      method: "POST",
+      headers: { "Content-Type": file.type },
+      body: file,
+    });
+    if (!result.ok) {
+      throw new Error(
+        `Image upload failed (HTTP ${result.status}). Please try again.`
+      );
+    }
+    const { storageId } = (await result.json()) as { storageId: string };
+    if (!storageId) {
+      throw new Error("Upload did not return a valid storage reference.");
+    }
+    return (await attachBanner({
+      campaignId,
+      storageId: storageId as any,
+      imageSource: "upload",
+    })) as string;
+  };
 
   const validateUrl = useCallback(
     async (url: string) => {
@@ -234,15 +338,10 @@ export default function AdminCampaigns() {
       if (stagedFile && campaignId) {
         setUploading(true);
         try {
-          const blob = new Blob([await stagedFile.arrayBuffer()], {
-            type: stagedFile.type,
-          });
-          const uploadedUrl = await uploadBanner({
-            campaignId,
-            blob: blob as any,
-            contentType: stagedFile.type,
-            fileName: stagedFile.name,
-          });
+          const uploadedUrl = await uploadOptimizedBanner(
+            stagedFile,
+            campaignId
+          );
           setPreviewUrl(uploadedUrl);
           setForm((prev) => ({
             ...prev,
@@ -280,50 +379,37 @@ export default function AdminCampaigns() {
     setDeleteDialogId(null);
   };
 
-  const readFileAsPreview = (file: File): Promise<string> =>
-    new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const result = reader.result;
-        if (typeof result === "string") resolve(result);
-        else reject(new Error("File read returned no data"));
-      };
-      reader.onerror = () => reject(new Error("Failed to read file"));
-      reader.readAsDataURL(file);
-    });
-
   const handleBannerFileChange = async (
     event: React.ChangeEvent<HTMLInputElement>
   ) => {
     const file = event.target.files?.[0];
     if (!file) return;
+    // Reset so selecting the same file again re-triggers onChange.
+    event.target.value = "";
 
     if (!ALLOWED_BANNER_MIME.includes(file.type)) {
       toast.error(
         `Unsupported file type "${file.type}". Supported: ${ALLOWED_BANNER_MIME.join(", ")}`
       );
-      event.target.value = "";
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("File size must be less than 5MB");
-      event.target.value = "";
+    if (file.size > MAX_SOURCE_FILE_BYTES) {
+      toast.error(
+        "Image is too large to process. Please choose an image under 25 MB."
+      );
       return;
     }
 
     setUploading(true);
     try {
+      // Optimize first: resize + compress to the web-ready banner format.
+      // Large/high-resolution sources are handled automatically — no manual
+      // resizing required, no 1MB rejection.
+      const { file: optimizedFile, dataUrl } = await optimizeBannerImage(file);
+
       if (editingId) {
-        const blob = new Blob([await file.arrayBuffer()], {
-          type: file.type,
-        });
-        const url = await uploadBanner({
-          campaignId: editingId as any,
-          blob: blob as any,
-          contentType: file.type,
-          fileName: file.name,
-        });
+        const url = await uploadOptimizedBanner(optimizedFile, editingId);
         setPreviewUrl(url);
         setForm((prev) => ({
           ...prev,
@@ -332,9 +418,8 @@ export default function AdminCampaigns() {
           imageSource: "upload",
         }));
       } else {
-        const preview = await readFileAsPreview(file);
-        setStagedFile(file);
-        setPreviewUrl(preview);
+        setStagedFile(optimizedFile);
+        setPreviewUrl(dataUrl);
         setForm((prev) => ({
           ...prev,
           imageSource: "upload",
@@ -352,16 +437,40 @@ export default function AdminCampaigns() {
       toast.error("Add a campaign title before generating an image.");
       return;
     }
-    if (!isAiGenerationAvailable) {
-      toast.error("AI image generation is not configured yet.");
-      return;
-    }
     setUploading(true);
     try {
+      // The generated image is attached to the campaign record, so the
+      // campaign must exist first. Create it (with current details) if needed.
+      let campaignId = editingId;
+      if (!campaignId) {
+        const startMs = new Date(form.startDate).getTime();
+        const endMs = new Date(form.endDate).getTime();
+        if (isNaN(startMs) || isNaN(endMs)) {
+          toast.error("Please enter valid start and end dates first");
+          return;
+        }
+        if (startMs >= endMs) {
+          toast.error("End date must be after start date");
+          return;
+        }
+        campaignId = (await upsertCampaign({
+          title: form.title.trim(),
+          subtitle: form.subtitle.trim() || undefined,
+          imageSource: "generated",
+          targetType: form.targetType,
+          startDate: startMs,
+          endDate: endMs,
+          isActive: form.isActive,
+          priority: form.priority,
+        })) as any;
+        setEditingId(campaignId as any);
+      }
+
       const url = (await generateCampaignImage({
+        campaignId: campaignId as any,
         title: form.title.trim(),
         subtitle: form.subtitle.trim() || undefined,
-      })) as string | null;
+      })) as string;
       if (!url) {
         toast.error("Image generation did not return a valid image URL.");
         return;
@@ -371,8 +480,10 @@ export default function AdminCampaigns() {
       setForm((prev) => ({
         ...prev,
         publicUrl: url,
+        bannerImage: url,
         imageSource: "generated",
       }));
+      toast.success("AI banner generated and saved to the campaign");
     } catch (err: any) {
       toast.error(err.message || "Image generation failed");
     } finally {
@@ -654,8 +765,9 @@ export default function AdminCampaigns() {
                       )}
                     </label>
                     <p className="text-[11px] text-muted-foreground">
-                      Supports JPG, PNG, WebP (max 5MB). The image is
-                      stored on the server and displayed on the homepage.
+                      Supports JPG, PNG, WebP — any reasonable size.
+                      Images are automatically resized and compressed to a
+                      web-ready homepage banner.
                     </p>
                   </div>
                 )}
@@ -706,14 +818,50 @@ export default function AdminCampaigns() {
 
                 {activeTab === "generated" && (
                   <div className="rounded-lg border border-dashed border-border/40 bg-muted/40 p-4 text-center">
-                    <Sparkles className="size-6 mx-auto mb-2 text-muted-foreground/50" />
-                    <p className="text-sm text-muted-foreground">
-                      AI image generation is not configured yet.
-                    </p>
-                    <p className="text-[11px] text-muted-foreground mt-1">
-                      Choose &ldquo;Upload Image&rdquo; or &ldquo;Use
-                      Image URL&rdquo; in the meantime.
-                    </p>
+                    <Sparkles className="size-6 mx-auto mb-2 text-primary/50" />
+                    {aiImageStatusQuery === undefined ? (
+                      <p className="text-sm text-muted-foreground">
+                        Checking AI image generation availability…
+                      </p>
+                    ) : !isAiGenerationAvailable ? (
+                      <>
+                        <p className="text-sm text-muted-foreground">
+                          AI image generation is not configured.
+                        </p>
+                        <p className="text-[11px] text-muted-foreground mt-1">
+                          Add a GEMINI_API_KEY to enable it — meanwhile use
+                          &ldquo;Upload Image&rdquo; or &ldquo;Use Image
+                          URL&rdquo;.
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-sm font-medium text-foreground">
+                          Generate a banner from the campaign details
+                        </p>
+                        <p className="text-[11px] text-muted-foreground mt-1 mb-3">
+                          Uses the campaign title and description above. The
+                          generated image is saved to the campaign
+                          automatically.
+                        </p>
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="gradient-primary text-white gap-2"
+                          disabled={
+                            uploading || saving || !form.title.trim()
+                          }
+                          onClick={handleGenerateImage}
+                        >
+                          {uploading ? (
+                            <Loader2 className="size-4 animate-spin" />
+                          ) : (
+                            <Sparkles className="size-4" />
+                          )}
+                          Generate Image with AI
+                        </Button>
+                      </>
+                    )}
                   </div>
                 )}
 
@@ -741,7 +889,7 @@ export default function AdminCampaigns() {
                 {previewUrl && previewUrl.startsWith("data:") && (
                   <div className="mt-2">
                     <Label className="!mb-1.5">
-                      Banner Preview (will be uploaded on save)
+                      Banner Preview (optimized, will be uploaded on save)
                     </Label>
                     <div className="rounded-lg overflow-hidden border border-border/40 h-32 sm:h-40 bg-muted relative">
                       <img
