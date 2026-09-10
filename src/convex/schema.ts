@@ -975,6 +975,16 @@ const schema = defineSchema(
       updatedAt: v.number(),
       // Public image URL for the primary banner (set from upload, URL, or generation)
       publicUrl: v.optional(v.string()),
+      // Offer display metadata (display only — does not affect checkout pricing)
+      offerType: v.optional(
+        v.union(
+          v.literal("none"),
+          v.literal("percentage"),
+          v.literal("fixed")
+        )
+      ),
+      offerValue: v.optional(v.number()),
+      offerText: v.optional(v.string()),
     })
       .index("by_active_dates", ["isActive", "startDate", "endDate"])
       .index("by_priority", ["priority"]),

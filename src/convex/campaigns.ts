@@ -56,6 +56,12 @@ export const upsert = mutation({
       )
     ),
     publicUrl: v.optional(v.string()),
+    // Offer display metadata (display only — never affects checkout pricing)
+    offerType: v.optional(
+      v.union(v.literal("none"), v.literal("percentage"), v.literal("fixed"))
+    ),
+    offerValue: v.optional(v.number()),
+    offerText: v.optional(v.string()),
     ctaText: v.optional(v.string()),
     ctaDestination: v.optional(v.string()),
     targetType: v.union(
@@ -82,6 +88,9 @@ export const upsert = mutation({
       mobileBannerImage: args.mobileBannerImage,
       imageSource: args.imageSource ?? ("none" as const),
       publicUrl: args.publicUrl,
+      offerType: args.offerType ?? "none",
+      offerValue: args.offerValue,
+      offerText: args.offerText,
       ctaText: args.ctaText,
       ctaDestination: args.ctaDestination,
       targetType: args.targetType ?? ("none" as const),
@@ -360,64 +369,109 @@ export const generateCampaignImage = action({
           : { contents }
       );
 
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
     let generated: { base64: string; mimeType: string; model: string } | null =
       null;
     let lastError = "the AI service returned no usable response";
 
-    for (const modelName of imageModels.slice(0, 4)) {
+    // Try at most the 2 most preferred image models. Bounded, no infinite loops.
+    for (const modelName of imageModels.slice(0, 2)) {
       const generateUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(apiKey)}`;
-      try {
-        let response = await fetch(generateUrl, {
-          method: "POST",
-          headers,
-          body: buildBody(true),
-        });
-        if (!response.ok) {
-          const errText = await response.text().catch(() => "");
-          // Some image models reject an explicit responseModalities config —
-          // retry once without it (they default to image output).
-          if (/modalit/i.test(errText)) {
-            response = await fetch(generateUrl, {
-              method: "POST",
-              headers,
-              body: buildBody(false),
-            });
-          }
-        }
-        if (!response.ok) {
-          let detail = `status ${response.status}`;
-          try {
-            const errJson = await response.json();
-            detail = errJson?.error?.message || detail;
-          } catch {
-            // keep default detail
-          }
-          lastError = `${modelName}: ${detail}`;
-          continue; // try the next available model
-        }
+      const MAX_ATTEMPTS = 3; // 1 original + 2 bounded retries, per model
+      let attempt = 0;
 
-        const result = await response.json();
-        const parts: any[] = result?.candidates?.[0]?.content?.parts ?? [];
-        const imagePart = parts.find(
-          (p) => p.inlineData?.data || p.inline_data?.data
-        );
-        const base64 =
-          imagePart?.inlineData?.data || imagePart?.inline_data?.data;
-        if (base64) {
-          generated = {
-            base64,
-            mimeType:
-              imagePart?.inlineData?.mimeType ||
-              imagePart?.inline_data?.mime_type ||
-              "image/png",
-            model: modelName,
-          };
+      while (attempt < MAX_ATTEMPTS && !generated) {
+        attempt++;
+        try {
+          let response = await fetch(generateUrl, {
+            method: "POST",
+            headers,
+            body: buildBody(true),
+          });
+          if (!response.ok) {
+            const errText = await response.text().catch(() => "");
+            // Some image models reject an explicit responseModalities config —
+            // retry once without it (they default to image output).
+            if (/modalit/i.test(errText)) {
+              response = await fetch(generateUrl, {
+                method: "POST",
+                headers,
+                body: buildBody(false),
+              });
+            }
+          }
+
+          if (!response.ok) {
+            let detail = `status ${response.status}`;
+            let errorStatus = "";
+            try {
+              const errJson = await response.json();
+              detail = errJson?.error?.message || detail;
+              errorStatus = errJson?.error?.status || "";
+            } catch {
+              // keep default detail
+            }
+
+            if (response.status === 429) {
+              const quotaExhausted =
+                errorStatus === "RESOURCE_EXHAUSTED" || /quota/i.test(detail);
+              if (quotaExhausted) {
+                // Quota exhaustion is not transient — do NOT keep retrying.
+                lastError = `${modelName}: Gemini quota exhausted for this API key. Try again later.`;
+                break; // move to the next model (at most one more)
+              }
+              // Transient rate limit: bounded exponential backoff (2s, 5s),
+              // honoring Retry-After when the provider supplies it.
+              if (attempt < MAX_ATTEMPTS) {
+                const retryAfterHeader = response.headers
+                  .get("retry-after")
+                  ?.trim();
+                const retryAfterSeconds = retryAfterHeader
+                  ? Number(retryAfterHeader)
+                  : NaN;
+                const waitMs = Number.isFinite(retryAfterSeconds)
+                  ? Math.min(Math.max(retryAfterSeconds, 1), 30) * 1000
+                  : attempt === 1
+                  ? 2000
+                  : 5000;
+                await sleep(waitMs);
+                continue;
+              }
+              lastError = `${modelName}: rate limited (429) after ${MAX_ATTEMPTS} attempts.`;
+              break; // move to the next model
+            }
+
+            lastError = `${modelName}: ${detail}`;
+            break; // non-retryable error → next model
+          }
+
+          const result = await response.json();
+          const parts: any[] = result?.candidates?.[0]?.content?.parts ?? [];
+          const imagePart = parts.find(
+            (p) => p.inlineData?.data || p.inline_data?.data
+          );
+          const base64 =
+            imagePart?.inlineData?.data || imagePart?.inline_data?.data;
+          if (base64) {
+            generated = {
+              base64,
+              mimeType:
+                imagePart?.inlineData?.mimeType ||
+                imagePart?.inline_data?.mime_type ||
+                "image/png",
+              model: modelName,
+            };
+            break;
+          }
+          lastError = `${modelName}: the model returned no image (it may have refused this prompt).`;
+          break; // a refusal will not improve with retries → next model
+        } catch (err: any) {
+          lastError = `${modelName}: ${err?.message || "network error"}`;
           break;
         }
-        lastError = `${modelName}: the model returned no image (it may have refused this prompt).`;
-      } catch (err: any) {
-        lastError = `${modelName}: ${err?.message || "network error"}`;
       }
+      if (generated) break;
     }
 
     if (!generated) {

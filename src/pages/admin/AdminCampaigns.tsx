@@ -40,6 +40,9 @@ interface CampaignForm {
   mobileBannerImage: string;
   imageSource: "upload" | "url" | "generated" | "none";
   publicUrl: string;
+  offerType: "none" | "percentage" | "fixed";
+  offerValue: string;
+  offerText: string;
   ctaText: string;
   ctaDestination: string;
   targetType: "category" | "product" | "page" | "external" | "none";
@@ -58,6 +61,9 @@ const EMPTY_FORM: CampaignForm = {
   mobileBannerImage: "",
   imageSource: "upload",
   publicUrl: "",
+  offerType: "none",
+  offerValue: "",
+  offerText: "",
   ctaText: "Shop Now",
   ctaDestination: "",
   targetType: "none",
@@ -190,6 +196,9 @@ export default function AdminCampaigns() {
   const ALLOWED_BANNER_MIME = ["image/jpeg", "image/png", "image/webp"];
   const isAiGenerationAvailable = aiImageStatusQuery?.configured === true;
   const isUrlValid = useRef<boolean | null>(null);
+  // In-flight guard so only ONE AI generation request can run at a time
+  // (protects against double-clicks, rerenders and repeated submissions).
+  const generatingRef = useRef(false);
 
   /** Upload an optimized banner file to Convex storage and attach it. */
   const uploadOptimizedBanner = async (file: File, campaignId: any) => {
@@ -252,6 +261,12 @@ export default function AdminCampaigns() {
       imageSource:
         (campaign.imageSource as CampaignForm["imageSource"]) || "upload",
       publicUrl: campaign.publicUrl || "",
+      offerType: campaign.offerType || "none",
+      offerValue:
+        campaign.offerValue !== undefined && campaign.offerValue !== null
+          ? String(campaign.offerValue)
+          : "",
+      offerText: campaign.offerText || "",
       ctaText: campaign.ctaText || "Shop Now",
       ctaDestination: campaign.ctaDestination || "",
       targetType: campaign.targetType || "none",
@@ -322,6 +337,12 @@ export default function AdminCampaigns() {
         imageSource:
           activeTab === "generated" ? "generated" : activeTab,
         publicUrl: finalPublicUrl,
+        offerType: form.offerType,
+        offerValue:
+          form.offerType !== "none" && form.offerValue.trim()
+            ? parseFloat(form.offerValue)
+            : undefined,
+        offerText: form.offerText.trim() || undefined,
         ctaText: form.ctaText.trim() || undefined,
         ctaDestination: form.ctaDestination.trim() || undefined,
         targetType: form.targetType,
@@ -433,10 +454,14 @@ export default function AdminCampaigns() {
   };
 
   const handleGenerateImage = async () => {
+    // Guard against duplicate/concurrent generation requests (double-click,
+    // rerenders, repeated submissions): only one request may be in flight.
+    if (generatingRef.current) return;
     if (!form.title.trim()) {
       toast.error("Add a campaign title before generating an image.");
       return;
     }
+    generatingRef.current = true;
     setUploading(true);
     try {
       // The generated image is attached to the campaign record, so the
@@ -487,6 +512,7 @@ export default function AdminCampaigns() {
     } catch (err: any) {
       toast.error(err.message || "Image generation failed");
     } finally {
+      generatingRef.current = false;
       setUploading(false);
     }
   };
@@ -858,7 +884,7 @@ export default function AdminCampaigns() {
                           ) : (
                             <Sparkles className="size-4" />
                           )}
-                          Generate Image with AI
+                          {uploading ? "Generating…" : "Generate Image with AI"}
                         </Button>
                       </>
                     )}
@@ -993,6 +1019,76 @@ export default function AdminCampaigns() {
                   />
                 </div>
               )}
+
+              <div className="space-y-3 rounded-lg border border-border/40 bg-muted/30 p-3">
+                <Label className="!mb-0">Offer (display only — shown on the banner)</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Offer Type</Label>
+                    <select
+                      value={form.offerType}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          offerType: e.target.value as CampaignForm["offerType"],
+                        })
+                      }
+                      className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors"
+                    >
+                      <option value="none">No Discount</option>
+                      <option value="percentage">Percentage Discount</option>
+                      <option value="fixed">Fixed Amount Discount</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Discount Value</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={form.offerValue}
+                      onChange={(e) =>
+                        setForm({ ...form, offerValue: e.target.value })
+                      }
+                      placeholder={
+                        form.offerType === "fixed" ? "e.g. 100 (₹)" : "e.g. 20 (%)"
+                      }
+                      disabled={form.offerType === "none"}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Offer Text (optional override)</Label>
+                  <Input
+                    value={form.offerText}
+                    onChange={(e) => setForm({ ...form, offerText: e.target.value })}
+                    placeholder={
+                      form.offerType === "percentage"
+                        ? "e.g. 20% OFF on Selected Skin Care"
+                        : form.offerType === "fixed"
+                        ? "e.g. Flat ₹100 OFF"
+                        : "e.g. Special Offer"
+                    }
+                  />
+                </div>
+                {(() => {
+                  const value = parseFloat(form.offerValue);
+                  const preview =
+                    form.offerText.trim() ||
+                    (form.offerType === "percentage" &&
+                    Number.isFinite(value) && value > 0
+                      ? `${value}% OFF`
+                      : form.offerType === "fixed" &&
+                        Number.isFinite(value) && value > 0
+                      ? `₹${value} OFF`
+                      : "");
+                  if (!preview) return null;
+                  return (
+                    <p className="text-[11px] text-muted-foreground">
+                      Customer banner will show: <span className="font-semibold text-foreground">{preview}</span>
+                    </p>
+                  );
+                })()}
+              </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
