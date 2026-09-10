@@ -1,5 +1,6 @@
-import { query, mutation } from "./_generated/server";
+import { query, mutation, action } from "./_generated/server";
 import { v } from "convex/values";
+import { api } from "./_generated/api";
 
 // ── Public: active campaigns for homepage carousel ──
 export const active = query({
@@ -79,8 +80,6 @@ export const upsert = mutation({
       bannerImage: args.bannerImage,
       desktopBannerImage: args.desktopBannerImage,
       mobileBannerImage: args.mobileBannerImage,
-      // The generated campaign table type defines `imageSource` and `targetType` as
-      // non-optional unions, so always pass a concrete literal here.
       imageSource: args.imageSource ?? ("none" as const),
       publicUrl: args.publicUrl,
       ctaText: args.ctaText,
@@ -102,15 +101,11 @@ export const upsert = mutation({
             createdAt: now,
           });
 
-    // `ctx.db.insert` can return `void` for some generated table shapes, so guard
-    // before using it as an id.
     if (id === undefined || id === null) {
       throw new Error("Campaign storage returned no record");
     }
 
-    // Backfill the public URL field from whichever source was used, so the public
-    // query can always return a single resolved banner image without changing the
-    // existing bannerImage/desktopBannerImage/mobileBannerImage fields.
+    // Backfill the public URL field from whichever source was used.
     if (args.publicUrl) {
       await ctx.db.patch(id as any, { publicUrl: args.publicUrl });
     }
@@ -124,5 +119,146 @@ export const remove = mutation({
   args: { campaignId: v.id("campaigns") },
   handler: async (ctx, args) => {
     await ctx.db.delete(args.campaignId);
+  },
+});
+
+// ── Admin: upload campaign banner image to Convex file storage ──
+// Accepts the file as a Blob and returns the public URL.
+export const uploadBanner = action({
+  args: {
+    campaignId: v.id("campaigns"),
+    blob: v.bytes(),
+    contentType: v.string(),
+    fileName: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // Store the file in Convex file storage
+    const storageId = await ctx.storage.store(
+      new Blob([args.blob], { type: args.contentType })
+    );
+
+    // Get a public URL for the stored file
+    const url = await ctx.storage.getUrl(storageId);
+    if (!url) {
+      throw new Error("Failed to generate public URL for uploaded banner");
+    }
+
+    // Update the campaign record with the real public URL using a mutation
+    await ctx.runMutation(api.campaigns.updateBannerUrl, {
+      campaignId: args.campaignId,
+      publicUrl: url,
+      bannerImage: url,
+    });
+
+    return url;
+  },
+});
+
+// ── Internal mutation: update campaign banner URL after upload ──
+export const updateBannerUrl = mutation({
+  args: {
+    campaignId: v.id("campaigns"),
+    publicUrl: v.string(),
+    bannerImage: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.campaignId, {
+      publicUrl: args.publicUrl,
+      bannerImage: args.bannerImage,
+      imageSource: "upload",
+      updatedAt: Date.now(),
+    });
+  },
+});
+
+// ── Admin: validate an image URL ──
+export const validateImageUrl = mutation({
+  args: { url: v.string() },
+  handler: async (_ctx, args) => {
+    const trimmed = args.url.trim();
+    if (!trimmed) {
+      throw new Error("URL cannot be empty");
+    }
+
+    // Basic URL format check
+    try {
+      new URL(trimmed);
+    } catch {
+      throw new Error("Invalid URL format");
+    }
+
+    // Check that it looks like an image URL
+    const imageExtensions = /\.(jpg|jpeg|png|webp|gif|svg)(\?.*)?$/i;
+    const isImageByExtension = imageExtensions.test(trimmed);
+    const isDataUrl = trimmed.startsWith("data:image/");
+
+    // Allow data URLs for preview, but warn they won't work as public URLs
+    if (isDataUrl) {
+      throw new Error(
+        "Data URLs cannot be used as public banner images. Please upload the file instead."
+      );
+    }
+
+    if (!isImageByExtension) {
+      // Could be a valid image hosting URL without extension, just warn
+      // The actual validation happens when the browser tries to load it
+    }
+
+    // Try to HEAD the URL to check accessibility
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      const response = await fetch(trimmed, {
+        method: "HEAD",
+        signal: controller.signal,
+        mode: "cors",
+      });
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(
+          `Image URL returned status ${response.status}. The URL may be invalid or the image may not be accessible.`
+        );
+      }
+
+      // Check content type if available
+      const contentType = response.headers.get("content-type");
+      if (contentType && !contentType.startsWith("image/")) {
+        throw new Error(
+          `URL does not point to an image (content type: ${contentType})`
+        );
+      }
+    } catch (fetchError: any) {
+      if (fetchError.name === "AbortError") {
+        throw new Error(
+          "Image URL validation timed out. The server may be slow or unreachable."
+        );
+      }
+      // CORS might block HEAD requests, but the URL might still be valid
+      // for <img> tags. Only throw if it's not a CORS issue.
+      if (!fetchError.message?.includes("Failed to fetch")) {
+        throw fetchError;
+      }
+      // CORS blocked the HEAD request, but it could still work in an <img> tag
+    }
+
+    return { valid: true };
+  },
+});
+
+// ── Admin: generate campaign banner image with AI ──
+// Placeholder for future AI image generation integration.
+export const generateCampaignImage = action({
+  args: {
+    title: v.string(),
+    subtitle: v.optional(v.string()),
+  },
+  handler: async (_ctx, args) => {
+    // AI image generation is not yet configured.
+    // When an image generation service is available (e.g. OpenAI DALL-E, Stability AI),
+    // implement it here and return the public URL of the generated image.
+    throw new Error(
+      "AI image generation is not configured yet. Please use Upload Image or Image URL instead."
+    );
   },
 });
