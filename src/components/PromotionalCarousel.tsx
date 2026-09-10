@@ -119,6 +119,15 @@ export default function PromotionalCarousel() {
                   alt={slide.title}
                   className="absolute inset-0 w-full h-full object-cover sm:hidden"
                   loading="lazy"
+                  onError={(e) => {
+                    const img = e.currentTarget as HTMLImageElement;
+                    if (img.dataset.fallbackTried) return;
+                    img.dataset.fallbackTried = "1";
+                    const fallback = slide.bannerImage || slide.publicUrl;
+                    if (fallback && fallback !== img.src) {
+                      img.src = fallback;
+                    }
+                  }}
                 />
               )}
               {/* Desktop / fallback image */}
@@ -127,6 +136,16 @@ export default function PromotionalCarousel() {
                 alt={slide.title}
                 className={`w-full h-full object-cover ${slide.mobileBannerImage ? "hidden sm:block" : ""}`}
                 loading="lazy"
+                onError={(e) => {
+                  const img = e.currentTarget as HTMLImageElement;
+                  if (img.dataset.fallbackTried) return;
+                  img.dataset.fallbackTried = "1";
+                  // If the desktop asset failed, fall back to the primary public URL as a last resort.
+                  const fallback = slide.bannerImage || slide.publicUrl;
+                  if (fallback && fallback !== img.src) {
+                    img.src = fallback;
+                  }
+                }}
               />
 
               {/* Text overlay */}

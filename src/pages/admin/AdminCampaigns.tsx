@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import AdminLayout from "@/components/admin/AdminLayout";
@@ -32,7 +32,6 @@ import {
   Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
-import { api } from "@/convex/_generated/api";
 
 interface CampaignForm {
   title: string;
@@ -101,6 +100,26 @@ export default function AdminCampaigns() {
     if (!search) return true;
     return c.title.toLowerCase().includes(search.toLowerCase());
   });
+
+  // We don't support AI image generation yet unless an existing image-generation service is
+  // wired up and configured. Until then, this path is intentionally disabled and kept as a
+  // placeholder for when that capability is added.
+  const ALLOWED_BANNER_MIME = ["image/jpeg", "image/png", "image/webp"];
+  const isAiGenerationAvailable = false;
+  const isUrlValid = useRef<boolean | null>(null);
+  const validateUrl = useCallback(async (url: string) => {
+    if (!url.trim()) {
+      isUrlValid.current = false;
+      return;
+    }
+    try {
+      await validateImageUrl({ url: url.trim() });
+      isUrlValid.current = true;
+    } catch (err: any) {
+      isUrlValid.current = false;
+      toast.error(err.message || "Image URL is not valid");
+    }
+  }, [validateImageUrl]);
 
   const openAdd = () => {
     setEditingId(null);
@@ -215,7 +234,17 @@ export default function AdminCampaigns() {
     setDeleteDialogId(null);
   };
 
-  const now = Date.now();
+  const readFileAsDataUrl = (file: File): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result;
+        if (typeof result === "string") resolve(result);
+        else reject(new Error("File read returned no data URL"));
+      };
+      reader.onerror = () => reject(new Error("Failed to read file"));
+      reader.readAsDataURL(file);
+    });
 
   const handleBannerFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -225,6 +254,7 @@ export default function AdminCampaigns() {
       toast.error(
         `Unsupported file type "${file.type}". Supported types: ${ALLOWED_BANNER_MIME.join(", ")}`
       );
+      event.target.value = "";
       return;
     }
 
@@ -241,7 +271,7 @@ export default function AdminCampaigns() {
         }));
       } else {
         // For a new campaign, we cannot upload until the record exists, so stage the
-        // file locally as a preview and upload on save.
+        // file locally as a preview, then upload it server-side on save.
         const staged = await readFileAsDataUrl(file);
         setPreviewUrl(staged);
         setForm((prev) => ({
@@ -261,6 +291,10 @@ export default function AdminCampaigns() {
   const handleGenerateImage = async () => {
     if (!form.title.trim()) {
       toast.error("Add a campaign title before generating an image.");
+      return;
+    }
+    if (!isAiGenerationAvailable) {
+      toast.error("AI image generation is not configured yet.");
       return;
     }
     setUploading(true);
@@ -286,6 +320,8 @@ export default function AdminCampaigns() {
       setUploading(false);
     }
   };
+
+  const now = Date.now();
 
   return (
     <AdminLayout>
@@ -495,11 +531,28 @@ export default function AdminCampaigns() {
                         setForm({ ...form, bannerImage: e.target.value });
                         setPreviewUrl(e.target.value || null);
                       }}
-                      placeholder="https://example.com/banner.jpg"
-                    />
-                    <p className="text-[11px] text-muted-foreground">
-                      Paste a publicly accessible image URL (JPG, PNG, WebP).
-                    </p>
+                    placeholder="https://example.com/banner.jpg"
+                  />
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="text-[11px] px-2.5 h-7"
+                      disabled={!form.bannerImage.trim() || saving || uploading}
+                      onClick={() => validateUrl(form.bannerImage.trim())}
+                    >
+                      Validate URL
+                    </Button>
+                    {isUrlValid.current !== null && (
+                      <span className="text-[11px] text-muted-foreground self-center">
+                        {isUrlValid.current ? "Looks valid" : "Invalid or unreachable"}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Paste a publicly accessible image URL (JPG, PNG, WebP).
+                  </p>
                   </div>
                 )}
 
@@ -542,6 +595,7 @@ export default function AdminCampaigns() {
 
                 {/* AI generation source — disabled unless an existing image-generation capability is configured */}
                 {activeTab === "generated" && (
+                  isAiGenerationAvailable && (
                   <div className="space-y-1.5">
                     <Label>Generate Banner with AI</Label>
                     {generatedUrl ? (
@@ -564,13 +618,12 @@ export default function AdminCampaigns() {
                         </Button>
                       </div>
                     ) : (
-                      <div className="rounded-lg border border-dashed border-border/40 bg-muted/40 p-4 text-center">
-                        <Sparkles className="size-6 mx-auto mb-2 text-muted-foreground/50" />
+                      <div className="rounded-lg border border-dashed border-border/40 bg-muted/40 p-4 text-center">                            <Sparkles className="size-6 mx-auto mb-2 text-muted-foreground/50" />
                         <p className="text-sm text-muted-foreground">
                           AI image generation is not configured yet.
                         </p>
                         <p className="text-[11px] text-muted-foreground mt-1">
-                          Choose “Upload Image” or “Use Image URL” in the meantime.
+                          Choose &ldquo;Upload Image&rdquo; or &ldquo;Use Image URL&rdquo; in the meantime.
                         </p>
                       </div>
                     )}
@@ -624,6 +677,7 @@ export default function AdminCampaigns() {
 
               {/* AI banner generation (only if configured) */}
               {activeTab === "generated" && (
+                isAiGenerationAvailable && (
                 <div className="rounded-lg border border-border/40 bg-muted/30 p-4">
                   <div className="flex items-center gap-2 mb-2">
                     <Sparkles className="size-4 text-primary" />
