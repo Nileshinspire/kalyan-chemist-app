@@ -327,7 +327,7 @@ export default function Landing() {
       {/* ── Quick Functions: Upload Prescription + Doctor Appointment + Lab Tests ── */}
       <section className="bg-background">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 py-6 sm:py-8">
-          <div className="flex flex-wrap items-center gap-3 -ml-4 sm:-ml-6">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
             {/* Upload Prescription */}
             <button
               type="button"
