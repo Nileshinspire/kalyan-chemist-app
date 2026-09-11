@@ -424,7 +424,9 @@ const Navbar = memo(function Navbar() {
 
       {/* ═══════════════════════════════════════════════════════
           GLOBAL CATEGORY NAVIGATION BAR
+          Only render on homepage — inner pages get it via SubNav
           ═══════════════════════════════════════════════════════ */}
+      {isHomePage && (
       <nav className="hidden md:block" style={{ background: '#0a3d2e' }}>
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <div className="flex items-center gap-0 overflow-x-auto scrollbar-none pr-6">
@@ -450,6 +452,7 @@ const Navbar = memo(function Navbar() {
           </div>
         </div>
       </nav>
+      )}
     </header>
     {!isHomePage && <SubNav />}
     </>);

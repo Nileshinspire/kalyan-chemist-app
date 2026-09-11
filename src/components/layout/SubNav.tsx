@@ -40,16 +40,16 @@ const SubNav = memo(function SubNav() {
 
   return (
     <>
-      {/* ═══ Service Navigation — simple text links ═══ */}
+      {/* ═══ Service Navigation — simple text links, evenly spaced ═══ */}
       <nav className="border-b border-border/40 bg-background">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="flex items-center gap-0 overflow-x-auto scrollbar-none">
+          <div className="grid grid-cols-5">
             {SERVICE_NAV_ITEMS.map((item) => (
               <button
                 key={item.label}
                 type="button"
                 onClick={() => navigate(item.route)}
-                className="px-3 lg:px-4 py-2.5 text-xs lg:text-sm font-medium text-foreground/70 hover:text-primary transition-colors duration-200 whitespace-nowrap shrink-0 cursor-pointer"
+                className="py-2.5 text-xs lg:text-sm font-medium text-foreground/70 hover:text-primary transition-colors duration-200 text-center whitespace-nowrap cursor-pointer"
               >
                 {item.label}
               </button>
