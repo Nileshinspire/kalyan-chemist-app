@@ -1,5 +1,6 @@
 import { useState, useEffect, memo, useCallback } from "react";
 import { useNavigate, useLocation, useSearchParams } from "react-router";
+import SubNav from "@/components/layout/SubNav";
 
 // Preload the Products chunk on category hover so there's no Suspense flash on navigation
 const preloadProducts = () => import("@/pages/Products.tsx");
@@ -83,7 +84,10 @@ const Navbar = memo(function Navbar() {
 
   const isActive = useCallback((path: string) => location.pathname === path, [location.pathname]);
 
+  const isHomePage = location.pathname === "/";
+
   return (
+    <>
     <header
       className={`sticky top-0 z-50 transition-all duration-300 ${
         scrolled
@@ -110,7 +114,8 @@ const Navbar = memo(function Navbar() {
           </div>
         </div>
 
-        {/* Search — desktop */}
+        {/* Search — desktop (hidden on homepage where hero has its own search) */}
+        {!isHomePage && (
         <form
           onSubmit={handleSearch}
           className="hidden md:flex flex-1 max-w-md ml-4"
@@ -135,6 +140,7 @@ const Navbar = memo(function Navbar() {
             />
           </div>
         </form>
+        )}
 
         {/* Desktop nav */}
         <nav className="hidden md:flex items-center gap-1 ml-auto">
@@ -445,7 +451,8 @@ const Navbar = memo(function Navbar() {
         </div>
       </nav>
     </header>
-  );
+    {!isHomePage && <SubNav />}
+    </>);
 });
 
 export default Navbar;
