@@ -367,7 +367,7 @@ export default function HealthConditions() {
               className="group flex flex-col items-center rounded-xl border border-border/60 bg-card p-4 sm:p-5 text-center shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/25 hover:shadow-md cursor-pointer"
             >
               <span
-                className="flex size-14 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground transition-all duration-300 group-hover:bg-primary/10 group-hover:text-primary group-hover:shadow-[0_2px_14px_rgba(16,185,129,0.18)]"
+                className="flex size-14 shrink-0 items-center justify-center rounded-xl bg-muted text-[#0D6B62] transition-all duration-300 group-hover:bg-primary/10 group-hover:text-primary group-hover:shadow-[0_2px_14px_rgba(16,185,129,0.18)]"
                 style={{
                   filter: "drop-shadow(0 1px 0 rgba(0,0,0,0.07)) drop-shadow(0 2px 3px rgba(0,0,0,0.1))",
                   transform: "perspective(250px) rotateX(1.5deg)",

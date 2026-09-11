@@ -7,98 +7,175 @@ import { formatCurrency } from "@/lib/auth-utils";
 
 /* ─── Popular Lab Tests ───
  * Horizontal carousel of the REAL lab tests from the Convex `lab_tests`
- * table (the same data the Lab Test Details page reads). Exactly 4 cards
- * are visible per row on desktop; arrows page through the rest. Clicking a
- * card opens the EXISTING lab test details route — no duplicate system.
+ * table. Premium pencil-sketch medical icons, same family as other sections.
  */
 
-/* Minimal medical line-art icons (same style as Browse by Health Conditions) */
+/* ─── Blood Drop — CBC / Hemoglobin / Blood Count ─── */
 function DropIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="size-8" aria-hidden="true">
-      <path d="M12 3.6c3.3 3.9 5.3 6.7 5.3 9.3a5.3 5.3 0 0 1-10.6 0c0-2.6 2-5.4 5.3-9.3z" />
-      <path d="M9.4 13.7c.3 2 1.3 3.1 2.6 3.1" />
+    <svg viewBox="0 0 32 32" fill="none" className="size-8" aria-hidden="true">
+      {/* Blood drop — teardrop shape */}
+      <path d="M16 4c4.5 5 7 8.5 7 12a7 7 0 0 1-14 0c0-3.5 2.5-7 7-12z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      {/* Inner light reflection */}
+      <path d="M13 14c.5 1.5 1.5 2.5 3 3" stroke="currentColor" strokeWidth="0.7" strokeLinecap="round" opacity="0.5" />
+      {/* Highlight */}
+      <path d="M14 10c.8 1.2 1.3 2.5 1.5 3.5" stroke="currentColor" strokeWidth="0.5" strokeLinecap="round" opacity="0.35" />
+      {/* Surface tension detail */}
+      <path d="M11.5 15c1 1.5 2.2 2.5 3.5 3" stroke="currentColor" strokeWidth="0.4" strokeLinecap="round" opacity="0.25" />
     </svg>
   );
 }
 
+/* ─── Test Tube — ESR / Sedimentation ─── */
 function TestTubeIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="size-8" aria-hidden="true">
-      <path d="M10 3h4" />
-      <path d="M11 3v7.2a2 2 0 0 1-.5 1.3L7.9 14.8a2.5 2.5 0 0 0 2 4.1h4.2a2.5 2.5 0 0 0 2-4.1l-2.6-3.3a2 2 0 0 1-.5-1.3V3" />
-      <path d="M8.9 13.7h6.2" />
-      <circle cx="12" cy="16.8" r="1.1" fill="currentColor" stroke="none" />
+    <svg viewBox="0 0 32 32" fill="none" className="size-8" aria-hidden="true">
+      {/* Tube rim */}
+      <path d="M12 3h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M12.5 3v1" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+      <path d="M19.5 3v1" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+      {/* Tube body */}
+      <path d="M12.5 4v8a3 3 0 0 0-.8 2l-2 5.5A3.5 3.5 0 0 0 14 26h4a3.5 3.5 0 0 0 4.3-6.5l-2-5.5a3 3 0 0 0-.8-2V4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+      {/* Liquid level */}
+      <path d="M11 17h10" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
+      {/* Sediment layers */}
+      <path d="M11.5 20h9" stroke="currentColor" strokeWidth="0.6" strokeLinecap="round" opacity="0.4" />
+      <path d="M12 22h8" stroke="currentColor" strokeWidth="0.5" strokeLinecap="round" opacity="0.3" />
+      {/* Bubbles in liquid */}
+      <circle cx="14" cy="15" r="0.6" stroke="currentColor" strokeWidth="0.5" opacity="0.35" />
+      <circle cx="17" cy="14" r="0.45" stroke="currentColor" strokeWidth="0.4" opacity="0.3" />
+      <circle cx="15.5" cy="16" r="0.35" stroke="currentColor" strokeWidth="0.35" opacity="0.25" />
+      {/* Meniscus curve */}
+      <path d="M12 17c2 .8 6 .8 8 0" stroke="currentColor" strokeWidth="0.5" strokeLinecap="round" opacity="0.3" />
     </svg>
   );
 }
 
+/* ─── Lipid / Heart — Lipid Profile / Cholesterol ─── */
 function LipidIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="size-8" aria-hidden="true">
-      <path d="M12 20.3C7.4 16 3.9 12.9 3.9 9.5a4.4 4.4 0 0 1 8.1-2.4 4.4 4.4 0 0 1 8.1 2.4c0 3.4-3.5 6.5-8.1 10.8z" />
-      <path d="M12 9c1.2 1.4 2 2.5 2 3.5a2 2 0 0 1-4 0c0-1 .8-2.1 2-3.5z" />
+    <svg viewBox="0 0 32 32" fill="none" className="size-8" aria-hidden="true">
+      {/* Heart shape */}
+      <path d="M16 27C10 22 5 18 5 12.5a5.5 5.5 0 0 1 10-3.2A5.5 5.5 0 0 1 27 12.5C27 18 22 22 16 27z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      {/* Inner heart detail — chambers */}
+      <path d="M16 13c-1.5 2-2.5 4-2.8 6" stroke="currentColor" strokeWidth="0.6" strokeLinecap="round" opacity="0.4" />
+      <path d="M16 13c1.5 2 2.5 4 2.8 6" stroke="currentColor" strokeWidth="0.6" strokeLinecap="round" opacity="0.4" />
+      {/* Lipid drop inside heart */}
+      <path d="M16 10c1.5 1.8 2.3 3 2.3 4a2.3 2.3 0 0 1-4.6 0c0-1 .8-2.2 2.3-4z" stroke="currentColor" strokeWidth="0.9" strokeLinecap="round" strokeLinejoin="round" opacity="0.5" />
+      {/* Highlight */}
+      <path d="M14.8 11.5c.5.8.8 1.5.8 2.2" stroke="currentColor" strokeWidth="0.4" strokeLinecap="round" opacity="0.3" />
     </svg>
   );
 }
 
+/* ─── Vitamin D / Sun — Vitamin Tests ─── */
 function VitaminIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="size-8" aria-hidden="true">
-      <circle cx="12" cy="12" r="3.5" />
-      <path d="M12 4.2v1.8" />
-      <path d="M12 18v1.8" />
-      <path d="M4.2 12H6" />
-      <path d="M18 12h1.8" />
-      <path d="M6.4 6.4l1.3 1.3" />
-      <path d="M16.3 16.3l1.3 1.3" />
-      <path d="M17.6 6.4l-1.3 1.3" />
-      <path d="M7.7 16.3l-1.3 1.3" />
+    <svg viewBox="0 0 32 32" fill="none" className="size-8" aria-hidden="true">
+      {/* Sun core */}
+      <circle cx="16" cy="14" r="5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      {/* Inner ring */}
+      <circle cx="16" cy="14" r="3" stroke="currentColor" strokeWidth="0.6" strokeLinecap="round" opacity="0.35" />
+      {/* Sun rays */}
+      <path d="M16 5v2.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+      <path d="M16 20.5V23" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+      <path d="M7 14h2.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+      <path d="M22.5 14H25" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+      <path d="M9.6 7.6l1.8 1.8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+      <path d="M20.6 18.6l1.8 1.8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+      <path d="M22.4 7.6l-1.8 1.8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+      <path d="M11.4 18.6l-1.8 1.8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+      {/* D3 label */}
+      <path d="M14.5 26c.8-1 1.5-1.5 1.5-2.5" stroke="currentColor" strokeWidth="0.8" strokeLinecap="round" opacity="0.5" />
+      <path d="M17.5 23.5v2.5" stroke="currentColor" strokeWidth="0.8" strokeLinecap="round" opacity="0.5" />
     </svg>
   );
 }
 
+/* ─── Thyroid — TSH / Thyroid Profile ─── */
 function ThyroidIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="size-8" aria-hidden="true">
-      <path d="M12 3.6v2.4" />
-      <path d="M9 6.4C5.7 6.4 3.5 8.8 3.5 11.8c0 3.3 2.3 5.6 5.5 5.6 1 0 1.9-.3 3-1V6.4z" />
-      <path d="M15 6.4c3.3 0 5.5 2.4 5.5 5.4 0 3.3-2.3 5.6-5.5 5.6-1.1 0-2-.3-3-1V6.4z" />
-      <path d="M12 6.6v9" opacity="0.55" />
+    <svg viewBox="0 0 32 32" fill="none" className="size-8" aria-hidden="true">
+      {/* Trachea */}
+      <path d="M16 3v4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      <path d="M14.5 4h3" stroke="currentColor" strokeWidth="0.7" strokeLinecap="round" />
+      <path d="M14.5 5.2h3" stroke="currentColor" strokeWidth="0.7" strokeLinecap="round" />
+      {/* Left lobe */}
+      <path d="M14 7c-4 0-7 3-7 7 0 4 2.5 6.5 5.5 6.5 1.5 0 2.5-.5 3.5-2V7z" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+      {/* Right lobe */}
+      <path d="M18 7c4 0 7 3 7 7 0 4-2.5 6.5-5.5 6.5-1.5 0-2.5-.5-3.5-2V7z" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+      {/* Isthmus connection */}
+      <path d="M14 12c.5 1 1 1.5 2 1.5s1.5-.5 2-1.5" stroke="currentColor" strokeWidth="0.8" strokeLinecap="round" opacity="0.5" />
+      {/* Center line — trachea continuation */}
+      <path d="M16 7v12" stroke="currentColor" strokeWidth="0.6" strokeLinecap="round" opacity="0.3" />
+      {/* Lobe surface texture */}
+      <path d="M10 11c.5 1.5 1.2 2.5 2.5 3" stroke="currentColor" strokeWidth="0.4" strokeLinecap="round" opacity="0.25" />
+      <path d="M22 11c-.5 1.5-1.2 2.5-2.5 3" stroke="currentColor" strokeWidth="0.4" strokeLinecap="round" opacity="0.25" />
     </svg>
   );
 }
 
+/* ─── Glucometer — Glucose / Sugar / HbA1c ─── */
 function GlucometerIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="size-8" aria-hidden="true">
-      <rect x="3.8" y="6.5" width="11" height="13" rx="2.5" />
-      <path d="M3.8 10.6h11" />
-      <path d="M6.4 13.4h3.1" />
-      <path d="M6.4 15.7h4.6" />
-      <path d="M14.8 14.4l3.6-4.6" />
-      <path d="M18.9 5.8c1.1 1.4 2 2.5 2 3.6a2 2 0 0 1-4 0c0-1.1.9-2.2 2-3.6z" />
+    <svg viewBox="0 0 32 32" fill="none" className="size-8" aria-hidden="true">
+      {/* Meter body */}
+      <path d="M6 7c-.1-.3-.3-.5-.6-.5H18c.4 0 .7.3.7.7v17c0 .4-.3.7-.7.7H5.6c-.3 0-.5-.2-.6-.5V7z" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+      {/* Screen */}
+      <rect x="8" y="9" width="9" height="6" rx="1.2" stroke="currentColor" strokeWidth="1" />
+      {/* Reading */}
+      <path d="M10 11.5v2" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
+      <path d="M9.3 12.5h1.4" stroke="currentColor" strokeWidth="0.7" strokeLinecap="round" />
+      <path d="M12.5 11v2.5" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
+      <path d="M12.5 13.5h.5" stroke="currentColor" strokeWidth="0.6" strokeLinecap="round" />
+      <path d="M14 11c.4.8.6 1.5.6 2.2" stroke="currentColor" strokeWidth="0.8" strokeLinecap="round" />
+      {/* Button */}
+      <circle cx="12.5" cy="18.5" r="1.5" stroke="currentColor" strokeWidth="0.9" />
+      {/* Strip slot */}
+      <path d="M18.7 12h2.8a.8.8 0 0 1 .8.8v1.2a.8.8 0 0 1-.8.8h-2.8" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round" />
+      {/* Blood drop */}
+      <path d="M23.3 12.3c.8 1.1 1.3 2 1.3 2.7a1.3 1.3 0 0 1-2.6 0c0-.7.5-1.6 1.3-2.7z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M23.3 13.5c.3.4.5.8.5 1.2a.5.5 0 0 1-1 0c0-.4.2-.8.5-1.2" stroke="currentColor" strokeWidth="0.5" strokeLinecap="round" opacity="0.4" />
     </svg>
   );
 }
 
+/* ─── Liver — SGPT / SGOT / Liver Function ─── */
 function LiverIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="size-8" aria-hidden="true">
-      <path d="M12 5c3.6 0 6.3 2.5 6.3 5.9 0 3.6-2.7 6.8-6.3 6.8-3.4 0-6.1-3.1-6.1-6.8C5.9 7.5 8.5 5 12 5z" />
-      <path d="M8.9 10.9c.4 2.1 1.2 3.3 2.5 3.3 1 0 1.8-.8 2.1-2.1" />
+    <svg viewBox="0 0 32 32" fill="none" className="size-8" aria-hidden="true">
+      {/* Liver — right lobe */}
+      <path d="M8 17c0-7 5-12 11-12 5.5 0 10 4 10 9.5 0 5.5-4 10.5-9 10.5-4.5 0-8-3-10.5-6C9 19 8 18 8 17z" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+      {/* Falciform ligament */}
+      <path d="M17 5.5c-1.2 3.5-1.8 7-1.8 10.5 0 3.5.6 7 1.8 10" stroke="currentColor" strokeWidth="0.9" strokeLinecap="round" opacity="0.5" />
+      {/* Gallbladder */}
+      <path d="M11.5 18.5c-.3-1.5-.2-3 .5-4.2.7-1 1.8-1.2 2.5-.5.7.7.5 2-.2 3.5-.5 1-1.3 1.5-2 1.5" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M12.3 14.3v-1.5" stroke="currentColor" strokeWidth="0.7" strokeLinecap="round" />
+      {/* Vein detail */}
+      <path d="M20 8c-1 2-1.5 4-1.5 6.5" stroke="currentColor" strokeWidth="0.5" strokeLinecap="round" opacity="0.3" />
+      <path d="M24 10c-1.5 2-2.5 4-3 6" stroke="currentColor" strokeWidth="0.45" strokeLinecap="round" opacity="0.25" />
     </svg>
   );
 }
 
+/* ─── Flask — Generic / Other Tests ─── */
 function FlaskIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="size-8" aria-hidden="true">
-      <path d="M10 3h4" />
-      <path d="M11 3v6.5L6.9 16.4A2.6 2.6 0 0 0 9.2 20h5.6a2.6 2.6 0 0 0 2.3-3.6L13 9.5V3" />
-      <path d="M8.6 14.6h6.8" />
-      <circle cx="11" cy="17.2" r="0.9" fill="currentColor" stroke="none" />
-      <circle cx="13.6" cy="18.3" r="0.65" fill="currentColor" stroke="none" />
+    <svg viewBox="0 0 32 32" fill="none" className="size-8" aria-hidden="true">
+      {/* Flask neck */}
+      <path d="M13 3h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M13.5 3v7" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+      <path d="M18.5 3v7" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+      {/* Flask body — conical */}
+      <path d="M13.5 10L9 19a3.5 3.5 0 0 0 3 5.5h8a3.5 3.5 0 0 0 3-5.5l-4.5-9" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+      {/* Liquid level */}
+      <path d="M10 18h12" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
+      {/* Bubbles in liquid */}
+      <circle cx="13" cy="21" r="0.7" stroke="currentColor" strokeWidth="0.5" opacity="0.4" />
+      <circle cx="16" cy="22" r="0.55" stroke="currentColor" strokeWidth="0.4" opacity="0.35" />
+      <circle cx="18.5" cy="20.5" r="0.45" stroke="currentColor" strokeWidth="0.35" opacity="0.3" />
+      {/* Meniscus */}
+      <path d="M10.5 18c3 .8 7 .8 11 0" stroke="currentColor" strokeWidth="0.5" strokeLinecap="round" opacity="0.3" />
     </svg>
   );
 }
@@ -208,8 +285,20 @@ export default function PopularLabTests() {
                 className="group flex min-w-[calc(50%-0.5rem)] snap-start flex-col rounded-xl border border-border/60 bg-card p-4 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md cursor-pointer md:min-w-[calc(33.333%-0.667rem)] lg:min-w-[calc(25%-0.75rem)]"
               >
                 <div className="flex items-center gap-3.5">
-                  <span className="flex size-14 shrink-0 items-center justify-center rounded-xl bg-muted text-muted-foreground transition-colors duration-300 group-hover:bg-primary/10 group-hover:text-primary">
-                    {iconFor(test.name)}
+                  <span
+                    className="flex size-14 shrink-0 items-center justify-center rounded-xl bg-muted text-[#0D6B62] transition-all duration-300 group-hover:bg-primary/10 group-hover:text-primary group-hover:shadow-[0_2px_14px_rgba(16,185,129,0.18)]"
+                    style={{
+                      filter: "drop-shadow(0 1px 0 rgba(0,0,0,0.07)) drop-shadow(0 2px 3px rgba(0,0,0,0.1))",
+                      transform: "perspective(250px) rotateX(1.5deg)",
+                      transition: "transform 280ms ease, filter 280ms ease",
+                    }}
+                  >
+                    <span
+                      className="block transition-transform duration-280 ease-out group-hover:scale-[1.07]"
+                      style={{ transform: "perspective(250px) rotateX(2deg)" }}
+                    >
+                      {iconFor(test.name)}
+                    </span>
                   </span>
                   <div className="min-w-0 flex-1">
                     <h3 className="text-sm font-semibold leading-snug text-foreground line-clamp-2 group-hover:text-primary transition-colors">
