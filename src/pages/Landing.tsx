@@ -18,7 +18,6 @@ import {
   Mail,
   Heart,
   Zap,
-  Shield,
   Search,
   Upload,
   ShoppingCart,
@@ -38,6 +37,7 @@ import NewArrivals from "@/components/NewArrivals";
 import ValueDeals from "@/components/ValueDeals";
 import HowItWorks from "@/components/HowItWorks";
 import PromotionalCarousel from "@/components/PromotionalCarousel";
+import WhyKalyanChemist from "@/components/WhyKalyanChemist";
 import WriteReview from "@/components/WriteReview";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -151,13 +151,6 @@ const HEALTH_CONDITION_SLUGS = new Set([
   "sexual-wellness", // ≈ Sexual Health
   "health-safety", // ≈ Cold & Immunity
 ]);
-
-const features = [
-  { icon: ShieldCheck, title: "Genuine Medicines", description: "Every product sourced directly from licensed manufacturers and verified distributors." },
-  { icon: Truck, title: "Prompt Delivery", description: "Orders dispatched within hours and delivered to your doorstep with care." },
-  { icon: Clock3, title: "Always Open Online", description: "Browse and order anytime — our platform is available around the clock." },
-  { icon: Pill, title: "Expert Guidance", description: "Our pharmacists are available to answer your questions about dosage and interactions." },
-];
 
 /* ─── Category Navigation inside Hero Banner ─── */
 const HERO_CATEGORIES = [
@@ -674,47 +667,8 @@ export default function Landing() {
         </section>
       )}
 
-      {/* ── Features ── */}
-      <motion.section
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true, margin: "-80px" }}
-        variants={stagger}
-        className="mx-auto max-w-7xl px-6 py-24"
-      >
-        <motion.div variants={fadeUp} className="max-w-xl">
-          <div className="inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary mb-4">
-            <Shield className="size-3" />
-            Why Choose Us
-          </div>
-          <h2 className="text-3xl font-bold tracking-tight sm:text-5xl">
-            Why Kalyan Chemist
-          </h2>
-          <p className="mt-3 text-muted-foreground leading-relaxed text-lg">
-            We are committed to making quality healthcare accessible, reliable,
-            and convenient for every household.
-          </p>
-        </motion.div>
-        <div className="mt-14 grid gap-5 sm:grid-cols-2">
-          {features.map((f, i) => (
-            <motion.div
-              key={f.title}
-              variants={fadeUp}
-              className="group flex items-start gap-5 rounded-2xl border border-border/70 bg-card p-7 transition-all duration-500 hover:shadow-card-hover hover:border-primary/20 hover:-translate-y-0.5"
-            >
-              <div className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary transition-all duration-500 group-hover:bg-primary group-hover:text-white group-hover:shadow-glow group-hover:scale-110">
-                <f.icon className="size-6" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-foreground">{f.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                  {f.description}
-                </p>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      </motion.section>
+      {/* ── Why Kalyan Chemist ── */}
+      <WhyKalyanChemist />
 
       {/* ── Testimonials ── */}
       <section className="border-y border-border/50 bg-gradient-to-b from-card/50 to-background">
