@@ -1,28 +1,46 @@
-import { motion, useReducedMotion } from "framer-motion";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { motion, useReducedMotion, type Variants } from "framer-motion";
 import { ShieldCheck, Truck, Clock3, Pill, Shield, Plus } from "lucide-react";
 
-/* ── Existing trust points (content unchanged) ── */
+const EASE = [0.22, 1, 0.36, 1] as const;
+
+/* ── Existing trust points (content unchanged) ──
+   iconAnim selects that point's signature hover motion in the stylesheet below. */
 const TRUST_POINTS = [
   {
     icon: ShieldCheck,
     title: "Genuine Medicines",
     description: "Every product sourced directly from licensed manufacturers and verified distributors.",
+    iconAnim: "shield",
   },
   {
     icon: Truck,
     title: "Prompt Delivery",
     description: "Orders dispatched within hours and delivered to your doorstep with care.",
+    iconAnim: "truck",
   },
   {
     icon: Clock3,
     title: "Always Open Online",
     description: "Browse and order anytime — our platform is available around the clock.",
+    iconAnim: "clock",
   },
   {
     icon: Pill,
     title: "Expert Guidance",
     description: "Our pharmacists are available to answer your questions about dosage and interactions.",
+    iconAnim: "pill",
   },
+];
+
+/* ── Ambient dust motes for the middle depth layer (pure CSS, transform/opacity only) ── */
+const PARTICLES = [
+  { left: "12%", top: "26%", size: 3, delay: "0s", duration: "11s", color: "rgba(153,246,228,0.75)" },
+  { left: "23%", top: "68%", size: 2, delay: "1.6s", duration: "13s", color: "rgba(255,255,255,0.55)" },
+  { left: "41%", top: "18%", size: 2, delay: "3.1s", duration: "12s", color: "rgba(147,197,253,0.6)" },
+  { left: "58%", top: "74%", size: 3, delay: "0.8s", duration: "14s", color: "rgba(153,246,228,0.6)" },
+  { left: "72%", top: "22%", size: 2, delay: "2.4s", duration: "12.5s", color: "rgba(253,186,116,0.6)" },
+  { left: "88%", top: "58%", size: 2, delay: "4.2s", duration: "13.5s", color: "rgba(255,255,255,0.5)" },
 ];
 
 /* ── Premium soft-3D trust illustration (Kalyan Chemist palette) ── */
@@ -76,12 +94,12 @@ function TrustIllustration() {
       <ellipse cx="130" cy="98" rx="104" ry="46" stroke="#99F6E4" strokeOpacity="0.16" strokeWidth="1.2" fill="none" />
       <ellipse cx="130" cy="98" rx="104" ry="46" fill="url(#wkcSpot)" />
 
-      {/* ground shadow */}
+      {/* ground shadow (moves with the illustration for believable contact depth) */}
       <ellipse cx="130" cy="184" rx="64" ry="9" fill="#022C26" opacity="0.32" />
       <ellipse cx="130" cy="184" rx="40" ry="5" fill="#022C26" opacity="0.22" />
 
       {/* ── main trust shield ── */}
-      <g data-kc-why data-kc-why-anim style={{ animation: "kc-why-floatA 6s ease-in-out infinite" }}>
+      <g data-kc-why-anim style={{ animation: "kc-why-floatA 6s ease-in-out infinite" }}>
         <path
           d="M130 20 L206 48 V100 C206 145 174 177 130 192 C86 177 54 145 54 100 V48 Z"
           fill="url(#wkcShield)"
@@ -126,7 +144,6 @@ function TrustIllustration() {
           <circle cx="33" cy="131" r="5" fill="#D6F7ED" stroke="#0D9488" strokeWidth="1.2" />
           <circle cx="49" cy="131" r="5" fill="#D6F7ED" stroke="#0D9488" strokeWidth="1.2" />
           <circle cx="65" cy="131" r="5" fill="#D6F7ED" stroke="#0D9488" strokeWidth="1.2" />
-          <rect x="28" y="141" width="22" height="0" rx="1" fill="none" />
           <rect x="28" y="141" width="26" height="3" rx="1.5" fill="#99F6E4" />
           <rect x="28" y="146" width="16" height="2.6" rx="1.3" fill="#CCFBF1" />
         </g>
@@ -156,16 +173,118 @@ function TrustIllustration() {
 
 export default function WhyKalyanChemist() {
   const prefersReducedMotion = useReducedMotion();
+  const frameRef = useRef<HTMLDivElement | null>(null);
 
-  const container = {
-    hidden: {},
-    visible: { transition: { staggerChildren: prefersReducedMotion ? 0 : 0.08 } },
+  /* Pointer-depth state lives in refs — never in React state — so mousemove
+     never triggers a re-render. One rAF flush per frame writes CSS variables. */
+  const frameRafRef = useRef<number | null>(null);
+  const pointerRef = useRef({ clientX: 0, clientY: 0, active: false });
+  const cardRafRef = useRef<number | null>(null);
+  const cardRef = useRef<{ el: HTMLDivElement; clientX: number; clientY: number } | null>(null);
+  const [interactive, setInteractive] = useState(false);
+
+  /* Enable pointer depth only on desktop-class devices with a fine pointer
+     and only when the user has not asked for reduced motion. */
+  useEffect(() => {
+    if (prefersReducedMotion) {
+      setInteractive(false);
+      return;
+    }
+    const mq = window.matchMedia("(hover: hover) and (pointer: fine) and (min-width: 1024px)");
+    const sync = () => setInteractive(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, [prefersReducedMotion]);
+
+  useEffect(
+    () => () => {
+      if (frameRafRef.current !== null) cancelAnimationFrame(frameRafRef.current);
+      if (cardRafRef.current !== null) cancelAnimationFrame(cardRafRef.current);
+    },
+    [],
+  );
+
+  const flushFrame = useCallback(() => {
+    frameRafRef.current = null;
+    const node = frameRef.current;
+    if (!node) return;
+    const rect = node.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    const { clientX, clientY, active } = pointerRef.current;
+    const nx = active ? ((clientX - rect.left) / rect.width - 0.5) * 2 : 0;
+    const ny = active ? ((clientY - rect.top) / rect.height - 0.5) * 2 : 0;
+    node.style.setProperty("--wkc-px", nx.toFixed(3));
+    node.style.setProperty("--wkc-py", ny.toFixed(3));
+  }, []);
+
+  const queueFlush = useCallback(() => {
+    if (frameRafRef.current !== null) return;
+    frameRafRef.current = requestAnimationFrame(flushFrame);
+  }, [flushFrame]);
+
+  const handlePointerMove = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      pointerRef.current = { clientX: e.clientX, clientY: e.clientY, active: true };
+      queueFlush();
+    },
+    [queueFlush],
+  );
+
+  const handlePointerLeave = useCallback(() => {
+    pointerRef.current = { clientX: 0, clientY: 0, active: false };
+    queueFlush();
+  }, [queueFlush]);
+
+  /* Per-card light follows the cursor via two CSS variables, also rAF-throttled. */
+  const flushCard = useCallback(() => {
+    cardRafRef.current = null;
+    const p = cardRef.current;
+    if (!p) return;
+    const rect = p.el.getBoundingClientRect();
+    p.el.style.setProperty("--wkc-mx", `${(p.clientX - rect.left).toFixed(1)}px`);
+    p.el.style.setProperty("--wkc-my", `${(p.clientY - rect.top).toFixed(1)}px`);
+  }, []);
+
+  const handleCardPointerMove = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      cardRef.current = { el: e.currentTarget, clientX: e.clientX, clientY: e.clientY };
+      if (cardRafRef.current !== null) return;
+      cardRafRef.current = requestAnimationFrame(flushCard);
+    },
+    [flushCard],
+  );
+
+  /* Scroll-reveal: explicit short delays give a deterministic sequence
+     (atmosphere → heading → text → visual → trust points → decorations). */
+  const reveal = (delay: number, y = 18): Variants => ({
+    hidden: prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: 0.55, delay, ease: EASE },
+    },
+  });
+
+  const atmosphere: Variants = {
+    hidden: prefersReducedMotion ? { opacity: 1 } : { opacity: 0, scale: 1.03 },
+    visible: { opacity: 1, scale: 1, transition: { duration: 0.8, ease: EASE } },
   };
 
-  const item = {
-    hidden: prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 14 },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] as const } },
+  const visualReveal: Variants = {
+    hidden: prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 26, scale: 0.96, rotateX: 8 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      scale: 1,
+      rotateX: 0,
+      transition: { duration: 0.7, delay: 0.24, ease: EASE },
+    },
   };
+
+  const parallax = (x: number, y: number) => ({
+    transform: `translate3d(calc(var(--wkc-px, 0) * ${x}px), calc(var(--wkc-py, 0) * ${y}px), 0)`,
+  });
 
   return (
     <section className="mx-auto max-w-7xl px-6 py-24">
@@ -194,111 +313,253 @@ export default function WhyKalyanChemist() {
           0%, 100% { transform: translate(0, 0); }
           50% { transform: translate(18px, 16px); }
         }
+        @keyframes kc-why-light-drift {
+          0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.75; }
+          50% { transform: translate3d(18px, -14px, 0) scale(1.08); opacity: 1; }
+        }
+        @keyframes kc-why-dust {
+          0% { opacity: 0; transform: translate3d(0, 6px, 0) scale(0.7); }
+          45% { opacity: 0.85; transform: translate3d(0, -8px, 0) scale(1); }
+          100% { opacity: 0; transform: translate3d(0, -22px, 0) scale(0.7); }
+        }
+        @keyframes kc-why-halo {
+          0%, 100% { opacity: 0.18; transform: scale(0.95); }
+          50% { opacity: 0.4; transform: scale(1.06); }
+        }
+        /* signature per-trust-point motions — only run while their card is hovered */
+        @keyframes kc-why-pulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.14); }
+        }
+        @keyframes kc-why-drive {
+          0%, 100% { transform: translateX(0); }
+          50% { transform: translateX(3px); }
+        }
+        @keyframes kc-why-tick {
+          0%, 100% { transform: rotate(0deg); }
+          35% { transform: rotate(11deg); }
+          70% { transform: rotate(-7deg); }
+        }
+        @keyframes kc-why-tilt {
+          0%, 100% { transform: rotate(0deg); }
+          50% { transform: rotate(-11deg); }
+        }
+        .kc-why-card:hover [data-kc-icon="shield"] { animation: kc-why-pulse 2.4s ease-in-out infinite; }
+        .kc-why-card:hover [data-kc-icon="truck"] { animation: kc-why-drive 1.8s ease-in-out infinite; }
+        .kc-why-card:hover [data-kc-icon="clock"] { animation: kc-why-tick 2.6s ease-in-out infinite; }
+        .kc-why-card:hover [data-kc-icon="pill"] { animation: kc-why-tilt 2.4s ease-in-out infinite; }
         @media (prefers-reduced-motion: reduce) {
           [data-kc-why-anim] { animation: none !important; }
+          .kc-why-card:hover [data-kc-icon] { animation: none !important; }
         }
       `}</style>
 
       <motion.div
+        ref={frameRef}
         initial="hidden"
         whileInView="visible"
         viewport={{ once: true, margin: "-80px" }}
-        variants={container}
+        onPointerMove={interactive ? handlePointerMove : undefined}
+        onPointerLeave={interactive ? handlePointerLeave : undefined}
         className="relative overflow-hidden rounded-[28px] border border-emerald-300/20 shadow-[0_28px_70px_-28px_rgba(4,60,52,0.6)]"
       >
-        {/* ── Layered premium backdrop ── */}
-        <div aria-hidden className="pointer-events-none absolute inset-0">
-          {/* base colour wash */}
+        {/* ═══ LAYER 1 — BACKGROUND ATMOSPHERE ═══ */}
+        <motion.div
+          aria-hidden
+          variants={atmosphere}
+          className="pointer-events-none absolute inset-0 overflow-hidden"
+        >
+          {/* base colour wash + depth gradients */}
           <div className="absolute inset-0 bg-gradient-to-br from-[#052e29] via-[#0a4a42] to-[#0d6b5f]" />
-          {/* radial light zones */}
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(45,212,191,0.40),transparent_55%)]" />
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,rgba(96,165,250,0.26),transparent_55%)]" />
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,rgba(251,146,60,0.20),transparent_52%)]" />
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(139,92,246,0.16),transparent_50%)]" />
-          {/* ambient top light */}
-          <div className="absolute inset-x-0 -top-24 h-56 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.16),transparent_70%)]" />
-          {/* depth vignette keeps text crisp */}
+          {/* soft moving light zones */}
+          <div
+            data-kc-why-anim
+            className="absolute -top-24 left-1/4 h-72 w-[46%] rounded-full bg-emerald-300/25 blur-3xl"
+            style={{ animation: "kc-why-light-drift 22s ease-in-out infinite" }}
+          />
+          <div
+            data-kc-why-anim
+            className="absolute -bottom-28 right-1/4 h-72 w-[42%] rounded-full bg-sky-400/20 blur-3xl"
+            style={{ animation: "kc-why-light-drift 27s ease-in-out 2s infinite" }}
+          />
+          {/* depth vignette keeps the text crisp */}
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_30%,rgba(2,26,23,0.5))]" />
-
           {/* faint healthcare dot grid */}
           <div className="absolute inset-0 bg-[radial-gradient(circle,rgba(204,251,241,0.16)_1px,transparent_1px)] bg-[size:20px_20px] [mask-image:radial-gradient(ellipse_at_center,black_28%,transparent_78%)]" />
 
-          {/* slowly drifting colour orbs */}
+          {/* slow drifting colour orbs — deepest depth, moves least */}
           <div
-            data-kc-why-anim
-            className="absolute -top-24 -left-24 size-72 rounded-full bg-teal-300/25 blur-3xl"
-            style={{ animation: "kc-why-orb-a 24s ease-in-out infinite" }}
-          />
-          <div
-            data-kc-why-anim
-            className="absolute -right-24 -bottom-28 size-80 rounded-full bg-sky-400/20 blur-3xl"
-            style={{ animation: "kc-why-orb-b 28s ease-in-out infinite" }}
-          />
-          <div
-            data-kc-why-anim
-            className="absolute -right-10 top-1/4 size-56 rounded-full bg-emerald-300/20 blur-3xl"
-            style={{ animation: "kc-why-orb-c 22s ease-in-out infinite" }}
-          />
-          <div
-            data-kc-why-anim
-            className="absolute -bottom-20 left-1/3 size-56 rounded-full bg-orange-300/15 blur-3xl"
-            style={{ animation: "kc-why-orb-a 30s ease-in-out infinite" }}
-          />
+            className="absolute -inset-14 transition-transform duration-200 ease-out"
+            style={interactive ? parallax(-7, -4) : undefined}
+          >
+            <div
+              data-kc-why-anim
+              className="absolute -left-10 top-0 size-72 rounded-full bg-teal-300/25 blur-3xl"
+              style={{ animation: "kc-why-orb-a 24s ease-in-out infinite" }}
+            />
+            <div
+              data-kc-why-anim
+              className="absolute -right-16 bottom-0 size-80 rounded-full bg-sky-400/20 blur-3xl"
+              style={{ animation: "kc-why-orb-b 28s ease-in-out infinite" }}
+            />
+            <div
+              data-kc-why-anim
+              className="absolute -right-6 top-1/4 size-56 rounded-full bg-emerald-300/20 blur-3xl"
+              style={{ animation: "kc-why-orb-c 22s ease-in-out infinite" }}
+            />
+            <div
+              data-kc-why-anim
+              className="absolute bottom-0 left-1/3 size-56 rounded-full bg-orange-300/15 blur-3xl"
+              style={{ animation: "kc-why-orb-a 30s ease-in-out infinite" }}
+            />
+          </div>
+        </motion.div>
 
-          {/* translucent abstract shapes for depth */}
-          <div className="absolute right-10 top-8 size-28 rounded-full border border-white/10" />
-          <div className="absolute -left-10 bottom-16 size-40 rotate-12 rounded-[2.5rem] border border-white/10" />
-          <div className="absolute right-1/3 -bottom-6 size-24 rounded-full border border-dashed border-teal-200/15" />
-          <Plus className="absolute left-[8%] top-6 size-4 rotate-12 text-teal-200/25" />
-          <Plus className="absolute bottom-8 left-[46%] size-3.5 rotate-45 text-sky-200/20" />
-          <Plus className="absolute right-[6%] bottom-10 size-4 -rotate-12 text-orange-200/25" />
-        </div>
-
-        {/* ── Headline + 3D visual ── */}
-        <div className="relative grid items-center gap-6 px-6 pb-2 pt-8 sm:px-8 sm:pt-9 lg:grid-cols-[1.08fr_0.92fr] lg:gap-6 lg:pb-3">
-          <motion.div variants={item}>
-            <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-100">
-              <Shield className="size-3" />
-              Why Choose Us
-            </div>
-            <h2 className="mt-3 bg-gradient-to-br from-white via-white to-emerald-200 bg-clip-text text-[28px] font-bold leading-[1.1] tracking-tight text-transparent sm:text-4xl lg:text-[42px]">
-              Why Kalyan Chemist
-            </h2>
-            <p className="mt-3 max-w-md text-sm leading-relaxed text-emerald-50/75 sm:text-[15px]">
-              We are committed to making quality healthcare accessible, reliable,
-              and convenient for every household.
-            </p>
-          </motion.div>
-
-          <motion.div variants={item} className="relative mx-auto w-full max-w-[300px] lg:max-w-none">
-            {/* soft ambient glow seating the illustration into the banner */}
-            <div className="absolute inset-x-6 top-8 bottom-4 rounded-full bg-teal-400/20 blur-2xl" />
-            <div className="relative h-40 sm:h-44 lg:h-52">
-              <TrustIllustration />
-            </div>
-          </motion.div>
-        </div>
-
-        {/* ── Trust points ── */}
+        {/* ═══ LAYER 2 — MIDDLE: floating healthcare forms + ambient dust ═══ */}
         <motion.div
-          variants={container}
-          className="relative grid gap-3 border-t border-white/10 px-6 py-6 sm:grid-cols-2 sm:px-8 lg:grid-cols-4 lg:py-7"
+          aria-hidden
+          variants={reveal(0.46, 10)}
+          className="pointer-events-none absolute inset-0 overflow-hidden"
         >
-          {TRUST_POINTS.map((point) => (
+          <div
+            className="absolute inset-0 transition-transform duration-200 ease-out"
+            style={interactive ? parallax(13, 8) : undefined}
+          >
+            {/* translucent abstract shapes — soft depth shadows */}
+            <div className="absolute right-10 top-8 size-28 rounded-full border border-white/10 shadow-[0_16px_30px_-22px_rgba(0,0,0,0.7)]" />
+            <div className="absolute -left-10 bottom-16 size-40 rotate-12 rounded-[2.5rem] border border-white/10 shadow-[0_18px_34px_-24px_rgba(0,0,0,0.7)]" />
+            <div className="absolute -bottom-6 right-1/3 size-24 rounded-full border border-dashed border-teal-200/15" />
+            <Plus className="absolute left-[8%] top-6 size-4 rotate-12 text-teal-200/25 drop-shadow-[0_6px_10px_rgba(2,26,23,0.5)]" />
+            <Plus className="absolute bottom-8 left-[46%] size-3.5 rotate-45 text-sky-200/20" />
+            <Plus className="absolute bottom-10 right-[6%] size-4 -rotate-12 text-orange-200/25" />
+
+            {/* ambient dust motes */}
+            {PARTICLES.map((p, i) => (
+              <span
+                key={i}
+                data-kc-why-anim
+                className="absolute rounded-full"
+                style={{
+                  left: p.left,
+                  top: p.top,
+                  width: p.size,
+                  height: p.size,
+                  backgroundColor: p.color,
+                  animation: `kc-why-dust ${p.duration} ease-in-out ${p.delay} infinite`,
+                }}
+              />
+            ))}
+          </div>
+        </motion.div>
+
+        {/* ═══ LAYER 3 — FOREGROUND: headline, 3D visual, trust points ═══ */}
+        <div className="relative grid items-center gap-6 px-6 pb-2 pt-8 [perspective:1000px] sm:px-8 sm:pt-9 lg:grid-cols-[1.08fr_0.92fr] lg:gap-6 lg:pb-3">
+          <div>
+            <motion.div variants={reveal(0.04, 12)}>
+              <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-100 shadow-[0_10px_22px_-18px_rgba(45,212,191,0.9)]">
+                <Shield className="size-3" />
+                Why Choose Us
+              </div>
+            </motion.div>
+            <motion.h2
+              variants={reveal(0.1, 20)}
+              className="mt-3 bg-gradient-to-br from-white via-white to-emerald-200 bg-clip-text text-[28px] font-bold leading-[1.1] tracking-tight text-transparent sm:text-4xl lg:text-[42px]"
+            >
+              Why Kalyan Chemist
+            </motion.h2>
+            <p className="mt-3 max-w-md text-sm leading-relaxed text-emerald-50/75 sm:text-[15px]">
+              <motion.span variants={reveal(0.17, 12)} className="block">
+                We are committed to making quality healthcare accessible, reliable,
+              </motion.span>
+              <motion.span variants={reveal(0.22, 12)} className="block">
+                and convenient for every household.
+              </motion.span>
+            </p>
+          </div>
+
+          {/* Main 3D visual — hover lift/tilt, idle float, pointer parallax */}
+          <motion.div
+            variants={visualReveal}
+            className="group/visual relative mx-auto w-full max-w-[300px] lg:max-w-none"
+          >
+            <div
+              className="relative transition-transform duration-200 ease-out will-change-transform"
+              style={interactive ? parallax(22, 14) : undefined}
+            >
+              {/* breathing ground glow doubles as the contact shadow */}
+              <div className="absolute inset-x-6 bottom-6 top-10 rounded-full bg-teal-400/25 blur-2xl transition-[transform,background-color] duration-300 ease-out group-hover/visual:scale-105 group-hover/visual:bg-teal-300/40" />
+              <div className="relative h-40 [perspective:900px] sm:h-44 lg:h-52">
+                <div
+                  data-kc-why-anim
+                  className="size-full"
+                  style={{ animation: "kc-why-floatA 6.5s ease-in-out infinite" }}
+                >
+                  <div className="size-full will-change-transform transition-transform duration-300 ease-out group-hover/visual:[transform:translate3d(0,-8px,0)_scale(1.04)_rotateX(5deg)_rotateY(-5deg)]">
+                    <TrustIllustration />
+                  </div>
+                </div>
+                {/* lighting shift on hover — integrated highlight, not neon */}
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 ease-out group-hover/visual:opacity-100"
+                  style={{
+                    background: "radial-gradient(ellipse at 32% 22%, rgba(255,255,255,0.2), transparent 62%)",
+                  }}
+                />
+              </div>
+            </div>
+          </motion.div>
+        </div>
+
+        {/* Trust points — the reveal animates the outer wrapper while the hover depth
+            lives on the inner surface, so the two transforms never fight. */}
+        <motion.div className="relative grid gap-3 border-t border-white/10 px-6 py-6 [perspective:1200px] sm:grid-cols-2 sm:px-8 lg:grid-cols-4 lg:py-7">
+          {TRUST_POINTS.map((point, i) => (
             <motion.div
               key={point.title}
-              variants={item}
-              className="group relative rounded-2xl border border-white/10 bg-white/[0.06] p-4 [perspective:500px] transition-[transform,box-shadow,border-color,background-color] duration-300 ease-out hover:-translate-y-1 hover:border-emerald-300/30 hover:bg-white/[0.1] hover:shadow-[0_18px_36px_-18px_rgba(45,212,191,0.55)]"
+              variants={reveal(0.32 + i * 0.07)}
+              onPointerMove={interactive ? handleCardPointerMove : undefined}
+              className="relative [perspective:1200px]"
             >
-              <div className="flex size-11 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-300/30 to-teal-500/20 text-emerald-50 ring-1 ring-inset ring-white/15 transition-[transform,box-shadow,background-image,color] duration-300 ease-out will-change-transform group-hover:from-emerald-300/50 group-hover:text-white group-hover:shadow-[0_10px_22px_-8px_rgba(45,212,191,0.75)] group-hover:[transform:translateY(-3px)_scale(1.06)_rotateX(8deg)_rotateY(-5deg)]">
-                <point.icon className="size-5" strokeWidth={1.8} />
+              <div className="kc-why-card group relative isolate h-full overflow-hidden rounded-2xl border border-white/10 bg-white/[0.06] p-4 shadow-[0_10px_24px_-20px_rgba(2,26,23,0.9)] transition-[transform,box-shadow,border-color,background-color] duration-200 ease-out will-change-transform [perspective:600px] hover:[transform:translate3d(0,-6px,0)_rotateX(3deg)_rotateY(-2deg)] hover:border-emerald-300/35 hover:bg-white/[0.11] hover:shadow-[0_28px_52px_-24px_rgba(45,212,191,0.6)]">
+                {/* cursor-tracking interactive light */}
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 ease-out group-hover:opacity-100"
+                  style={{
+                    background:
+                      "radial-gradient(220px circle at var(--wkc-mx, 50%) var(--wkc-my, 50%), rgba(45,212,191,0.18), transparent 68%)",
+                  }}
+                />
+                {/* top edge highlight */}
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/25 to-transparent"
+                />
+
+                <div className="relative flex size-11 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-300/30 to-teal-500/20 text-emerald-50 ring-1 ring-inset ring-white/15 shadow-[0_10px_22px_-14px_rgba(45,212,191,0.9)] transition-[transform,box-shadow,background-color,color] duration-200 ease-out will-change-transform group-hover:from-emerald-300/55 group-hover:text-white group-hover:shadow-[0_14px_26px_-10px_rgba(45,212,191,0.85)] group-hover:[transform:translate3d(0,-3px,0)_scale(1.06)_rotateX(9deg)_rotateY(-6deg)]">
+                  <span
+                    aria-hidden
+                    data-kc-why-anim
+                    className="absolute inset-0 rounded-xl bg-emerald-300/25 blur-[6px]"
+                    style={{ animation: `kc-why-halo 4.6s ease-in-out ${(i * 0.5).toFixed(1)}s infinite` }}
+                  />
+                  <span data-kc-why-anim data-kc-icon={point.iconAnim} className="relative block">
+                    <point.icon className="size-5" strokeWidth={1.8} />
+                  </span>
+                </div>
+
+                <h3 className="relative mt-3 text-sm font-semibold text-white transition-colors duration-200 ease-out group-hover:text-emerald-100">
+                  {point.title}
+                </h3>
+                <p className="relative mt-1.5 text-[12px] leading-relaxed text-emerald-50/70 transition-colors duration-200 ease-out group-hover:text-emerald-50/85">
+                  {point.description}
+                </p>
               </div>
-              <h3 className="mt-3 text-sm font-semibold text-white transition-colors duration-300 group-hover:text-emerald-100">
-                {point.title}
-              </h3>
-              <p className="mt-1.5 text-[12px] leading-relaxed text-emerald-50/70">
-                {point.description}
-              </p>
             </motion.div>
           ))}
         </motion.div>
