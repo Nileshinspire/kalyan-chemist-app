@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { motion, useReducedMotion, type Variants } from "framer-motion";
 import { ShieldCheck, Truck, Clock3, Pill, Shield, Plus } from "lucide-react";
 
@@ -43,7 +43,15 @@ const PARTICLES = [
   { left: "88%", top: "58%", size: 2, delay: "4.2s", duration: "13.5s", color: "rgba(255,255,255,0.5)" },
 ];
 
-/* ── Premium soft-3D trust illustration (Kalyan Chemist palette) ── */
+/* ── Premium soft-3D trust illustration (Kalyan Chemist palette) ──
+   Every symbol keeps a FIXED position — only small local motion is applied,
+   so the cluster stays anchored inside one designated visual area. ── */
+const svgAnim = (name: string, duration: string, delay = "0s"): CSSProperties => ({
+  animation: `${name} ${duration} ease-in-out ${delay} infinite`,
+  transformBox: "fill-box",
+  transformOrigin: "center",
+});
+
 function TrustIllustration() {
   return (
     <svg viewBox="0 0 260 200" fill="none" className="size-full" aria-hidden="true">
@@ -51,10 +59,6 @@ function TrustIllustration() {
         <radialGradient id="wkcGlow" cx="0.5" cy="0.5" r="0.5">
           <stop offset="0" stopColor="#2DD4BF" stopOpacity="0.45" />
           <stop offset="1" stopColor="#2DD4BF" stopOpacity="0" />
-        </radialGradient>
-        <radialGradient id="wkcSpot" cx="0.5" cy="0.05" r="0.9">
-          <stop offset="0" stopColor="#FFFFFF" stopOpacity="0.28" />
-          <stop offset="1" stopColor="#FFFFFF" stopOpacity="0" />
         </radialGradient>
         <linearGradient id="wkcShield" x1="0" y1="0" x2="0.35" y2="1">
           <stop offset="0" stopColor="#5EEAD4" />
@@ -86,20 +90,23 @@ function TrustIllustration() {
           <stop offset="0" stopColor="#5EEAD4" />
           <stop offset="1" stopColor="#0D9488" />
         </linearGradient>
+        <radialGradient id="wkcArea" cx="0.5" cy="0.5" r="0.5">
+          <stop offset="0" stopColor="#5EEAD4" stopOpacity="0.12" />
+          <stop offset="0.68" stopColor="#5EEAD4" stopOpacity="0.05" />
+          <stop offset="1" stopColor="#5EEAD4" stopOpacity="0" />
+        </radialGradient>
       </defs>
 
-      {/* ambient light + depth rings */}
-      <circle cx="130" cy="98" r="84" fill="url(#wkcGlow)" />
-      <circle cx="130" cy="98" r="74" stroke="#5EEAD4" strokeOpacity="0.35" strokeWidth="1.4" strokeDasharray="3 7" fill="none" />
-      <ellipse cx="130" cy="98" rx="104" ry="46" stroke="#99F6E4" strokeOpacity="0.16" strokeWidth="1.2" fill="none" />
-      <ellipse cx="130" cy="98" rx="104" ry="46" fill="url(#wkcSpot)" />
+      {/* ambient glow marks the designated visual area — no orbit/ellipse paths */}
+      <circle cx="130" cy="100" r="86" fill="url(#wkcGlow)" />
+      <circle cx="130" cy="100" r="78" fill="url(#wkcArea)" />
 
-      {/* ground shadow (moves with the illustration for believable contact depth) */}
-      <ellipse cx="130" cy="184" rx="64" ry="9" fill="#022C26" opacity="0.32" />
-      <ellipse cx="130" cy="184" rx="40" ry="5" fill="#022C26" opacity="0.22" />
+      {/* ground shadow (static contact depth) */}
+      <ellipse cx="130" cy="184" rx="62" ry="8.5" fill="#022C26" opacity="0.30" />
+      <ellipse cx="130" cy="184" rx="38" ry="4.5" fill="#022C26" opacity="0.20" />
 
       {/* ── main trust shield ── */}
-      <g data-kc-why-anim style={{ animation: "kc-why-floatA 6s ease-in-out infinite" }}>
+      <g data-kc-why-anim style={svgAnim("kc-why-shield", "7s")}>
         <path
           d="M130 20 L206 48 V100 C206 145 174 177 130 192 C86 177 54 145 54 100 V48 Z"
           fill="url(#wkcShield)"
@@ -120,24 +127,26 @@ function TrustIllustration() {
           strokeOpacity="0.35"
           strokeWidth="1.4"
         />
-        {/* medical cross */}
-        <rect x="118" y="72" width="24" height="60" rx="8" fill="url(#wkcCross)" />
-        <rect x="100" y="90" width="60" height="24" rx="8" fill="url(#wkcCross)" />
-        <rect x="122" y="76" width="6" height="52" rx="3" fill="#5EEAD4" opacity="0.55" />
-        <rect x="104" y="94" width="52" height="6" rx="3" fill="#5EEAD4" opacity="0.4" />
+        {/* medical cross — gently shifts */}
+        <g data-kc-why-anim style={svgAnim("kc-why-plus", "5.4s", "0.6s")}>
+          <rect x="118" y="72" width="24" height="60" rx="8" fill="url(#wkcCross)" />
+          <rect x="100" y="90" width="60" height="24" rx="8" fill="url(#wkcCross)" />
+          <rect x="122" y="76" width="6" height="52" rx="3" fill="#5EEAD4" opacity="0.55" />
+          <rect x="104" y="94" width="52" height="6" rx="3" fill="#5EEAD4" opacity="0.4" />
+        </g>
         {/* soft cast shadow inside the recess */}
         <ellipse cx="130" cy="150" rx="30" ry="6" fill="#0B7F72" opacity="0.14" />
       </g>
 
-      {/* verified badge */}
-      <g>
+      {/* verified badge — soft pulse */}
+      <g data-kc-why-anim style={svgAnim("kc-why-badge", "5.2s", "0.4s")}>
         <circle cx="188" cy="146" r="19" fill="#0B7F72" opacity="0.35" />
         <circle cx="186" cy="143" r="18" fill="url(#wkcBadge)" stroke="#FFFFFF" strokeWidth="2.4" />
         <path d="M178 143 l5.5 5.5 l11 -12" stroke="#FFFFFF" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
       </g>
 
-      {/* floating medicine strip */}
-      <g data-kc-why-anim style={{ animation: "kc-why-floatB 5.2s ease-in-out infinite" }}>
+      {/* blister strip — fixed position, small local float */}
+      <g data-kc-why-anim style={svgAnim("kc-why-strip", "5.6s")}>
         <g transform="rotate(-11 49 132)">
           <rect x="20" y="112" width="58" height="40" rx="9" fill="url(#wkcCard)" stroke="#99F6E4" strokeWidth="1.4" />
           <rect x="20" y="112" width="58" height="8" rx="4" fill="#14B8A6" opacity="0.5" />
@@ -149,8 +158,8 @@ function TrustIllustration() {
         </g>
       </g>
 
-      {/* floating capsule */}
-      <g data-kc-why-anim style={{ animation: "kc-why-floatC 5.8s ease-in-out infinite" }}>
+      {/* capsule — fixed position, small local float */}
+      <g data-kc-why-anim style={svgAnim("kc-why-capsule", "6.2s", "0.8s")}>
         <g transform="rotate(-28 214 74)">
           <rect x="196" y="66" width="18" height="16" rx="8" fill="url(#wkcCapA)" />
           <rect x="212" y="66" width="18" height="16" rx="8" fill="url(#wkcCapB)" />
@@ -158,15 +167,58 @@ function TrustIllustration() {
         </g>
       </g>
 
-      {/* translucent healthcare crosses */}
-      <path d="M62 46 v14 M55 53 h14" stroke="#CCFBF1" strokeOpacity="0.5" strokeWidth="2.6" strokeLinecap="round" />
-      <path d="M210 156 v10 M205 161 h10" stroke="#FDE68A" strokeOpacity="0.45" strokeWidth="2.4" strokeLinecap="round" />
-      <path d="M36 78 v9 M31.5 82.5 h9" stroke="#93C5FD" strokeOpacity="0.4" strokeWidth="2.2" strokeLinecap="round" />
+      {/* ══ fixed symbol cluster — all anchored, only local motion ══ */}
 
-      {/* sparkles */}
-      <path d="M214 32 l1.9 4.6 4.6 1.9 -4.6 1.9 -1.9 4.6 -1.9 -4.6 -4.6 -1.9 4.6 -1.9 Z" fill="#5EEAD4" opacity="0.85" />
-      <path d="M44 158 l1.5 3.6 3.6 1.5 -3.6 1.5 -1.5 3.6 -1.5 -3.6 -3.6 -1.5 3.6 -1.5 Z" fill="#FB923C" opacity="0.8" />
-      <path d="M228 104 l1.2 2.9 2.9 1.2 -2.9 1.2 -1.2 2.9 -1.2 -2.9 -2.9 -1.2 2.9 -1.2 Z" fill="#A78BFA" opacity="0.6" />
+      {/* pharmacy cross — upper left, subtle rotation */}
+      <g data-kc-why-anim style={svgAnim("kc-why-cross-rot", "6.8s", "1.1s")}>
+        <rect x="37" y="22" width="10" height="28" rx="4" fill="url(#wkcCross)" opacity="0.9" />
+        <rect x="28" y="31" width="28" height="10" rx="4" fill="url(#wkcCross)" opacity="0.9" />
+      </g>
+
+      {/* heart — left, breathing glow */}
+      <g data-kc-why-anim style={svgAnim("kc-why-heart", "4.8s", "0.3s")}>
+        <path
+          d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
+          transform="translate(22 84) scale(0.85)"
+          fill="url(#wkcCapA)"
+        />
+      </g>
+
+      {/* medicine bottle — right, gentle vertical drift */}
+      <g data-kc-why-anim style={svgAnim("kc-why-bottle", "5.9s", "1.4s")}>
+        <rect x="218" y="92" width="15" height="9" rx="2.5" fill="#0D9488" />
+        <rect x="221" y="100" width="9" height="6" fill="#0F766E" />
+        <rect x="210" y="105" width="31" height="44" rx="7" fill="url(#wkcCard)" stroke="#99F6E4" strokeWidth="1.4" />
+        <rect x="214" y="118" width="23" height="21" rx="4" fill="#14B8A6" opacity="0.22" />
+        <path d="M225.5 123 v11 M220 128.5 h11" stroke="#0D9488" strokeWidth="3" strokeLinecap="round" opacity="0.75" />
+        <rect x="215" y="108" width="7" height="30" rx="3.5" fill="#FFFFFF" opacity="0.4" />
+      </g>
+
+      {/* small medical plus marks — lower corners, gently shift */}
+      <g data-kc-why-anim style={svgAnim("kc-why-plus", "6.4s", "1.8s")}>
+        <path d="M44 146 v11 M38.5 151.5 h11" stroke="#CCFBF1" strokeOpacity="0.55" strokeWidth="2.6" strokeLinecap="round" />
+      </g>
+      <g data-kc-why-anim style={svgAnim("kc-why-plus", "7.2s", "2.3s")}>
+        <path d="M210 168 v9 M205.5 172.5 h9" stroke="#FDE68A" strokeOpacity="0.45" strokeWidth="2.4" strokeLinecap="round" />
+      </g>
+
+      {/* soft particles floating around the cluster (fixed anchors) */}
+      <circle cx="84" cy="28" r="2" fill="#99F6E4" data-kc-why-anim style={svgAnim("kc-why-mote", "4.6s", "0.2s")} />
+      <circle cx="198" cy="24" r="1.7" fill="#FFFFFF" data-kc-why-anim style={svgAnim("kc-why-mote", "5.4s", "1.1s")} />
+      <circle cx="28" cy="124" r="1.9" fill="#93C5FD" data-kc-why-anim style={svgAnim("kc-why-mote", "5s", "1.9s")} />
+      <circle cx="104" cy="178" r="1.8" fill="#FDBA74" data-kc-why-anim style={svgAnim("kc-why-mote", "4.4s", "0.7s")} />
+      <circle cx="188" cy="178" r="1.6" fill="#99F6E4" data-kc-why-anim style={svgAnim("kc-why-mote", "5.8s", "2.6s")} />
+
+      {/* sparkles — gentle twinkle */}
+      <g data-kc-why-anim style={svgAnim("kc-why-twinkle", "3.8s", "0.4s")}>
+        <path d="M214 30 l1.9 4.6 4.6 1.9 -4.6 1.9 -1.9 4.6 -1.9 -4.6 -4.6 -1.9 4.6 -1.9 Z" fill="#5EEAD4" />
+      </g>
+      <g data-kc-why-anim style={svgAnim("kc-why-twinkle", "4.6s", "1.6s")}>
+        <path d="M40 160 l1.5 3.6 3.6 1.5 -3.6 1.5 -1.5 3.6 -1.5 -3.6 -3.6 -1.5 3.6 -1.5 Z" fill="#FB923C" />
+      </g>
+      <g data-kc-why-anim style={svgAnim("kc-why-twinkle", "5.2s", "2.2s")}>
+        <path d="M248 74 l1.2 2.9 2.9 1.2 -2.9 1.2 -1.2 2.9 -1.2 -2.9 -2.9 -1.2 2.9 -1.2 Z" fill="#A78BFA" />
+      </g>
     </svg>
   );
 }
@@ -289,17 +341,50 @@ export default function WhyKalyanChemist() {
   return (
     <section className="mx-auto max-w-7xl px-6 py-24">
       <style>{`
+        /* ── cluster symbol motions: strictly local (a few px / degrees) ── */
         @keyframes kc-why-floatA {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-4px); }
+          0%, 100% { transform: translateY(0) scale(1); }
+          50% { transform: translateY(-3px) scale(1.008); }
         }
-        @keyframes kc-why-floatB {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-5px); }
+        @keyframes kc-why-shield {
+          0%, 100% { transform: translateY(0) scale(1); }
+          50% { transform: translateY(-2.5px) scale(1.012); }
         }
-        @keyframes kc-why-floatC {
+        @keyframes kc-why-strip {
+          0%, 100% { transform: translateY(0) rotate(0deg); }
+          50% { transform: translateY(-3px) rotate(-1.5deg); }
+        }
+        @keyframes kc-why-capsule {
+          0%, 100% { transform: translateY(0) rotate(0deg); }
+          50% { transform: translateY(-3px) rotate(3deg); }
+        }
+        @keyframes kc-why-bottle {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(2.5px); }
+        }
+        @keyframes kc-why-cross-rot {
+          0%, 100% { transform: rotate(-4deg); }
+          50% { transform: rotate(4deg); }
+        }
+        @keyframes kc-why-heart {
+          0%, 100% { transform: scale(1); opacity: 0.82; }
+          50% { transform: scale(1.07); opacity: 1; }
+        }
+        @keyframes kc-why-badge {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.06); }
+        }
+        @keyframes kc-why-plus {
           0%, 100% { transform: translate(0, 0); }
-          50% { transform: translate(1.5px, -4px); }
+          50% { transform: translate(0, -1.6px); }
+        }
+        @keyframes kc-why-mote {
+          0%, 100% { transform: translateY(0); opacity: 0.35; }
+          50% { transform: translateY(-4px); opacity: 0.9; }
+        }
+        @keyframes kc-why-twinkle {
+          0%, 100% { opacity: 0.4; }
+          50% { opacity: 1; }
         }
         @keyframes kc-why-orb-a {
           0%, 100% { transform: translate(0, 0); }
