@@ -35,15 +35,15 @@ const TRUST_POINTS = [
 
 /* ── Ambient dust motes for the middle depth layer (pure CSS, transform/opacity only) ── */
 const PARTICLES = [
-  { left: "12%", top: "26%", size: 3, delay: "0s", duration: "11s", color: "rgba(153,246,228,0.75)" },
-  { left: "23%", top: "68%", size: 2, delay: "1.6s", duration: "13s", color: "rgba(255,255,255,0.55)" },
-  { left: "41%", top: "18%", size: 2, delay: "3.1s", duration: "12s", color: "rgba(147,197,253,0.6)" },
-  { left: "58%", top: "74%", size: 3, delay: "0.8s", duration: "14s", color: "rgba(153,246,228,0.6)" },
-  { left: "72%", top: "22%", size: 2, delay: "2.4s", duration: "12.5s", color: "rgba(253,186,116,0.6)" },
-  { left: "88%", top: "58%", size: 2, delay: "4.2s", duration: "13.5s", color: "rgba(255,255,255,0.5)" },
+  { left: "12%", top: "26%", size: 3, delay: "0s", duration: "11s", color: "rgba(13,148,136,0.45)" },
+  { left: "23%", top: "68%", size: 2, delay: "1.6s", duration: "13s", color: "rgba(15,118,110,0.35)" },
+  { left: "41%", top: "18%", size: 2, delay: "3.1s", duration: "12s", color: "rgba(56,189,248,0.4)" },
+  { left: "58%", top: "74%", size: 3, delay: "0.8s", duration: "14s", color: "rgba(20,184,166,0.4)" },
+  { left: "72%", top: "22%", size: 2, delay: "2.4s", duration: "12.5s", color: "rgba(251,146,60,0.45)" },
+  { left: "88%", top: "58%", size: 2, delay: "4.2s", duration: "13.5s", color: "rgba(15,118,110,0.35)" },
 ];
 
-/* ── Premium soft-3D trust illustration (Kalyan Chemist palette) ──
+/* ── Premium soft-3D trust illustration (light clinical palette) ──
    Every symbol keeps a FIXED position — only small local motion is applied,
    so the cluster stays anchored inside one designated visual area. ── */
 const svgAnim = (name: string, duration: string, delay = "0s"): CSSProperties => ({
@@ -57,43 +57,43 @@ function TrustIllustration() {
     <svg viewBox="0 0 260 200" fill="none" className="size-full" aria-hidden="true">
       <defs>
         <radialGradient id="wkcGlow" cx="0.5" cy="0.5" r="0.5">
-          <stop offset="0" stopColor="#22D3EE" stopOpacity="0.4" />
-          <stop offset="1" stopColor="#22D3EE" stopOpacity="0" />
+          <stop offset="0" stopColor="#2DD4BF" stopOpacity="0.32" />
+          <stop offset="1" stopColor="#2DD4BF" stopOpacity="0" />
         </radialGradient>
         <linearGradient id="wkcShield" x1="0" y1="0" x2="0.35" y2="1">
-          <stop offset="0" stopColor="#5EEAD4" />
-          <stop offset="0.5" stopColor="#10B981" />
-          <stop offset="1" stopColor="#0E6E8C" />
+          <stop offset="0" stopColor="#34D399" />
+          <stop offset="0.55" stopColor="#10B981" />
+          <stop offset="1" stopColor="#0F766E" />
         </linearGradient>
         <linearGradient id="wkcShieldIn" x1="0" y1="0" x2="0.4" y2="1">
           <stop offset="0" stopColor="#FFFFFF" />
-          <stop offset="0.55" stopColor="#EFF9FF" />
-          <stop offset="1" stopColor="#C7E8F4" />
+          <stop offset="0.55" stopColor="#F0FDFA" />
+          <stop offset="1" stopColor="#CCFBF1" />
         </linearGradient>
         <linearGradient id="wkcCross" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#22D3EE" />
-          <stop offset="1" stopColor="#0E7490" />
+          <stop offset="0" stopColor="#0D9488" />
+          <stop offset="1" stopColor="#0F766E" />
         </linearGradient>
         <linearGradient id="wkcBadge" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0" stopColor="#34D399" />
           <stop offset="1" stopColor="#0D9488" />
         </linearGradient>
         <linearGradient id="wkcCard" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#F4FAFF" />
-          <stop offset="1" stopColor="#DCEFFB" />
+          <stop offset="0" stopColor="#FFFFFF" />
+          <stop offset="1" stopColor="#F0FDFA" />
         </linearGradient>
         <linearGradient id="wkcCapA" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor="#FDBA74" />
           <stop offset="1" stopColor="#F97316" />
         </linearGradient>
         <linearGradient id="wkcCapB" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#67E8F9" />
-          <stop offset="1" stopColor="#0F766E" />
+          <stop offset="0" stopColor="#22D3EE" />
+          <stop offset="1" stopColor="#0D9488" />
         </linearGradient>
         <radialGradient id="wkcArea" cx="0.5" cy="0.5" r="0.5">
-          <stop offset="0" stopColor="#22D3EE" stopOpacity="0.14" />
-          <stop offset="0.68" stopColor="#22D3EE" stopOpacity="0.05" />
-          <stop offset="1" stopColor="#22D3EE" stopOpacity="0" />
+          <stop offset="0" stopColor="#0FA3A3" stopOpacity="0.12" />
+          <stop offset="0.68" stopColor="#0FA3A3" stopOpacity="0.05" />
+          <stop offset="1" stopColor="#0FA3A3" stopOpacity="0" />
         </radialGradient>
       </defs>
 
@@ -101,9 +101,9 @@ function TrustIllustration() {
       <circle cx="130" cy="100" r="86" fill="url(#wkcGlow)" />
       <circle cx="130" cy="100" r="78" fill="url(#wkcArea)" />
 
-      {/* ground shadow (static contact depth) */}
-      <ellipse cx="130" cy="184" rx="62" ry="8.5" fill="#0B1E3F" opacity="0.32" />
-      <ellipse cx="130" cy="184" rx="38" ry="4.5" fill="#0B1E3F" opacity="0.22" />
+      {/* ground shadow (soft teal contact depth for the light theme) */}
+      <ellipse cx="130" cy="184" rx="62" ry="8.5" fill="#0F766E" opacity="0.18" />
+      <ellipse cx="130" cy="184" rx="38" ry="4.5" fill="#0F766E" opacity="0.12" />
 
       {/* ── main trust shield ── */}
       <g data-kc-why-anim style={svgAnim("kc-why-shield", "7s")}>
@@ -112,9 +112,9 @@ function TrustIllustration() {
           fill="url(#wkcShield)"
         />
         {/* raised top bevel */}
-        <path d="M130 20 L206 48 V58 L130 30 L54 58 V48 Z" fill="#A7F3E2" opacity="0.4" />
+        <path d="M130 20 L206 48 V58 L130 30 L54 58 V48 Z" fill="#A7F3D0" opacity="0.5" />
         {/* rim light along the left edge */}
-        <path d="M57 51 V100 C57 140 82 169 118 185" stroke="#FFFFFF" strokeOpacity="0.35" strokeWidth="2.2" strokeLinecap="round" fill="none" />
+        <path d="M57 51 V100 C57 140 82 169 118 185" stroke="#FFFFFF" strokeOpacity="0.55" strokeWidth="2.2" strokeLinecap="round" fill="none" />
         {/* recessed face */}
         <path
           d="M130 40 L187 62 V100 C187 134 162 159 130 170 C98 159 73 134 73 100 V62 Z"
@@ -124,23 +124,23 @@ function TrustIllustration() {
           d="M130 40 L187 62 V100 C187 134 162 159 130 170 C98 159 73 134 73 100 V62 Z"
           fill="none"
           stroke="#0D9488"
-          strokeOpacity="0.35"
+          strokeOpacity="0.3"
           strokeWidth="1.4"
         />
         {/* medical cross — gently shifts */}
         <g data-kc-why-anim style={svgAnim("kc-why-plus", "5.4s", "0.6s")}>
           <rect x="118" y="72" width="24" height="60" rx="8" fill="url(#wkcCross)" />
           <rect x="100" y="90" width="60" height="24" rx="8" fill="url(#wkcCross)" />
-          <rect x="122" y="76" width="6" height="52" rx="3" fill="#67E8F9" opacity="0.55" />
-          <rect x="104" y="94" width="52" height="6" rx="3" fill="#67E8F9" opacity="0.4" />
+          <rect x="122" y="76" width="6" height="52" rx="3" fill="#66F2E0" opacity="0.7" />
+          <rect x="104" y="94" width="52" height="6" rx="3" fill="#66F2E0" opacity="0.55" />
         </g>
         {/* soft cast shadow inside the recess */}
-        <ellipse cx="130" cy="150" rx="30" ry="6" fill="#0E7490" opacity="0.18" />
+        <ellipse cx="130" cy="150" rx="30" ry="6" fill="#0D9488" opacity="0.16" />
       </g>
 
       {/* verified badge — soft pulse */}
       <g data-kc-why-anim style={svgAnim("kc-why-badge", "5.2s", "0.4s")}>
-        <circle cx="188" cy="146" r="19" fill="#0E7490" opacity="0.4" />
+        <circle cx="188" cy="146" r="19" fill="#0D9488" opacity="0.22" />
         <circle cx="186" cy="143" r="18" fill="url(#wkcBadge)" stroke="#FFFFFF" strokeWidth="2.4" />
         <path d="M178 143 l5.5 5.5 l11 -12" stroke="#FFFFFF" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" fill="none" />
       </g>
@@ -148,13 +148,13 @@ function TrustIllustration() {
       {/* blister strip — fixed position, small local float */}
       <g data-kc-why-anim style={svgAnim("kc-why-strip", "5.6s")}>
         <g transform="rotate(-11 49 132)">
-          <rect x="20" y="112" width="58" height="40" rx="9" fill="url(#wkcCard)" stroke="#99F6E4" strokeWidth="1.4" />
-          <rect x="20" y="112" width="58" height="8" rx="4" fill="#22D3EE" opacity="0.5" />
-          <circle cx="33" cy="131" r="5" fill="#D6F7ED" stroke="#0D9488" strokeWidth="1.2" />
-          <circle cx="49" cy="131" r="5" fill="#D6F7ED" stroke="#0D9488" strokeWidth="1.2" />
-          <circle cx="65" cy="131" r="5" fill="#D6F7ED" stroke="#0D9488" strokeWidth="1.2" />
-          <rect x="28" y="141" width="26" height="3" rx="1.5" fill="#99F6E4" />
-          <rect x="28" y="146" width="16" height="2.6" rx="1.3" fill="#CCFBF1" />
+          <rect x="20" y="112" width="58" height="40" rx="9" fill="url(#wkcCard)" stroke="#99F6E4" strokeWidth="1.6" />
+          <rect x="20" y="112" width="58" height="8" rx="4" fill="#34D399" opacity="0.4" />
+          <circle cx="33" cy="131" r="5" fill="#D1FAE5" stroke="#0D9488" strokeWidth="1.2" />
+          <circle cx="49" cy="131" r="5" fill="#D1FAE5" stroke="#0D9488" strokeWidth="1.2" />
+          <circle cx="65" cy="131" r="5" fill="#D1FAE5" stroke="#0D9488" strokeWidth="1.2" />
+          <rect x="28" y="141" width="26" height="3" rx="1.5" fill="#2DD4BF" />
+          <rect x="28" y="146" width="16" height="2.6" rx="1.3" fill="#99F6E4" />
         </g>
       </g>
 
@@ -163,7 +163,7 @@ function TrustIllustration() {
         <g transform="rotate(-28 214 74)">
           <rect x="196" y="66" width="18" height="16" rx="8" fill="url(#wkcCapA)" />
           <rect x="212" y="66" width="18" height="16" rx="8" fill="url(#wkcCapB)" />
-          <rect x="199" y="70" width="6" height="3" rx="1.5" fill="#FFFFFF" opacity="0.7" />
+          <rect x="199" y="70" width="6" height="3" rx="1.5" fill="#FFFFFF" opacity="0.8" />
         </g>
       </g>
 
@@ -171,8 +171,8 @@ function TrustIllustration() {
 
       {/* pharmacy cross — upper left, subtle rotation */}
       <g data-kc-why-anim style={svgAnim("kc-why-cross-rot", "6.8s", "1.1s")}>
-        <rect x="37" y="22" width="10" height="28" rx="4" fill="url(#wkcCross)" opacity="0.9" />
-        <rect x="28" y="31" width="28" height="10" rx="4" fill="url(#wkcCross)" opacity="0.9" />
+        <rect x="37" y="22" width="10" height="28" rx="4" fill="url(#wkcCross)" opacity="0.85" />
+        <rect x="28" y="31" width="28" height="10" rx="4" fill="url(#wkcCross)" opacity="0.85" />
       </g>
 
       {/* heart — left, breathing glow */}
@@ -186,38 +186,38 @@ function TrustIllustration() {
 
       {/* medicine bottle — right, gentle vertical drift */}
       <g data-kc-why-anim style={svgAnim("kc-why-bottle", "5.9s", "1.4s")}>
-        <rect x="218" y="92" width="15" height="9" rx="2.5" fill="#0F766E" />
-        <rect x="221" y="100" width="9" height="6" fill="#155E75" />
-        <rect x="210" y="105" width="31" height="44" rx="7" fill="url(#wkcCard)" stroke="#99F6E4" strokeWidth="1.4" />
-        <rect x="214" y="118" width="23" height="21" rx="4" fill="#22D3EE" opacity="0.25" />
-        <path d="M225.5 123 v11 M220 128.5 h11" stroke="#0E7490" strokeWidth="3" strokeLinecap="round" opacity="0.8" />
-        <rect x="215" y="108" width="7" height="30" rx="3.5" fill="#FFFFFF" opacity="0.4" />
+        <rect x="218" y="92" width="15" height="9" rx="2.5" fill="#0D9488" />
+        <rect x="221" y="100" width="9" height="6" fill="#0F766E" />
+        <rect x="210" y="105" width="31" height="44" rx="7" fill="url(#wkcCard)" stroke="#99F6E4" strokeWidth="1.6" />
+        <rect x="214" y="118" width="23" height="21" rx="4" fill="#2DD4BF" opacity="0.22" />
+        <path d="M225.5 123 v11 M220 128.5 h11" stroke="#0F766E" strokeWidth="3" strokeLinecap="round" opacity="0.75" />
+        <rect x="215" y="108" width="7" height="30" rx="3.5" fill="#FFFFFF" opacity="0.55" />
       </g>
 
       {/* small medical plus marks — lower corners, gently shift */}
       <g data-kc-why-anim style={svgAnim("kc-why-plus", "6.4s", "1.8s")}>
-        <path d="M44 146 v11 M38.5 151.5 h11" stroke="#BFDBFE" strokeOpacity="0.6" strokeWidth="2.6" strokeLinecap="round" />
+        <path d="M44 146 v11 M38.5 151.5 h11" stroke="#0E7490" strokeOpacity="0.45" strokeWidth="2.6" strokeLinecap="round" />
       </g>
       <g data-kc-why-anim style={svgAnim("kc-why-plus", "7.2s", "2.3s")}>
-        <path d="M210 168 v9 M205.5 172.5 h9" stroke="#FDBA74" strokeOpacity="0.55" strokeWidth="2.4" strokeLinecap="round" />
+        <path d="M210 168 v9 M205.5 172.5 h9" stroke="#FB923C" strokeOpacity="0.6" strokeWidth="2.4" strokeLinecap="round" />
       </g>
 
       {/* soft particles floating around the cluster (fixed anchors) */}
-      <circle cx="84" cy="28" r="2" fill="#99F6E4" data-kc-why-anim style={svgAnim("kc-why-mote", "4.6s", "0.2s")} />
-      <circle cx="198" cy="24" r="1.7" fill="#FFFFFF" data-kc-why-anim style={svgAnim("kc-why-mote", "5.4s", "1.1s")} />
-      <circle cx="28" cy="124" r="1.9" fill="#93C5FD" data-kc-why-anim style={svgAnim("kc-why-mote", "5s", "1.9s")} />
-      <circle cx="104" cy="178" r="1.8" fill="#FDBA74" data-kc-why-anim style={svgAnim("kc-why-mote", "4.4s", "0.7s")} />
-      <circle cx="188" cy="178" r="1.6" fill="#99F6E4" data-kc-why-anim style={svgAnim("kc-why-mote", "5.8s", "2.6s")} />
+      <circle cx="84" cy="28" r="2" fill="#10B981" data-kc-why-anim style={svgAnim("kc-why-mote", "4.6s", "0.2s")} />
+      <circle cx="198" cy="24" r="1.7" fill="#0D9488" data-kc-why-anim style={svgAnim("kc-why-mote", "5.4s", "1.1s")} />
+      <circle cx="28" cy="124" r="1.9" fill="#38BDF8" data-kc-why-anim style={svgAnim("kc-why-mote", "5s", "1.9s")} />
+      <circle cx="104" cy="178" r="1.8" fill="#FB923C" data-kc-why-anim style={svgAnim("kc-why-mote", "4.4s", "0.7s")} />
+      <circle cx="188" cy="178" r="1.6" fill="#14B8A6" data-kc-why-anim style={svgAnim("kc-why-mote", "5.8s", "2.6s")} />
 
       {/* sparkles — gentle twinkle */}
       <g data-kc-why-anim style={svgAnim("kc-why-twinkle", "3.8s", "0.4s")}>
-        <path d="M214 30 l1.9 4.6 4.6 1.9 -4.6 1.9 -1.9 4.6 -1.9 -4.6 -4.6 -1.9 4.6 -1.9 Z" fill="#67E8F9" />
+        <path d="M214 30 l1.9 4.6 4.6 1.9 -4.6 1.9 -1.9 4.6 -1.9 -4.6 -4.6 -1.9 4.6 -1.9 Z" fill="#14B8A6" />
       </g>
       <g data-kc-why-anim style={svgAnim("kc-why-twinkle", "4.6s", "1.6s")}>
         <path d="M40 160 l1.5 3.6 3.6 1.5 -3.6 1.5 -1.5 3.6 -1.5 -3.6 -3.6 -1.5 3.6 -1.5 Z" fill="#FB923C" />
       </g>
       <g data-kc-why-anim style={svgAnim("kc-why-twinkle", "5.2s", "2.2s")}>
-        <path d="M248 74 l1.2 2.9 2.9 1.2 -2.9 1.2 -1.2 2.9 -1.2 -2.9 -2.9 -1.2 2.9 -1.2 Z" fill="#A5B4FC" />
+        <path d="M248 74 l1.2 2.9 2.9 1.2 -2.9 1.2 -1.2 2.9 -1.2 -2.9 -2.9 -1.2 2.9 -1.2 Z" fill="#818CF8" />
       </g>
     </svg>
   );
@@ -399,8 +399,8 @@ export default function WhyKalyanChemist() {
           50% { transform: translate(18px, 16px); }
         }
         @keyframes kc-why-light-drift {
-          0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.75; }
-          50% { transform: translate3d(18px, -14px, 0) scale(1.08); opacity: 1; }
+          0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.6; }
+          50% { transform: translate3d(18px, -14px, 0) scale(1.08); opacity: 0.9; }
         }
         @keyframes kc-why-dust {
           0% { opacity: 0; transform: translate3d(0, 6px, 0) scale(0.7); }
@@ -408,8 +408,8 @@ export default function WhyKalyanChemist() {
           100% { opacity: 0; transform: translate3d(0, -22px, 0) scale(0.7); }
         }
         @keyframes kc-why-halo {
-          0%, 100% { opacity: 0.18; transform: scale(0.95); }
-          50% { opacity: 0.4; transform: scale(1.06); }
+          0%, 100% { opacity: 0.2; transform: scale(0.95); }
+          50% { opacity: 0.42; transform: scale(1.06); }
         }
         /* signature per-trust-point motions — only run while their card is hovered */
         @keyframes kc-why-pulse {
@@ -446,7 +446,7 @@ export default function WhyKalyanChemist() {
         viewport={{ once: true, margin: "-80px" }}
         onPointerMove={interactive ? handlePointerMove : undefined}
         onPointerLeave={interactive ? handlePointerLeave : undefined}
-        className="relative overflow-hidden rounded-[28px] border border-cyan-200/15 shadow-[0_28px_70px_-28px_rgba(8,16,42,0.8)]"
+        className="relative overflow-hidden rounded-[28px] border border-white/90 bg-white/40 shadow-[0_34px_90px_-40px_rgba(13,59,56,0.4)] ring-1 ring-teal-900/5"
       >
         {/* ═══ LAYER 1 — BACKGROUND ATMOSPHERE ═══ */}
         <motion.div
@@ -454,27 +454,27 @@ export default function WhyKalyanChemist() {
           variants={atmosphere}
           className="pointer-events-none absolute inset-0 overflow-hidden"
         >
-          {/* base colour wash + depth gradients */}
-          <div className="absolute inset-0 bg-gradient-to-br from-[#0a1228] via-[#122a52] to-[#0d4f66]" />
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(45,212,191,0.32),transparent_55%)]" />
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,rgba(105,110,246,0.30),transparent_55%)]" />
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,rgba(251,146,60,0.13),transparent_52%)]" />
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(34,211,238,0.16),transparent_50%)]" />
+          {/* base colour wash + depth gradients — soft clinical daylight */}
+          <div className="absolute inset-0 bg-gradient-to-br from-[#F8FDFB] via-[#E9F6F1] to-[#DFF1F6]" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(52,211,153,0.24),transparent_55%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,rgba(125,211,252,0.22),transparent_55%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,rgba(253,186,116,0.14),transparent_52%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(45,212,191,0.2),transparent_50%)]" />
           {/* soft moving light zones */}
           <div
             data-kc-why-anim
-            className="absolute -top-24 left-1/4 h-72 w-[46%] rounded-full bg-cyan-300/20 blur-3xl"
+            className="absolute -top-24 left-1/4 h-72 w-[46%] rounded-full bg-emerald-200/55 blur-3xl"
             style={{ animation: "kc-why-light-drift 22s ease-in-out infinite" }}
           />
           <div
             data-kc-why-anim
-            className="absolute -bottom-28 right-1/4 h-72 w-[42%] rounded-full bg-indigo-400/20 blur-3xl"
+            className="absolute -bottom-28 right-1/4 h-72 w-[42%] rounded-full bg-sky-200/55 blur-3xl"
             style={{ animation: "kc-why-light-drift 27s ease-in-out 2s infinite" }}
           />
-          {/* depth vignette keeps the text crisp */}
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_30%,rgba(6,11,28,0.55))]" />
+          {/* top daylight wash keeps text crisp on the light base */}
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,white_0%,transparent_46%)]" />
           {/* faint healthcare dot grid */}
-          <div className="absolute inset-0 bg-[radial-gradient(circle,rgba(165,243,252,0.14)_1px,transparent_1px)] bg-[size:20px_20px] [mask-image:radial-gradient(ellipse_at_center,black_28%,transparent_78%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle,rgba(13,148,136,0.13)_1px,transparent_1px)] bg-[size:20px_20px] [mask-image:radial-gradient(ellipse_at_center,black_28%,transparent_78%)]" />
 
           {/* slow drifting colour orbs — deepest depth, moves least */}
           <div
@@ -483,22 +483,22 @@ export default function WhyKalyanChemist() {
           >
             <div
               data-kc-why-anim
-              className="absolute -left-10 top-0 size-72 rounded-full bg-emerald-300/20 blur-3xl"
+              className="absolute -left-10 top-0 size-72 rounded-full bg-emerald-200/70 blur-3xl"
               style={{ animation: "kc-why-orb-a 24s ease-in-out infinite" }}
             />
             <div
               data-kc-why-anim
-              className="absolute -right-16 bottom-0 size-80 rounded-full bg-indigo-400/20 blur-3xl"
+              className="absolute -right-16 bottom-0 size-80 rounded-full bg-teal-200/70 blur-3xl"
               style={{ animation: "kc-why-orb-b 28s ease-in-out infinite" }}
             />
             <div
               data-kc-why-anim
-              className="absolute -right-6 top-1/4 size-56 rounded-full bg-cyan-300/20 blur-3xl"
+              className="absolute -right-6 top-1/4 size-56 rounded-full bg-cyan-200/70 blur-3xl"
               style={{ animation: "kc-why-orb-c 22s ease-in-out infinite" }}
             />
             <div
               data-kc-why-anim
-              className="absolute bottom-0 left-1/3 size-56 rounded-full bg-orange-400/10 blur-3xl"
+              className="absolute bottom-0 left-1/3 size-56 rounded-full bg-orange-200/60 blur-3xl"
               style={{ animation: "kc-why-orb-a 30s ease-in-out infinite" }}
             />
           </div>
@@ -515,12 +515,12 @@ export default function WhyKalyanChemist() {
             style={interactive ? parallax(13, 8) : undefined}
           >
             {/* translucent abstract shapes — soft depth shadows */}
-            <div className="absolute right-10 top-8 size-28 rounded-full border border-white/10 shadow-[0_16px_30px_-22px_rgba(0,0,0,0.7)]" />
-            <div className="absolute -left-10 bottom-16 size-40 rotate-12 rounded-[2.5rem] border border-white/10 shadow-[0_18px_34px_-24px_rgba(0,0,0,0.7)]" />
-            <div className="absolute -bottom-6 right-1/3 size-24 rounded-full border border-dashed border-cyan-200/15" />
-            <Plus className="absolute left-[8%] top-6 size-4 rotate-12 text-cyan-200/25 drop-shadow-[0_6px_10px_rgba(6,11,28,0.5)]" />
-            <Plus className="absolute bottom-8 left-[46%] size-3.5 rotate-45 text-indigo-200/25" />
-            <Plus className="absolute bottom-10 right-[6%] size-4 -rotate-12 text-orange-200/25" />
+            <div className="absolute right-10 top-8 size-28 rounded-full border border-teal-900/10 bg-white/50 shadow-[0_16px_30px_-22px_rgba(13,59,56,0.35)]" />
+            <div className="absolute -left-10 bottom-16 size-40 rotate-12 rounded-[2.5rem] border border-teal-900/10 bg-white/40 shadow-[0_18px_34px_-24px_rgba(13,59,56,0.35)]" />
+            <div className="absolute -bottom-6 right-1/3 size-24 rounded-full border border-dashed border-teal-700/15" />
+            <Plus className="absolute left-[8%] top-6 size-4 rotate-12 text-teal-600/30 drop-shadow-[0_6px_10px_rgba(13,59,56,0.18)]" />
+            <Plus className="absolute bottom-8 left-[46%] size-3.5 rotate-45 text-indigo-400/30" />
+            <Plus className="absolute bottom-10 right-[6%] size-4 -rotate-12 text-orange-500/35" />
 
             {/* ambient dust motes */}
             {PARTICLES.map((p, i) => (
@@ -545,18 +545,18 @@ export default function WhyKalyanChemist() {
         <div className="relative grid items-center gap-6 px-6 pb-2 pt-8 [perspective:1000px] sm:px-8 sm:pt-9 lg:grid-cols-[1.08fr_0.92fr] lg:gap-6 lg:pb-3">
           <div>
             <motion.div variants={reveal(0.04, 12)}>
-              <div className="inline-flex items-center gap-1.5 rounded-full border border-cyan-300/25 bg-cyan-300/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-cyan-100 shadow-[0_10px_22px_-18px_rgba(34,211,238,0.8)]">
+              <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-600/20 bg-emerald-50 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-800 shadow-[0_10px_22px_-16px_rgba(16,185,129,0.7)]">
                 <Shield className="size-3" />
                 Why Choose Us
               </div>
             </motion.div>
             <motion.h2
               variants={reveal(0.1, 20)}
-              className="mt-3 bg-gradient-to-br from-white via-white to-cyan-200 bg-clip-text text-[28px] font-bold leading-[1.1] tracking-tight text-transparent sm:text-4xl lg:text-[42px]"
+              className="mt-3 bg-gradient-to-br from-[#0B3B36] via-[#0E5C54] to-[#0FA3A3] bg-clip-text text-[28px] font-bold leading-[1.1] tracking-tight text-transparent sm:text-4xl lg:text-[42px]"
             >
               Why Kalyan Chemist
             </motion.h2>
-            <p className="mt-3 max-w-md text-sm leading-relaxed text-slate-100/75 sm:text-[15px]">
+            <p className="mt-3 max-w-md text-sm leading-relaxed text-teal-950/70 sm:text-[15px]">
               <motion.span variants={reveal(0.17, 12)} className="block">
                 We are committed to making quality healthcare accessible, reliable,
               </motion.span>
@@ -576,7 +576,7 @@ export default function WhyKalyanChemist() {
               style={interactive ? parallax(22, 14) : undefined}
             >
               {/* breathing ground glow doubles as the contact shadow */}
-              <div className="absolute inset-x-6 bottom-6 top-10 rounded-full bg-cyan-400/25 blur-2xl transition-[transform,background-color] duration-300 ease-out group-hover/visual:scale-105 group-hover/visual:bg-cyan-300/45" />
+              <div className="absolute inset-x-6 bottom-6 top-10 rounded-full bg-emerald-300/45 blur-2xl transition-[transform,background-color] duration-300 ease-out group-hover/visual:scale-105 group-hover/visual:bg-emerald-200/70" />
               <div className="relative h-40 [perspective:900px] sm:h-44 lg:h-52">
                 <div
                   data-kc-why-anim
@@ -592,7 +592,7 @@ export default function WhyKalyanChemist() {
                   aria-hidden
                   className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 ease-out group-hover/visual:opacity-100"
                   style={{
-                    background: "radial-gradient(ellipse at 32% 22%, rgba(255,255,255,0.2), transparent 62%)",
+                    background: "radial-gradient(ellipse at 32% 22%, rgba(255,255,255,0.7), transparent 62%)",
                   }}
                 />
               </div>
@@ -602,7 +602,7 @@ export default function WhyKalyanChemist() {
 
         {/* Trust points — the reveal animates the outer wrapper while the hover depth
             lives on the inner surface, so the two transforms never fight. */}
-        <motion.div className="relative grid gap-3 border-t border-white/10 px-6 py-6 [perspective:1200px] sm:grid-cols-2 sm:px-8 lg:grid-cols-4 lg:py-7">
+        <motion.div className="relative grid gap-3 border-t border-teal-900/10 bg-white/45 px-6 py-6 [perspective:1200px] sm:grid-cols-2 sm:px-8 lg:grid-cols-4 lg:py-7">
           {TRUST_POINTS.map((point, i) => (
             <motion.div
               key={point.title}
@@ -610,27 +610,27 @@ export default function WhyKalyanChemist() {
               onPointerMove={interactive ? handleCardPointerMove : undefined}
               className="relative [perspective:1200px]"
             >
-              <div className="kc-why-card group relative isolate h-full overflow-hidden rounded-2xl border border-white/10 bg-white/[0.06] p-4 shadow-[0_10px_24px_-20px_rgba(2,26,23,0.9)] transition-[transform,box-shadow,border-color,background-color] duration-200 ease-out will-change-transform [perspective:600px] hover:[transform:translate3d(0,-6px,0)_rotateX(3deg)_rotateY(-2deg)] hover:border-cyan-300/40 hover:bg-white/[0.11] hover:shadow-[0_28px_52px_-24px_rgba(34,211,238,0.45)]">
+              <div className="kc-why-card group relative isolate h-full overflow-hidden rounded-2xl border border-white bg-white/80 p-4 shadow-[0_14px_34px_-24px_rgba(13,59,56,0.35)] transition-[transform,box-shadow,border-color,background-color] duration-200 ease-out will-change-transform [perspective:600px] hover:[transform:translate3d(0,-6px,0)_rotateX(3deg)_rotateY(-2deg)] hover:border-emerald-200 hover:bg-white hover:shadow-[0_30px_56px_-26px_rgba(13,148,136,0.45)]">
                 {/* cursor-tracking interactive light */}
                 <span
                   aria-hidden
                   className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 ease-out group-hover:opacity-100"
                   style={{
                     background:
-                      "radial-gradient(220px circle at var(--wkc-mx, 50%) var(--wkc-my, 50%), rgba(34,211,238,0.16), transparent 68%)",
+                      "radial-gradient(220px circle at var(--wkc-mx, 50%) var(--wkc-my, 50%), rgba(16,185,129,0.14), transparent 68%)",
                   }}
                 />
                 {/* top edge highlight */}
                 <span
                   aria-hidden
-                  className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/25 to-transparent"
+                  className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-300/70 to-transparent"
                 />
 
-                <div className="relative flex size-11 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-300/25 to-indigo-500/20 text-cyan-50 ring-1 ring-inset ring-white/15 shadow-[0_10px_22px_-14px_rgba(34,211,238,0.75)] transition-[transform,box-shadow,background-color,color] duration-200 ease-out will-change-transform group-hover:from-cyan-300/45 group-hover:text-white group-hover:shadow-[0_14px_26px_-10px_rgba(34,211,238,0.7)] group-hover:[transform:translate3d(0,-3px,0)_scale(1.06)_rotateX(9deg)_rotateY(-6deg)]">
+                <div className="relative flex size-11 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-[0_10px_22px_-12px_rgba(13,148,136,0.7)] ring-1 ring-inset ring-white/25 transition-[transform,box-shadow,background-color,color] duration-200 ease-out will-change-transform group-hover:from-emerald-600 group-hover:to-teal-700 group-hover:shadow-[0_14px_26px_-10px_rgba(13,148,136,0.6)] group-hover:[transform:translate3d(0,-3px,0)_scale(1.06)_rotateX(9deg)_rotateY(-6deg)]">
                   <span
                     aria-hidden
                     data-kc-why-anim
-                    className="absolute inset-0 rounded-xl bg-cyan-300/25 blur-[6px]"
+                    className="absolute inset-0 rounded-xl bg-emerald-400/40 blur-[6px]"
                     style={{ animation: `kc-why-halo 4.6s ease-in-out ${(i * 0.5).toFixed(1)}s infinite` }}
                   />
                   <span data-kc-why-anim data-kc-icon={point.iconAnim} className="relative block">
@@ -638,10 +638,10 @@ export default function WhyKalyanChemist() {
                   </span>
                 </div>
 
-                <h3 className="relative mt-3 text-sm font-semibold text-white transition-colors duration-200 ease-out group-hover:text-cyan-100">
+                <h3 className="relative mt-3 text-sm font-semibold text-teal-950 transition-colors duration-200 ease-out group-hover:text-emerald-700">
                   {point.title}
                 </h3>
-                <p className="relative mt-1.5 text-[12px] leading-relaxed text-slate-100/70 transition-colors duration-200 ease-out group-hover:text-slate-100/85">
+                <p className="relative mt-1.5 text-[12px] leading-relaxed text-slate-600 transition-colors duration-200 ease-out group-hover:text-slate-700">
                   {point.description}
                 </p>
               </div>
