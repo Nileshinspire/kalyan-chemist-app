@@ -1,627 +1,557 @@
-import { motion, useReducedMotion } from "framer-motion";
-import { Plus, Zap } from "lucide-react";
-import { Fragment } from "react";
+import { useEffect, useRef, useState } from "react";
+import { motion, useScroll, useTransform, useReducedMotion, useSpring, useInView, type MotionValue } from "framer-motion";
+import type { ReactNode } from "react";
+import { UploadCloud, RefreshCcw, PackageCheck, Bell, Check, Truck, FileText, Sparkles } from "lucide-react";
 
-/* ── Premium soft-3D step illustrations (Kalyan Chemist palette) ── */
+/* ═══════════════════════════════════════════════════════════════
+   KALYAN CHEMIST — ISOMETRIC 3D SCROLL SHOWCASE
+   Replaces the previous "How It Works" process banner.
+   Isometric viewport (rotateX/rotateY/rotateZ) that straightens
+   on scroll, frosted glass cards sliding into position, floating
+   3D medicine cards popping out in layered depth.
+   GSAP-free: uses framer-motion's scroll engine (already in project).
+   ═══════════════════════════════════════════════════════════════ */
 
-function SearchIllustration() {
+/* ── Scroll progress → 0..1 helper for staggered card pop-out ── */
+function usePopOut(progress: MotionValue<number>, start: number, end: number) {
+  return {
+    opacity: useTransform(progress, [start, end], [0, 1]),
+    translateY: useTransform(progress, [start, end], [110, 0]),
+    translateZ: useTransform(progress, [start, end], [0, 120]),
+    scale: useTransform(progress, [start, end], [0.72, 1]),
+  };
+}
+
+/* ── Pill capsule (3D-look SVG) ── */
+function CapsuleSvg({ className = "" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 220 150" fill="none" className="size-full" aria-hidden="true">
+    <svg viewBox="0 0 64 32" fill="none" className={className} aria-hidden="true">
       <defs>
-        <linearGradient id="siBg" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#F2FCF9" />
-          <stop offset="1" stopColor="#DFF7F0" />
+        <linearGradient id="iso-capA" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#A78BFA" />
+          <stop offset="1" stopColor="#7C3AED" />
         </linearGradient>
-        <radialGradient id="siGlow" cx="0.5" cy="0.5" r="0.5">
-          <stop offset="0" stopColor="#2DD4BF" stopOpacity="0.24" />
-          <stop offset="1" stopColor="#2DD4BF" stopOpacity="0" />
-        </radialGradient>
-        <linearGradient id="siBody" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0" stopColor="#F6FEFC" />
-          <stop offset="0.45" stopColor="#FFFFFF" />
-          <stop offset="1" stopColor="#D8F5ED" />
+        <linearGradient id="iso-capB" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#99F6E4" />
+          <stop offset="1" stopColor="#14B8A6" />
         </linearGradient>
-        <linearGradient id="siScreen" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#F0FCF9" />
-          <stop offset="1" stopColor="#CCF3E7" />
-        </linearGradient>
-        <linearGradient id="siTeal" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#2DD4BF" />
-          <stop offset="1" stopColor="#0D9488" />
-        </linearGradient>
-        <linearGradient id="siOrange" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#FDBA74" />
-          <stop offset="1" stopColor="#F97316" />
-        </linearGradient>
-        <linearGradient id="siGlass" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#FFFFFF" />
-          <stop offset="0.55" stopColor="#F3FEFB" />
-          <stop offset="1" stopColor="#D8F6EE" />
-        </linearGradient>
-        <radialGradient id="siSpot" cx="0.5" cy="0.12" r="0.95">
-          <stop offset="0" stopColor="#FFFFFF" stopOpacity="0.85" />
-          <stop offset="1" stopColor="#FFFFFF" stopOpacity="0" />
-        </radialGradient>
       </defs>
-
-      <rect x="1" y="1" width="218" height="148" rx="24" fill="url(#siBg)" stroke="#CCFBF1" strokeWidth="1.5" />
-      <ellipse cx="110" cy="-8" rx="118" ry="66" fill="url(#siSpot)" />
-      <circle cx="126" cy="74" r="64" fill="url(#siGlow)" />
-      <circle cx="58" cy="64" r="26" fill="#FDBA74" opacity="0.14" />
-      <path d="M34 46 l1.1 2.6 2.6 1.1 -2.6 1.1 -1.1 2.6 -1.1 -2.6 -2.6 -1.1 2.6 -1.1 Z" fill="#8B5CF6" opacity="0.5" />
-
-      <path d="M46 32 l1.7 4 4 1.7 -4 1.7 -1.7 4 -1.7 -4 -4 -1.7 4 -1.7 Z" fill="#2DD4BF" opacity="0.8" />
-      <path d="M196 122 l1.4 3.3 3.3 1.4 -3.3 1.4 -1.4 3.3 -1.4 -3.3 -3.3 -1.4 3.3 -1.4 Z" fill="#FB923C" opacity="0.85" />
-      <circle cx="192" cy="30" r="2.6" fill="#0D9488" opacity="0.45" />
-      <circle cx="32" cy="118" r="2.2" fill="#0D9488" opacity="0.4" />
-
-      <g data-kc-anim style={{ animation: "kc-floatA 5s ease-in-out infinite" }}>
-        <g opacity="0.55">
-          <rect x="16" y="34" width="70" height="18" rx="9" fill="#FFFFFF" />
-          <rect x="25" y="40" width="34" height="6" rx="3" fill="#BFDBFE" />
-          <rect x="16" y="58" width="52" height="10" rx="5" fill="#FFFFFF" opacity="0.85" />
-        </g>
-      </g>
-
-      <ellipse cx="60" cy="133" rx="30" ry="6.5" fill="#0D9488" opacity="0.1" />
-      <ellipse cx="156" cy="134" rx="42" ry="7" fill="#0D9488" opacity="0.12" />
-
-      <rect x="46" y="58" width="28" height="16" rx="8" fill="url(#siOrange)" />
-      <rect x="46" y="58" width="28" height="16" rx="8" fill="none" stroke="#F97316" strokeOpacity="0.4" strokeWidth="1.2" />
-      <rect x="50" y="60" width="7" height="12" rx="3.5" fill="#FFFFFF" opacity="0.5" />
-      <rect x="49" y="70" width="22" height="58" rx="11" fill="url(#siBody)" />
-      <rect x="49" y="70" width="22" height="58" rx="11" fill="none" stroke="#99F6E4" strokeWidth="1.4" />
-      <rect x="49" y="84" width="22" height="26" fill="#E6FCF6" />
-      <path d="M60 87.5 v19 M50.5 97 h19" stroke="#0D9488" strokeWidth="2.6" strokeLinecap="round" />
-      <rect x="49" y="110" width="22" height="4" rx="2" fill="#99F6E4" />
-      <rect x="49" y="116" width="15" height="2.6" rx="1.3" fill="#CCFBF1" />
-      <rect x="54" y="66" width="3" height="58" rx="1.5" fill="#FFFFFF" opacity="0.85" />
-
-      <g transform="rotate(-12 34 127)">
-        <rect x="24" y="122" width="15" height="10" rx="5" fill="#14B8A6" />
-        <rect x="31" y="122" width="15" height="10" rx="5" fill="#5EEAD4" />
-        <rect x="28" y="124" width="5" height="6" rx="2.5" fill="#FFFFFF" opacity="0.55" />
-      </g>
-
-      <g data-kc-anim style={{ animation: "kc-floatXY 8s ease-in-out infinite" }}>
-        <g transform="rotate(-7 140 88)">
-          <rect x="106" y="32" width="68" height="112" rx="17" fill="url(#siBody)" />
-        <rect x="106" y="32" width="68" height="112" rx="17" fill="none" stroke="#0D9488" strokeWidth="2.2" />
-        <rect x="112" y="38" width="56" height="100" rx="12" fill="url(#siScreen)" />
-        <circle cx="119" cy="44.5" r="2.1" fill="#0D9488" opacity="0.55" />
-        <rect x="160" y="43" width="5" height="3" rx="1.5" fill="#0D9488" opacity="0.5" />
-        <rect x="116" y="50" width="48" height="14" rx="7" fill="#FFFFFF" />
-        <rect x="116" y="50" width="48" height="14" rx="7" fill="none" stroke="#99F6E4" strokeWidth="1.2" />
-        <circle cx="123" cy="57" r="3" fill="none" stroke="#0D9488" strokeWidth="1.9" />
-        <path d="M125.4 59.4 l2.6 2.6" stroke="#0D9488" strokeWidth="1.9" strokeLinecap="round" />
-        <rect x="132" y="55.5" width="27" height="2.4" rx="1.2" fill="#D3F6EC" />
-        <rect x="116" y="70" width="48" height="30" rx="7" fill="#FFFFFF" />
-        <rect x="119" y="73" width="13" height="24" rx="4" fill="#E6FCF6" />
-        <rect x="124" y="78" width="3.5" height="14" rx="1.75" fill="#14B8A6" />
-        <rect x="137" y="76.5" width="22" height="3.4" rx="1.7" fill="#0F766E" opacity="0.8" />
-        <rect x="137" y="83" width="16" height="2.6" rx="1.3" fill="#99F6E4" />
-        <rect x="137" y="89.5" width="14" height="6.5" rx="3.25" fill="#FFEAD8" />
-        <rect x="116" y="106" width="48" height="22" rx="6" fill="#FFFFFF" opacity="0.95" />
-        <rect x="119" y="109" width="10" height="16" rx="3" fill="#FFEAD8" />
-        <rect x="133" y="112" width="20" height="3" rx="1.5" fill="#0F766E" opacity="0.55" />
-        <rect x="133" y="118" width="13" height="2.4" rx="1.2" fill="#CCFBF1" />
-        <rect x="150" y="112" width="10" height="6" rx="3" fill="#14B8A6" opacity="0.85" />
-        <rect x="119" y="121.5" width="18" height="3.8" rx="1.9" fill="#93C5FD" opacity="0.9" />
-        </g>
-      </g>
-
-      <g data-kc-anim style={{ animation: "kc-floatB 5s ease-in-out infinite" }}>
-        <rect x="20" y="96" width="46" height="16" rx="8" fill="#FFFFFF" stroke="#99F6E4" strokeWidth="1.3" />
-        <rect x="27" y="101" width="20" height="5" rx="2.5" fill="#FDBA74" />
-        <rect x="51" y="100.5" width="11" height="6" rx="3" fill="#14B8A6" opacity="0.9" />
-      </g>
-
-      <g data-kc-anim style={{ animation: "kc-floatB 4.5s ease-in-out infinite" }}>
-        <circle cx="182" cy="41" r="15" fill="url(#siGlass)" />
-        <circle cx="182" cy="41" r="15" fill="none" stroke="#0D9488" strokeWidth="2.6" />
-        <path d="M175 34.5 a10 10 0 0 1 6.5 -2.4" stroke="#FFFFFF" strokeWidth="2.4" strokeLinecap="round" fill="none" opacity="0.95" />
-        <circle cx="177" cy="44" r="2.6" fill="#5EEAD4" opacity="0.9" />
-        <path d="M186 46.5 l1.4 2.6 2.6 1.4 -2.6 1.4 -1.4 2.6 -1.4 -2.6 -2.6 -1.4 2.6 -1.4 Z" fill="#FB923C" opacity="0.9" />
-        <line x1="194" y1="54" x2="202" y2="62" stroke="url(#siOrange)" strokeWidth="6" strokeLinecap="round" />
-        <line x1="195" y1="54.5" x2="199" y2="58.5" stroke="#FFFFFF" strokeWidth="1.8" strokeLinecap="round" opacity="0.7" />
-      </g>
+      <rect x="4" y="6" width="30" height="20" rx="10" fill="url(#iso-capA)" />
+      <rect x="30" y="6" width="30" height="20" rx="10" fill="url(#iso-capB)" />
+      <rect x="9" y="9" width="8" height="6" rx="3" fill="#FFFFFF" opacity="0.55" />
+      <rect x="40" y="9" width="10" height="4" rx="2" fill="#FFFFFF" opacity="0.5" />
     </svg>
   );
 }
 
-function OrderIllustration() {
+/* ── Medicine bottle (3D-look SVG) ── */
+function BottleSvg({ className = "" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 220 150" fill="none" className="size-full" aria-hidden="true">
+    <svg viewBox="0 0 44 64" fill="none" className={className} aria-hidden="true">
       <defs>
-        <linearGradient id="oiBg" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#F4FAFF" />
-          <stop offset="1" stopColor="#E3F0FD" />
+        <linearGradient id="iso-botA" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#C4B5FD" />
+          <stop offset="1" stopColor="#8B5CF6" />
         </linearGradient>
-        <radialGradient id="oiGlow" cx="0.5" cy="0.5" r="0.5">
-          <stop offset="0" stopColor="#FDBA74" stopOpacity="0.18" />
-          <stop offset="1" stopColor="#FDBA74" stopOpacity="0" />
-        </radialGradient>
-        <linearGradient id="oiTeal" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#2DD4BF" />
-          <stop offset="1" stopColor="#0D9488" />
-        </linearGradient>
-        <linearGradient id="oiOrange" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#FDBA74" />
-          <stop offset="1" stopColor="#F97316" />
-        </linearGradient>
-        <linearGradient id="oiBasket" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#FFFFFF" />
-          <stop offset="1" stopColor="#DCF6EE" />
-        </linearGradient>
-        <linearGradient id="oiGold" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#FDE68A" />
-          <stop offset="1" stopColor="#F59E0B" />
-        </linearGradient>
-        <linearGradient id="oiCard" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#FFFFFF" />
-          <stop offset="1" stopColor="#EAFBF6" />
-        </linearGradient>
-        <radialGradient id="oiSpot" cx="0.5" cy="0.12" r="0.95">
-          <stop offset="0" stopColor="#FFFFFF" stopOpacity="0.85" />
-          <stop offset="1" stopColor="#FFFFFF" stopOpacity="0" />
-        </radialGradient>
       </defs>
-
-      <rect x="1" y="1" width="218" height="148" rx="24" fill="url(#oiBg)" stroke="#CCFBF1" strokeWidth="1.5" />
-      <ellipse cx="110" cy="-8" rx="118" ry="66" fill="url(#oiSpot)" />
-      <circle cx="110" cy="72" r="66" fill="url(#oiGlow)" />
-      <path d="M196 82 l1.1 2.6 2.6 1.1 -2.6 1.1 -1.1 2.6 -1.1 -2.6 -2.6 -1.1 2.6 -1.1 Z" fill="#8B5CF6" opacity="0.55" />
-      <circle cx="102" cy="78" r="26" fill="#2DD4BF" opacity="0.1" />
-
-      <path d="M196 30 l1.6 3.8 3.8 1.6 -3.8 1.6 -1.6 3.8 -1.6 -3.8 -3.8 -1.6 3.8 -1.6 Z" fill="#2DD4BF" opacity="0.85" />
-      <path d="M34 66 l1.5 3.5 3.5 1.5 -3.5 1.5 -1.5 3.5 -1.5 -3.5 -3.5 -1.5 3.5 -1.5 Z" fill="#FB923C" opacity="0.9" />
-      <circle cx="34" cy="30" r="2.4" fill="#0D9488" opacity="0.45" />
-
-      <path d="M38 100 A 62 62 0 0 1 156 36" stroke="#99F6E4" strokeWidth="3" strokeLinecap="round" fill="none" opacity="0.55" />
-      <circle cx="38" cy="100" r="3" fill="#2DD4BF" opacity="0.6" />
-
-      <ellipse cx="102" cy="124" rx="42" ry="7" fill="#0D9488" opacity="0.1" />
-      <ellipse cx="178" cy="126" rx="30" ry="5.5" fill="#0D9488" opacity="0.08" />
-
-      <g data-kc-anim style={{ animation: "kc-floatC 7s ease-in-out infinite" }}>
-        <g>
-          <rect x="80" y="38" width="27" height="28" rx="6" fill="url(#oiTeal)" />
-        <rect x="80" y="38" width="27" height="9" rx="4.5" fill="#FFFFFF" opacity="0.92" />
-        <path d="M90.5 54 v10 M85.5 59 h10" stroke="#FFFFFF" strokeWidth="2.4" strokeLinecap="round" />
-        <rect x="103" y="47" width="22" height="20" rx="5" fill="url(#oiOrange)" />
-        <rect x="108" y="52" width="12" height="3" rx="1.5" fill="#FFFFFF" opacity="0.85" />
-        <rect x="108" y="58" width="8" height="2.4" rx="1.2" fill="#FFFFFF" opacity="0.55" />
-        <path d="M80 62 C74 34 130 34 124 62" stroke="#0F766E" strokeWidth="4.5" strokeLinecap="round" fill="none" />
-        <path
-          d="M74 62 h56 l-7 46 a7 7 0 0 1 -7 7 H88 a7 7 0 0 1 -7 -7 Z"
-          fill="url(#oiBasket)"
-          stroke="#0D9488"
-          strokeWidth="2.2"
-          strokeLinejoin="round"
-        />
-        <path d="M80 78 h44 M80 92 h44 M82 106 h40" stroke="#BDF3E6" strokeWidth="2" strokeLinecap="round" opacity="0.8" />
-        <circle cx="84" cy="120" r="7" fill="#0F766E" />
-        <circle cx="120" cy="120" r="7" fill="#0F766E" />
-        <circle cx="84" cy="120" r="2.6" fill="#CCFBF1" />
-        <circle cx="120" cy="120" r="2.6" fill="#CCFBF1" />
-        </g>
-      </g>
-
-      <g data-kc-anim style={{ animation: "kc-floatA 4.8s ease-in-out infinite" }}>
-        <g transform="rotate(8 190 40)">
-          <rect x="179" y="30" width="20" height="15" rx="3.5" fill="#FFFFFF" stroke="#99F6E4" strokeWidth="1.4" />
-          <rect x="179" y="30" width="20" height="5" rx="2.5" fill="#14B8A6" opacity="0.85" />
-          <rect x="179" y="38.5" width="12" height="2.6" rx="1.3" fill="#99F6E4" />
-        </g>
-      </g>
-
-      <g data-kc-anim style={{ animation: "kc-floatB 4.2s ease-in-out infinite" }}>
-        <rect x="24" y="24" width="64" height="24" rx="12" fill="#FFFFFF" stroke="#99F6E4" strokeWidth="1.5" />
-        <circle cx="36" cy="36" r="8" fill="url(#oiTeal)" />
-        <path d="M32.2 36 l2.6 2.6 5.4 -5.6" stroke="#FFFFFF" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
-        <rect x="49" y="33" width="20" height="3" rx="1.5" fill="#0F766E" opacity="0.85" />
-        <rect x="49" y="39" width="14" height="2.4" rx="1.2" fill="#99F6E4" />
-      </g>
-
-      <g transform="rotate(-8 176 106)">
-        <rect x="144" y="82" width="64" height="46" rx="10" fill="url(#oiCard)" />
-        <rect x="144" y="82" width="64" height="46" rx="10" fill="none" stroke="#0D9488" strokeWidth="1.8" />
-        <rect x="151" y="90" width="11" height="8" rx="2.2" fill="url(#oiGold)" />
-        <rect x="151" y="90" width="11" height="8" rx="2.2" fill="none" stroke="#F59E0B" strokeOpacity="0.5" strokeWidth="1" />
-        <path d="M167 92 a6 6 0 1 1 0.1 0" stroke="#A7C7FA" strokeWidth="1.8" fill="none" />
-        <path d="M171 96 a9 9 0 1 1 0.1 0" stroke="#7FA8F5" strokeWidth="1.6" fill="none" />
-        <rect x="151" y="104" width="24" height="2.4" rx="1.2" fill="#D3F6EC" />
-        <rect x="151" y="110" width="17" height="2.4" rx="1.2" fill="#E6FAF4" />
-        <circle cx="200" cy="90" r="12" fill="url(#oiTeal)" stroke="#FFFFFF" strokeWidth="2.4" />
-        <path d="M194.4 90 l4 4 l7.6 -8" stroke="#FFFFFF" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" />
-      </g>
-
-      <g data-kc-anim style={{ animation: "kc-floatA 4.6s ease-in-out infinite" }}>
-        <circle cx="52" cy="130" r="10" fill="url(#oiGold)" />
-        <circle cx="52" cy="130" r="10" fill="none" stroke="#F59E0B" strokeOpacity="0.5" strokeWidth="1.2" />
-        <text x="52" y="134.5" textAnchor="middle" fontSize="11" fontWeight="700" fill="#B45309" fontFamily="inherit">
-          ₹
-        </text>
-      </g>
-      <g transform="rotate(10 188 112)">
-        <rect x="182" y="108" width="12" height="8" rx="4" fill="#FB923C" />
-        <rect x="189" y="108" width="12" height="8" rx="4" fill="#60A5FA" />
-      </g>
+      <rect x="14" y="2" width="16" height="9" rx="3" fill="#7C3AED" />
+      <rect x="10" y="10" width="24" height="50" rx="8" fill="url(#iso-botA)" />
+      <rect x="14" y="24" width="16" height="20" rx="3" fill="#FFFFFF" opacity="0.92" />
+      <rect x="16" y="28" width="12" height="2.4" rx="1.2" fill="#7C3AED" opacity="0.8" />
+      <rect x="16" y="33" width="9" height="2.4" rx="1.2" fill="#A78BFA" />
+      <rect x="12" y="14" width="4" height="40" rx="2" fill="#FFFFFF" opacity="0.35" />
     </svg>
   );
 }
 
-function DeliveryIllustration() {
+/* ── Floating 3D decorative objects pinned to fixed local zones ── */
+function FloatingObject({
+  progress,
+  start,
+  end,
+  className,
+  children,
+  floatDelay,
+  popZ,
+}: {
+  progress: MotionValue<number>;
+  start: number;
+  end: number;
+  className: string;
+  children: ReactNode;
+  floatDelay: string;
+  popZ: number;
+}) {
+  const reduce = useReducedMotion();
+  const opacity = useTransform(progress, [start, end], [0, 1]);
+  const z = useTransform(progress, [start, end], [0, popZ]);
+  const y = useTransform(progress, [start, end], [60, 0]);
+  const scale = useTransform(progress, [start, end], [0.6, 1]);
   return (
-    <svg viewBox="0 0 220 150" fill="none" className="size-full" aria-hidden="true">
-      <defs>
-        <linearGradient id="diBg" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#F6F9FF" />
-          <stop offset="1" stopColor="#E9E9FA" />
-        </linearGradient>
-        <radialGradient id="diGlow" cx="0.5" cy="0.5" r="0.5">
-          <stop offset="0" stopColor="#2DD4BF" stopOpacity="0.2" />
-          <stop offset="1" stopColor="#2DD4BF" stopOpacity="0" />
-        </radialGradient>
-        <linearGradient id="diRoof" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#2DD4BF" />
-          <stop offset="1" stopColor="#0D9488" />
-        </linearGradient>
-        <linearGradient id="diWall" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#FFFFFF" />
-          <stop offset="1" stopColor="#EAFBF6" />
-        </linearGradient>
-        <linearGradient id="diTeal" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#2DD4BF" />
-          <stop offset="1" stopColor="#0D9488" />
-        </linearGradient>
-        <linearGradient id="diOrange" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#FDBA74" />
-          <stop offset="1" stopColor="#F97316" />
-        </linearGradient>
-        <radialGradient id="diSpot" cx="0.5" cy="0.12" r="0.95">
-          <stop offset="0" stopColor="#FFFFFF" stopOpacity="0.85" />
-          <stop offset="1" stopColor="#FFFFFF" stopOpacity="0" />
-        </radialGradient>
-      </defs>
-
-      <rect x="1" y="1" width="218" height="148" rx="24" fill="url(#diBg)" stroke="#CCFBF1" strokeWidth="1.5" />
-      <ellipse cx="110" cy="-8" rx="118" ry="66" fill="url(#diSpot)" />
-      <circle cx="124" cy="76" r="62" fill="url(#diGlow)" />
-      <circle cx="150" cy="64" r="32" fill="#8B5CF6" opacity="0.1" />
-      <circle cx="64" cy="50" r="2.4" fill="#3B82F6" opacity="0.5" />
-
-      <path d="M46 26 l1.6 3.8 3.8 1.6 -3.8 1.6 -1.6 3.8 -1.6 -3.8 -3.8 -1.6 3.8 -1.6 Z" fill="#FB923C" opacity="0.9" />
-      <path d="M158 122 l1.4 3.3 3.3 1.4 -3.3 1.4 -1.4 3.3 -1.4 -3.3 -3.3 -1.4 3.3 -1.4 Z" fill="#2DD4BF" opacity="0.8" />
-      <circle cx="30" cy="104" r="2.2" fill="#0D9488" opacity="0.4" />
-
-      <path d="M92 104 C116 100 132 84 154 68" stroke="#99F6E4" strokeWidth="2.4" strokeDasharray="2.5 5.5" strokeLinecap="round" fill="none" />
-
-      <ellipse cx="64" cy="124" rx="40" ry="6" fill="#0D9488" opacity="0.09" />
-      <ellipse cx="158" cy="124" rx="24" ry="5.5" fill="#0D9488" opacity="0.1" />
-      <ellipse cx="188" cy="60" rx="16" ry="4.5" fill="#0D9488" opacity="0.08" />
-
-      <path d="M28 86 L63 56 L98 86 Z" fill="url(#diRoof)" stroke="#0D9488" strokeWidth="2" strokeLinejoin="round" />
-      <path d="M40 79.5 L63 63.5 L86 79.5" stroke="#5EEAD4" strokeWidth="2.4" strokeLinecap="round" fill="none" opacity="0.7" />
-      <rect x="34" y="80" width="58" height="44" rx="7" fill="url(#diWall)" stroke="#99F6E4" strokeWidth="1.5" />
-      <path d="M76 124 v-9 a7 7 0 0 1 14 0 v9 Z" fill="#E6FCF6" stroke="#0D9488" strokeWidth="1.8" />
-      <circle cx="87.5" cy="118" r="1.7" fill="#F59E0B" />
-      <rect x="43" y="92" width="14" height="14" rx="3.5" fill="#D6F7ED" stroke="#99F6E4" strokeWidth="1.8" />
-      <path d="M50 94.5 v9 M45.5 99 h9" stroke="#0D9488" strokeWidth="1.6" strokeLinecap="round" opacity="0.55" />
-      <rect x="34" y="80" width="58" height="7" rx="3.5" fill="#CCFBF1" opacity="0.55" />
-      <g data-kc-anim style={{ animation: "kc-floatD 5.2s ease-in-out infinite" }}>
-        <rect x="94" y="108" width="20" height="16" rx="3.5" fill="#FFFFFF" stroke="#99F6E4" strokeWidth="1.4" />
-        <rect x="94" y="114" width="20" height="3.5" fill="#8B5CF6" opacity="0.85" />
-      </g>
-
-      <g>
-        <rect x="116" y="96" width="24" height="19" rx="4" fill="url(#diTeal)" />
-        <rect x="116" y="96" width="24" height="6.5" rx="3" fill="#FFFFFF" opacity="0.9" />
-        <path d="M124.5 108 v6.5 M121.2 111.2 h6.5" stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" />
-        <rect x="144" y="84" width="26" height="38" rx="11" fill="url(#diTeal)" />
-        <rect x="144" y="84" width="26" height="38" rx="11" fill="none" stroke="#0D9488" strokeWidth="1.8" />
-        <path d="M145 98 C136 100 130 100 123 101" stroke="#0F766E" strokeWidth="7" strokeLinecap="round" fill="none" />
-        <path d="M155 100 V118" stroke="#0F766E" strokeWidth="7" strokeLinecap="round" />
-        <circle cx="157" cy="70" r="10.5" fill="#FFE3C6" />
-        <path d="M157 59.5 a10.5 10.5 0 0 1 10.5 10.5 h-21 a10.5 10.5 0 0 1 10.5 -10.5 Z" fill="#0F766E" />
-        <path d="M146.5 70 a10.5 10.5 0 0 1 21 0" stroke="#0F766E" strokeWidth="2" fill="none" />
-        <path d="M147 71 h20 l-2 3 h-16 Z" fill="#0D9488" />
-        <path d="M146.5 76 a10.5 10.5 0 0 0 21 0" stroke="#0F766E" strokeWidth="2" fill="none" />
-        <rect x="145" y="119" width="7" height="5" rx="2.5" fill="#0F766E" />
-        <rect x="162" y="119" width="7" height="5" rx="2.5" fill="#0F766E" />
-      </g>
-
-      <g data-kc-anim style={{ animation: "kc-floatB 4.8s ease-in-out infinite" }}>
-        <path
-          d="M188 26 c-11.5 0 -20.5 9 -20.5 20 c0 14.5 20.5 33 20.5 33 s20.5 -18.5 20.5 -33 c0 -11 -9 -20 -20.5 -20 Z"
-          fill="url(#diTeal)"
-          stroke="#0D9488"
-          strokeWidth="1.8"
-        />
-        <circle cx="188" cy="45" r="8" fill="#FFFFFF" />
-        <circle cx="188" cy="45" r="3.2" fill="#0D9488" />
-        <path d="M181 22.5 a14 14 0 0 1 12 -3.5" stroke="#5EEAD4" strokeWidth="2.2" strokeLinecap="round" opacity="0.8" />
-        <circle cx="188" cy="45" r="16.5" stroke="#2DD4BF" strokeWidth="1.5" strokeDasharray="2 4" opacity="0.55" fill="none" />
-      </g>
-
-      <g data-kc-anim style={{ animation: "kc-floatA 5s ease-in-out infinite" }}>
-        <rect x="16" y="18" width="54" height="17" rx="8.5" fill="#FFFFFF" stroke="#99F6E4" strokeWidth="1.3" />
-        <circle cx="26" cy="26.5" r="6.5" fill="#14B8A6" />
-        <path d="M23.4 26.5 l2 2 4 -4.4" stroke="#FFFFFF" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-        <rect x="37" y="23.5" width="20" height="3" rx="1.5" fill="#0F766E" opacity="0.8" />
-        <rect x="37" y="28.5" width="13" height="2.4" rx="1.2" fill="#99F6E4" />
-      </g>
-    </svg>
+    <motion.div
+      style={{ opacity, translateZ: z, y, scale }}
+      className={`pointer-events-none absolute ${className}`}
+    >
+      <div
+        className="iso-float"
+        style={reduce ? { animation: "none" } : { animationDelay: floatDelay }}
+      >
+        {children}
+      </div>
+    </motion.div>
   );
 }
 
-/* ── How It Works: compact premium process banner ── */
-export default function HowItWorks() {
-  const prefersReducedMotion = useReducedMotion();
+/* ═══════════════ INTERACTIVE CARDS ═══════════════ */
+
+/* Prescription Upload Card — with animated upload progress bar */
+function PrescriptionUploadCard() {
+  const [uploadPct, setUploadPct] = useState(0);
+  const [state, setState] = useState<"uploading" | "done">("uploading");
+  const cardRef = useRef<HTMLDivElement>(null);
+  const inView = useInView(cardRef, { once: true, margin: "-60px" });
+
+  // Replay the upload animation whenever the card (re)enters via scroll pop-out
+  function replay() {
+    setState("uploading");
+    setUploadPct(0);
+    const iv = setInterval(() => {
+      setUploadPct((p) => {
+        if (p >= 100) {
+          clearInterval(iv);
+          setState("done");
+          return 100;
+        }
+        return Math.min(100, p + Math.random() * 9 + 4);
+      });
+    }, 220);
+  }
+
+  // auto-play once when the card scrolls into view; replay on hover
+  useEffect(() => {
+    if (inView) {
+      const t = setTimeout(replay, 500);
+      return () => clearTimeout(t);
+    }
+  }, [inView]);
 
   return (
-    <section className="border-y border-border/50 bg-gradient-to-b from-card/50 to-background overflow-hidden">
-      {/* lightweight GPU-friendly keyframes — transform/opacity only, compositor driven */}
-      <style>{`
-        @keyframes kc-floatA {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-3px); }
-        }
-        @keyframes kc-floatB {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-4px); }
-        }
-        @keyframes kc-floatC {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-1.5px); }
-        }
-        @keyframes kc-floatD {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-2.5px); }
-        }
-        @keyframes kc-floatXY {
-          0%, 100% { transform: translate(0, 0); }
-          50% { transform: translate(1.2px, -1.4px); }
-        }
-        @keyframes kc-orb-a {
-          0%, 100% { transform: translate(0, 0); }
-          50% { transform: translate(28px, -22px); }
-        }
-        @keyframes kc-orb-b {
-          0%, 100% { transform: translate(0, 0); }
-          50% { transform: translate(-24px, 20px); }
-        }
-        @keyframes kc-orb-c {
-          0%, 100% { transform: translate(0, 0); }
-          50% { transform: translate(20px, 16px); }
-        }
-        @keyframes kc-orb-d {
-          0%, 100% { transform: translate(0, 0); }
-          50% { transform: translate(-18px, -14px); }
-        }
-        @keyframes kc-orb-e {
-          0%, 100% { transform: translate(0, 0); }
-          50% { transform: translate(16px, -12px); }
-        }
-        @keyframes kc-orb-f {
-          0%, 100% { transform: translate(0, 0); }
-          50% { transform: translate(14px, 10px); }
-        }
-        @keyframes kc-dash {
-          to { stroke-dashoffset: -60; }
-        }
-        @media (prefers-reduced-motion: reduce) {
-          [data-kc-anim] {
-            animation: none !important;
-          }
-        }
-      `}</style>
-      <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-6">
-        {/* Compact header — badge + title inline, subtitle beside on desktop */}
-        <div className="flex flex-col items-center gap-1.5 text-center lg:flex-row lg:items-center lg:justify-between lg:gap-4 lg:text-left">
-          <div className="flex items-center gap-2.5">
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-primary/5 border border-primary/10 px-2.5 py-1 text-[10px] font-medium text-primary">
-              <Zap className="size-3" />
-              Simple Process
-            </div>
-            <h2 className="text-xl font-bold tracking-tight sm:text-2xl">
-              How It Works
-            </h2>
+    <motion.div
+      initial={{ opacity: 0, y: 90, scale: 0.8 }}
+      whileInView={{ opacity: 1, y: 0, scale: 1 }}
+      viewport={{ once: true, margin: "-60px" }}
+      transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+      onMouseEnter={replay}
+    >
+      <div ref={cardRef} className="iso-card group relative w-[264px] overflow-hidden rounded-2xl border border-white/70 bg-white/80 p-4 shadow-[0_24px_60px_-18px_rgba(76,29,149,0.25)] backdrop-blur-xl">
+        {/* hover sheen */}
+        <div className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-br from-violet-400/0 via-violet-300/0 to-teal-200/0 transition-all duration-300 group-hover:from-violet-400/15 group-hover:via-transparent group-hover:to-teal-200/25" />
+        <div className="flex items-center gap-2.5">
+          <div className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-violet-600 text-white shadow-md shadow-violet-500/30 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-6">
+            <UploadCloud className="size-5" />
           </div>
-          <p className="max-w-sm text-xs leading-relaxed text-muted-foreground sm:text-[13px]">
-            One smooth journey from browsing to your doorstep — search, order, receive.
-          </p>
+          <div>
+            <p className="text-[13px] font-bold tracking-tight text-slate-800">Prescription Upload</p>
+            <p className="text-[10px] font-medium text-slate-400">Rx · Dr. Mehta · TODAY</p>
+          </div>
         </div>
-
-        {/* Process banner */}
-        <div className="group/flow relative mt-4 overflow-hidden rounded-3xl border border-primary/10 bg-white shadow-glow sm:mt-4">
-          {/* ── Premium layered healthcare backdrop (visual only) ── */}
-          <div aria-hidden className="pointer-events-none absolute inset-0">
-            {/* base color wash */}
-            <div className="absolute inset-0 bg-gradient-to-br from-emerald-100/60 via-teal-50/70 to-sky-100/60" />
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,rgba(45,212,191,0.22),transparent_55%)]" />
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_right,rgba(96,165,250,0.18),transparent_55%)]" />
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,rgba(251,146,60,0.16),transparent_50%)]" />
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(139,92,246,0.13),transparent_50%)]" />
-            {/* soft white vignette keeps the centre crisp while colours show through */}
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(255,255,255,0.55),transparent_65%)]" />
-
-            {/* faint healthcare dot grid */}
-            <div className="absolute inset-0 bg-[radial-gradient(circle,rgba(13,148,136,0.10)_1px,transparent_1px)] bg-[size:22px_22px] [mask-image:radial-gradient(ellipse_at_center,black_35%,transparent_85%)]" />
-
-            {/* slowly drifting color orbs */}
-            <div
-              data-kc-anim
-              className="absolute -top-24 -left-24 size-72 rounded-full bg-teal-300/35 blur-3xl"
-              style={{ animation: "kc-orb-a 22s ease-in-out infinite" }}
-            />
-            <div
-              data-kc-anim
-              className="absolute -right-28 -bottom-28 size-80 rounded-full bg-orange-300/30 blur-3xl"
-              style={{ animation: "kc-orb-b 26s ease-in-out infinite" }}
-            />
-            <div
-              data-kc-anim
-              className="absolute -right-16 top-1/3 size-64 rounded-full bg-sky-300/30 blur-3xl"
-              style={{ animation: "kc-orb-c 24s ease-in-out infinite" }}
-            />
-            <div
-              data-kc-anim
-              className="absolute -bottom-24 left-1/4 size-64 rounded-full bg-violet-300/25 blur-3xl"
-              style={{ animation: "kc-orb-d 28s ease-in-out infinite" }}
-            />
-            <div
-              data-kc-anim
-              className="absolute -top-20 left-1/2 size-56 -translate-x-1/2 rounded-full bg-emerald-300/25 blur-3xl"
-              style={{ animation: "kc-orb-e 20s ease-in-out infinite" }}
-            />
-            <div
-              data-kc-anim
-              className="absolute -bottom-14 left-[62%] size-48 rounded-full bg-orange-200/35 blur-3xl"
-              style={{ animation: "kc-orb-f 18s ease-in-out infinite" }}
-            />
-
-            {/* soft glows that seat the 3D illustrations into the banner */}
-            <div className="absolute top-1/2 left-[16.5%] hidden size-72 -translate-x-1/2 -translate-y-1/2 rounded-full bg-teal-400/20 blur-2xl lg:block" />
-            <div className="absolute top-1/2 left-1/2 hidden size-72 -translate-x-1/2 -translate-y-1/2 rounded-full bg-sky-400/20 blur-2xl lg:block" />
-            <div className="absolute top-[72%] left-1/2 hidden size-56 -translate-x-1/2 -translate-y-1/2 rounded-full bg-orange-300/15 blur-2xl lg:block" />
-            <div className="absolute top-1/2 left-[83.5%] hidden size-72 -translate-x-1/2 -translate-y-1/2 rounded-full bg-violet-400/20 blur-2xl lg:block" />
-
-            {/* subtle translucent healthcare crosses */}
-            <Plus className="absolute top-4 left-[12%] size-5 rotate-12 text-teal-600/20" />
-            <Plus className="absolute bottom-5 left-[30%] size-4 rotate-45 text-sky-600/20" />
-            <Plus className="absolute top-6 left-[58%] size-4 -rotate-12 text-orange-500/20" />
-            <Plus className="absolute bottom-6 right-[16%] size-5 rotate-45 text-violet-500/20" />
-            <Plus className="absolute top-1/2 left-1/2 size-6 -translate-x-1/2 -translate-y-1/2 rotate-12 text-teal-600/[0.07]" />
-
-            {/* faint heartbeat line along the top edge */}
-            <svg
-              className="absolute inset-x-0 top-2 h-9 w-full text-teal-600/20"
-              viewBox="0 0 1200 40"
-              preserveAspectRatio="none"
-              fill="none"
-            >
-              <path
-                d="M0 28 H260 l20 -16 16 34 18 -26 12 8 h180 l20 -18 16 30 16 -14 h90 l20 -24 16 40 16 -16 h110 l20 -26 18 36 16 -10 h330 H1200"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-            {/* translucent depth rings */}
-            <div className="absolute top-1/3 -left-12 size-44 -translate-y-1/2 rounded-full border-2 border-teal-400/10" />
-            <div className="absolute right-6 bottom-8 size-24 rounded-full border-2 border-dashed border-sky-400/15" />
-            <div className="absolute -right-8 top-16 size-32 rounded-full border border-violet-400/10" />
+        <div className="mt-3.5">
+          <div className="flex items-center justify-between text-[10px] font-semibold">
+            <span className="text-slate-500">{state === "done" ? "amoxicillin-500mg.pdf" : "Uploading prescription…"}</span>
+            <span className={state === "done" ? "text-teal-600" : "text-violet-600"}>{Math.round(uploadPct)}%</span>
           </div>
-
-          <div className="relative grid grid-cols-1 gap-y-2.5 px-4 py-4 sm:px-6 lg:grid-cols-[1fr_auto_1fr_auto_1fr] lg:items-center lg:gap-x-1 lg:px-3 lg:py-4">
-            {[
-              {
-                step: "01",
-                title: "Search & Select",
-                description:
-                  "Browse the catalogue or search for your medicine — check dosage, manufacturer and price in seconds.",
-                Illustration: SearchIllustration,
-              },
-              {
-                step: "02",
-                title: "Place Your Order",
-                description:
-                  "Add items to the cart, confirm your address and check out with online payment or cash on delivery.",
-                Illustration: OrderIllustration,
-              },
-              {
-                step: "03",
-                title: "Receive at Your Door",
-                description:
-                  "Your order is packed securely and delivered to your doorstep — track it every step of the way.",
-                Illustration: DeliveryIllustration,
-              },
-            ].map((item, i) => (
-              <Fragment key={item.step}>
-                <motion.div
-                  initial={prefersReducedMotion ? false : { opacity: 0, y: 16 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, margin: "-40px" }}
-                  transition={{ delay: i * 0.12, duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-                  className="group"
-                >
-                  <div className="flex w-full items-center gap-4 transition-opacity duration-300 group-hover/flow:opacity-60 hover:opacity-100! sm:gap-5 lg:flex-col lg:justify-start lg:gap-0 lg:px-1 lg:text-center">
-                    <div className="relative shrink-0 [perspective:900px] lg:mx-auto lg:w-full lg:max-w-[340px]">
-                    {/* soft teal glow that blooms behind the card on hover */}
-                    <div
-                      aria-hidden
-                      className="absolute inset-x-1 -inset-y-1.5 rounded-3xl bg-teal-400/25 opacity-0 blur-lg transition-opacity duration-300 group-hover:opacity-100"
-                    />
-                    {/* pure CSS hover — GPU transform + box-shadow only, 250ms ease-out */}
-                    <div
-                      className="relative flex h-20 w-32 items-center justify-center overflow-hidden rounded-2xl border border-teal-900/5 bg-white shadow-card-hover transition-[transform,box-shadow] duration-300 ease-out will-change-transform group-hover:shadow-xl group-hover:shadow-teal-500/25 group-hover:ring-2 group-hover:ring-teal-400/30 group-hover:[transform:translateY(-7px)_scale(1.045)_rotateX(4deg)_rotateY(-3deg)] sm:h-24 sm:w-44 lg:h-24 lg:w-full"
-                    >
-                      {/* keep the existing gentle float on its own layer */}
-                      <div data-kc-anim className="size-full" style={{ animation: "kc-floatA 5.5s ease-in-out infinite" }}>
-                        <div className="size-full transition-transform duration-300 group-hover:scale-105">
-                          <item.Illustration />
-                        </div>
-                      </div>
-                      {/* subtle Kalyan teal accent overlay — original illustration colors stay visible */}
-                      <div className="pointer-events-none absolute inset-0 rounded-2xl bg-[radial-gradient(ellipse_at_top,rgba(45,212,191,0.16),transparent_62%)] opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-                    </div>
-                    <div className="absolute -top-2 left-1/2 flex size-7 -translate-x-1/2 items-center justify-center rounded-xl gradient-primary text-white text-[10px] font-bold shadow-md ring-2 ring-white transition-all duration-300 group-hover:-translate-y-0.5 group-hover:scale-110 group-hover:shadow-lg group-hover:shadow-teal-500/40 lg:-top-2.5 lg:size-8 lg:text-[11px]">
-                      {item.step}
-                    </div>
-                  </div>
-                  <div className="min-w-0 flex-1 text-left lg:mt-2 lg:flex-none lg:text-center">
-                    <h3 className="text-[15px] leading-tight font-semibold text-foreground transition-all duration-300 group-hover:-translate-y-0.5 group-hover:text-teal-700 sm:text-[17px]">
-                      {item.title}
-                    </h3>
-                    <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground lg:mx-auto lg:mt-1 lg:max-w-[240px]">
-                      {item.description}
-                    </p>
-                  </div>
-                  </div>
-                </motion.div>
-
-                {/* Connector between steps */}
-                {i < 2 && (
-                  <div aria-hidden className="flex items-center justify-center py-0.5 lg:w-12 lg:shrink-0 lg:py-0 lg:-mt-8">
-                    {/* mobile: downward flowing journey path */}
-                    <svg viewBox="0 0 40 46" className="h-11 w-9 lg:hidden" fill="none">
-                      <path d="M20 3 C 9 17, 31 30, 20 43" stroke="#99F6E4" strokeWidth="2.5" strokeLinecap="round" strokeDasharray="1 7" />
-                      <path d="M20 3 C 9 17, 31 30, 20 43" stroke="#2DD4BF" strokeWidth="4.5" strokeLinecap="round" opacity="0.12" />
-                      <path
-                        d="M20 3 C 9 17, 31 30, 20 43"
-                        stroke="#0D9488"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeDasharray="6 16"
-                        data-kc-anim
-                        style={{ animation: "kc-dash 3.2s linear infinite", animationDelay: `${i * 0.45}s` }}
-                      />
-                      <path d="M20 43 l-4.4 -2.1 m4.4 2.1 l2.1 -4.4" stroke="#F97316" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                    {/* desktop: refined curved path with a travelling highlight */}
-                    <svg viewBox="0 0 64 48" className="hidden h-12 w-16 lg:block" fill="none">
-                      <path d="M5 40 C 20 8, 45 38, 59 10" stroke="#99F6E4" strokeWidth="2.5" strokeLinecap="round" strokeDasharray="1 7" />
-                      <path d="M5 40 C 20 8, 45 38, 59 10" stroke="#2DD4BF" strokeWidth="5" strokeLinecap="round" opacity="0.12" />
-                      <path
-                        d="M5 40 C 20 8, 45 38, 59 10"
-                        stroke="#0D9488"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeDasharray="10 20"
-                        data-kc-anim
-                        style={{ animation: "kc-dash 3.6s linear infinite", animationDelay: `${i * 0.45}s` }}
-                      />
-                      <path d="M59 10 l-5.2 -1.6 m5.2 1.6 l-1.6 5.2" stroke="#F97316" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                  </div>
-                )}
-              </Fragment>
-            ))}
+          <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-slate-200/80">
+            <div
+              className={`h-full rounded-full transition-[width] duration-200 ease-out ${
+                state === "done" ? "bg-gradient-to-r from-teal-400 to-teal-600" : "bg-gradient-to-r from-violet-400 to-violet-600"
+              }`}
+              style={{ width: `${uploadPct}%` }}
+            />
           </div>
+          {state === "done" && (
+            <div className="mt-2 flex items-center gap-1.5 text-[10px] font-semibold text-teal-600">
+              <Check className="size-3" /> Verified by pharmacist
+            </div>
+          )}
         </div>
       </div>
+    </motion.div>
+  );
+}
+
+/* Refill Reminder Card — with animated dates */
+function RefillReminderCard() {
+  const dates = ["Mon 12", "Wed 14", "Fri 16", "Sun 18"];
+  const [active, setActive] = useState(1);
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 90, scale: 0.8 }}
+      whileInView={{ opacity: 1, y: 0, scale: 1 }}
+      viewport={{ once: true, margin: "-60px" }}
+      transition={{ duration: 0.7, delay: 0.12, ease: [0.22, 1, 0.36, 1] }}
+    >
+      <div className="iso-card group relative w-[248px] overflow-hidden rounded-2xl border border-white/70 bg-white/80 p-4 shadow-[0_24px_60px_-18px_rgba(13,148,136,0.25)] backdrop-blur-xl">
+        <div className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-br from-teal-200/0 to-violet-200/0 transition-all duration-300 group-hover:from-teal-200/25 group-hover:to-violet-200/15" />
+        <div className="flex items-center gap-2.5">
+          <div className="flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white shadow-md shadow-teal-500/30 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6">
+            <RefreshCcw className="size-5" />
+          </div>
+          <div>
+            <p className="text-[13px] font-bold tracking-tight text-slate-800">Refill Reminder</p>
+            <p className="text-[10px] font-medium text-slate-400">Metformin 500mg · every 12h</p>
+          </div>
+        </div>
+        <div className="mt-3 flex justify-between gap-1.5">
+          {dates.map((d, i) => (
+            <button
+              key={d}
+              onClick={() => setActive(i)}
+              className={`flex flex-1 cursor-pointer flex-col items-center gap-1 rounded-lg border px-1 py-1.5 transition-all duration-200 ${
+                active === i
+                  ? "border-teal-500/60 bg-teal-50 shadow-sm shadow-teal-500/20"
+                  : "border-slate-200/70 bg-white/60 hover:border-teal-300"
+              }`}
+            >
+              <span className={`text-[9px] font-bold uppercase ${active === i ? "text-teal-600" : "text-slate-400"}`}>
+                {d.split(" ")[0]}
+              </span>
+              <span className={`text-[11px] font-extrabold ${active === i ? "text-slate-800" : "text-slate-500"}`}>
+                {d.split(" ")[1]}
+              </span>
+              <span className={`size-1.5 rounded-full transition-all duration-300 ${active === i ? "bg-teal-500 shadow-[0_0_6px_rgba(20,184,166,0.8)]" : "bg-slate-300"}`} />
+            </button>
+          ))}
+        </div>
+        <div className="mt-2.5 flex items-center gap-1.5 rounded-lg bg-teal-50/80 px-2 py-1.5">
+          <Bell className="size-3 text-teal-600" />
+          <span className="text-[9.5px] font-semibold text-teal-700">Refill scheduled · notify 2 days prior</span>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+/* Live Medicine Tracker — status timeline */
+function MedicineTrackerCard() {
+  const steps = [
+    { label: "Order placed", done: true },
+    { label: "Packed", done: true },
+    { label: "Out for delivery", done: true },
+    { label: "Delivered", done: false },
+  ];
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 90, scale: 0.8 }}
+      whileInView={{ opacity: 1, y: 0, scale: 1 }}
+      viewport={{ once: true, margin: "-60px" }}
+      transition={{ duration: 0.7, delay: 0.24, ease: [0.22, 1, 0.36, 1] }}
+    >
+      <div className="iso-card group relative w-[252px] overflow-hidden rounded-2xl border border-white/70 bg-white/80 p-4 shadow-[0_24px_60px_-18px_rgba(56,189,248,0.28)] backdrop-blur-xl">
+        <div className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-br from-sky-200/0 to-teal-200/0 transition-all duration-300 group-hover:from-sky-200/25 group-hover:to-teal-200/20" />
+        <div className="flex items-center gap-2.5">
+          <div className="relative flex size-9 items-center justify-center rounded-xl bg-gradient-to-br from-sky-400 to-blue-600 text-white shadow-md shadow-sky-500/30 transition-transform duration-300 group-hover:scale-110">
+            <PackageCheck className="size-5" />
+            {/* live pulse ring */}
+            <span className="absolute inset-0 rounded-xl ring-2 ring-sky-400/50 animate-ping opacity-40 [animation-duration:2.2s]" />
+          </div>
+          <div>
+            <p className="text-[13px] font-bold tracking-tight text-slate-800">Live Tracker</p>
+            <p className="text-[10px] font-medium text-slate-400">Order #KC-8241 · arriving in 12 min</p>
+          </div>
+        </div>
+        <div className="relative mt-3 pl-1">
+          <div className="absolute top-2 bottom-2 left-[6px] w-0.5 rounded bg-slate-200" />
+          <div className="absolute top-2 left-[6px] h-[58%] w-0.5 rounded bg-gradient-to-b from-sky-500 to-teal-400" />
+          {steps.map((s, i) => (
+            <div key={s.label} className="relative flex items-center gap-2.5 py-1.5">
+              <span
+                className={`relative z-10 flex size-3 items-center justify-center rounded-full border-2 transition-all ${
+                  s.done ? "border-sky-500 bg-sky-500" : "border-slate-300 bg-white"
+                }`}
+              >
+                {s.done && <Check className="size-2 text-white" strokeWidth={3.5} />}
+              </span>
+              <span className={`text-[10.5px] font-semibold ${s.done ? "text-slate-700" : "text-slate-400"}`}>
+                {s.label}
+              </span>
+              {i === 2 && (
+                <span className="ml-auto rounded-full bg-sky-100 px-1.5 py-0.5 text-[8.5px] font-bold text-sky-600">
+                  LIVE
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+        <div className="mt-2 flex items-center gap-2 rounded-lg bg-slate-50/80 px-2 py-1.5">
+          <Truck className="size-3.5 text-teal-600" />
+          <span className="text-[9.5px] font-semibold text-slate-600">Rider: Amit · 2.4 km away</span>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+/* ═══════════════════════ MAIN SECTION ═══════════════════════ */
+export default function HowItWorks() {
+  const sectionRef = useRef<HTMLElement>(null);
+  const reduce = useReducedMotion();
+
+  // Scroll progress across the section (0 at entry, 1 near exit)
+  const { scrollYProgress } = useScroll({
+    target: sectionRef,
+    offset: ["start end", "end start"],
+  });
+  const p = useSpring(scrollYProgress, { stiffness: 90, damping: 26, mass: 0.6 });
+
+  /* Isometric pose → straightened pose, driven by scroll */
+  const rotateX = useTransform(p, [0, 0.5, 1], [reduce ? 0 : 25, reduce ? 0 : 8, reduce ? 0 : 0]);
+  const rotateY = useTransform(p, [0, 0.5, 1], [reduce ? 0 : -15, reduce ? 0 : -5, reduce ? 0 : 0]);
+  const rotateZ = useTransform(p, [0, 0.5, 1], [reduce ? 0 : 10, reduce ? 0 : 3, reduce ? 0 : 0]);
+  const sceneScale = useTransform(p, [0, 0.5, 1], [reduce ? 1 : 0.9, 0.98, 1]);
+  const sceneOpacity = useTransform(p, [0, 0.14, 0.86, 1], [0, 1, 1, 0.92]);
+  const sceneY = useTransform(p, [0, 1], [70, -50]);
+
+  // per-card pop-outs (staggered)
+  const c1 = usePopOut(p, 0.08, 0.34);
+  const c2 = usePopOut(p, 0.16, 0.42);
+  const c3 = usePopOut(p, 0.24, 0.5);
+
+  // ambient glow follows scroll
+  const glowA = useTransform(p, [0, 0.5, 1], ["-6%", "18%", "40%"]);
+  const glowB = useTransform(p, [0, 0.5, 1], ["92%", "70%", "52%"]);
+
+  // headline reveal
+  const headY = useTransform(p, [0, 0.28], [44, 0]);
+  const headOpacity = useTransform(p, [0, 0.22], [0, 1]);
+
+  return (
+    <section ref={sectionRef} className="relative overflow-hidden bg-[#F4F5F7] py-20 sm:py-24">
+      {/* keyframes & reduced-motion guard */}
+      <style>{`
+        @keyframes iso-float {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-7px); }
+        }
+        @keyframes iso-drift {
+          0%, 100% { transform: translate(0, 0); }
+          50% { transform: translate(10px, -12px); }
+        }
+        @keyframes iso-spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        .iso-float { animation: iso-float 5.2s ease-in-out infinite; will-change: transform; }
+        .iso-drift { animation: iso-drift 9s ease-in-out infinite; will-change: transform; }
+        @media (prefers-reduced-motion: reduce) {
+          .iso-float, .iso-drift { animation: none !important; }
+        }
+      `}</style>
+
+      {/* ── Layered ambient background ── */}
+      <div aria-hidden className="pointer-events-none absolute inset-0">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(255,255,255,0.9),transparent_55%)]" />
+        <motion.div
+          style={{ left: glowA }}
+          className="absolute top-1/4 size-[420px] -translate-y-1/2 rounded-full bg-violet-300/35 blur-3xl"
+        />
+        <motion.div
+          style={{ left: glowB }}
+          className="absolute top-1/2 size-[460px] -translate-y-1/2 rounded-full bg-teal-300/35 blur-3xl"
+        />
+        <div className="absolute -bottom-24 right-1/4 size-80 rounded-full bg-sky-200/40 blur-3xl" />
+        {/* faint isometric dot grid */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle,rgba(124,58,237,0.09)_1px,transparent_1px)] bg-[size:26px_26px] [mask-image:radial-gradient(ellipse_at_center,black_30%,transparent_78%)]" />
+      </div>
+
+      <div className="relative mx-auto max-w-7xl px-4 sm:px-6">
+        {/* ── Oversized left-aligned headline ── */}
+        <motion.h2
+          style={reduce ? { opacity: 1, y: 0 } : { opacity: headOpacity, y: headY }}
+          className="max-w-4xl text-left font-extrabold uppercase leading-[0.95] tracking-tight text-slate-900"
+        >
+          <span className="block text-[clamp(1.9rem,5.2vw,4.2rem)]">
+            Order Medicines,
+          </span>
+          <span className="block bg-gradient-to-r from-violet-600 via-violet-500 to-teal-500 bg-clip-text text-[clamp(1.9rem,5.2vw,4.2rem)] text-transparent">
+            Track Prescriptions,
+          </span>
+          <span className="block text-[clamp(1.9rem,5.2vw,4.2rem)]">
+            Manage Health
+          </span>
+        </motion.h2>
+
+        {/* ── Isometric 3D viewport ── */}
+        <div className="relative mt-10 h-[560px] sm:mt-14 sm:h-[640px]" style={{ perspective: "1400px" }}>
+          {/* perspective grid floor */}
+          <div
+            aria-hidden
+            className="absolute inset-x-0 bottom-0 mx-auto h-40 max-w-5xl opacity-60 [mask-image:linear-gradient(to_bottom,transparent,black_30%,black_70%,transparent)]"
+            style={{ transform: "rotateX(62deg) scale(1.6)", transformOrigin: "bottom center" }}
+          >
+            <div className="size-full bg-[linear-gradient(rgba(124,58,237,0.14)_1px,transparent_1px),linear-gradient(90deg,rgba(20,184,166,0.12)_1px,transparent_1px)] bg-[size:52px_52px]" />
+          </div>
+
+          <motion.div
+            style={
+              reduce
+                ? undefined
+                : { rotateX, rotateY, rotateZ, scale: sceneScale, opacity: sceneOpacity, y: sceneY }
+            }
+            className="absolute inset-0 [transform-style:preserve-3d]"
+          >
+            {/* central order-tracker dashboard panel */}
+            <div className="absolute top-1/2 left-1/2 h-[360px] w-[680px] max-w-[92vw] -translate-x-1/2 -translate-y-1/2 [transform-style:preserve-3d]">
+              {/* dashboard base slab (isometric depth) */}
+              <div
+                aria-hidden
+                className="absolute inset-0 translate-y-3 rounded-3xl bg-gradient-to-br from-violet-900/80 to-slate-900/80 blur-[2px]"
+                style={{ transform: "translateZ(-46px)" }}
+              />
+              {/* dashboard glass face */}
+              <div
+                className="iso-card absolute inset-0 overflow-hidden rounded-3xl border border-white/80 bg-white/85 shadow-[0_50px_120px_-30px_rgba(76,29,149,0.35)] backdrop-blur-2xl"
+                style={{ transform: "translateZ(0px)" }}
+              >
+                <div className="flex h-full flex-col p-5 sm:p-6">
+                  {/* window chrome */}
+                  <div className="flex items-center gap-2">
+                    <span className="size-2.5 rounded-full bg-violet-400" />
+                    <span className="size-2.5 rounded-full bg-teal-400" />
+                    <span className="size-2.5 rounded-full bg-sky-300" />
+                    <span className="ml-3 text-[11px] font-bold tracking-widest text-slate-400 uppercase">
+                      Kalyan Chemist · Order Dashboard
+                    </span>
+                    <Sparkles className="ml-auto size-3.5 text-violet-400" />
+                  </div>
+
+                  {/* dashboard content rows */}
+                  <div className="mt-4 grid flex-1 grid-cols-3 gap-3 sm:gap-4">
+                    {/* mini stat */}
+                    <div className="rounded-2xl border border-slate-100 bg-white/90 p-3 shadow-sm">
+                      <p className="text-[9px] font-bold tracking-wider text-slate-400 uppercase">Today</p>
+                      <p className="mt-1 text-xl font-extrabold text-slate-800">4</p>
+                      <p className="text-[9.5px] font-medium text-slate-400">medicines due</p>
+                      <div className="mt-2 flex gap-1">
+                        {[...Array(4)].map((_, i) => (
+                          <span key={i} className={`size-1.5 rounded-full ${i < 3 ? "bg-violet-400" : "bg-slate-200"}`} />
+                        ))}
+                      </div>
+                    </div>
+                    {/* mini chart */}
+                    <div className="rounded-2xl border border-slate-100 bg-white/90 p-3 shadow-sm">
+                      <p className="text-[9px] font-bold tracking-wider text-slate-400 uppercase">Adherence</p>
+                      <div className="mt-2 flex h-12 items-end gap-1">
+                        {[40, 65, 50, 80, 62, 92, 74].map((h, i) => (
+                          <div
+                            key={i}
+                            className="w-full rounded-t bg-gradient-to-t from-teal-500/80 to-teal-300"
+                            style={{ height: `${h}%` }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    {/* mini delivery */}
+                    <div className="rounded-2xl border border-slate-100 bg-white/90 p-3 shadow-sm">
+                      <p className="text-[9px] font-bold tracking-wider text-slate-400 uppercase">Delivery</p>
+                      <div className="mt-2 flex items-center gap-2">
+                        <span className="flex size-8 items-center justify-center rounded-xl bg-gradient-to-br from-sky-400 to-blue-500 text-white shadow-md shadow-sky-500/30">
+                          <Truck className="size-4" />
+                        </span>
+                        <div>
+                          <p className="text-[11px] font-extrabold text-slate-800">12 min</p>
+                          <p className="text-[9px] font-medium text-slate-400">eta</p>
+                        </div>
+                      </div>
+                      <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                        <div className="h-full w-3/4 rounded-full bg-gradient-to-r from-sky-400 to-teal-400" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* bottom status strip */}
+                  <div className="mt-4 flex items-center justify-between rounded-2xl bg-slate-900/95 px-4 py-2.5">
+                    <div className="flex items-center gap-2">
+                      <FileText className="size-3.5 text-teal-300" />
+                      <span className="text-[10px] font-semibold tracking-wide text-slate-300">
+                        Prescription verified · 100% genuine stock
+                      </span>
+                    </div>
+                    <span className="rounded-full bg-teal-400/20 px-2 py-0.5 text-[9px] font-bold tracking-wider text-teal-300 uppercase">
+                      Live
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ── Floating interactive cards popping out in 3D layers ── */}
+            {/* Upload card — left */}
+            <motion.div
+              style={reduce ? { opacity: 1, y: 0, scale: 1 } : { opacity: c1.opacity, y: c1.translateY, scale: c1.scale, translateZ: c1.translateZ, x: "-140%" }}
+              className="absolute top-[16%] left-1/2 -ml-32 hidden sm:block [transform-style:preserve-3d]"
+            >
+              <div className="iso-drift">
+                <PrescriptionUploadCard />
+              </div>
+            </motion.div>
+
+            {/* Refill card — right */}
+            <motion.div
+              style={reduce ? { opacity: 1, y: 0, scale: 1 } : { opacity: c2.opacity, y: c2.translateY, scale: c2.scale, translateZ: c2.translateZ, x: "185%" }}
+              className="absolute top-[54%] left-1/2 hidden sm:block [transform-style:preserve-3d]"
+            >
+              <div className="iso-drift" style={{ animationDelay: "1.4s" }}>
+                <RefillReminderCard />
+              </div>
+            </motion.div>
+
+            {/* Tracker card — bottom-center (also visible on mobile) */}
+            <motion.div
+              style={reduce ? { opacity: 1, y: 0, scale: 1 } : { opacity: c3.opacity, y: c3.translateY, scale: c3.scale, translateZ: c3.translateZ, x: "-50%" }}
+              className="absolute top-[88%] left-1/2 sm:top-[76%] [transform-style:preserve-3d]"
+            >
+              <div className="iso-drift" style={{ animationDelay: "2.6s" }}>
+                <MedicineTrackerCard />
+              </div>
+            </motion.div>
+
+            {/* ── Fixed-zone floating 3D medicine objects ── */}
+            <FloatingObject progress={p} start={0.2} end={0.5} popZ={150} className="top-[10%] left-[12%] hidden md:block" floatDelay="0.3s">
+              <CapsuleSvg className="h-9 w-18 max-w-none drop-shadow-[0_10px_18px_rgba(124,58,237,0.35)]" />
+            </FloatingObject>
+            <FloatingObject progress={p} start={0.3} end={0.6} popZ={110} className="top-[70%] left-[8%] hidden md:block" floatDelay="1.1s">
+              <BottleSvg className="h-16 drop-shadow-[0_12px_20px_rgba(124,58,237,0.3)]" />
+            </FloatingObject>
+            <FloatingObject progress={p} start={0.28} end={0.58} popZ={140} className="top-[12%] right-[10%] hidden md:block" floatDelay="0.7s">
+              <div className="flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-teal-400 to-teal-600 text-white shadow-lg shadow-teal-500/40">
+                <Bell className="size-5" />
+              </div>
+            </FloatingObject>
+            <FloatingObject progress={p} start={0.34} end={0.64} popZ={100} className="top-[72%] right-[8%] hidden md:block" floatDelay="1.8s">
+              <div className="flex size-11 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-400 to-violet-600 text-white shadow-lg shadow-violet-500/40">
+                <Check className="size-5" />
+              </div>
+            </FloatingObject>
+          </motion.div>
+        </div>
+
+        {/* ── Scroll hint ── */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={{ once: true }}
+          transition={{ delay: 0.8 }}
+          className="mt-6 flex justify-center"
+        >
+          <div className="flex items-center gap-2 rounded-full border border-slate-200/80 bg-white/70 px-4 py-1.5 backdrop-blur">
+            <Sparkles className="size-3.5 text-violet-500" />
+            <span className="text-[10.5px] font-semibold tracking-wide text-slate-500 uppercase">
+              Hover the cards — they're live
+            </span>
+          </div>
+        </motion.div>
+      </div>
+
     </section>
   );
 }
