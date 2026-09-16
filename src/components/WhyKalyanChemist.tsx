@@ -1,479 +1,454 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { motion, useReducedMotion, type Variants } from "framer-motion";
-import { ShieldCheck, Truck, Clock3, Pill, Shield, Plus } from "lucide-react";
+import { Shield, FlaskConical, Truck, RefreshCw } from "lucide-react";
 
+/* ─── constants ─── */
 const EASE = [0.22, 1, 0.36, 1] as const;
 
-const TRUST_POINTS = [
-  { icon: ShieldCheck, title: "Genuine Medicines", description: "Every product sourced directly from licensed manufacturers and verified distributors.", iconAnim: "shield" },
-  { icon: Truck, title: "Prompt Delivery", description: "Orders dispatched within hours and delivered to your doorstep with care.", iconAnim: "truck" },
-  { icon: Clock3, title: "Always Open Online", description: "Browse and order anytime — our platform is available around the clock.", iconAnim: "clock" },
-  { icon: Pill, title: "Expert Guidance", description: "Our pharmacists are available to answer your questions about dosage and interactions.", iconAnim: "pill" },
-];
-
-const PARTICLES = [
-  { left: "10%", top: "20%", size: 2.5, delay: "0s", dur: "11s", color: "rgba(255,255,255,0.3)" },
-  { left: "25%", top: "70%", size: 2, delay: "1.4s", dur: "13s", color: "rgba(110,231,183,0.4)" },
-  { left: "40%", top: "12%", size: 2, delay: "2.8s", dur: "12s", color: "rgba(56,189,248,0.35)" },
-  { left: "58%", top: "80%", size: 2.5, delay: "0.6s", dur: "14s", color: "rgba(255,255,255,0.25)" },
-  { left: "72%", top: "18%", size: 2, delay: "2s", dur: "12.5s", color: "rgba(167,243,208,0.35)" },
-  { left: "88%", top: "58%", size: 2, delay: "3.6s", dur: "13.5s", color: "rgba(255,255,255,0.28)" },
-  { left: "48%", top: "42%", size: 2, delay: "4.2s", dur: "15s", color: "rgba(45,212,191,0.4)" },
-  { left: "14%", top: "52%", size: 2, delay: "5s", dur: "14s", color: "rgba(94,234,212,0.35)" },
-];
-
-const svgAnim = (n: string, d: string, dl = "0s"): CSSProperties => ({
-  animation: `${n} ${d} ease-in-out ${dl} infinite`,
-  transformBox: "fill-box",
-  transformOrigin: "center",
-});
-
-/* ══════════════════════════════════════════════════════════════════════════
-   LARGE 3D HEALTHCARE ILLUSTRATION — dark-background optimised
-   viewBox 380×300, shield dominant, 7 floating objects + particles
-   ══════════════════════════════════════════════════════════════════════════ */
-function TrustIllustration() {
-  return (
-    <svg viewBox="0 0 380 300" fill="none" className="size-full" aria-hidden="true">
-      <defs>
-        {/* ── Shield ── */}
-        <linearGradient id="wkcs" x1="0.15" y1="0" x2="0.85" y2="1">
-          <stop offset="0" stopColor="#5EEAD4" />
-          <stop offset="0.4" stopColor="#34D399" />
-          <stop offset="0.75" stopColor="#10B981" />
-          <stop offset="1" stopColor="#0F766E" />
-        </linearGradient>
-        <linearGradient id="wkcsi" x1="0.2" y1="0" x2="0.7" y2="1">
-          <stop offset="0" stopColor="#FFFFFF" />
-          <stop offset="0.6" stopColor="#F0FDFA" />
-          <stop offset="1" stopColor="#D1FAE5" />
-        </linearGradient>
-        <linearGradient id="wkccr" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#0D9488" />
-          <stop offset="1" stopColor="#065F46" />
-        </linearGradient>
-        {/* ── Badge ── */}
-        <linearGradient id="wkcbg" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#34D399" />
-          <stop offset="1" stopColor="#0D9488" />
-        </linearGradient>
-        {/* ── Card / light surfaces ── */}
-        <linearGradient id="wkcc" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#FFFFFF" />
-          <stop offset="1" stopColor="#F0FDFA" />
-        </linearGradient>
-        {/* ── Capsule halves ── */}
-        <linearGradient id="wkcA" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#FDBA74" />
-          <stop offset="1" stopColor="#F97316" />
-        </linearGradient>
-        <linearGradient id="wkcB" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#22D3EE" />
-          <stop offset="1" stopColor="#0D9488" />
-        </linearGradient>
-        {/* ── Box ── */}
-        <linearGradient id="wkbx" x1="0" y1="0" x2="0.3" y2="1">
-          <stop offset="0" stopColor="#FFFFFF" />
-          <stop offset="1" stopColor="#F0FDFA" />
-        </linearGradient>
-        <linearGradient id="wkbs" x1="0" y1="0" x2="1" y2="0.4">
-          <stop offset="0" stopColor="#CCFBF1" />
-          <stop offset="1" stopColor="#99F6E4" />
-        </linearGradient>
-        {/* ── Bottle ── */}
-        <linearGradient id="wkbtl" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#FFFFFF" />
-          <stop offset="1" stopColor="#F0FDFA" />
-        </linearGradient>
-      </defs>
-
-      {/* ── ambient glow zone ── */}
-      <circle cx="190" cy="140" r="140" fill="#2DD4BF" opacity="0.06" />
-      <circle cx="190" cy="140" r="110" fill="#10B981" opacity="0.04" />
-
-      {/* ── ground contact shadows ── */}
-      <ellipse cx="190" cy="268" rx="80" ry="8" fill="#0D9488" opacity="0.22" />
-      <ellipse cx="190" cy="268" rx="50" ry="5" fill="#0D9488" opacity="0.12" />
-      <ellipse cx="80" cy="238" rx="28" ry="4" fill="#0D9488" opacity="0.14" />
-      <ellipse cx="310" cy="240" rx="24" ry="3.5" fill="#0D9488" opacity="0.12" />
-      <ellipse cx="330" cy="210" rx="20" ry="3" fill="#0D9488" opacity="0.1" />
-
-      {/* ══════ MAIN SHIELD — dominant, centre ══════ */}
-      <g data-kc-why-anim style={svgAnim("kc-why-shield", "7s")}>
-        <ellipse cx="190" cy="128" rx="72" ry="86" fill="#2DD4BF" opacity="0.1" />
-        {/* body */}
-        <path d="M190 22 L300 64 V142 C300 212 254 256 190 278 C126 256 80 212 80 142 V64 Z" fill="url(#wkcs)" />
-        {/* top bevel */}
-        <path d="M190 22 L300 64 V80 L190 38 L80 80 V64 Z" fill="#A7F3D0" opacity="0.45" />
-        {/* left rim */}
-        <path d="M83 68 V142 C83 198 118 236 170 260" stroke="#FFFFFF" strokeOpacity="0.55" strokeWidth="3" strokeLinecap="round" fill="none" />
-        {/* right rim */}
-        <path d="M297 68 V142 C297 198 262 236 210 260" stroke="#6EE7B7" strokeOpacity="0.22" strokeWidth="2" strokeLinecap="round" fill="none" />
-        {/* recessed face */}
-        <path d="M190 46 L275 80 V142 C275 195 240 228 190 246 C140 228 105 195 105 142 V80 Z" fill="url(#wkcsi)" />
-        <path d="M190 46 L275 80 V142 C275 195 240 228 190 246 C140 228 105 195 105 142 V80 Z" fill="none" stroke="#0D9488" strokeOpacity="0.22" strokeWidth="1.4" />
-        {/* cross */}
-        <g data-kc-why-anim style={svgAnim("kc-why-plus", "5.4s", "0.6s")}>
-          <rect x="174" y="82" width="32" height="100" rx="10" fill="url(#wkccr)" />
-          <rect x="148" y="114" width="84" height="32" rx="10" fill="url(#wkccr)" />
-          <rect x="179" y="88" width="8" height="88" rx="4" fill="#5EEAD4" opacity="0.55" />
-          <rect x="153" y="120" width="74" height="8" rx="4" fill="#5EEAD4" opacity="0.42" />
-        </g>
-        <ellipse cx="190" cy="215" rx="38" ry="6" fill="#0D9488" opacity="0.12" />
-      </g>
-
-      {/* ══════ VERIFIED BADGE — lower right ══════ */}
-      <g data-kc-why-anim style={svgAnim("kc-why-badge", "5.2s", "0.4s")}>
-        <circle cx="275" cy="205" r="26" fill="#0D9488" opacity="0.2" />
-        <circle cx="273" cy="202" r="24" fill="url(#wkcbg)" stroke="#FFFFFF" strokeWidth="3" />
-        <path d="M263 202 l7 7 l14 -15" stroke="#FFFFFF" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-      </g>
-
-      {/* ══════ CAPSULE — upper right ══════ */}
-      <g data-kc-why-anim style={svgAnim("kc-why-capsule", "6.2s", "0.8s")}>
-        <g transform="rotate(-26 310 68)">
-          <rect x="288" y="58" width="26" height="22" rx="10.5" fill="url(#wkcA)" />
-          <rect x="312" y="58" width="26" height="22" rx="10.5" fill="url(#wkcB)" />
-          <rect x="292" y="65" width="8" height="4" rx="2" fill="#FFFFFF" opacity="0.75" />
-        </g>
-      </g>
-
-      {/* ══════ DELIVERY PACKAGE — upper left ══════ */}
-      <g data-kc-why-anim style={svgAnim("kc-why-package", "7.2s", "1.2s")}>
-        <g transform="translate(58, 6) rotate(-3 20 18)">
-          <ellipse cx="20" cy="42" rx="18" ry="4" fill="#0D9488" opacity="0.12" />
-          <path d="M36 10 L46 2 L46 32 L36 40 Z" fill="url(#wkbs)" stroke="#99F6E4" strokeWidth="1" />
-          <rect x="0" y="10" width="36" height="30" rx="5" fill="url(#wkbx)" stroke="#99F6E4" strokeWidth="1.8" />
-          <path d="M0 10 L9 2 L45 2 L36 10 Z" fill="#F0FDFA" stroke="#99F6E4" strokeWidth="1.2" />
-          <line x1="18" y1="10" x2="18" y2="40" stroke="#34D399" strokeWidth="2.6" strokeLinecap="round" opacity="0.55" />
-          <line x1="2" y1="25" x2="34" y2="25" stroke="#34D399" strokeWidth="2.2" strokeLinecap="round" opacity="0.42" />
-          <path d="M12 2 Q18 -6 24 2" stroke="#0D9488" strokeWidth="2" fill="none" strokeLinecap="round" />
-        </g>
-      </g>
-
-      {/* ══════ MEDICINE BOTTLE — right ══════ */}
-      <g data-kc-why-anim style={svgAnim("kc-why-bottle", "5.9s", "1.4s")}>
-        <rect x="322" y="126" width="18" height="12" rx="4" fill="#0D9488" />
-        <rect x="326" y="137" width="10" height="8" fill="#065F46" />
-        <rect x="312" y="144" width="38" height="56" rx="8" fill="url(#wkbtl)" stroke="#99F6E4" strokeWidth="1.8" />
-        <rect x="317" y="160" width="28" height="26" rx="5" fill="#2DD4BF" opacity="0.18" />
-        <path d="M331 166 v14 M324 173 h14" stroke="#0F766E" strokeWidth="3.5" strokeLinecap="round" opacity="0.65" />
-        <rect x="318" y="148" width="8" height="38" rx="4" fill="#FFFFFF" opacity="0.5" />
-      </g>
-
-      {/* ══════ BLISTER STRIP — left ══════ */}
-      <g data-kc-why-anim style={svgAnim("kc-why-strip", "5.6s")}>
-        <g transform="rotate(-10 68 200)">
-          <rect x="30" y="172" width="76" height="52" rx="11" fill="url(#wkcc)" stroke="#99F6E4" strokeWidth="1.8" />
-          <rect x="30" y="172" width="76" height="10" rx="5" fill="#34D399" opacity="0.35" />
-          <circle cx="48" cy="196" r="7" fill="#D1FAE5" stroke="#0D9488" strokeWidth="1.5" />
-          <circle cx="68" cy="196" r="7" fill="#D1FAE5" stroke="#0D9488" strokeWidth="1.5" />
-          <circle cx="88" cy="196" r="7" fill="#D1FAE5" stroke="#0D9488" strokeWidth="1.5" />
-          <rect x="38" y="210" width="34" height="3.5" rx="1.8" fill="#2DD4BF" />
-          <rect x="38" y="216" width="22" height="3" rx="1.5" fill="#99F6E4" />
-        </g>
-      </g>
-
-      {/* ══════ PHARMACY CROSS — upper left ══════ */}
-      <g data-kc-why-anim style={svgAnim("kc-why-cross-rot", "6.8s", "1.1s")}>
-        <rect x="40" y="22" width="14" height="40" rx="6" fill="url(#wkccr)" opacity="0.8" />
-        <rect x="28" y="34" width="38" height="14" rx="6" fill="url(#wkccr)" opacity="0.8" />
-      </g>
-
-      {/* ══════ HEART — left ══════ */}
-      <g data-kc-why-anim style={svgAnim("kc-why-heart", "4.8s", "0.3s")}>
-        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" transform="translate(22 112) scale(1)" fill="url(#wkcA)" />
-      </g>
-
-      {/* ══════ PLUS MARKS ══════ */}
-      <g data-kc-why-anim style={svgAnim("kc-why-plus", "6.4s", "1.8s")}>
-        <path d="M52 218 v14 M45 225 h14" stroke="#22D3EE" strokeOpacity="0.5" strokeWidth="3" strokeLinecap="round" />
-      </g>
-      <g data-kc-why-anim style={svgAnim("kc-why-plus", "7.2s", "2.3s")}>
-        <path d="M308 250 v12 M302 256 h12" stroke="#FB923C" strokeOpacity="0.5" strokeWidth="2.8" strokeLinecap="round" />
-      </g>
-      <g data-kc-why-anim style={svgAnim("kc-why-plus", "6s", "3s")}>
-        <path d="M170 278 v10 M165 283 h10" stroke="#5EEAD4" strokeOpacity="0.45" strokeWidth="2.5" strokeLinecap="round" />
-      </g>
-
-      {/* ══════ PARTICLES (bright on dark) ══════ */}
-      <circle cx="100" cy="30" r="2.5" fill="#5EEAD4" data-kc-why-anim style={svgAnim("kc-why-mote", "4.6s", "0.2s")} />
-      <circle cx="280" cy="26" r="2" fill="#6EE7B7" data-kc-why-anim style={svgAnim("kc-why-mote", "5.4s", "1.1s")} />
-      <circle cx="32" cy="155" r="2.2" fill="#38BDF8" data-kc-why-anim style={svgAnim("kc-why-mote", "5s", "1.9s")} />
-      <circle cx="140" cy="260" r="2" fill="#FB923C" data-kc-why-anim style={svgAnim("kc-why-mote", "4.4s", "0.7s")} />
-      <circle cx="265" cy="258" r="1.9" fill="#A7F3D0" data-kc-why-anim style={svgAnim("kc-why-mote", "5.8s", "2.6s")} />
-      <circle cx="210" cy="12" r="1.8" fill="#FFFFFF" data-kc-why-anim style={svgAnim("kc-why-mote", "6s", "3.2s")} />
-
-      {/* ══════ SPARKLES ══════ */}
-      <g data-kc-why-anim style={svgAnim("kc-why-twinkle", "3.8s", "0.4s")}>
-        <path d="M308 32 l2.5 6 6 2.5 -6 2.5 -2.5 6 -2.5 -6 -6 -2.5 6 -2.5 Z" fill="#5EEAD4" />
-      </g>
-      <g data-kc-why-anim style={svgAnim("kc-why-twinkle", "4.6s", "1.6s")}>
-        <path d="M46 235 l2 4.8 4.8 2 -4.8 2 -2 4.8 -2 -4.8 -4.8 -2 4.8 -2 Z" fill="#FB923C" />
-      </g>
-      <g data-kc-why-anim style={svgAnim("kc-why-twinkle", "5.2s", "2.2s")}>
-        <path d="M350 110 l1.8 4 4 1.8 -4 1.8 -1.8 4 -1.8 -4 -4 -1.8 4 -1.8 Z" fill="#38BDF8" />
-      </g>
-      <g data-kc-why-anim style={svgAnim("kc-why-twinkle", "4.2s", "0.8s")}>
-        <path d="M120 10 l1.6 3.6 3.6 1.6 -3.6 1.6 -1.6 3.6 -1.6 -3.6 -3.6 -1.6 3.6 -1.6 Z" fill="#FFFFFF" />
-      </g>
-    </svg>
-  );
+interface CardData {
+  title: string;
+  subtitle: string;
+  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+  glowColor: string;
+  glowRgba: string;
+  accentColor: string;
+  active: boolean;
 }
 
-/* ══════════════════════════════════════════════════════════════════════════ */
+const CARDS: CardData[] = [
+  {
+    title: "Authentic Medicines",
+    subtitle: "100% Verified Pharmacy Stock.",
+    icon: Shield,
+    glowColor: "#06b6d4",
+    glowRgba: "rgba(6,182,212,0.35)",
+    accentColor: "from-cyan-400 to-teal-500",
+    active: false,
+  },
+  {
+    title: "Expert Pharmacists",
+    subtitle: "24/7 Professional Consultations.",
+    icon: FlaskConical,
+    glowColor: "#10b981",
+    glowRgba: "rgba(16,185,129,0.35)",
+    accentColor: "from-emerald-400 to-teal-400",
+    active: true,
+  },
+  {
+    title: "Fast Home Delivery",
+    subtitle: "Quick, Reliable Doorstep Service.",
+    icon: Truck,
+    glowColor: "#22d3ee",
+    glowRgba: "rgba(34,211,238,0.30)",
+    accentColor: "from-cyan-300 to-blue-400",
+    active: false,
+  },
+  {
+    title: "Seamless Refills",
+    subtitle: "Easy Online Subscription & Management.",
+    icon: RefreshCw,
+    glowColor: "#34d399",
+    glowRgba: "rgba(52,211,153,0.30)",
+    accentColor: "from-emerald-300 to-cyan-400",
+    active: false,
+  },
+];
+
+/* ─── floating decorative SVG elements ─── */
+const FLOAT_ITEMS = [
+  { x: "6%", y: "12%", size: 22, anim: "kcw-float1", delay: "0s", dur: "7s" },
+  { x: "92%", y: "18%", size: 18, anim: "kcw-float2", delay: "1.2s", dur: "8s" },
+  { x: "8%", y: "78%", size: 16, anim: "kcw-float3", delay: "2.1s", dur: "9s" },
+  { x: "90%", y: "72%", size: 20, anim: "kcw-float1", delay: "0.8s", dur: "7.5s" },
+  { x: "14%", y: "44%", size: 14, anim: "kcw-float2", delay: "3s", dur: "8.5s" },
+  { x: "86%", y: "46%", size: 15, anim: "kcw-float3", delay: "1.8s", dur: "7.8s" },
+  { x: "50%", y: "6%", size: 12, anim: "kcw-float1", delay: "2.5s", dur: "9.2s" },
+  { x: "50%", y: "92%", size: 13, anim: "kcw-float2", delay: "0.4s", dur: "8.2s" },
+];
+
+const floatSvg = (kind: number) => {
+  const c = "rgba(6,182,212,0.25)";
+  const c2 = "rgba(16,185,129,0.22)";
+  switch (kind) {
+    case 0:
+      return (
+        <svg viewBox="0 0 24 24" fill="none" className="size-full">
+          <rect x="6" y="3" width="12" height="18" rx="3" stroke={c} strokeWidth="1.4" />
+          <rect x="8" y="6" width="8" height="5" rx="1.5" fill={c2} />
+          <circle cx="12" cy="15.5" r="2.2" stroke={c} strokeWidth="1.2" />
+        </svg>
+      );
+    case 1:
+      return (
+        <svg viewBox="0 0 24 24" fill="none" className="size-full">
+          <path d="M12 2L4 7v5c0 5.5 3.4 9.7 8 11 4.6-1.3 8-5.5 8-11V7l-8-5z" stroke={c} strokeWidth="1.4" />
+          <path d="M9 12l2 2 4-4" stroke={c2} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      );
+    case 2:
+      return (
+        <svg viewBox="0 0 24 24" fill="none" className="size-full">
+          <rect x="4" y="2" width="16" height="20" rx="2" stroke={c} strokeWidth="1.4" />
+          <line x1="12" y1="8" x2="12" y2="16" stroke={c2} strokeWidth="1.8" strokeLinecap="round" />
+          <line x1="8" y1="12" x2="16" y2="12" stroke={c2} strokeWidth="1.8" strokeLinecap="round" />
+        </svg>
+      );
+    case 3:
+      return (
+        <svg viewBox="0 0 24 24" fill="none" className="size-full">
+          <circle cx="12" cy="12" r="9" stroke={c} strokeWidth="1.4" />
+          <circle cx="12" cy="12" r="4" stroke={c2} strokeWidth="1.2" />
+          <line x1="12" y1="3" x2="12" y2="8" stroke={c} strokeWidth="1" />
+          <line x1="12" y1="16" x2="12" y2="21" stroke={c} strokeWidth="1" />
+          <line x1="3" y1="12" x2="8" y2="12" stroke={c} strokeWidth="1" />
+          <line x1="16" y1="12" x2="21" y2="12" stroke={c} strokeWidth="1" />
+        </svg>
+      );
+    default:
+      return (
+        <svg viewBox="0 0 24 24" fill="none" className="size-full">
+          <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" stroke={c} strokeWidth="1.4" />
+        </svg>
+      );
+  }
+};
+
+/* ─── particle pool for powder-smoke effect ─── */
+const PARTICLE_COUNT = 18;
+const particleBase: Array<{
+  x: number;
+  y: number;
+  size: number;
+  delay: number;
+  dur: number;
+  dx: number;
+  dy: number;
+}> = Array.from({ length: PARTICLE_COUNT }, (_, i) => ({
+  x: (Math.sin(i * 1.9) * 0.5 + 0.5) * 100,
+  y: (Math.cos(i * 2.3) * 0.5 + 0.5) * 100,
+  size: 2 + (i % 4) * 1.2,
+  delay: (i * 0.12) % 1.5,
+  dur: 2.2 + (i % 5) * 0.4,
+  dx: (Math.sin(i * 3.1) * 40),
+  dy: -(20 + (i % 6) * 8),
+}));
+
+/* ══════════════════════════════════════════════════════════════════════════
+   MAIN COMPONENT
+   ══════════════════════════════════════════════════════════════════════════ */
 export default function WhyKalyanChemist() {
   const prefersReducedMotion = useReducedMotion();
-  const frameRef = useRef<HTMLDivElement | null>(null);
+  const [activeIdx, setActiveIdx] = useState(1);
+  const [revealed, setRevealed] = useState(false);
+  const sectionRef = useRef<HTMLDivElement>(null);
+  const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const tiltRaf = useRef<number | null>(null);
+  const tiltData = useRef<{ el: HTMLDivElement; nx: number; ny: number } | null>(null);
 
-  const frameRafRef = useRef<number | null>(null);
-  const pointerRef = useRef({ clientX: 0, clientY: 0, active: false });
-  const scrollRafRef = useRef<number | null>(null);
-  const cardRafRef = useRef<number | null>(null);
-  const cardRef = useRef<{ el: HTMLDivElement; cx: number; cy: number } | null>(null);
-  const [interactive, setInteractive] = useState(false);
-
+  /* ── viewport reveal (once) ── */
   useEffect(() => {
-    if (prefersReducedMotion) { setInteractive(false); return; }
-    const mq = window.matchMedia("(hover: hover) and (pointer: fine) and (min-width: 1024px)");
-    const s = () => setInteractive(mq.matches);
-    s();
-    mq.addEventListener("change", s);
-    return () => mq.removeEventListener("change", s);
+    if (prefersReducedMotion) {
+      setRevealed(true);
+      return;
+    }
+    const el = sectionRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([e]) => {
+        if (e.isIntersecting) {
+          setRevealed(true);
+          obs.disconnect();
+        }
+      },
+      { threshold: 0.15 }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
   }, [prefersReducedMotion]);
 
+  /* ── 3D tilt via pointer ── */
+  const flushTilt = useCallback(() => {
+    tiltRaf.current = null;
+    const d = tiltData.current;
+    if (!d) return;
+    const r = d.el.getBoundingClientRect();
+    if (!r.width) return;
+    const rx = (d.ny * -8).toFixed(2);
+    const ry = (d.nx * 8).toFixed(2);
+    d.el.style.transform = `perspective(800px) rotateX(${rx}deg) rotateY(${ry}deg) translate3d(0,-6px,0) scale(1.03)`;
+  }, []);
+
+  const onCardPointerMove = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      const el = e.currentTarget;
+      const r = el.getBoundingClientRect();
+      const nx = (e.clientX - r.left) / r.width - 0.5;
+      const ny = (e.clientY - r.top) / r.height - 0.5;
+      tiltData.current = { el, nx, ny };
+      if (tiltRaf.current === null) {
+        tiltRaf.current = requestAnimationFrame(flushTilt);
+      }
+    },
+    [flushTilt]
+  );
+
+  const onCardPointerLeave = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      tiltData.current = null;
+      e.currentTarget.style.transform = "";
+    },
+    []
+  );
+
   useEffect(() => () => {
-    if (frameRafRef.current !== null) cancelAnimationFrame(frameRafRef.current);
-    if (cardRafRef.current !== null) cancelAnimationFrame(cardRafRef.current);
-    if (scrollRafRef.current !== null) cancelAnimationFrame(scrollRafRef.current);
+    if (tiltRaf.current !== null) cancelAnimationFrame(tiltRaf.current);
   }, []);
 
-  /* ── Pointer depth ── */
-  const flushFrame = useCallback(() => {
-    frameRafRef.current = null;
-    const n = frameRef.current;
-    if (!n) return;
-    const r = n.getBoundingClientRect();
-    if (!r.width || !r.height) return;
-    const { clientX, clientY, active } = pointerRef.current;
-    const nx = active ? ((clientX - r.left) / r.width - 0.5) * 2 : 0;
-    const ny = active ? ((clientY - r.top) / r.height - 0.5) * 2 : 0;
-    n.style.setProperty("--wkc-px", nx.toFixed(3));
-    n.style.setProperty("--wkc-py", ny.toFixed(3));
-  }, []);
+  /* ── stagger delays ── */
+  const staggerDelay = useMemo(() => (i: number) => 0.15 + i * 0.12, []);
 
-  const queueFlush = useCallback(() => {
-    if (frameRafRef.current !== null) return;
-    frameRafRef.current = requestAnimationFrame(flushFrame);
-  }, [flushFrame]);
-
-  const onPtrMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    pointerRef.current = { clientX: e.clientX, clientY: e.clientY, active: true };
-    queueFlush();
-  }, [queueFlush]);
-
-  const onPtrLeave = useCallback(() => {
-    pointerRef.current = { clientX: 0, clientY: 0, active: false };
-    queueFlush();
-  }, [queueFlush]);
-
-  /* ── Scroll depth ── */
-  const flushScroll = useCallback(() => {
-    scrollRafRef.current = null;
-    const n = frameRef.current;
-    if (!n) return;
-    const r = n.getBoundingClientRect();
-    const vh = window.innerHeight;
-    const p = Math.max(0, Math.min(1, (vh - r.top) / (vh + r.height)));
-    n.style.setProperty("--wkc-scroll", p.toFixed(4));
-  }, []);
-
-  useEffect(() => {
-    if (prefersReducedMotion) return;
-    const fn = () => { if (scrollRafRef.current === null) scrollRafRef.current = requestAnimationFrame(flushScroll); };
-    window.addEventListener("scroll", fn, { passive: true });
-    flushScroll();
-    return () => { window.removeEventListener("scroll", fn); if (scrollRafRef.current !== null) cancelAnimationFrame(scrollRafRef.current); };
-  }, [prefersReducedMotion, flushScroll]);
-
-  /* ── Card light ── */
-  const flushCard = useCallback(() => {
-    cardRafRef.current = null;
-    const p = cardRef.current;
-    if (!p) return;
-    const r = p.el.getBoundingClientRect();
-    p.el.style.setProperty("--wkc-mx", `${(p.cx - r.left).toFixed(1)}px`);
-    p.el.style.setProperty("--wkc-my", `${(p.cy - r.top).toFixed(1)}px`);
-  }, []);
-
-  const onCardMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    cardRef.current = { el: e.currentTarget, cx: e.clientX, cy: e.clientY };
-    if (cardRafRef.current !== null) return;
-    cardRafRef.current = requestAnimationFrame(flushCard);
-  }, [flushCard]);
-
-  /* ── Variants ── */
-  const reveal = (delay: number, y = 20): Variants => ({
-    hidden: prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y },
-    visible: { opacity: 1, y: 0, transition: { duration: 0.6, delay, ease: EASE } },
-  });
-
-  const atmo: Variants = {
-    hidden: prefersReducedMotion ? { opacity: 1 } : { opacity: 0, scale: 1.04 },
-    visible: { opacity: 1, scale: 1, transition: { duration: 0.85, ease: EASE } },
+  /* ── reduced-motion fallback variants ── */
+  const headVariants: Variants = {
+    hidden: prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 40 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.7, ease: EASE } },
   };
-
-  const sceneReveal: Variants = {
-    hidden: prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 40, scale: 0.94, rotateX: 12 },
-    visible: { opacity: 1, y: 0, scale: 1, rotateX: 0, transition: { duration: 0.8, delay: 0.2, ease: EASE } },
+  const cardVariants: Variants = {
+    hidden: prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 50, scale: 0.92 },
+    visible: (i: number) => ({
+      opacity: 1,
+      y: 0,
+      scale: 1,
+      transition: { duration: 0.65, delay: staggerDelay(i), ease: EASE },
+    }),
   };
-
-  const px = (x: number, y: number) => ({
-    transform: `translate3d(calc(var(--wkc-px,0)*${x}px),calc(var(--wkc-py,0)*${y}px),0)`,
-  });
-
-  const sd = (f: number) => ({
-    transform: `translate3d(0,calc(var(--wkc-scroll,0.5)*${f}px),0)`,
-  });
+  const footVariants: Variants = {
+    hidden: prefersReducedMotion ? { opacity: 1 } : { opacity: 0, y: 30 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.7, delay: 0.7, ease: EASE } },
+  };
 
   return (
-    <section className="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-16 lg:py-20">
+    <section ref={sectionRef} className="relative overflow-hidden py-20 sm:py-28 lg:py-32" style={{ background: "#08080C" }}>
+      {/* ══════ INLINE KEYFRAMES ══════ */}
       <style>{`
-        @keyframes kc-why-floatA{0%,100%{transform:translateY(0) scale(1) rotate(0)}25%{transform:translateY(-5px) scale(1.012) rotate(.4deg)}50%{transform:translateY(-3px) scale(1.006) rotate(-.2deg)}75%{transform:translateY(-7px) scale(1.015) rotate(.3deg)}}
-        @keyframes kc-why-shield{0%,100%{transform:translateY(0) scale(1) rotate(0)}20%{transform:translateY(-4px) scale(1.01) rotate(.3deg)}50%{transform:translateY(-7px) scale(1.02) rotate(0)}80%{transform:translateY(-3px) scale(1.006) rotate(-.2deg)}}
-        @keyframes kc-why-strip{0%,100%{transform:translateY(0) rotate(0) scale(1)}30%{transform:translateY(-4px) rotate(-2deg) scale(1.01)}70%{transform:translateY(-2px) rotate(1deg) scale(1.004)}}
-        @keyframes kc-why-capsule{0%,100%{transform:translateY(0) rotate(0) scale(1)}35%{transform:translateY(-8px) rotate(5deg) scale(1.04)}65%{transform:translateY(-4px) rotate(-2deg) scale(1.015)}}
-        @keyframes kc-why-bottle{0%,100%{transform:translateY(0) rotate(0)}30%{transform:translateY(3px) rotate(-1.5deg)}70%{transform:translateY(-4px) rotate(1deg)}}
-        @keyframes kc-why-package{0%,100%{transform:translateY(0) rotate(0) scale(1)}25%{transform:translateY(-6px) rotate(-3deg) scale(1.015)}55%{transform:translateY(-3px) rotate(1.5deg) scale(1.005)}80%{transform:translateY(-7px) rotate(-1deg) scale(1.012)}}
-        @keyframes kc-why-cross-rot{0%,100%{transform:rotate(-5deg) translateY(0)}50%{transform:rotate(5deg) translateY(-2px)}}
-        @keyframes kc-why-heart{0%,100%{transform:scale(1) translateX(0);opacity:.8}50%{transform:scale(1.1) translateX(1px);opacity:1}}
-        @keyframes kc-why-badge{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
-        @keyframes kc-why-plus{0%,100%{transform:translate(0,0)}50%{transform:translate(0,-1.8px)}}
-        @keyframes kc-why-mote{0%,100%{transform:translateY(0) scale(1);opacity:.35}50%{transform:translateY(-5px) scale(1.15);opacity:.9}}
-        @keyframes kc-why-twinkle{0%,100%{opacity:.4;transform:scale(.85)}50%{opacity:1;transform:scale(1.12)}}
-        @keyframes kc-why-orb-a{0%,100%{transform:translate(0,0)}50%{transform:translate(28px,-20px)}}
-        @keyframes kc-why-orb-b{0%,100%{transform:translate(0,0)}50%{transform:translate(-24px,18px)}}
-        @keyframes kc-why-orb-c{0%,100%{transform:translate(0,0)}50%{transform:translate(16px,14px)}}
-        @keyframes kc-why-ldrift{0%,100%{transform:translate3d(0,0,0) scale(1);opacity:.5}50%{transform:translate3d(16px,-12px,0) scale(1.08);opacity:.82}}
-        @keyframes kc-why-dust{0%{opacity:0;transform:translate3d(0,6px,0) scale(.7)}40%{opacity:.85;transform:translate3d(0,-6px,0) scale(1)}100%{opacity:0;transform:translate3d(0,-24px,0) scale(.7)}}
-        @keyframes kc-why-halo{0%,100%{opacity:.2;transform:scale(.95)}50%{opacity:.5;transform:scale(1.1)}}
-        @keyframes kc-why-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.18)}}
-        @keyframes kc-why-drive{0%,100%{transform:translateX(0)}50%{transform:translateX(4px)}}
-        @keyframes kc-why-tick{0%,100%{transform:rotate(0)}30%{transform:rotate(12deg)}65%{transform:rotate(-8deg)}}
-        @keyframes kc-why-tilt{0%,100%{transform:rotate(0)}50%{transform:rotate(-12deg)}}
-        .kc-why-card:hover [data-kc-icon="shield"]{animation:kc-why-pulse 2.4s ease-in-out infinite}
-        .kc-why-card:hover [data-kc-icon="truck"]{animation:kc-why-drive 1.8s ease-in-out infinite}
-        .kc-why-card:hover [data-kc-icon="clock"]{animation:kc-why-tick 2.6s ease-in-out infinite}
-        .kc-why-card:hover [data-kc-icon="pill"]{animation:kc-why-tilt 2.4s ease-in-out infinite}
-        @media(prefers-reduced-motion:reduce){[data-kc-why-anim]{animation:none!important}.kc-why-card:hover [data-kc-icon]{animation:none!important}}
+        @keyframes kcw-float1{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(-8px) rotate(3deg)}}
+        @keyframes kcw-float2{0%,100%{transform:translateY(0) rotate(0)}50%{transform:translateY(6px) rotate(-2.5deg)}}
+        @keyframes kcw-float3{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-5px) scale(1.06)}}
+        @keyframes kcw-pulse{0%,100%{opacity:.3;transform:scale(.9)}50%{opacity:.7;transform:scale(1.1)}}
+        @keyframes kcw-drift{0%,100%{transform:translate3d(0,0,0)}50%{transform:translate3d(20px,-14px,0)}}
+        @keyframes kcw-particle{0%{opacity:0;transform:translate3d(0,8px,0) scale(.6)}25%{opacity:.85}100%{opacity:0;transform:translate3d(var(--px,20px),var(--py,-40px),0) scale(.3)}}
+        @keyframes kcw-icon-glow{0%,100%{filter:drop-shadow(0 0 6px var(--gc)) brightness(1)}50%{filter:drop-shadow(0 0 14px var(--gc)) brightness(1.15)}}
+        @media(prefers-reduced-motion:reduce){
+          [data-kcw-float]{animation:none!important}
+          .kcw-particle-wrap{display:none!important}
+        }
       `}</style>
 
-      <motion.div
-        ref={frameRef}
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true, margin: "-80px" }}
-        onPointerMove={interactive ? onPtrMove : undefined}
-        onPointerLeave={interactive ? onPtrLeave : undefined}
-        className="relative overflow-hidden rounded-[32px] border border-white/[0.07] shadow-[0_50px_120px_-40px_rgba(6,30,40,0.85)] ring-1 ring-white/[0.04]"
-        style={{ background: "linear-gradient(145deg, #081C2B 0%, #0C3545 45%, #064E3B 100%)" }}
-      >
-        {/* ═══ LAYER 1 — DARK ATMOSPHERE ═══ */}
-        <motion.div aria-hidden variants={atmo} className="pointer-events-none absolute inset-0 overflow-hidden will-change-transform" style={!prefersReducedMotion ? sd(30) : undefined}>
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_20%_20%,rgba(16,185,129,0.22),transparent_55%)]" />
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_80%_75%,rgba(56,189,248,0.16),transparent_55%)]" />
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_15%_80%,rgba(251,146,60,0.1),transparent_48%)]" />
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_85%_20%,rgba(45,212,191,0.14),transparent_50%)]" />
-          <div data-kc-why-anim className="absolute -top-24 left-1/4 h-80 w-[48%] rounded-full bg-emerald-500/15 blur-3xl" style={{ animation: "kc-why-ldrift 24s ease-in-out infinite" }} />
-          <div data-kc-why-anim className="absolute -bottom-28 right-1/4 h-80 w-[44%] rounded-full bg-cyan-500/12 blur-3xl" style={{ animation: "kc-why-ldrift 30s ease-in-out 3s infinite" }} />
-          <div className="absolute inset-0 bg-[radial-gradient(circle,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-[size:22px_22px] [mask-image:radial-gradient(ellipse_at_center,black_24%,transparent_74%)]" />
-          <div className="absolute -inset-16 transition-transform duration-200 ease-out" style={interactive ? px(-8, -5) : undefined}>
-            <div data-kc-why-anim className="absolute -left-12 top-0 size-80 rounded-full bg-emerald-500/15 blur-3xl" style={{ animation: "kc-why-orb-a 26s ease-in-out infinite" }} />
-            <div data-kc-why-anim className="absolute -right-16 bottom-0 size-96 rounded-full bg-teal-500/12 blur-3xl" style={{ animation: "kc-why-orb-b 30s ease-in-out infinite" }} />
-            <div data-kc-why-anim className="absolute -right-8 top-1/4 size-64 rounded-full bg-cyan-400/12 blur-3xl" style={{ animation: "kc-why-orb-c 24s ease-in-out infinite" }} />
-            <div data-kc-why-anim className="absolute bottom-0 left-1/3 size-64 rounded-full bg-orange-400/8 blur-3xl" style={{ animation: "kc-why-orb-a 32s ease-in-out infinite" }} />
-          </div>
-        </motion.div>
+      {/* ══════ LAYER 1 — DEEP BACKGROUND ══════ */}
+      <div className="pointer-events-none absolute inset-0" aria-hidden="true">
+        {/* primary navy */}
+        <div className="absolute inset-0" style={{ background: "#08080C" }} />
+        {/* blue/purple radial zones */}
+        <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 70% 50% at 18% 25%, rgba(6,78,110,0.45), transparent 70%)" }} />
+        <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 60% 45% at 82% 70%, rgba(88,28,135,0.25), transparent 65%)" }} />
+        {/* teal/emerald glow */}
+        <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 50% 40% at 50% 50%, rgba(16,185,129,0.12), transparent 60%)" }} />
+        {/* cyan light spill */}
+        <div className="absolute inset-0" style={{ background: "radial-gradient(circle at 35% 60%, rgba(6,182,212,0.1), transparent 50%)" }} />
+        {/* subtle warm accent */}
+        <div className="absolute inset-0" style={{ background: "radial-gradient(circle at 78% 30%, rgba(251,146,60,0.05), transparent 40%)" }} />
+        {/* drifting ambient orbs */}
+        <div data-kcw-float className="absolute -top-32 left-1/4 h-[340px] w-[45%] rounded-full bg-emerald-500/10 blur-[100px]" style={{ animation: "kcw-drift 22s ease-in-out infinite" }} />
+        <div data-kcw-float className="absolute -bottom-36 right-1/3 h-[300px] w-[40%] rounded-full bg-cyan-500/8 blur-[90px]" style={{ animation: "kcw-drift 28s ease-in-out 4s infinite" }} />
+        {/* subtle grid pattern */}
+        <div className="absolute inset-0 opacity-[0.025]" style={{ backgroundImage: "linear-gradient(rgba(255,255,255,.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.5) 1px, transparent 1px)", backgroundSize: "60px 60px" }} />
+      </div>
 
-        {/* ═══ LAYER 2 — MIDDLE decorative ═══ */}
-        <motion.div aria-hidden variants={reveal(0.4, 10)} className="pointer-events-none absolute inset-0 overflow-hidden will-change-transform" style={!prefersReducedMotion ? sd(14) : undefined}>
-          <div className="absolute inset-0 transition-transform duration-200 ease-out" style={interactive ? px(14, 9) : undefined}>
-            <div className="absolute right-12 top-10 size-32 rounded-full border border-white/[0.06] bg-white/[0.02] shadow-[0_16px_36px_-22px_rgba(0,0,0,0.5)]" />
-            <div className="absolute -left-12 bottom-20 size-44 rotate-12 rounded-[2.8rem] border border-white/[0.05] bg-white/[0.02] shadow-[0_18px_38px,-24px_rgba(0,0,0,0.5)]" />
-            <div className="absolute -bottom-8 right-1/3 size-28 rounded-full border border-dashed border-white/[0.06]" />
-            <Plus className="absolute left-[8%] top-8 size-5 rotate-12 text-emerald-400/20" />
-            <Plus className="absolute bottom-10 left-[46%] size-4 rotate-45 text-cyan-400/20" />
-            <Plus className="absolute bottom-12 right-[6%] size-5 -rotate-12 text-orange-400/25" />
-            {PARTICLES.map((p, i) => (
-              <span key={i} data-kc-why-anim className="absolute rounded-full" style={{ left: p.left, top: p.top, width: p.size, height: p.size, backgroundColor: p.color, animation: `kc-why-dust ${p.dur} ease-in-out ${p.delay} infinite` }} />
-            ))}
-          </div>
-        </motion.div>
-
-        {/* ═══ LAYER 3 — CONTENT: two-column ═══ */}
-        <div className="relative grid items-center gap-6 px-5 pb-8 pt-10 sm:px-8 sm:pt-12 lg:grid-cols-[1.08fr_0.92fr] lg:gap-14 lg:pb-6 lg:pt-14">
-
-          {/* ── LEFT COLUMN: heading + trust cards ── */}
-          <div>
-            <motion.div variants={reveal(0.04, 14)}>
-              <div className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-300 shadow-[0_0_20px_rgba(16,185,129,0.15)]">
-                <Shield className="size-3" />
-                Why Choose Us
-              </div>
-            </motion.div>
-
-            <motion.h2 variants={reveal(0.1, 24)} className="mt-5 bg-gradient-to-br from-white via-[#5EEAD4] to-[#34D399] bg-clip-text text-[38px] font-black leading-[1.02] tracking-tight text-transparent sm:text-6xl lg:text-[68px]">
-              Kalyan Chemist
-            </motion.h2>
-
-            <div className="mt-5 max-w-lg space-y-0.5 text-[15px] leading-relaxed text-white/50 sm:text-base lg:text-lg">
-              <motion.p variants={reveal(0.16, 12)}>
-                We are committed to making quality healthcare accessible, reliable,
-              </motion.p>
-              <motion.p variants={reveal(0.21, 12)}>
-                and convenient for every household.
-              </motion.p>
+      {/* ══════ LAYER 2 — FLOATING HEALTHCARE ELEMENTS ══════ */}
+      {!prefersReducedMotion && (
+        <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+          {FLOAT_ITEMS.map((item, i) => (
+            <div
+              key={i}
+              data-kcw-float
+              className="absolute"
+              style={{
+                left: item.x,
+                top: item.y,
+                width: item.size,
+                height: item.size,
+                animation: `${item.anim} ${item.dur} ease-in-out ${item.delay} infinite`,
+              }}
+            >
+              {floatSvg(i % 4)}
             </div>
-
-            {/* ── Trust cards: stacked glass panels ── */}
-            <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-1 lg:gap-3">
-              {TRUST_POINTS.map((point, i) => (
-                <motion.div key={point.title} variants={reveal(0.28 + i * 0.07)} onPointerMove={interactive ? onCardMove : undefined} className="relative [perspective:1200px]">
-                  <div className="kc-why-card group relative isolate flex items-start gap-3.5 overflow-hidden rounded-2xl border border-white/[0.08] bg-white/[0.04] p-4 transition-[transform,box-shadow,border-color,background-color] duration-200 ease-out will-change-transform hover:border-emerald-400/20 hover:bg-white/[0.07] hover:shadow-[0_10px_36px_-12px_rgba(16,185,129,0.25)] hover:[transform:translate3d(0,-3px,0)]">
-                    <span aria-hidden className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 ease-out group-hover:opacity-100" style={{ background: "radial-gradient(240px circle at var(--wkc-mx,50%) var(--wkc-my,50%), rgba(16,185,129,0.1), transparent 68%)" }} />
-                    <span aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-emerald-400/30 to-transparent" />
-
-                    <div className="relative z-10 flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-400/20 to-teal-500/30 text-emerald-300 ring-1 ring-inset ring-white/10 transition-[transform,box-shadow] duration-200 ease-out will-change-transform group-hover:shadow-[0_0_20px_rgba(16,185,129,0.3)] group-hover:[transform:translate3d(0,-3px,0)_scale(1.08)]">
-                      <span data-kc-why-anim data-kc-icon={point.iconAnim} className="relative block">
-                        <point.icon className="size-5" strokeWidth={1.8} />
-                      </span>
-                    </div>
-                    <div className="relative z-10 min-w-0 flex-1">
-                      <h3 className="text-sm font-semibold text-white/90 transition-colors duration-200 group-hover:text-emerald-300">{point.title}</h3>
-                      <p className="mt-0.5 text-[12.5px] leading-relaxed text-white/45 transition-colors duration-200 group-hover:text-white/60">{point.description}</p>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-
-          {/* ── RIGHT COLUMN: large 3D scene ── */}
-          <motion.div variants={sceneReveal} className="group/vis relative mx-auto w-full max-w-[340px] lg:max-w-none">
-            <div className="relative transition-transform duration-200 ease-out will-change-transform" style={interactive ? px(24, 16) : undefined}>
-              <div className="absolute inset-x-8 bottom-6 top-12 rounded-full bg-emerald-400/8 blur-3xl transition-[transform,background-color] duration-300 ease-out group-hover/vis:scale-105 group-hover/vis:bg-emerald-400/15" />
-              <div className="relative h-[300px] sm:h-[360px] [perspective:900px] lg:h-[460px]">
-                <div data-kc-why-anim className="size-full" style={{ animation: "kc-why-floatA 6.5s ease-in-out infinite" }}>
-                  <div className="size-full will-change-transform transition-transform duration-300 ease-out group-hover/vis:[transform:translate3d(0,-12px,0)_scale(1.04)_rotateX(6deg)_rotateY(-5deg)]">
-                    <TrustIllustration />
-                  </div>
-                </div>
-                <div aria-hidden className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 ease-out group-hover/vis:opacity-100" style={{ background: "radial-gradient(ellipse at 32% 22%, rgba(255,255,255,0.12), transparent 55%)" }} />
-              </div>
-            </div>
-          </motion.div>
+          ))}
         </div>
-      </motion.div>
+      )}
+
+      {/* ══════ LAYER 3 — CONTENT ══════ */}
+      <div className="relative z-10 mx-auto max-w-7xl px-5 sm:px-8">
+        {/* ── TOP HEADING ── */}
+        <motion.div
+          initial="hidden"
+          animate={revealed ? "visible" : "hidden"}
+          variants={headVariants}
+          className="text-center"
+        >
+          <h2 className="text-[clamp(2.4rem,6vw,5.5rem)] font-black uppercase leading-[0.95] tracking-tight text-white">
+            <span className="bg-gradient-to-b from-white via-white/90 to-white/60 bg-clip-text text-transparent" style={{ WebkitTextFillColor: "transparent" }}>
+              Why Choose Us?
+            </span>
+          </h2>
+          <div className="mx-auto mt-4 h-px w-24 bg-gradient-to-r from-transparent via-cyan-400/50 to-transparent" />
+        </motion.div>
+
+        {/* ── FOUR GLASS CARDS ── */}
+        <div className="mt-14 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 lg:gap-6">
+          {CARDS.map((card, i) => {
+            const isActive = activeIdx === i;
+            const Icon = card.icon;
+            return (
+              <motion.div
+                key={card.title}
+                custom={i}
+                initial="hidden"
+                animate={revealed ? "visible" : "hidden"}
+                variants={cardVariants}
+                ref={(el) => { cardRefs.current[i] = el; }}
+                className="relative [perspective:900px]"
+                onMouseEnter={() => setActiveIdx(i)}
+              >
+                {/* ── POWDER-SMOKE EFFECT (behind card) ── */}
+                {isActive && !prefersReducedMotion && (
+                  <div className="kcw-particle-wrap pointer-events-none absolute -inset-6 z-0 overflow-visible" aria-hidden="true">
+                    {/* radial glow */}
+                    <div
+                      className="absolute inset-0 rounded-2xl"
+                      style={{
+                        background: `radial-gradient(ellipse at 50% 60%, ${card.glowRgba}, transparent 70%)`,
+                        animation: "kcw-pulse 3s ease-in-out infinite",
+                      }}
+                    />
+                    {/* particles */}
+                    {particleBase.map((p, pi) => (
+                      <span
+                        key={pi}
+                        className="absolute rounded-full"
+                        style={{
+                          left: `${p.x}%`,
+                          top: `${p.y}%`,
+                          width: p.size,
+                          height: p.size,
+                          background: pi % 3 === 0 ? card.glowColor : pi % 3 === 1 ? "rgba(34,211,238,0.6)" : "rgba(52,211,153,0.5)",
+                          "--px": `${p.dx}px`,
+                          "--py": `${p.dy}px`,
+                          animation: `kcw-particle ${p.dur}s ease-out ${p.delay}s infinite`,
+                        } as CSSProperties}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                {/* ── CARD BODY ── */}
+                <div
+                  className={`kcw-card group relative z-10 overflow-hidden rounded-2xl border p-6 transition-[transform,box-shadow,border-color] duration-[280ms] ease-out will-change-transform ${
+                    isActive
+                      ? "border-white/15 shadow-[0_8px_40px_-8px_rgba(6,182,212,0.3)]"
+                      : "border-white/[0.07] shadow-[0_4px_24px_-6px_rgba(0,0,0,0.5)]"
+                  }`}
+                  style={{
+                    background: isActive
+                      ? "linear-gradient(160deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.03) 100%)"
+                      : "linear-gradient(160deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.015) 100%)",
+                    backdropFilter: "blur(18px) saturate(1.4)",
+                    WebkitBackdropFilter: "blur(18px) saturate(1.4)",
+                  }}
+                  onPointerMove={!prefersReducedMotion ? onCardPointerMove : undefined}
+                  onPointerLeave={!prefersReducedMotion ? onCardPointerLeave : undefined}
+                >
+                  {/* inner highlight edge */}
+                  <div
+                    className="pointer-events-none absolute inset-x-0 top-0 h-px"
+                    style={{
+                      background: isActive
+                        ? "linear-gradient(90deg, transparent, rgba(255,255,255,0.18), transparent)"
+                        : "linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent)",
+                    }}
+                  />
+                  {/* glass sheen overlay on hover */}
+                  <div
+                    className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+                    style={{
+                      background: "linear-gradient(135deg, rgba(255,255,255,0.04) 0%, transparent 50%, rgba(255,255,255,0.02) 100%)",
+                    }}
+                  />
+
+                  {/* icon */}
+                  <div
+                    className={`relative mb-5 flex size-14 items-center justify-center rounded-xl transition-all duration-300 ${
+                      isActive
+                        ? "bg-gradient-to-br from-white/10 to-white/5 shadow-[0_0_28px_-4px_" + card.glowColor + "40]"
+                        : "bg-white/[0.06] group-hover:bg-white/[0.09]"
+                    }`}
+                    style={
+                      isActive
+                        ? { ["--gc" as string]: card.glowColor, animation: "kcw-icon-glow 3.5s ease-in-out infinite" }
+                        : undefined
+                    }
+                  >
+                    <Icon
+                      className={`size-7 transition-all duration-300 ${
+                        isActive ? "text-white drop-shadow-lg" : "text-white/60 group-hover:text-white/85"
+                      }`}
+                      strokeWidth={1.6}
+                    />
+                  </div>
+
+                  {/* text */}
+                  <h3
+                    className={`text-base font-bold uppercase tracking-wide transition-colors duration-300 ${
+                      isActive ? "text-white" : "text-white/70 group-hover:text-white/90"
+                    }`}
+                  >
+                    {card.title}
+                  </h3>
+                  <p
+                    className={`mt-2 text-sm leading-relaxed transition-colors duration-300 ${
+                      isActive ? "text-white/55" : "text-white/35 group-hover:text-white/50"
+                    }`}
+                  >
+                    {card.subtitle}
+                  </p>
+
+                  {/* active indicator bar */}
+                  <div
+                    className={`absolute bottom-0 left-0 h-[2px] transition-all duration-500 ${
+                      isActive ? "w-full" : "w-0"
+                    }`}
+                    style={{
+                      background: `linear-gradient(90deg, transparent, ${card.glowColor}, transparent)`,
+                    }}
+                  />
+                </div>
+              </motion.div>
+            );
+          })}
+        </div>
+
+        {/* ── BOTTOM HEADING ── */}
+        <motion.div
+          initial="hidden"
+          animate={revealed ? "visible" : "hidden"}
+          variants={footVariants}
+          className="mt-14 text-center"
+        >
+          <h2 className="text-[clamp(1.6rem,4vw,3.5rem)] font-black uppercase leading-[1.05] tracking-tight">
+            <span className="bg-gradient-to-r from-emerald-400 via-cyan-300 to-teal-400 bg-clip-text text-transparent" style={{ WebkitTextFillColor: "transparent" }}>
+              Your Health, Our Priority
+            </span>
+          </h2>
+        </motion.div>
+      </div>
     </section>
   );
 }
