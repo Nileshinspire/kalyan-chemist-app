@@ -3,24 +3,28 @@ import { motion, useReducedMotion, type Variants } from "framer-motion";
 import { Shield, FlaskConical, Truck, RefreshCw } from "lucide-react";
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   WHY CHOOSE US — premium healthcare-tech presentation
+   WHY CHOOSE US — luxury healthcare presentation
    ---------------------------------------------------------------------------
-   Palette: deep midnight navy base → indigo/blue atmosphere → cyan highlights
-   → restrained violet depth. The 3D shield is rebuilt with layered rim light,
-   bevels, specular sweeps and a floor reflection; every moving thing is
-   driven by ONE rAF loop (single playback controller) that PAUSES entirely
-   while the section is off-screen. Particles are few, tiny and GPU-cheap.
-   No animated blur/filters/box-shadows — transforms + opacity only.
+   Palette: deep charcoal-black base → rich emerald atmosphere → champagne-gold
+   accents → warm ivory text. The 3D shield wears emerald rim light with soft
+   gold edge highlights; every moving thing is driven by ONE rAF loop (single
+   playback controller) that PAUSES entirely while the section is off-screen.
+   Particles are few, tiny and GPU-cheap. No animated blur/filters/box-shadows
+   — transforms + opacity only.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 
-/* ── palette ── */
-const NAVY = "#070A12";
-const NAVY_2 = "#0A0F1E";
-const CYAN = "#22D3EE";
-const CYAN_SOFT = "rgba(34,211,238,";
-const VIOLET = "rgba(139,92,246,";
+/* ── palette: luxury healthcare ── */
+const CHARCOAL = "#0B0D0C";
+const CHARCOAL_2 = "#111614";
+const EMERALD = "#16A36A";
+const EMERALD_DEEP = "#087A52";
+const EMERALD_SOFT = "rgba(22,163,106,";
+const GOLD = "#D8B878";
+const GOLD_SOFT = "rgba(216,184,120,";
+const IVORY = "#F5F3EC";
+const WARM_GRAY = "#B8BBB5";
 
 interface CardData {
   title: string;
@@ -31,13 +35,13 @@ interface CardData {
 }
 
 const CARDS: CardData[] = [
-  { title: "Authentic Medicines", subtitle: "100% Verified Pharmacy Stock.", icon: Shield, glowColor: "#22d3ee", glowRgba: "rgba(34,211,238,0.22)" },
-  { title: "Expert Pharmacists", subtitle: "24/7 Professional Consultations.", icon: FlaskConical, glowColor: "#38bdf8", glowRgba: "rgba(56,189,248,0.22)" },
-  { title: "Fast Home Delivery", subtitle: "Quick, Reliable Doorstep Service.", icon: Truck, glowColor: "#2dd4bf", glowRgba: "rgba(45,212,191,0.20)" },
-  { title: "Seamless Refills", subtitle: "Easy Online Subscription & Management.", icon: RefreshCw, glowColor: "#818cf8", glowRgba: "rgba(129,140,248,0.20)" },
+  { title: "Authentic Medicines", subtitle: "100% Verified Pharmacy Stock.", icon: Shield, glowColor: "#16a36a", glowRgba: "rgba(22,163,106,0.22)" },
+  { title: "Expert Pharmacists", subtitle: "24/7 Professional Consultations.", icon: FlaskConical, glowColor: "#087a52", glowRgba: "rgba(8,122,82,0.28)" },
+  { title: "Fast Home Delivery", subtitle: "Quick, Reliable Doorstep Service.", icon: Truck, glowColor: "#d8b878", glowRgba: "rgba(216,184,120,0.20)" },
+  { title: "Seamless Refills", subtitle: "Easy Online Subscription & Management.", icon: RefreshCw, glowColor: "#f0d9a3", glowRgba: "rgba(240,217,163,0.16)" },
 ];
 
-/* ─── orbiting 3D objects (recoloured cyan/indigo) ─── */
+/* ─── orbiting 3D objects (emerald + champagne gold) ─── */
 interface OrbitObj {
   label: string;
   orbitRadius: number;
@@ -48,19 +52,19 @@ interface OrbitObj {
 }
 
 const ORBIT_OBJECTS: OrbitObj[] = [
-  { label: "capsule", orbitRadius: 155, orbitSpeed: 30, selfRotSpeed: 10, size: 36, glow: CYAN_SOFT + "0.4)" },
-  { label: "shield", orbitRadius: 140, orbitSpeed: 36, selfRotSpeed: 12, size: 30, glow: "rgba(56,189,248,0.35)" },
-  { label: "cross", orbitRadius: 165, orbitSpeed: 24, selfRotSpeed: 8, size: 26, glow: "rgba(45,212,191,0.32)" },
-  { label: "bottle", orbitRadius: 130, orbitSpeed: 40, selfRotSpeed: 14, size: 32, glow: "rgba(129,140,248,0.32)" },
-  { label: "plus", orbitRadius: 175, orbitSpeed: 28, selfRotSpeed: 11, size: 22, glow: CYAN_SOFT + "0.28)" },
-  { label: "pill", orbitRadius: 148, orbitSpeed: 34, selfRotSpeed: 10, size: 28, glow: VIOLET + "0.30)" },
+  { label: "capsule", orbitRadius: 155, orbitSpeed: 30, selfRotSpeed: 10, size: 36, glow: EMERALD_SOFT + "0.35)" },
+  { label: "shield", orbitRadius: 140, orbitSpeed: 36, selfRotSpeed: 12, size: 30, glow: "rgba(22,163,106,0.30)" },
+  { label: "cross", orbitRadius: 165, orbitSpeed: 24, selfRotSpeed: 8, size: 26, glow: GOLD_SOFT + "0.28)" },
+  { label: "bottle", orbitRadius: 130, orbitSpeed: 40, selfRotSpeed: 14, size: 32, glow: "rgba(22,163,106,0.28)" },
+  { label: "plus", orbitRadius: 175, orbitSpeed: 28, selfRotSpeed: 11, size: 22, glow: EMERALD_SOFT + "0.24)" },
+  { label: "pill", orbitRadius: 148, orbitSpeed: 34, selfRotSpeed: 10, size: 28, glow: GOLD_SOFT + "0.26)" },
 ];
 
 /* per-orbit start angles (deg) — used in the single dynamic orbit transform */
 const ORBIT_PHASE = [0, 90, 180, 270, 45, 135];
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   3D ORBIT OBJECT SVGs — richer materials, cyan/indigo, specular edge
+   3D ORBIT OBJECT SVGs — richer materials, emerald/gold, specular edge
    ═══════════════════════════════════════════════════════════════════════════ */
 function OrbitSvg({ label }: { label: string }) {
   switch (label) {
@@ -69,18 +73,18 @@ function OrbitSvg({ label }: { label: string }) {
         <svg viewBox="0 0 40 20" fill="none" className="size-full">
           <defs>
             <linearGradient id="orbCapsuleA" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stopColor="#E0F2FE" />
-              <stop offset="1" stopColor="#7DD3FC" />
+              <stop offset="0" stopColor="#F0D9A3" />
+              <stop offset="1" stopColor="#D8B878" />
             </linearGradient>
             <linearGradient id="orbCapsuleB" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stopColor="#22D3EE" />
-              <stop offset="1" stopColor="#0E7490" />
+              <stop offset="0" stopColor="#16A36A" />
+              <stop offset="1" stopColor="#087A52" />
             </linearGradient>
           </defs>
           <rect x="1" y="1" width="18" height="18" rx="9" fill="url(#orbCapsuleA)" />
           <rect x="19" y="1" width="18" height="18" rx="9" fill="url(#orbCapsuleB)" />
           <rect x="8" y="5" width="6" height="3" rx="1.5" fill="#fff" opacity="0.85" />
-          <rect x="25" y="5" width="6" height="2.4" rx="1.2" fill="#A5F3FC" opacity="0.7" />
+          <rect x="25" y="5" width="6" height="2.4" rx="1.2" fill="#F5F3EC" opacity="0.7" />
         </svg>
       );
     case "shield":
@@ -88,11 +92,11 @@ function OrbitSvg({ label }: { label: string }) {
         <svg viewBox="0 0 32 36" fill="none" className="size-full">
           <defs>
             <linearGradient id="orbShield" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0" stopColor="#67E8F9" />
-              <stop offset="1" stopColor="#0E7490" />
+              <stop offset="0" stopColor="#16A36A" />
+              <stop offset="1" stopColor="#087A52" />
             </linearGradient>
           </defs>
-          <path d="M16 2L30 8V18C30 26 24 32 16 34C8 32 2 26 2 18V8L16 2Z" fill="url(#orbShield)" stroke="#A5F3FC" strokeWidth="1.1" strokeOpacity="0.8" />
+          <path d="M16 2L30 8V18C30 26 24 32 16 34C8 32 2 26 2 18V8L16 2Z" fill="url(#orbShield)" stroke="#F0D9A3" strokeWidth="1.1" strokeOpacity="0.8" />
           <path d="M16 2L30 8V11L16 6L2 11V8L16 2Z" fill="#fff" opacity="0.35" />
           <path d="M12 17l3 3 6-7" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
@@ -102,13 +106,13 @@ function OrbitSvg({ label }: { label: string }) {
         <svg viewBox="0 0 28 28" fill="none" className="size-full">
           <defs>
             <linearGradient id="orbCross" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0" stopColor="#38BDF8" />
-              <stop offset="1" stopColor="#155E75" />
+              <stop offset="0" stopColor="#16A36A" />
+              <stop offset="1" stopColor="#087A52" />
             </linearGradient>
           </defs>
           <rect x="9" y="2" width="10" height="24" rx="4" fill="url(#orbCross)" />
           <rect x="2" y="9" width="24" height="10" rx="4" fill="url(#orbCross)" />
-          <rect x="11.5" y="5" width="5" height="18" rx="2.5" fill="#CFFAFE" opacity="0.55" />
+          <rect x="11.5" y="5" width="5" height="18" rx="2.5" fill="#F0D9A3" opacity="0.55" />
         </svg>
       );
     case "bottle":
@@ -116,13 +120,13 @@ function OrbitSvg({ label }: { label: string }) {
         <svg viewBox="0 0 24 36" fill="none" className="size-full">
           <defs>
             <linearGradient id="orbBottle" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stopColor="#E0F2FE" />
-              <stop offset="1" stopColor="#93C5FD" />
+              <stop offset="0" stopColor="#F5F3EC" />
+              <stop offset="1" stopColor="#D8B878" />
             </linearGradient>
           </defs>
-          <rect x="7" y="0" width="10" height="6" rx="3" fill="#1D4ED8" />
-          <rect x="3" y="6" width="18" height="28" rx="5" fill="url(#orbBottle)" stroke="#BFDBFE" strokeWidth="0.9" strokeOpacity="0.7" />
-          <path d="M12 16v6M9 19h6" stroke="#1E40AF" strokeWidth="2" strokeLinecap="round" />
+          <rect x="7" y="0" width="10" height="6" rx="3" fill="#087A52" />
+          <rect x="3" y="6" width="18" height="28" rx="5" fill="url(#orbBottle)" stroke="#E8DFC8" strokeWidth="0.9" strokeOpacity="0.7" />
+          <path d="M12 16v6M9 19h6" stroke="#065F46" strokeWidth="2" strokeLinecap="round" />
           <rect x="6" y="9" width="3" height="20" rx="1.5" fill="#fff" opacity="0.5" />
         </svg>
       );
@@ -131,8 +135,8 @@ function OrbitSvg({ label }: { label: string }) {
         <svg viewBox="0 0 24 24" fill="none" className="size-full">
           <defs>
             <linearGradient id="orbPlus" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0" stopColor="#22D3EE" />
-              <stop offset="1" stopColor="#0E7490" />
+              <stop offset="0" stopColor="#16A36A" />
+              <stop offset="1" stopColor="#087A52" />
             </linearGradient>
           </defs>
           <rect x="8" y="2" width="8" height="20" rx="4" fill="url(#orbPlus)" opacity="0.8" />
@@ -145,12 +149,12 @@ function OrbitSvg({ label }: { label: string }) {
         <svg viewBox="0 0 32 18" fill="none" className="size-full">
           <defs>
             <linearGradient id="orbPillA" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stopColor="#C7D2FE" />
-              <stop offset="1" stopColor="#818CF8" />
+              <stop offset="0" stopColor="#F0D9A3" />
+              <stop offset="1" stopColor="#D8B878" />
             </linearGradient>
             <linearGradient id="orbPillB" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stopColor="#5EEAD4" />
-              <stop offset="1" stopColor="#0F766E" />
+              <stop offset="0" stopColor="#16A36A" />
+              <stop offset="1" stopColor="#087A52" />
             </linearGradient>
           </defs>
           <rect x="1" y="1" width="14" height="16" rx="7" fill="url(#orbPillA)" />
@@ -164,46 +168,47 @@ function OrbitSvg({ label }: { label: string }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   KC SHIELD — cinematic materials: rim light, bevel, specular, reflection
+   KC SHIELD — cinematic materials: emerald rim light, champagne-gold edges,
+   warm white reflections, deep shadows
    ═══════════════════════════════════════════════════════════════════════════ */
 function KCShield() {
   return (
     <svg viewBox="0 0 200 230" fill="none" className="size-full" aria-label="Kalyan Chemist Logo">
       <defs>
-        {/* front face: deep indigo-teal metal */}
+        {/* front face: rich emerald metal */}
         <linearGradient id="kcFaceA" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#0E7490" />
-          <stop offset="0.45" stopColor="#155E75" />
-          <stop offset="0.8" stopColor="#134E4A" />
-          <stop offset="1" stopColor="#1E1B4B" />
+          <stop offset="0" stopColor="#11925E" />
+          <stop offset="0.45" stopColor="#0B6E49" />
+          <stop offset="0.8" stopColor="#09543A" />
+          <stop offset="1" stopColor="#132019" />
         </linearGradient>
-        {/* inner face: glass with cyan light */}
+        {/* inner face: dark emerald glass */}
         <linearGradient id="kcFaceInner" x1="0.15" y1="0" x2="0.85" y2="1">
-          <stop offset="0" stopColor="#0B1226" />
-          <stop offset="0.55" stopColor="#0E1A36" />
-          <stop offset="1" stopColor="#132A45" />
+          <stop offset="0" stopColor="#0B1512" />
+          <stop offset="0.55" stopColor="#0F211A" />
+          <stop offset="1" stopColor="#143026" />
         </linearGradient>
-        {/* cross: luminous cyan core */}
+        {/* cross: luminous emerald core */}
         <linearGradient id="kcCross" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#7DEBFA" />
-          <stop offset="0.5" stopColor="#22D3EE" />
-          <stop offset="1" stopColor="#0E7490" />
+          <stop offset="0" stopColor="#34C48B" />
+          <stop offset="0.5" stopColor="#16A36A" />
+          <stop offset="1" stopColor="#087A52" />
         </linearGradient>
-        {/* rim edge */}
+        {/* rim edge: champagne gold → emerald → deep shadow */}
         <linearGradient id="kcEdge" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#A5F3FC" />
-          <stop offset="0.5" stopColor="#22D3EE" />
-          <stop offset="1" stopColor="#312E81" />
+          <stop offset="0" stopColor="#F0D9A3" />
+          <stop offset="0.5" stopColor="#16A36A" />
+          <stop offset="1" stopColor="#0A3D2C" />
         </linearGradient>
         <radialGradient id="kcHalo" cx="0.5" cy="0.42" r="0.62">
-          <stop offset="0" stopColor="#22D3EE" stopOpacity="0.22" />
-          <stop offset="0.6" stopColor="#22D3EE" stopOpacity="0.06" />
-          <stop offset="1" stopColor="#22D3EE" stopOpacity="0" />
+          <stop offset="0" stopColor="#16A36A" stopOpacity="0.20" />
+          <stop offset="0.6" stopColor="#16A36A" stopOpacity="0.05" />
+          <stop offset="1" stopColor="#16A36A" stopOpacity="0" />
         </radialGradient>
         <linearGradient id="kcSpec" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0" stopColor="#fff" stopOpacity="0" />
-          <stop offset="0.5" stopColor="#fff" stopOpacity="0.5" />
-          <stop offset="1" stopColor="#fff" stopOpacity="0" />
+          <stop offset="0" stopColor="#FFF6E3" stopOpacity="0" />
+          <stop offset="0.5" stopColor="#FFF6E3" stopOpacity="0.5" />
+          <stop offset="1" stopColor="#FFF6E3" stopOpacity="0" />
         </linearGradient>
       </defs>
 
@@ -215,34 +220,34 @@ function KCShield() {
       {/* outer rim stroke */}
       <path d="M100 8 L185 48 V130 C185 185 150 215 100 228 C50 215 15 185 15 130 V48 Z" fill="none" stroke="url(#kcEdge)" strokeWidth="1.4" strokeOpacity="0.9" />
 
-      {/* top bevel highlight */}
-      <path d="M100 8 L185 48 V56 L100 22 L15 56 V48 Z" fill="#CFFAFE" opacity="0.5" />
-      {/* left rim light */}
-      <path d="M18 52 V130 C18 178 46 208 85 220" stroke="#E0F7FF" strokeOpacity="0.65" strokeWidth="2.5" strokeLinecap="round" fill="none" />
-      {/* right violet counter-light */}
-      <path d="M182 52 V130 C182 178 154 208 115 220" stroke={VIOLET + "0.5)"} strokeWidth="2" strokeLinecap="round" fill="none" />
+      {/* top bevel highlight (champagne) */}
+      <path d="M100 8 L185 48 V56 L100 22 L15 56 V48 Z" fill="#F0D9A3" opacity="0.42" />
+      {/* left rim light (warm white) */}
+      <path d="M18 52 V130 C18 178 46 208 85 220" stroke="#F5F3EC" strokeOpacity="0.55" strokeWidth="2.5" strokeLinecap="round" fill="none" />
+      {/* right champagne counter-light */}
+      <path d="M182 52 V130 C182 178 154 208 115 220" stroke={GOLD_SOFT + "0.45)"} strokeWidth="2" strokeLinecap="round" fill="none" />
 
       {/* inner face */}
       <path d="M100 32 L165 60 V130 C165 172 138 198 100 210 C62 198 35 172 35 130 V60 Z" fill="url(#kcFaceInner)" />
-      <path d="M100 32 L165 60 V130 C165 172 138 198 100 210 C62 198 35 172 35 130 V60 Z" fill="none" stroke="#67E8F9" strokeOpacity="0.22" strokeWidth="1.2" />
+      <path d="M100 32 L165 60 V130 C165 172 138 198 100 210 C62 198 35 172 35 130 V60 Z" fill="none" stroke="#16A36A" strokeOpacity="0.25" strokeWidth="1.2" />
       {/* inner top glass sheen */}
       <path d="M100 36 L160 62 V84 L100 60 L40 84 V62 Z" fill="#fff" opacity="0.06" />
 
       {/* medical cross with glow core */}
       <rect x="86" y="72" width="28" height="80" rx="9" fill="url(#kcCross)" />
       <rect x="66" y="96" width="68" height="28" rx="9" fill="url(#kcCross)" />
-      <rect x="90" y="78" width="8" height="68" rx="4" fill="#CFFAFE" opacity="0.55" />
-      <rect x="70" y="100" width="60" height="8" rx="4" fill="#CFFAFE" opacity="0.4" />
+      <rect x="90" y="78" width="8" height="68" rx="4" fill="#F0D9A3" opacity="0.5" />
+      <rect x="70" y="100" width="60" height="8" rx="4" fill="#F0D9A3" opacity="0.35" />
 
       {/* KC wordmark on the face */}
-      <text x="100" y="162" textAnchor="middle" fontSize="26" fontWeight="900" fontFamily="system-ui, sans-serif" fill="#A5F3FC" opacity="0.95" letterSpacing="3">KC</text>
-      <text x="100" y="176" textAnchor="middle" fontSize="8" fontWeight="600" fontFamily="system-ui, sans-serif" fill="#67E8F9" opacity="0.55" letterSpacing="6">PHARMACY</text>
+      <text x="100" y="162" textAnchor="middle" fontSize="26" fontWeight="900" fontFamily="system-ui, sans-serif" fill="#F5F3EC" opacity="0.95" letterSpacing="3">KC</text>
+      <text x="100" y="176" textAnchor="middle" fontSize="8" fontWeight="600" fontFamily="system-ui, sans-serif" fill="#D8B878" opacity="0.6" letterSpacing="6">PHARMACY</text>
 
       {/* specular sweep across the upper face */}
       <path d="M40 60 L100 34 L160 60 L100 88 Z" fill="url(#kcSpec)" opacity="0.14" />
 
       {/* floor contact glow */}
-      <ellipse cx="100" cy="221" rx="46" ry="5" fill="#22D3EE" opacity="0.14" />
+      <ellipse cx="100" cy="221" rx="46" ry="5" fill="#16A36A" opacity="0.16" />
     </svg>
   );
 }
@@ -468,7 +473,7 @@ export default function WhyKalyanChemist() {
     <section
       ref={sectionRef}
       className="relative overflow-hidden py-20 sm:py-28 lg:py-36"
-      style={{ background: NAVY }}
+      style={{ background: CHARCOAL }}
       onPointerMove={!prefersReducedMotion ? onSectionPointerMove : undefined}
       onPointerLeave={!prefersReducedMotion ? onSectionPointerLeave : undefined}
     >
@@ -495,26 +500,26 @@ export default function WhyKalyanChemist() {
 
       {/* ════ LAYER 1 — BACKGROUND: layered lighting, no flat fills ════ */}
       <div className="pointer-events-none absolute inset-0" aria-hidden="true">
-        <div className="absolute inset-0" style={{ background: `linear-gradient(180deg, ${NAVY} 0%, ${NAVY_2} 45%, ${NAVY} 100%)` }} />
-        {/* deep indigo atmosphere top-left */}
-        <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 70% 55% at 12% 18%, rgba(49,46,129,0.42), transparent 68%)" }} />
-        {/* electric blue wash top-right */}
-        <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 55% 45% at 88% 12%, rgba(29,78,216,0.26), transparent 62%)" }} />
-        {/* cyan core glow center */}
-        <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 48% 42% at 50% 46%, rgba(34,211,238,0.10), transparent 58%)" }} />
-        {/* teal undertone bottom */}
-        <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 60% 40% at 50% 105%, rgba(19,78,74,0.30), transparent 60%)" }} />
-        {/* restrained violet accents */}
-        <div className="absolute inset-0" style={{ background: "radial-gradient(circle at 82% 72%, " + VIOLET + "0.10), transparent 40%)" }} />
-        <div className="absolute inset-0" style={{ background: "radial-gradient(circle at 16% 66%, " + VIOLET + "0.06), transparent 36%)" }} />
+        <div className="absolute inset-0" style={{ background: `linear-gradient(180deg, ${CHARCOAL} 0%, ${CHARCOAL_2} 45%, ${CHARCOAL} 100%)` }} />
+        {/* deep emerald atmosphere top-left */}
+        <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 70% 55% at 12% 18%, rgba(8,122,82,0.32), transparent 68%)" }} />
+        {/* warm gold wash top-right */}
+        <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 55% 45% at 88% 12%, rgba(216,184,120,0.09), transparent 62%)" }} />
+        {/* emerald core glow center */}
+        <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 48% 42% at 50% 46%, rgba(22,163,106,0.10), transparent 58%)" }} />
+        {/* deep emerald undertone bottom */}
+        <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 60% 40% at 50% 105%, rgba(8,122,82,0.24), transparent 60%)" }} />
+        {/* restrained champagne accents */}
+        <div className="absolute inset-0" style={{ background: "radial-gradient(circle at 82% 72%, " + GOLD_SOFT + "0.10), transparent 40%)" }} />
+        <div className="absolute inset-0" style={{ background: "radial-gradient(circle at 16% 66%, " + GOLD_SOFT + "0.06), transparent 36%)" }} />
         {/* drifting atmospheric orbs (opacity only) */}
-        <div data-kcw-anim className="absolute -top-28 left-[18%] h-[380px] w-[44%] rounded-full bg-blue-600/10 blur-[110px]" style={{ animation: "kcw-drift 26s ease-in-out infinite" }} />
-        <div data-kcw-anim className="absolute -bottom-32 right-[20%] h-[340px] w-[40%] rounded-full bg-cyan-500/9 blur-[100px]" style={{ animation: "kcw-drift 32s ease-in-out 6s infinite" }} />
-        <div data-kcw-anim className="absolute top-1/3 -left-24 h-[280px] w-[32%] rounded-full bg-indigo-500/9 blur-[90px]" style={{ animation: "kcw-drift 28s ease-in-out 3s infinite" }} />
+        <div data-kcw-anim className="absolute -top-28 left-[18%] h-[380px] w-[44%] rounded-full bg-[#0B6E49]/12 blur-[110px]" style={{ animation: "kcw-drift 26s ease-in-out infinite" }} />
+        <div data-kcw-anim className="absolute -bottom-32 right-[20%] h-[340px] w-[40%] rounded-full bg-[#16A36A]/9 blur-[100px]" style={{ animation: "kcw-drift 32s ease-in-out 6s infinite" }} />
+        <div data-kcw-anim className="absolute top-1/3 -left-24 h-[280px] w-[32%] rounded-full bg-[#D8B878]/8 blur-[90px]" style={{ animation: "kcw-drift 28s ease-in-out 3s infinite" }} />
         {/* fine grid */}
-        <div className="absolute inset-0 opacity-[0.025]" style={{ backgroundImage: "linear-gradient(rgba(148,197,255,.5) 1px, transparent 1px), linear-gradient(90deg, rgba(148,197,255,.5) 1px, transparent 1px)", backgroundSize: "72px 72px" }} />
+        <div className="absolute inset-0 opacity-[0.025]" style={{ backgroundImage: "linear-gradient(rgba(245,243,236,.4) 1px, transparent 1px), linear-gradient(90deg, rgba(245,243,236,.4) 1px, transparent 1px)", backgroundSize: "72px 72px" }} />
         {/* cinematic vignette */}
-        <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 78% 68% at 50% 46%, transparent 55%, rgba(3,5,10,0.55) 100%)" }} />
+        <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 78% 68% at 50% 46%, transparent 55%, rgba(4,6,5,0.6) 100%)" }} />
       </div>
 
       {/* ════ LAYER 2 — DECORATIVE FLOATING OBJECTS (sparse, off on mobile) ════ */}
@@ -543,11 +548,11 @@ export default function WhyKalyanChemist() {
         {/* ── TOP HEADING ── */}
         <motion.div initial="hidden" animate={revealed ? "visible" : "hidden"} variants={headV} className="text-center mb-12 sm:mb-16">
           <h2 className="text-[clamp(2.6rem,7vw,6rem)] font-black uppercase leading-[0.92] tracking-tight">
-            <span className="bg-gradient-to-b from-white via-white/90 to-white/45 bg-clip-text text-transparent" style={{ WebkitTextFillColor: "transparent" }}>
+            <span className="bg-gradient-to-b from-[#F5F3EC] via-[#F5F3EC]/90 to-[#F5F3EC]/40 bg-clip-text text-transparent" style={{ WebkitTextFillColor: "transparent" }}>
               Why Choose Us?
             </span>
           </h2>
-          <div className="mx-auto mt-5 h-px w-28 bg-gradient-to-r from-transparent via-cyan-300/70 to-transparent" />
+          <div className="mx-auto mt-5 h-px w-28 bg-gradient-to-r from-transparent via-[#16A36A]/70 to-transparent" />
         </motion.div>
 
         {/* ── MAIN: 3D SCENE + CARDS ── */}
@@ -557,14 +562,14 @@ export default function WhyKalyanChemist() {
           <motion.div initial="hidden" animate={revealed ? "visible" : "hidden"} variants={sceneV} className="relative flex items-center justify-center">
             {/* stage backdrop: layered light pools behind the logo */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none" aria-hidden="true">
-              {/* wide indigo pool */}
-              <div className="absolute h-[360px] w-[360px] sm:h-[420px] sm:w-[420px] rounded-full" style={{ background: "radial-gradient(circle, rgba(49,46,129,0.35), transparent 68%)" }} />
-              {/* cyan core */}
-              <div data-kcw-anim className="h-[280px] w-[280px] sm:h-[340px] sm:w-[340px] rounded-full" style={{ background: "radial-gradient(circle, rgba(34,211,238,0.20), transparent 62%)", animation: "kcw-pulse 5s ease-in-out infinite" }} />
-              {/* teal under-glow */}
-              <div data-kcw-anim className="absolute bottom-[6%] h-[180px] w-[70%] rounded-full" style={{ background: "radial-gradient(ellipse, rgba(45,212,191,0.16), transparent 65%)", animation: "kcw-pulse 6s ease-in-out 1.2s infinite" }} />
+              {/* wide deep-emerald pool */}
+              <div className="absolute h-[360px] w-[360px] sm:h-[420px] sm:w-[420px] rounded-full" style={{ background: "radial-gradient(circle, rgba(8,122,82,0.30), transparent 68%)" }} />
+              {/* emerald core */}
+              <div data-kcw-anim className="h-[280px] w-[280px] sm:h-[340px] sm:w-[340px] rounded-full" style={{ background: "radial-gradient(circle, rgba(22,163,106,0.18), transparent 62%)", animation: "kcw-pulse 5s ease-in-out infinite" }} />
+              {/* champagne under-glow */}
+              <div data-kcw-anim className="absolute bottom-[6%] h-[180px] w-[70%] rounded-full" style={{ background: "radial-gradient(ellipse, rgba(216,184,120,0.10), transparent 65%)", animation: "kcw-pulse 6s ease-in-out 1.2s infinite" }} />
               {/* volumetric light beams (static gradient, opacity-animated) */}
-              <div data-kcw-anim className="absolute -top-6 left-1/2 h-[240px] w-[120px] -translate-x-1/2" style={{ background: "linear-gradient(180deg, rgba(165,243,252,0.14), transparent 78%)", clipPath: "polygon(38% 0, 62% 0, 100% 100%, 0 100%)", animation: "kcw-beam 7s ease-in-out infinite" }} />
+              <div data-kcw-anim className="absolute -top-6 left-1/2 h-[240px] w-[120px] -translate-x-1/2" style={{ background: "linear-gradient(180deg, rgba(245,243,236,0.09), transparent 78%)", clipPath: "polygon(38% 0, 62% 0, 100% 100%, 0 100%)", animation: "kcw-beam 7s ease-in-out infinite" }} />
             </div>
 
             {/* orbit ring guides (static transforms, gentle opacity pulse) */}
@@ -579,7 +584,7 @@ export default function WhyKalyanChemist() {
                     height: r * 2,
                     left: `calc(50% - ${r}px)`,
                     top: `calc(50% - ${r}px)`,
-                    border: "1px solid rgba(165,243,252,0.07)",
+                    border: "1px solid rgba(240,217,163,0.07)",
                     transform: `rotateX(${68 + i * 4}deg) rotateZ(${i * 18}deg)`,
                     animation: `kcw-ring ${7 + i}s ease-in-out ${i * 0.6}s infinite`,
                   }}
@@ -609,7 +614,7 @@ export default function WhyKalyanChemist() {
                   <KCShield />
                 </div>
                 {/* edge light between the two faces */}
-                <div className="absolute -inset-1 rounded-full" style={{ transform: "translateZ(0)", background: "radial-gradient(circle, rgba(34,211,238,0.16), transparent 65%)" }} />
+                <div className="absolute -inset-1 rounded-full" style={{ transform: "translateZ(0)", background: "radial-gradient(circle, rgba(22,163,106,0.18), transparent 65%)" }} />
               </div>
 
               {/* floor reflection of the logo */}
@@ -618,7 +623,7 @@ export default function WhyKalyanChemist() {
                 aria-hidden="true"
                 style={{
                   transform: "rotateX(78deg)",
-                  background: "radial-gradient(ellipse at 50% 0%, rgba(34,211,238,0.28), transparent 70%)",
+                  background: "radial-gradient(ellipse at 50% 0%, rgba(22,163,106,0.24), transparent 70%)",
                 }}
               />
 
@@ -662,7 +667,7 @@ export default function WhyKalyanChemist() {
                       top: `${p.y}%`,
                       width: p.size,
                       height: p.size,
-                      background: pi % 3 === 0 ? "rgba(34,211,238,0.8)" : pi % 3 === 1 ? "rgba(165,243,252,0.55)" : VIOLET + "0.45)",
+                      background: pi % 3 === 0 ? "rgba(22,163,106,0.75)" : pi % 3 === 1 ? "rgba(240,217,163,0.5)" : GOLD_SOFT + "0.4)",
                       "--px": `${p.dx}px`,
                       "--py": `${p.dy}px`,
                       animation: `kcw-particle ${p.dur}s ease-out ${p.delay}s infinite`,
@@ -702,7 +707,7 @@ export default function WhyKalyanChemist() {
                               top: `${p.y}%`,
                               width: p.size + 0.7,
                               height: p.size + 0.7,
-                              background: pi % 3 === 0 ? card.glowColor : pi % 3 === 1 ? "rgba(165,243,252,0.55)" : VIOLET + "0.4)",
+                              background: pi % 3 === 0 ? card.glowColor : pi % 3 === 1 ? "rgba(240,217,163,0.5)" : GOLD_SOFT + "0.35)",
                               "--px": `${p.dx}px`,
                               "--py": `${p.dy}px`,
                               animation: `kcw-particle ${p.dur}s ease-out ${p.delay}s infinite`,
@@ -716,41 +721,41 @@ export default function WhyKalyanChemist() {
                     <div
                       ref={(el) => { cardRefs.current[i] = el; }}
                       className={`group relative z-10 overflow-hidden rounded-2xl border transition-[transform,border-color] duration-[260ms] ease-out will-change-transform ${
-                        isActive ? "border-cyan-300/25" : "border-white/[0.06]"
+                        isActive ? "border-[#16A36A]/30" : "border-[#F5F3EC]/[0.07]"
                       }`}
                       style={{
                         background: isActive
-                          ? "linear-gradient(155deg, rgba(148,197,255,0.075) 0%, rgba(255,255,255,0.02) 100%)"
-                          : "linear-gradient(155deg, rgba(255,255,255,0.035) 0%, rgba(255,255,255,0.01) 100%)",
+                          ? "linear-gradient(155deg, rgba(22,163,106,0.08) 0%, rgba(255,255,255,0.02) 100%)"
+                          : "linear-gradient(155deg, rgba(245,243,236,0.035) 0%, rgba(245,243,236,0.012) 100%)",
                         boxShadow: isActive
-                          ? "0 10px 40px -12px rgba(34,211,238,0.30), inset 0 1px 0 rgba(255,255,255,0.06)"
+                          ? "0 10px 40px -12px rgba(22,163,106,0.30), inset 0 1px 0 rgba(245,243,236,0.06)"
                           : "0 4px 18px -8px rgba(0,0,0,0.55)",
                       }}
                       onPointerMove={!prefersReducedMotion ? onCardPointerMove : undefined}
                       onPointerLeave={!prefersReducedMotion ? onCardPointerLeave : undefined}
                     >
                       {/* top edge light */}
-                      <div className="pointer-events-none absolute inset-x-0 top-0 h-px" style={{ background: isActive ? "linear-gradient(90deg, transparent, rgba(165,243,252,0.5), transparent)" : "linear-gradient(90deg, transparent, rgba(255,255,255,0.07), transparent)" }} />
+                      <div className="pointer-events-none absolute inset-x-0 top-0 h-px" style={{ background: isActive ? "linear-gradient(90deg, transparent, rgba(240,217,163,0.45), transparent)" : "linear-gradient(90deg, transparent, rgba(245,243,236,0.07), transparent)" }} />
                       {/* glass sheen sweep on hover (transform-only, masked) */}
                       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-                        <div className="absolute inset-y-0 w-1/2 opacity-0 group-hover:opacity-100 group-hover:[animation:kcw-sheen_1.1s_ease-out] h-full" style={{ background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.07), transparent)" }} />
+                        <div className="absolute inset-y-0 w-1/2 opacity-0 group-hover:opacity-100 group-hover:[animation:kcw-sheen_1.1s_ease-out] h-full" style={{ background: "linear-gradient(90deg, transparent, rgba(240,217,163,0.08), transparent)" }} />
                       </div>
 
                       {/* icon */}
                       <div
                         className={`relative mb-4 flex size-12 items-center justify-center rounded-xl border transition-colors duration-300 ${
-                          isActive ? "border-cyan-300/25 bg-cyan-400/10" : "border-white/[0.06] bg-white/[0.04] group-hover:bg-white/[0.07]"
+                          isActive ? "border-[#D8B878]/30 bg-[#16A36A]/12" : "border-[#F5F3EC]/[0.07] bg-[#F5F3EC]/[0.04] group-hover:bg-[#F5F3EC]/[0.07]"
                         }`}
                         style={isActive ? { ["--gc" as string]: card.glowColor, animation: "kcw-iglow 4s ease-in-out infinite" } : undefined}
                       >
-                        <Icon className={`size-6 transition-colors duration-300 ${isActive ? "text-cyan-100" : "text-white/55 group-hover:text-white/80"}`} strokeWidth={1.6} />
+                        <Icon className={`size-6 transition-colors duration-300 ${isActive ? "text-[#F0D9A3]" : "text-[#B8BBB5] group-hover:text-[#F5F3EC]"}`} strokeWidth={1.6} />
                       </div>
 
                       {/* text */}
-                      <h3 className={`text-sm font-bold uppercase tracking-wide transition-colors duration-300 ${isActive ? "text-white" : "text-white/65 group-hover:text-white/85"}`}>
+                      <h3 className={`text-sm font-bold uppercase tracking-wide transition-colors duration-300 ${isActive ? "text-[#F5F3EC]" : "text-[#B8BBB5] group-hover:text-[#F5F3EC]"}`}>
                         {card.title}
                       </h3>
-                      <p className={`mt-1.5 text-[13px] leading-relaxed transition-colors duration-300 ${isActive ? "text-cyan-50/60" : "text-white/30 group-hover:text-white/45"}`}>
+                      <p className={`mt-1.5 text-[13px] leading-relaxed transition-colors duration-300 ${isActive ? "text-[#F5F3EC]/60" : "text-[#B8BBB5]/45 group-hover:text-[#B8BBB5]/70"}`}>
                         {card.subtitle}
                       </p>
 
@@ -767,7 +772,7 @@ export default function WhyKalyanChemist() {
         {/* ── BOTTOM HEADING ── */}
         <motion.div initial="hidden" animate={revealed ? "visible" : "hidden"} variants={footV} className="mt-14 sm:mt-20 text-center">
           <h2 className="text-[clamp(1.5rem,4vw,3.2rem)] font-black uppercase leading-[1.08] tracking-tight">
-            <span className="bg-gradient-to-r from-cyan-300 via-sky-200 to-indigo-300 bg-clip-text text-transparent" style={{ WebkitTextFillColor: "transparent" }}>
+            <span className="bg-gradient-to-r from-[#F0D9A3] via-[#F5F3EC] to-[#16A36A] bg-clip-text text-transparent" style={{ WebkitTextFillColor: "transparent" }}>
               Your Health, Our Priority
             </span>
           </h2>
