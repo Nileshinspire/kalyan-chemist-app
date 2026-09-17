@@ -97,7 +97,7 @@ const CAM_X = [S1, S1, S2, S2, S3, S3, S4, S4, S5, S5, S6, S6];
 const CAM_Z = [0, 46, 0, 46, 0, 46, 0, 46, 0, 40, 0, 36];
 
 /* where a clicked chip parks the film */
-const PARK_P = [0.06, 0.27, 0.45, 0.63, 0.85, 0.985];
+const PARK_P = [0.06, 0.27, 0.49, 0.63, 0.85, 0.985];
 
 /* ground line inside the stage (px) */
 const BASE = 34;
