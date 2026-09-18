@@ -173,7 +173,7 @@ function OrbitSvg({ label }: { label: string }) {
    ═══════════════════════════════════════════════════════════════════════════ */
 function KCShield() {
   return (
-    <svg viewBox="0 0 200 230" fill="none" className="size-full" aria-label="Kalyan Chemist Logo">
+    <svg viewBox="0 0 200 230" fill="none" className="size-full" aria-label="Kalyan Chemist Logo" shapeRendering="geometricPrecision" textRendering="geometricPrecision">
       <defs>
         {/* front face: rich emerald metal */}
         <linearGradient id="kcFaceA" x1="0" y1="0" x2="1" y2="1">
@@ -239,9 +239,9 @@ function KCShield() {
       <rect x="90" y="78" width="8" height="68" rx="4" fill="#F0D9A3" opacity="0.5" />
       <rect x="70" y="100" width="60" height="8" rx="4" fill="#F0D9A3" opacity="0.35" />
 
-      {/* KC wordmark on the face */}
-      <text x="100" y="162" textAnchor="middle" fontSize="26" fontWeight="900" fontFamily="system-ui, sans-serif" fill="#F5F3EC" opacity="0.95" letterSpacing="3">KC</text>
-      <text x="100" y="176" textAnchor="middle" fontSize="8" fontWeight="600" fontFamily="system-ui, sans-serif" fill="#D8B878" opacity="0.6" letterSpacing="6">PHARMACY</text>
+      {/* KC wordmark on the face — sized for crisp rasterization at render size */}
+      <text x="100" y="165" textAnchor="middle" fontSize="33" fontWeight="900" fontFamily="system-ui, sans-serif" fill="#F5F3EC" opacity="1" letterSpacing="2">KC</text>
+      <text x="100" y="183" textAnchor="middle" fontSize="11.5" fontWeight="700" fontFamily="system-ui, sans-serif" fill="#D8B878" opacity="0.85" letterSpacing="3.5">PHARMACY</text>
 
       {/* specular sweep across the upper face */}
       <path d="M40 60 L100 34 L160 60 L100 88 Z" fill="url(#kcSpec)" opacity="0.14" />
@@ -596,11 +596,13 @@ export default function WhyKalyanChemist() {
                   ONE wrapper (preserve-3d, origin center) carries the complete
                   symbol: detailed front face at +Z, mirrored back face at −Z and
                   a solid emerald SIDE-WALL that is the object's physical edge.
-                  The wall is perpendicular to the faces and spans Z −9…+9, so it
-                  OVERLAPS both face planes (no coplanar z-fighting) and fully
-                  faces the viewer exactly at the 90°/270° edge-on moments — the
-                  logo can NEVER blink, flash or show an empty frame.
-                  The rotation is a single pure-CSS compositor animation —
+                  The wall is perpendicular to the faces and spans Z −7…+7 —
+                  safely INSIDE the face planes at ±8, so it can never intersect
+                  or slice them (the old wider wall crossed the faces and
+                  Chrome's plane-splitting drew hard seams through the logo).
+                  It fully faces the viewer exactly at the 90°/270° edge-on
+                  moments — the logo can NEVER blink, flash or show an empty
+                  frame. The rotation is a single pure-CSS compositor animation —
                   no per-frame JS writes, no will-change on this subtree, no
                   translate / opacity / scale animation. Anchor fixed; only the
                   Y-orientation changes: FRONT → 180° → BACK → 180° → FRONT. */}
@@ -613,19 +615,21 @@ export default function WhyKalyanChemist() {
                   animation: !prefersReducedMotion ? "kcw-logo-spin 9s linear infinite" : undefined,
                 }}
               >
-                {/* side wall — the object's EDGE. Spans past both face planes
-                    (18px wide vs faces at ±8px) for seamless coverage; renders
-                    from both sides (no culling). */}
+                {/* side wall — the object's EDGE. 14px deep (Z −7…+7), fully
+                    inside the face planes at ±8: no intersection, no seams, no
+                    plane-splitting. Renders from both sides (no culling). */}
                 <div
                   className="absolute"
                   style={{
                     left: "50%",
-                    top: "10%",
-                    width: 18,
+                    top: "8%",
+                    width: 14,
                     height: "84%",
-                    marginLeft: -9,
+                    marginLeft: -7,
                     transform: "rotateY(90deg)",
                     background: "linear-gradient(180deg, #0E8155 0%, #0B6E49 35%, #09543A 70%, #062E20 100%)",
+                    borderLeft: "1px solid rgba(240,217,163,0.28)",
+                    borderRight: "1px solid rgba(240,217,163,0.28)",
                   }}
                 />
                 {/* back face — mirrored, so the logo stays intact from behind */}
