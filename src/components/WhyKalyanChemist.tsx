@@ -252,6 +252,17 @@ function KCShield() {
   );
 }
 
+/* interior slice: cheap solid silhouette used to build the extruded volume.
+   Stack of these between the two faces keeps the shield SOLID at every
+   angle — no see-through sliver at 90°/270°, one unified object. */
+function KCShieldCore() {
+  return (
+    <svg viewBox="0 0 200 230" fill="none" className="size-full" aria-hidden="true">
+      <path d="M100 8 L185 48 V130 C185 185 150 215 100 228 C50 215 15 185 15 130 V48 Z" fill="#0A5E3F" />
+    </svg>
+  );
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    MAIN COMPONENT
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -319,14 +330,14 @@ export default function WhyKalyanChemist() {
       s.style.transform = `translate3d(${(nx * 12).toFixed(2)}px, ${(ny * 10).toFixed(2)}px, 0) rotateX(${(ny * -2.5).toFixed(2)}deg) rotateY(${(nx * 3.5).toFixed(2)}deg)`;
     }
 
-    /* 2) logo 360° continuous rotation in place — extruded 3D shield */
+    /* 2) logo 360° rotation in place — position FIXED at its anchor, only the
+          orientation changes. Constant speed (~9s/revolution), no drift, no
+          float, no speed fluctuation: exactly one continuous spin loop. */
     const logo = logoRef.current;
     if (logo) {
-      spinRef.current = (spinRef.current + dt * 0.000698 * e) % (Math.PI * 2);
-      const a = spinRef.current;
-      const yDeg = (a * 180) / Math.PI;
-      const floatY = Math.sin(a * 2) * 4 * e;
-      logo.style.transform = `translateY(${floatY.toFixed(2)}px) rotateY(${yDeg.toFixed(2)}deg) rotateX(5deg)`;
+      spinRef.current = (spinRef.current + dt * 0.000698) % (Math.PI * 2);
+      const yDeg = (spinRef.current * 180) / Math.PI;
+      logo.style.transform = `rotateY(${yDeg.toFixed(2)}deg) rotateX(5deg)`;
     }
 
     /* 3) orbits: gentle float + slow revolution (depth-corrected) */
@@ -610,25 +621,20 @@ export default function WhyKalyanChemist() {
                   animation: useCssAnim ? "kcw-logo-spin 9s linear infinite" : undefined,
                 }}
               >
-                {/* front face */}
-                <div className="absolute inset-0" style={{ transform: "translateZ(10px)" }}>
-                  <KCShield />
-                </div>
-                {/* back face — same shield, mirrored, offset back */}
-                <div className="absolute inset-0" style={{ transform: "rotateY(180deg) translateZ(10px)" }}>
-                  <KCShield />
-                </div>
-                {/* side edge panels — fill the gap so the object is solid from all angles */}
-                {[0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330].map((deg) => (
-                  <div
-                    key={deg}
-                    className="absolute inset-0"
-                    style={{ transform: `rotateY(${deg}deg) translateZ(0px)`, backfaceVisibility: "hidden" }}
-                  />
+                {/* interior volume slices — keep the object solid from every angle */}
+                {[-7, -5, -3, -1, 1, 3, 5, 7].map((z) => (
+                  <div key={z} className="absolute inset-0" style={{ transform: `translateZ(${z}px)`, backfaceVisibility: "hidden" }}>
+                    <KCShieldCore />
+                  </div>
                 ))}
-                {/* side-cap fill: dark emerald planes at +/- Z to close the edge */}
-                <div className="absolute inset-0" style={{ transform: "translateZ(5px)", background: "linear-gradient(180deg, #0B6E49 0%, #09543A 60%, #062E20 100%)", clipPath: "path('M100 8 L185 48 V130 C185 185 150 215 100 228 C50 215 15 185 15 130 V48 Z')", backfaceVisibility: "hidden" }} />
-                <div className="absolute inset-0" style={{ transform: "translateZ(-5px) rotateY(180deg)", background: "linear-gradient(180deg, #09543A 0%, #062E20 100%)", clipPath: "path('M100 8 L185 48 V130 C185 185 150 215 100 228 C50 215 15 185 15 130 V48 Z')", backfaceVisibility: "hidden" }} />
+                {/* back face */}
+                <div className="absolute inset-0" style={{ transform: "rotateY(180deg) translateZ(9px)", backfaceVisibility: "hidden" }}>
+                  <KCShield />
+                </div>
+                {/* front face */}
+                <div className="absolute inset-0" style={{ transform: "translateZ(9px)", backfaceVisibility: "hidden" }}>
+                  <KCShield />
+                </div>
               </div>
 
               {/* floor reflection of the logo */}
