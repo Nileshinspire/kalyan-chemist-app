@@ -407,7 +407,7 @@ export default function WhyKalyanChemist() {
     tiltRaf.current = null;
     const d = tiltData.current;
     if (!d) return;
-    d.el.style.transform = `perspective(900px) rotateX(${(d.ny * -7).toFixed(2)}deg) rotateY(${(d.nx * 7).toFixed(2)}deg) translate3d(0,-6px,0) scale(1.03)`;
+    d.el.style.transform = `perspective(900px) rotateX(${(d.ny * -3.5).toFixed(2)}deg) rotateY(${(d.nx * 3.5).toFixed(2)}deg) translate3d(0,-3px,0) scale(1.02)`;
   }, []);
 
   const onCardPointerMove = useCallback(
@@ -705,7 +705,8 @@ export default function WhyKalyanChemist() {
 
           {/* ── CARDS COLUMN ── */}
           <div>
-            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2 sm:gap-1.5">
+            {/* clear fixed separation between all four cards — they never touch */}
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-3.5">
               {CARDS.map((card, i) => {
                 const isActive = activeIdx === i;
                 const Icon = card.icon;
@@ -719,33 +720,11 @@ export default function WhyKalyanChemist() {
                     className="relative [perspective:900px]"
                     onMouseEnter={() => setActiveIdx(i)}
                   >
-                    {/* energy field behind the active card */}
-                    {isActive && (
-                      <div className="kcw-particles pointer-events-none absolute -inset-8 z-0" aria-hidden="true">
-                        <div className="absolute inset-0 rounded-2xl" style={{ background: `radial-gradient(ellipse at 50% 60%, ${card.glowRgba}, transparent 70%)`, animation: "kcw-pulse 3.4s ease-in-out infinite" }} />
-                        {particles.slice(0, isMobile ? 6 : 12).map((p, pi) => (
-                          <span
-                            key={pi}
-                            className="absolute rounded-full"
-                            style={{
-                              left: `${p.x}%`,
-                              top: `${p.y}%`,
-                              width: p.size + 0.7,
-                              height: p.size + 0.7,
-                              background: pi % 3 === 0 ? card.glowColor : pi % 3 === 1 ? "rgba(240,217,163,0.5)" : GOLD_SOFT + "0.35)",
-                              "--px": `${p.dx}px`,
-                              "--py": `${p.dy}px`,
-                              animation: `kcw-particle ${p.dur}s ease-out ${p.delay}s infinite`,
-                            } as CSSProperties}
-                          />
-                        ))}
-                      </div>
-                    )}
-
-                    {/* card body */}
+                    {/* card body — overflow-hidden clips ALL effects inside the card,
+                        so hover glow/elevation can never spill into a neighbour */}
                     <div
                       ref={(el) => { cardRefs.current[i] = el; }}
-                      className={`group relative z-10 overflow-hidden rounded-2xl border p-2.5 sm:p-3 transition-[transform,border-color] duration-[260ms] ease-out will-change-transform ${
+                      className={`group relative z-10 overflow-hidden rounded-2xl border p-2 sm:p-2.5 transition-[transform,border-color] duration-[260ms] ease-out will-change-transform ${
                         isActive ? "border-[#16A36A]/30" : "border-[#F5F3EC]/[0.07]"
                       }`}
                       style={{
@@ -753,12 +732,41 @@ export default function WhyKalyanChemist() {
                           ? "linear-gradient(155deg, rgba(22,163,106,0.08) 0%, rgba(255,255,255,0.02) 100%)"
                           : "linear-gradient(155deg, rgba(245,243,236,0.035) 0%, rgba(245,243,236,0.012) 100%)",
                         boxShadow: isActive
-                          ? "0 10px 40px -12px rgba(22,163,106,0.30), inset 0 1px 0 rgba(245,243,236,0.06)"
-                          : "0 4px 18px -8px rgba(0,0,0,0.55)",
+                          ? "0 5px 14px -9px rgba(22,163,106,0.28), inset 0 1px 0 rgba(245,243,236,0.06)"
+                          : "0 3px 10px -7px rgba(0,0,0,0.5)",
                       }}
                       onPointerMove={!prefersReducedMotion ? onCardPointerMove : undefined}
                       onPointerLeave={!prefersReducedMotion ? onCardPointerLeave : undefined}
                     >
+                      {/* contained energy field — rendered INSIDE the clipped card */}
+                      {isActive && (
+                        <>
+                          <div
+                            className="pointer-events-none absolute inset-0 rounded-2xl"
+                            aria-hidden="true"
+                            style={{ background: `radial-gradient(ellipse at 50% 60%, ${card.glowRgba}, transparent 70%)`, animation: "kcw-pulse 3.4s ease-in-out infinite" }}
+                          />
+                          <div className="kcw-particles pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+                            {particles.slice(0, isMobile ? 6 : 8).map((p, pi) => (
+                              <span
+                                key={pi}
+                                className="absolute rounded-full"
+                                style={{
+                                  left: `${p.x}%`,
+                                  top: `${p.y}%`,
+                                  width: p.size + 0.7,
+                                  height: p.size + 0.7,
+                                  background: pi % 3 === 0 ? card.glowColor : pi % 3 === 1 ? "rgba(240,217,163,0.5)" : GOLD_SOFT + "0.35)",
+                                  "--px": `${p.dx}px`,
+                                  "--py": `${p.dy}px`,
+                                  animation: `kcw-particle ${p.dur}s ease-out ${p.delay}s infinite`,
+                                } as CSSProperties}
+                              />
+                            ))}
+                          </div>
+                        </>
+                      )}
+
                       {/* top edge light */}
                       <div className="pointer-events-none absolute inset-x-0 top-0 h-px" style={{ background: isActive ? "linear-gradient(90deg, transparent, rgba(240,217,163,0.45), transparent)" : "linear-gradient(90deg, transparent, rgba(245,243,236,0.07), transparent)" }} />
                       {/* glass sheen sweep on hover (transform-only, masked) */}
