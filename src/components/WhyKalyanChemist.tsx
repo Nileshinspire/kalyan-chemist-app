@@ -263,7 +263,6 @@ export default function WhyKalyanChemist() {
   const [revealed, setRevealed] = useState(false);
   const sectionRef = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<HTMLDivElement>(null);
-  const logoRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   /* ── viewport reveal (runs once) ── */
@@ -281,16 +280,18 @@ export default function WhyKalyanChemist() {
 
   /* ────────────────────────────────────────────────────────────────────────
      SINGLE ANIMATION CONTROLLER
-     One rAF loop drives: scene parallax (lerped), logo slow spin, and orbit
-     transforms — all GPU transforms, zero React re-renders. The loop exists
-     only while the section is on screen; it fully pauses otherwise. Card
-     tilt uses its own short-lived rAF per hover (self-cancelling).
+     One rAF loop drives: scene parallax (lerped) and orbit transforms — GPU
+     transforms, zero React re-renders. The loop exists only while the section
+     is on screen; it fully pauses otherwise. The LOGO SPIN is deliberately
+     NOT driven from here: it is ONE pure-CSS compositor animation
+     (kcw-logo-spin) — a single stable controller with zero per-frame JS
+     style writes, so it can never stutter, jump or flicker. Card tilt uses
+     its own short-lived rAF per hover (self-cancelling).
      ──────────────────────────────────────────────────────────────────────── */
   const parallaxTarget = useRef({ nx: 0, ny: 0 });
   const parallaxCur = useRef({ nx: 0, ny: 0 });
   const liveRef = useRef(false);
   const rafRef = useRef<number | null>(null);
-  const spinRef = useRef(0);      /* logo rotation accumulator (rad) */
   const orbitAngleRef = useRef(0); /* orbit revolution accumulator (deg) */
   const lastTRef = useRef<number | null>(null);
   const orbitsRef = useRef<(HTMLDivElement | null)[]>([]);
@@ -318,16 +319,6 @@ export default function WhyKalyanChemist() {
       parallaxCur.current.ny += (parallaxTarget.current.ny - parallaxCur.current.ny) * 0.12;
       const { nx, ny } = parallaxCur.current;
       s.style.transform = `translate3d(${(nx * 12).toFixed(2)}px, ${(ny * 10).toFixed(2)}px, 0) rotateX(${(ny * -2.5).toFixed(2)}deg) rotateY(${(nx * 3.5).toFixed(2)}deg)`;
-    }
-
-    /* 2) logo 360° rotation in place — position FIXED at its anchor, only the
-          orientation changes. Constant speed (~9s/revolution), no drift, no
-          float, no speed fluctuation: exactly one continuous spin loop. */
-    const logo = logoRef.current;
-    if (logo) {
-      spinRef.current = (spinRef.current + dt * 0.000698) % (Math.PI * 2);
-      const yDeg = (spinRef.current * 180) / Math.PI;
-      logo.style.transform = `rotateY(${yDeg.toFixed(2)}deg) rotateX(5deg)`;
     }
 
     /* 3) orbits: gentle float + slow revolution (depth-corrected) */
@@ -604,35 +595,35 @@ export default function WhyKalyanChemist() {
               {/* ── KC LOGO — solid two-sided 3D object: turns FRONT ↔ BACK in place ──
                   ONE wrapper (preserve-3d, origin center) carries the complete
                   symbol: detailed front face at +Z, mirrored back face at −Z and
-                  one solid emerald SIDE-WALL that is the object's physical edge.
-                  The wall is perpendicular to the faces, so at the 90°/270°
-                  edge-on moments (where both faces are culled) the wall fully
-                  faces the viewer — the logo can NEVER blink, flash or show an
-                  empty frame. No translate / opacity / scale animation — the
-                  anchor position is fixed; only the Y-orientation changes:
-                  FRONT → 180° → BACK → 180° → FRONT (9s continuous cycle). */}
+                  a solid emerald SIDE-WALL that is the object's physical edge.
+                  The wall is perpendicular to the faces and spans Z −9…+9, so it
+                  OVERLAPS both face planes (no coplanar z-fighting) and fully
+                  faces the viewer exactly at the 90°/270° edge-on moments — the
+                  logo can NEVER blink, flash or show an empty frame.
+                  The rotation is a single pure-CSS compositor animation —
+                  no per-frame JS writes, no will-change on this subtree, no
+                  translate / opacity / scale animation. Anchor fixed; only the
+                  Y-orientation changes: FRONT → 180° → BACK → 180° → FRONT. */}
               <div
-                ref={logoRef}
-                className="absolute inset-[22%] sm:inset-[24%]"
+                className="absolute inset-[17%] sm:inset-[20%]"
                 style={{
                   transformStyle: "preserve-3d",
                   transformOrigin: "center center",
-                  willChange: "transform",
                   transform: "rotateY(0deg) rotateX(5deg)",
-                  animation: useCssAnim ? "kcw-logo-spin 9s linear infinite" : undefined,
+                  animation: !prefersReducedMotion ? "kcw-logo-spin 9s linear infinite" : undefined,
                 }}
               >
-                {/* side wall — the object's EDGE. Renders from both sides (no
-                    culling) and is at full width exactly when the two detailed
-                    faces turn edge-on, eliminating the blink completely. */}
+                {/* side wall — the object's EDGE. Spans past both face planes
+                    (18px wide vs faces at ±8px) for seamless coverage; renders
+                    from both sides (no culling). */}
                 <div
                   className="absolute"
                   style={{
                     left: "50%",
-                    top: "12%",
-                    width: 16,
-                    height: "76%",
-                    marginLeft: -8,
+                    top: "10%",
+                    width: 18,
+                    height: "84%",
+                    marginLeft: -9,
                     transform: "rotateY(90deg)",
                     background: "linear-gradient(180deg, #0E8155 0%, #0B6E49 35%, #09543A 70%, #062E20 100%)",
                   }}
@@ -649,7 +640,7 @@ export default function WhyKalyanChemist() {
 
               {/* floor reflection of the logo */}
               <div
-                className="pointer-events-none absolute inset-x-[22%] sm:inset-x-[24%] bottom-[2%] h-6 opacity-25"
+                className="pointer-events-none absolute inset-x-[17%] sm:inset-x-[20%] bottom-[2%] h-6 opacity-25"
                 aria-hidden="true"
                 style={{
                   transform: "rotateX(78deg)",
