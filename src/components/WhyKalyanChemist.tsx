@@ -252,6 +252,17 @@ function KCShield() {
   );
 }
 
+/* solid interior silhouette — forms the physical EDGE of the 3D logo.
+   Always rendered (no backface culling), so at the 90° edge-on moments of
+   the front↔back turn the object shows as a solid slab instead of vanishing. */
+function KCShieldCore() {
+  return (
+    <svg viewBox="0 0 200 230" fill="none" className="size-full" aria-hidden="true">
+      <path d="M100 8 L185 48 V130 C185 185 150 215 100 228 C50 215 15 185 15 130 V48 Z" fill="#0A5E3F" />
+    </svg>
+  );
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════
    MAIN COMPONENT
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -477,7 +488,7 @@ export default function WhyKalyanChemist() {
   return (
     <section
       ref={sectionRef}
-      className="relative overflow-hidden py-3 sm:py-4 lg:py-5"
+      className="relative overflow-hidden py-2 sm:py-3 lg:py-4"
       style={{ background: CHARCOAL }}
       onPointerMove={!prefersReducedMotion ? onSectionPointerMove : undefined}
       onPointerLeave={!prefersReducedMotion ? onSectionPointerLeave : undefined}
@@ -551,30 +562,30 @@ export default function WhyKalyanChemist() {
       {/* ════ LAYER 3 — CONTENT ════ */}
       <div className="relative z-10 mx-auto max-w-7xl px-5 sm:px-8">
         {/* ── TOP HEADING ── */}
-        <motion.div initial="hidden" animate={revealed ? "visible" : "hidden"} variants={headV} className="text-center mb-2 sm:mb-3">
+        <motion.div initial="hidden" animate={revealed ? "visible" : "hidden"} variants={headV} className="text-center mb-1.5 sm:mb-2">
           <h2 className="text-[clamp(1.8rem,5vw,4rem)] font-black uppercase leading-[0.92] tracking-tight">
             <span className="bg-gradient-to-b from-[#F5F3EC] via-[#F5F3EC]/90 to-[#F5F3EC]/40 bg-clip-text text-transparent" style={{ WebkitTextFillColor: "transparent" }}>
               Why Choose Us?
             </span>
           </h2>
-          <div className="mx-auto mt-2 h-px w-28 bg-gradient-to-r from-transparent via-[#16A36A]/70 to-transparent" />
+          <div className="mx-auto mt-1.5 h-px w-28 bg-gradient-to-r from-transparent via-[#16A36A]/70 to-transparent" />
         </motion.div>
 
         {/* ── MAIN: 3D SCENE + CARDS ── */}
-        <div className="grid items-center gap-2.5 lg:grid-cols-[1fr_1.3fr] lg:gap-5">
+        <div className="grid items-center gap-2 lg:grid-cols-[1fr_1.3fr] lg:gap-4">
 
           {/* ── 3D SCENE ── */}
           <motion.div initial="hidden" animate={revealed ? "visible" : "hidden"} variants={sceneV} className="relative flex items-center justify-center">
             {/* stage backdrop: layered light pools behind the logo */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none" aria-hidden="true">
               {/* wide deep-emerald pool */}
-              <div className="absolute h-[190px] w-[190px] sm:h-[250px] sm:w-[250px] rounded-full" style={{ background: "radial-gradient(circle, rgba(8,122,82,0.30), transparent 68%)" }} />
+              <div className="absolute h-[170px] w-[170px] sm:h-[225px] sm:w-[225px] rounded-full" style={{ background: "radial-gradient(circle, rgba(8,122,82,0.30), transparent 68%)" }} />
               {/* emerald core */}
-              <div data-kcw-anim className="h-[140px] w-[140px] sm:h-[190px] sm:w-[190px] rounded-full" style={{ background: "radial-gradient(circle, rgba(22,163,106,0.18), transparent 62%)", animation: "kcw-pulse 5s ease-in-out infinite" }} />
+              <div data-kcw-anim className="h-[125px] w-[125px] sm:h-[170px] sm:w-[170px] rounded-full" style={{ background: "radial-gradient(circle, rgba(22,163,106,0.18), transparent 62%)", animation: "kcw-pulse 5s ease-in-out infinite" }} />
               {/* champagne under-glow */}
-              <div data-kcw-anim className="absolute bottom-[6%] h-[60px] w-[70%] rounded-full" style={{ background: "radial-gradient(ellipse, rgba(216,184,120,0.10), transparent 65%)", animation: "kcw-pulse 6s ease-in-out 1.2s infinite" }} />
+              <div data-kcw-anim className="absolute bottom-[6%] h-[52px] w-[70%] rounded-full" style={{ background: "radial-gradient(ellipse, rgba(216,184,120,0.10), transparent 65%)", animation: "kcw-pulse 6s ease-in-out 1.2s infinite" }} />
               {/* volumetric light beams (static gradient, opacity-animated) */}
-              <div data-kcw-anim className="absolute -top-6 left-1/2 h-[100px] w-[90px] -translate-x-1/2" style={{ background: "linear-gradient(180deg, rgba(245,243,236,0.09), transparent 78%)", clipPath: "polygon(38% 0, 62% 0, 100% 100%, 0 100%)", animation: "kcw-beam 7s ease-in-out infinite" }} />
+              <div data-kcw-anim className="absolute -top-5 left-1/2 h-[90px] w-[90px] -translate-x-1/2" style={{ background: "linear-gradient(180deg, rgba(245,243,236,0.09), transparent 78%)", clipPath: "polygon(38% 0, 62% 0, 100% 100%, 0 100%)", animation: "kcw-beam 7s ease-in-out infinite" }} />
             </div>
 
             {/* orbit ring guides (static transforms, gentle opacity pulse) */}
@@ -598,16 +609,17 @@ export default function WhyKalyanChemist() {
             </div>
 
             {/* ── 3D SCENE CONTAINER ── */}
-            <div ref={sceneRef} className="relative h-[170px] w-[170px] sm:h-[230px] sm:w-[230px]" style={{ perspective: "1100px", transformStyle: "preserve-3d" }}>
+            <div ref={sceneRef} className="relative h-[150px] w-[150px] sm:h-[200px] sm:w-[200px]" style={{ perspective: "1100px", transformStyle: "preserve-3d" }}>
 
-              {/* ── KC LOGO — 3D turntable: full 360° rotation IN PLACE ──
-                  One single wrapper rotates the complete symbol as ONE object.
-                  Inside are two crossed shield planes (0° and 90°), each with a
-                  front + back face. At every angle of the spin, at least one
-                  plane faces the viewer at ≥ ~70% width, so the symbol NEVER
-                  disappears, NEVER shows a gap and is NEVER mirrored. There is
-                  no translate, no opacity and no scale animation — the anchor
-                  position is fixed; only the orientation changes. */}
+              {/* ── KC LOGO — solid two-sided 3D object: turns FRONT ↔ BACK in place ──
+                  ONE wrapper (preserve-3d, origin center) carries the complete
+                  symbol: detailed front face at +Z, mirrored back face at −Z and
+                  a filled interior stack that forms the object's edge. At the
+                  edge-on moments the interior renders as a solid slab, so the
+                  logo NEVER disappears, never gaps and never splits into two.
+                  No translate / opacity / scale animation — the anchor position
+                  is fixed; only the Y-orientation changes:
+                  FRONT → 180° → BACK → 180° → FRONT (9s continuous cycle). */}
               <div
                 ref={logoRef}
                 className="absolute inset-[18%] sm:inset-[20%]"
@@ -618,26 +630,25 @@ export default function WhyKalyanChemist() {
                   animation: useCssAnim ? "kcw-logo-spin 9s linear infinite" : undefined,
                 }}
               >
-                {/* facing direction A (0°) — front + back */}
-                <div className="absolute inset-0" style={{ transform: "rotateY(0deg)", backfaceVisibility: "hidden" }}>
+                {/* interior: solid emerald edge of the object (always rendered) */}
+                {[-6, -4, -2, 0, 2, 4, 6].map((z) => (
+                  <div key={z} className="absolute inset-0" style={{ transform: `translateZ(${z}px)` }}>
+                    <KCShieldCore />
+                  </div>
+                ))}
+                {/* back face — mirrored, so the logo stays intact from behind */}
+                <div className="absolute inset-0" style={{ transform: "rotateY(180deg) translateZ(8px)", backfaceVisibility: "hidden" }}>
                   <KCShield />
                 </div>
-                <div className="absolute inset-0" style={{ transform: "rotateY(180deg)", backfaceVisibility: "hidden" }}>
-                  <KCShield />
-                </div>
-                {/* facing direction B (90°) — carries the silhouette through what
-                    used to be the collapse points, front + back */}
-                <div className="absolute inset-0" style={{ transform: "rotateY(90deg)", backfaceVisibility: "hidden" }}>
-                  <KCShield />
-                </div>
-                <div className="absolute inset-0" style={{ transform: "rotateY(270deg)", backfaceVisibility: "hidden" }}>
+                {/* front face */}
+                <div className="absolute inset-0" style={{ transform: "translateZ(8px)", backfaceVisibility: "hidden" }}>
                   <KCShield />
                 </div>
               </div>
 
               {/* floor reflection of the logo */}
               <div
-                className="pointer-events-none absolute inset-x-[18%] bottom-[2%] h-7 opacity-25"
+                className="pointer-events-none absolute inset-x-[18%] bottom-[2%] h-6 opacity-25"
                 aria-hidden="true"
                 style={{
                   transform: "rotateX(78deg)",
@@ -698,7 +709,7 @@ export default function WhyKalyanChemist() {
 
           {/* ── CARDS COLUMN ── */}
           <div>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-2.5">
+            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2 sm:gap-2">
               {CARDS.map((card, i) => {
                 const isActive = activeIdx === i;
                 const Icon = card.icon;
@@ -738,7 +749,7 @@ export default function WhyKalyanChemist() {
                     {/* card body */}
                     <div
                       ref={(el) => { cardRefs.current[i] = el; }}
-                      className={`group relative z-10 overflow-hidden rounded-2xl border p-3.5 sm:p-4 transition-[transform,border-color] duration-[260ms] ease-out will-change-transform ${
+                      className={`group relative z-10 overflow-hidden rounded-2xl border p-3 sm:p-3.5 transition-[transform,border-color] duration-[260ms] ease-out will-change-transform ${
                         isActive ? "border-[#16A36A]/30" : "border-[#F5F3EC]/[0.07]"
                       }`}
                       style={{
@@ -761,7 +772,7 @@ export default function WhyKalyanChemist() {
 
                       {/* icon */}
                       <div
-                        className={`relative mb-2.5 flex size-11 shrink-0 items-center justify-center rounded-xl border transition-colors duration-300 ${
+                        className={`relative mb-2 flex size-11 shrink-0 items-center justify-center rounded-xl border transition-colors duration-300 ${
                           isActive ? "border-[#D8B878]/30 bg-[#16A36A]/12" : "border-[#F5F3EC]/[0.07] bg-[#F5F3EC]/[0.04] group-hover:bg-[#F5F3EC]/[0.07]"
                         }`}
                         style={isActive ? { ["--gc" as string]: card.glowColor, animation: "kcw-iglow 4s ease-in-out infinite" } : undefined}
@@ -788,7 +799,7 @@ export default function WhyKalyanChemist() {
         </div>
 
         {/* ── BOTTOM HEADING ── */}
-        <motion.div initial="hidden" animate={revealed ? "visible" : "hidden"} variants={footV} className="mt-3 sm:mt-4 text-center">
+        <motion.div initial="hidden" animate={revealed ? "visible" : "hidden"} variants={footV} className="mt-2 sm:mt-3 text-center">
           <h2 className="text-[clamp(1.5rem,4vw,3.2rem)] font-black uppercase leading-[1.08] tracking-tight">
             <span className="bg-gradient-to-r from-[#F0D9A3] via-[#F5F3EC] to-[#16A36A] bg-clip-text text-transparent" style={{ WebkitTextFillColor: "transparent" }}>
               Your Health, Our Priority
