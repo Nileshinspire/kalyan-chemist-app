@@ -472,7 +472,7 @@ export default function WhyKalyanChemist() {
   return (
     <section
       ref={sectionRef}
-      className="relative overflow-hidden py-20 sm:py-28 lg:py-36"
+      className="relative overflow-hidden py-8 sm:py-10 lg:py-14"
       style={{ background: CHARCOAL }}
       onPointerMove={!prefersReducedMotion ? onSectionPointerMove : undefined}
       onPointerLeave={!prefersReducedMotion ? onSectionPointerLeave : undefined}
@@ -546,30 +546,30 @@ export default function WhyKalyanChemist() {
       {/* ════ LAYER 3 — CONTENT ════ */}
       <div className="relative z-10 mx-auto max-w-7xl px-5 sm:px-8">
         {/* ── TOP HEADING ── */}
-        <motion.div initial="hidden" animate={revealed ? "visible" : "hidden"} variants={headV} className="text-center mb-12 sm:mb-16">
+        <motion.div initial="hidden" animate={revealed ? "visible" : "hidden"} variants={headV} className="text-center mb-5 sm:mb-7">
           <h2 className="text-[clamp(2.6rem,7vw,6rem)] font-black uppercase leading-[0.92] tracking-tight">
             <span className="bg-gradient-to-b from-[#F5F3EC] via-[#F5F3EC]/90 to-[#F5F3EC]/40 bg-clip-text text-transparent" style={{ WebkitTextFillColor: "transparent" }}>
               Why Choose Us?
             </span>
           </h2>
-          <div className="mx-auto mt-5 h-px w-28 bg-gradient-to-r from-transparent via-[#16A36A]/70 to-transparent" />
+          <div className="mx-auto mt-3 h-px w-28 bg-gradient-to-r from-transparent via-[#16A36A]/70 to-transparent" />
         </motion.div>
 
         {/* ── MAIN: 3D SCENE + CARDS ── */}
-        <div className="grid items-center gap-10 lg:grid-cols-[1fr_1.3fr] lg:gap-16">
+        <div className="grid items-center gap-4 lg:grid-cols-[1fr_1.3fr] lg:gap-8">
 
           {/* ── 3D SCENE ── */}
           <motion.div initial="hidden" animate={revealed ? "visible" : "hidden"} variants={sceneV} className="relative flex items-center justify-center">
             {/* stage backdrop: layered light pools behind the logo */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none" aria-hidden="true">
               {/* wide deep-emerald pool */}
-              <div className="absolute h-[360px] w-[360px] sm:h-[420px] sm:w-[420px] rounded-full" style={{ background: "radial-gradient(circle, rgba(8,122,82,0.30), transparent 68%)" }} />
+              <div className="absolute h-[180px] w-[180px] sm:h-[220px] sm:w-[220px] rounded-full" style={{ background: "radial-gradient(circle, rgba(8,122,82,0.30), transparent 68%)" }} />
               {/* emerald core */}
-              <div data-kcw-anim className="h-[280px] w-[280px] sm:h-[340px] sm:w-[340px] rounded-full" style={{ background: "radial-gradient(circle, rgba(22,163,106,0.18), transparent 62%)", animation: "kcw-pulse 5s ease-in-out infinite" }} />
+              <div data-kcw-anim className="h-[160px] w-[160px] sm:h-[200px] sm:w-[200px] rounded-full" style={{ background: "radial-gradient(circle, rgba(22,163,106,0.18), transparent 62%)", animation: "kcw-pulse 5s ease-in-out infinite" }} />
               {/* champagne under-glow */}
-              <div data-kcw-anim className="absolute bottom-[6%] h-[180px] w-[70%] rounded-full" style={{ background: "radial-gradient(ellipse, rgba(216,184,120,0.10), transparent 65%)", animation: "kcw-pulse 6s ease-in-out 1.2s infinite" }} />
+              <div data-kcw-anim className="absolute bottom-[6%] h-[90px] w-[70%] rounded-full" style={{ background: "radial-gradient(ellipse, rgba(216,184,120,0.10), transparent 65%)", animation: "kcw-pulse 6s ease-in-out 1.2s infinite" }} />
               {/* volumetric light beams (static gradient, opacity-animated) */}
-              <div data-kcw-anim className="absolute -top-6 left-1/2 h-[240px] w-[120px] -translate-x-1/2" style={{ background: "linear-gradient(180deg, rgba(245,243,236,0.09), transparent 78%)", clipPath: "polygon(38% 0, 62% 0, 100% 100%, 0 100%)", animation: "kcw-beam 7s ease-in-out infinite" }} />
+              <div data-kcw-anim className="absolute -top-6 left-1/2 h-[120px] w-[120px] -translate-x-1/2" style={{ background: "linear-gradient(180deg, rgba(245,243,236,0.09), transparent 78%)", clipPath: "polygon(38% 0, 62% 0, 100% 100%, 0 100%)", animation: "kcw-beam 7s ease-in-out infinite" }} />
             </div>
 
             {/* orbit ring guides (static transforms, gentle opacity pulse) */}
@@ -593,7 +593,7 @@ export default function WhyKalyanChemist() {
             </div>
 
             {/* ── 3D SCENE CONTAINER ── */}
-            <div ref={sceneRef} className="relative h-[300px] w-[300px] sm:h-[380px] sm:w-[380px]" style={{ perspective: "1100px", transformStyle: "preserve-3d" }}>
+            <div ref={sceneRef} className="relative h-[160px] w-[160px] sm:h-[220px] sm:w-[220px]" style={{ perspective: "1100px", transformStyle: "preserve-3d" }}>
 
               {/* ── ROTATING KC LOGO ── */}
               <div
@@ -770,7 +770,7 @@ export default function WhyKalyanChemist() {
         </div>
 
         {/* ── BOTTOM HEADING ── */}
-        <motion.div initial="hidden" animate={revealed ? "visible" : "hidden"} variants={footV} className="mt-14 sm:mt-20 text-center">
+        <motion.div initial="hidden" animate={revealed ? "visible" : "hidden"} variants={footV} className="mt-6 sm:mt-10 text-center">
           <h2 className="text-[clamp(1.5rem,4vw,3.2rem)] font-black uppercase leading-[1.08] tracking-tight">
             <span className="bg-gradient-to-r from-[#F0D9A3] via-[#F5F3EC] to-[#16A36A] bg-clip-text text-transparent" style={{ WebkitTextFillColor: "transparent" }}>
               Your Health, Our Priority
