@@ -252,16 +252,6 @@ function KCShield() {
   );
 }
 
-/* solid interior silhouette — forms the physical EDGE of the 3D logo.
-   Always rendered (no backface culling), so at the 90° edge-on moments of
-   the front↔back turn the object shows as a solid slab instead of vanishing. */
-function KCShieldCore() {
-  return (
-    <svg viewBox="0 0 200 230" fill="none" className="size-full" aria-hidden="true">
-      <path d="M100 8 L185 48 V130 C185 185 150 215 100 228 C50 215 15 185 15 130 V48 Z" fill="#0A5E3F" />
-    </svg>
-  );
-}
 
 /* ═══════════════════════════════════════════════════════════════════════════
    MAIN COMPONENT
@@ -614,28 +604,39 @@ export default function WhyKalyanChemist() {
               {/* ── KC LOGO — solid two-sided 3D object: turns FRONT ↔ BACK in place ──
                   ONE wrapper (preserve-3d, origin center) carries the complete
                   symbol: detailed front face at +Z, mirrored back face at −Z and
-                  a filled interior stack that forms the object's edge. At the
-                  edge-on moments the interior renders as a solid slab, so the
-                  logo NEVER disappears, never gaps and never splits into two.
-                  No translate / opacity / scale animation — the anchor position
-                  is fixed; only the Y-orientation changes:
+                  one solid emerald SIDE-WALL that is the object's physical edge.
+                  The wall is perpendicular to the faces, so at the 90°/270°
+                  edge-on moments (where both faces are culled) the wall fully
+                  faces the viewer — the logo can NEVER blink, flash or show an
+                  empty frame. No translate / opacity / scale animation — the
+                  anchor position is fixed; only the Y-orientation changes:
                   FRONT → 180° → BACK → 180° → FRONT (9s continuous cycle). */}
               <div
                 ref={logoRef}
-                className="absolute inset-[18%] sm:inset-[20%]"
+                className="absolute inset-[22%] sm:inset-[24%]"
                 style={{
                   transformStyle: "preserve-3d",
                   transformOrigin: "center center",
+                  willChange: "transform",
                   transform: "rotateY(0deg) rotateX(5deg)",
                   animation: useCssAnim ? "kcw-logo-spin 9s linear infinite" : undefined,
                 }}
               >
-                {/* interior: solid emerald edge of the object (always rendered) */}
-                {[-6, -4, -2, 0, 2, 4, 6].map((z) => (
-                  <div key={z} className="absolute inset-0" style={{ transform: `translateZ(${z}px)` }}>
-                    <KCShieldCore />
-                  </div>
-                ))}
+                {/* side wall — the object's EDGE. Renders from both sides (no
+                    culling) and is at full width exactly when the two detailed
+                    faces turn edge-on, eliminating the blink completely. */}
+                <div
+                  className="absolute"
+                  style={{
+                    left: "50%",
+                    top: "12%",
+                    width: 16,
+                    height: "76%",
+                    marginLeft: -8,
+                    transform: "rotateY(90deg)",
+                    background: "linear-gradient(180deg, #0E8155 0%, #0B6E49 35%, #09543A 70%, #062E20 100%)",
+                  }}
+                />
                 {/* back face — mirrored, so the logo stays intact from behind */}
                 <div className="absolute inset-0" style={{ transform: "rotateY(180deg) translateZ(8px)", backfaceVisibility: "hidden" }}>
                   <KCShield />
@@ -648,7 +649,7 @@ export default function WhyKalyanChemist() {
 
               {/* floor reflection of the logo */}
               <div
-                className="pointer-events-none absolute inset-x-[18%] bottom-[2%] h-6 opacity-25"
+                className="pointer-events-none absolute inset-x-[22%] sm:inset-x-[24%] bottom-[2%] h-6 opacity-25"
                 aria-hidden="true"
                 style={{
                   transform: "rotateX(78deg)",
