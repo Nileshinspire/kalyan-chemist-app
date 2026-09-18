@@ -289,7 +289,8 @@ export default function WhyKalyanChemist() {
   const parallaxCur = useRef({ nx: 0, ny: 0 });
   const liveRef = useRef(false);
   const rafRef = useRef<number | null>(null);
-  const spinRef = useRef(0);      /* logo rotation accumulator (deg) */
+  const spinRef = useRef(0);      /* logo rotation accumulator (rad) */
+  const orbitAngleRef = useRef(0); /* orbit revolution accumulator (deg) */
   const lastTRef = useRef<number | null>(null);
   const orbitsRef = useRef<(HTMLDivElement | null)[]>([]);
   const pointerInRef = useRef(false);
@@ -318,31 +319,24 @@ export default function WhyKalyanChemist() {
       s.style.transform = `translate3d(${(nx * 12).toFixed(2)}px, ${(ny * 10).toFixed(2)}px, 0) rotateX(${(ny * -2.5).toFixed(2)}deg) rotateY(${(nx * 3.5).toFixed(2)}deg)`;
     }
 
-    /* 2) logo real position orbit — single unified object, travels circular path */
+    /* 2) logo 360° continuous rotation in place — extruded 3D shield */
     const logo = logoRef.current;
     if (logo) {
-      /* constant-speed angle — NOT multiplied by energy so orbit is steady */
-      spinRef.current += dt * 0.0008;
+      spinRef.current = (spinRef.current + dt * 0.000698 * e) % (Math.PI * 2);
       const a = spinRef.current;
-
-      /* position orbit: 20px horizontal, 22px vertical ellipse */
-      const orbitX = Math.cos(a) * 20;
-      const orbitY = Math.sin(a) * 22;
-
-      /* subtle 3D tilt that follows the orbit direction */
-      const yRot = Math.sin(a) * 14;
-      const xRot = 10 + Math.cos(a) * 6;
-
-      logo.style.transform = `translate3d(${orbitX.toFixed(2)}px, ${orbitY.toFixed(2)}px, 0) rotateY(${yRot.toFixed(2)}deg) rotateX(${xRot.toFixed(2)}deg)`;
+      const yDeg = (a * 180) / Math.PI;
+      const floatY = Math.sin(a * 2) * 4 * e;
+      logo.style.transform = `translateY(${floatY.toFixed(2)}px) rotateY(${yDeg.toFixed(2)}deg) rotateX(5deg)`;
     }
 
     /* 3) orbits: gentle float + slow revolution (depth-corrected) */
+    orbitAngleRef.current = (orbitAngleRef.current + dt * 0.014 * e) % 360;
     for (let i = 0; i < ORBIT_OBJECTS.length; i++) {
       const el = orbitsRef.current[i];
       if (!el) continue;
       const o = ORBIT_OBJECTS[i];
       const phase = ORBIT_PHASE[i];
-      const rev = (spinRef.current * (o.orbitSpeed / 26)) + phase; /* deg */
+      const rev = (orbitAngleRef.current * (o.orbitSpeed / 26)) + phase; /* deg */
       const rad = (rev * Math.PI) / 180;
       const depth = Math.cos(rad); /* -1 back … +1 front */
       const x = Math.sin(rad) * o.orbitRadius * e;
@@ -491,7 +485,7 @@ export default function WhyKalyanChemist() {
       {/* ════ KEYFRAMES ════ */}
       <style>{`
         /* CSS fallback animations (mobile / reduced-motion only) */
-        @keyframes kcw-logo-float{0%{transform:translate3d(20px,0,0) rotateY(0deg) rotateX(10deg)}25%{transform:translate3d(0,22px,0) rotateY(14deg) rotateX(16deg)}50%{transform:translate3d(-20px,0,0) rotateY(0deg) rotateX(10deg)}75%{transform:translate3d(0,-22px,0) rotateY(-14deg) rotateX(4deg)}100%{transform:translate3d(20px,0,0) rotateY(0deg) rotateX(10deg)}}
+        @keyframes kcw-logo-spin{from{transform:rotateY(0deg) rotateX(5deg)}to{transform:rotateY(360deg) rotateX(5deg)}}
         @keyframes kcw-orbit-css{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
         @keyframes kcw-deco-f1{0%,100%{transform:translateY(0) rotate3d(1,1,0,0deg)}50%{transform:translateY(-9px) rotate3d(1,1,0,7deg)}}
         @keyframes kcw-deco-f2{0%,100%{transform:translateY(0) rotate3d(0,1,1,0deg)}50%{transform:translateY(7px) rotate3d(0,1,1,-5deg)}}
@@ -606,19 +600,35 @@ export default function WhyKalyanChemist() {
             {/* ── 3D SCENE CONTAINER ── */}
             <div ref={sceneRef} className="relative h-[170px] w-[170px] sm:h-[230px] sm:w-[230px]" style={{ perspective: "1100px", transformStyle: "preserve-3d" }}>
 
-              {/* ── KC LOGO — single unified 3D object ── */}
+              {/* ── KC LOGO — extruded 3D shield, rotates 360° in place ── */}
               <div
                 ref={logoRef}
                 className="absolute inset-[18%] sm:inset-[20%]"
                 style={{
                   transformStyle: "preserve-3d",
                   transform: "rotateY(0deg) rotateX(5deg)",
-                  animation: useCssAnim ? "kcw-logo-float 8s ease-in-out infinite" : undefined,
+                  animation: useCssAnim ? "kcw-logo-spin 9s linear infinite" : undefined,
                 }}
               >
-                <KCShield />
-                {/* subtle depth shadow behind the shield */}
-                <div className="absolute -inset-3 rounded-full" style={{ transform: "translateZ(-6px)", background: "radial-gradient(circle, rgba(22,163,106,0.14), transparent 60%)" }} />
+                {/* front face */}
+                <div className="absolute inset-0" style={{ transform: "translateZ(10px)" }}>
+                  <KCShield />
+                </div>
+                {/* back face — same shield, mirrored, offset back */}
+                <div className="absolute inset-0" style={{ transform: "rotateY(180deg) translateZ(10px)" }}>
+                  <KCShield />
+                </div>
+                {/* side edge panels — fill the gap so the object is solid from all angles */}
+                {[0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330].map((deg) => (
+                  <div
+                    key={deg}
+                    className="absolute inset-0"
+                    style={{ transform: `rotateY(${deg}deg) translateZ(0px)`, backfaceVisibility: "hidden" }}
+                  />
+                ))}
+                {/* side-cap fill: dark emerald planes at +/- Z to close the edge */}
+                <div className="absolute inset-0" style={{ transform: "translateZ(5px)", background: "linear-gradient(180deg, #0B6E49 0%, #09543A 60%, #062E20 100%)", clipPath: "path('M100 8 L185 48 V130 C185 185 150 215 100 228 C50 215 15 185 15 130 V48 Z')", backfaceVisibility: "hidden" }} />
+                <div className="absolute inset-0" style={{ transform: "translateZ(-5px) rotateY(180deg)", background: "linear-gradient(180deg, #09543A 0%, #062E20 100%)", clipPath: "path('M100 8 L185 48 V130 C185 185 150 215 100 228 C50 215 15 185 15 130 V48 Z')", backfaceVisibility: "hidden" }} />
               </div>
 
               {/* floor reflection of the logo */}
