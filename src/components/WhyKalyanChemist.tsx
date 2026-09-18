@@ -252,17 +252,6 @@ function KCShield() {
   );
 }
 
-/* interior slice: cheap solid silhouette used to build the extruded volume.
-   Stack of these between the two faces keeps the shield SOLID at every
-   angle — no see-through sliver at 90°/270°, one unified object. */
-function KCShieldCore() {
-  return (
-    <svg viewBox="0 0 200 230" fill="none" className="size-full" aria-hidden="true">
-      <path d="M100 8 L185 48 V130 C185 185 150 215 100 228 C50 215 15 185 15 130 V48 Z" fill="#0A5E3F" />
-    </svg>
-  );
-}
-
 /* ═══════════════════════════════════════════════════════════════════════════
    MAIN COMPONENT
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -611,28 +600,37 @@ export default function WhyKalyanChemist() {
             {/* ── 3D SCENE CONTAINER ── */}
             <div ref={sceneRef} className="relative h-[170px] w-[170px] sm:h-[230px] sm:w-[230px]" style={{ perspective: "1100px", transformStyle: "preserve-3d" }}>
 
-              {/* ── KC LOGO — extruded 3D shield, rotates 360° in place ── */}
+              {/* ── KC LOGO — 3D turntable: full 360° rotation IN PLACE ──
+                  One single wrapper rotates the complete symbol as ONE object.
+                  Inside are two crossed shield planes (0° and 90°), each with a
+                  front + back face. At every angle of the spin, at least one
+                  plane faces the viewer at ≥ ~70% width, so the symbol NEVER
+                  disappears, NEVER shows a gap and is NEVER mirrored. There is
+                  no translate, no opacity and no scale animation — the anchor
+                  position is fixed; only the orientation changes. */}
               <div
                 ref={logoRef}
                 className="absolute inset-[18%] sm:inset-[20%]"
                 style={{
                   transformStyle: "preserve-3d",
+                  transformOrigin: "center center",
                   transform: "rotateY(0deg) rotateX(5deg)",
                   animation: useCssAnim ? "kcw-logo-spin 9s linear infinite" : undefined,
                 }}
               >
-                {/* interior volume slices — keep the object solid from every angle */}
-                {[-7, -5, -3, -1, 1, 3, 5, 7].map((z) => (
-                  <div key={z} className="absolute inset-0" style={{ transform: `translateZ(${z}px)`, backfaceVisibility: "hidden" }}>
-                    <KCShieldCore />
-                  </div>
-                ))}
-                {/* back face */}
-                <div className="absolute inset-0" style={{ transform: "rotateY(180deg) translateZ(9px)", backfaceVisibility: "hidden" }}>
+                {/* facing direction A (0°) — front + back */}
+                <div className="absolute inset-0" style={{ transform: "rotateY(0deg)", backfaceVisibility: "hidden" }}>
                   <KCShield />
                 </div>
-                {/* front face */}
-                <div className="absolute inset-0" style={{ transform: "translateZ(9px)", backfaceVisibility: "hidden" }}>
+                <div className="absolute inset-0" style={{ transform: "rotateY(180deg)", backfaceVisibility: "hidden" }}>
+                  <KCShield />
+                </div>
+                {/* facing direction B (90°) — carries the silhouette through what
+                    used to be the collapse points, front + back */}
+                <div className="absolute inset-0" style={{ transform: "rotateY(90deg)", backfaceVisibility: "hidden" }}>
+                  <KCShield />
+                </div>
+                <div className="absolute inset-0" style={{ transform: "rotateY(270deg)", backfaceVisibility: "hidden" }}>
                   <KCShield />
                 </div>
               </div>
