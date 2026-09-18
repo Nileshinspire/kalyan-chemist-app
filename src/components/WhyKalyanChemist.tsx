@@ -52,12 +52,12 @@ interface OrbitObj {
 }
 
 const ORBIT_OBJECTS: OrbitObj[] = [
-  { label: "capsule", orbitRadius: 62, orbitSpeed: 38, selfRotSpeed: 12, size: 26, glow: EMERALD_SOFT + "0.35)" },
-  { label: "shield", orbitRadius: 56, orbitSpeed: 44, selfRotSpeed: 14, size: 22, glow: "rgba(22,163,106,0.30)" },
-  { label: "cross", orbitRadius: 70, orbitSpeed: 32, selfRotSpeed: 10, size: 20, glow: GOLD_SOFT + "0.28)" },
-  { label: "bottle", orbitRadius: 52, orbitSpeed: 48, selfRotSpeed: 16, size: 24, glow: "rgba(22,163,106,0.28)" },
-  { label: "plus", orbitRadius: 74, orbitSpeed: 34, selfRotSpeed: 13, size: 18, glow: EMERALD_SOFT + "0.24)" },
-  { label: "pill", orbitRadius: 66, orbitSpeed: 40, selfRotSpeed: 12, size: 22, glow: GOLD_SOFT + "0.26)" },
+  { label: "capsule", orbitRadius: 54, orbitSpeed: 38, selfRotSpeed: 12, size: 24, glow: EMERALD_SOFT + "0.35)" },
+  { label: "shield", orbitRadius: 48, orbitSpeed: 44, selfRotSpeed: 14, size: 20, glow: "rgba(22,163,106,0.30)" },
+  { label: "cross", orbitRadius: 60, orbitSpeed: 32, selfRotSpeed: 10, size: 18, glow: GOLD_SOFT + "0.28)" },
+  { label: "bottle", orbitRadius: 44, orbitSpeed: 48, selfRotSpeed: 16, size: 22, glow: "rgba(22,163,106,0.28)" },
+  { label: "plus", orbitRadius: 64, orbitSpeed: 34, selfRotSpeed: 13, size: 16, glow: EMERALD_SOFT + "0.24)" },
+  { label: "pill", orbitRadius: 56, orbitSpeed: 40, selfRotSpeed: 12, size: 20, glow: GOLD_SOFT + "0.26)" },
 ];
 
 /* per-orbit start angles (deg) — used in the single dynamic orbit transform */
@@ -318,14 +318,17 @@ export default function WhyKalyanChemist() {
       s.style.transform = `translate3d(${(nx * 12).toFixed(2)}px, ${(ny * 10).toFixed(2)}px, 0) rotateX(${(ny * -2.5).toFixed(2)}deg) rotateY(${(nx * 3.5).toFixed(2)}deg)`;
     }
 
-    /* 2) logo gentle oscillation — unified 3D object, never splits */
+    /* 2) logo continuous circular orbit — single unified object, never splits */
     const logo = logoRef.current;
     if (logo) {
-      spinRef.current += dt * 0.0008 * e;
-      const yRot = Math.sin(spinRef.current) * 18 * e;
-      const xRot = 5 + Math.sin(spinRef.current * 0.7) * 3 * e;
-      const floatY = Math.sin(spinRef.current * 1.2) * 5 * e;
-      logo.style.transform = `rotateY(${yRot.toFixed(2)}deg) rotateX(${xRot.toFixed(2)}deg) translateY(${floatY.toFixed(2)}px)`;
+      spinRef.current += dt * 0.00075 * e;
+      const angle = spinRef.current;
+      const yRot = Math.sin(angle) * 30 * e;
+      const xRot = 12 + Math.cos(angle * 0.6) * 8 * e;
+      const orbitX = Math.sin(angle * 0.8) * 6 * e;
+      const orbitY = Math.cos(angle) * 8 * e;
+      const orbitZ = Math.sin(angle * 1.1) * 10 * e;
+      logo.style.transform = `translate3d(${orbitX.toFixed(2)}px, ${orbitY.toFixed(2)}px, ${orbitZ.toFixed(2)}px) rotateY(${yRot.toFixed(2)}deg) rotateX(${xRot.toFixed(2)}deg)`;
     }
 
     /* 3) orbits: gentle float + slow revolution (depth-corrected) */
@@ -475,7 +478,7 @@ export default function WhyKalyanChemist() {
   return (
     <section
       ref={sectionRef}
-      className="relative overflow-hidden py-4 sm:py-6 lg:py-8"
+      className="relative overflow-hidden py-3 sm:py-4 lg:py-5"
       style={{ background: CHARCOAL }}
       onPointerMove={!prefersReducedMotion ? onSectionPointerMove : undefined}
       onPointerLeave={!prefersReducedMotion ? onSectionPointerLeave : undefined}
@@ -483,7 +486,7 @@ export default function WhyKalyanChemist() {
       {/* ════ KEYFRAMES ════ */}
       <style>{`
         /* CSS fallback animations (mobile / reduced-motion only) */
-        @keyframes kcw-logo-float{0%,100%{transform:rotateY(0deg) rotateX(5deg) translateY(0)}25%{transform:rotateY(14deg) rotateX(7deg) translateY(-4px)}50%{transform:rotateY(0deg) rotateX(5deg) translateY(0)}75%{transform:rotateY(-14deg) rotateX(3deg) translateY(4px)}}
+        @keyframes kcw-logo-float{0%{transform:translate3d(0,8px,0) rotateY(0deg) rotateX(12deg)}25%{transform:translate3d(5px,0,8px) rotateY(30deg) rotateX(20deg)}50%{transform:translate3d(0,-8px,0) rotateY(0deg) rotateX(12deg)}75%{transform:translate3d(-5px,0,-8px) rotateY(-30deg) rotateX(4deg)}100%{transform:translate3d(0,8px,0) rotateY(0deg) rotateX(12deg)}}
         @keyframes kcw-orbit-css{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
         @keyframes kcw-deco-f1{0%,100%{transform:translateY(0) rotate3d(1,1,0,0deg)}50%{transform:translateY(-9px) rotate3d(1,1,0,7deg)}}
         @keyframes kcw-deco-f2{0%,100%{transform:translateY(0) rotate3d(0,1,1,0deg)}50%{transform:translateY(7px) rotate3d(0,1,1,-5deg)}}
@@ -549,35 +552,35 @@ export default function WhyKalyanChemist() {
       {/* ════ LAYER 3 — CONTENT ════ */}
       <div className="relative z-10 mx-auto max-w-7xl px-5 sm:px-8">
         {/* ── TOP HEADING ── */}
-        <motion.div initial="hidden" animate={revealed ? "visible" : "hidden"} variants={headV} className="text-center mb-3 sm:mb-4">
+        <motion.div initial="hidden" animate={revealed ? "visible" : "hidden"} variants={headV} className="text-center mb-2 sm:mb-3">
           <h2 className="text-[clamp(1.8rem,5vw,4rem)] font-black uppercase leading-[0.92] tracking-tight">
             <span className="bg-gradient-to-b from-[#F5F3EC] via-[#F5F3EC]/90 to-[#F5F3EC]/40 bg-clip-text text-transparent" style={{ WebkitTextFillColor: "transparent" }}>
               Why Choose Us?
             </span>
           </h2>
-          <div className="mx-auto mt-3 h-px w-28 bg-gradient-to-r from-transparent via-[#16A36A]/70 to-transparent" />
+          <div className="mx-auto mt-2 h-px w-28 bg-gradient-to-r from-transparent via-[#16A36A]/70 to-transparent" />
         </motion.div>
 
         {/* ── MAIN: 3D SCENE + CARDS ── */}
-        <div className="grid items-center gap-3 lg:grid-cols-[1fr_1.3fr] lg:gap-6">
+        <div className="grid items-center gap-2.5 lg:grid-cols-[1fr_1.3fr] lg:gap-5">
 
           {/* ── 3D SCENE ── */}
           <motion.div initial="hidden" animate={revealed ? "visible" : "hidden"} variants={sceneV} className="relative flex items-center justify-center">
             {/* stage backdrop: layered light pools behind the logo */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none" aria-hidden="true">
               {/* wide deep-emerald pool */}
-              <div className="absolute h-[220px] w-[220px] sm:h-[280px] sm:w-[280px] rounded-full" style={{ background: "radial-gradient(circle, rgba(8,122,82,0.30), transparent 68%)" }} />
+              <div className="absolute h-[190px] w-[190px] sm:h-[250px] sm:w-[250px] rounded-full" style={{ background: "radial-gradient(circle, rgba(8,122,82,0.30), transparent 68%)" }} />
               {/* emerald core */}
-              <div data-kcw-anim className="h-[170px] w-[170px] sm:h-[220px] sm:w-[220px] rounded-full" style={{ background: "radial-gradient(circle, rgba(22,163,106,0.18), transparent 62%)", animation: "kcw-pulse 5s ease-in-out infinite" }} />
+              <div data-kcw-anim className="h-[140px] w-[140px] sm:h-[190px] sm:w-[190px] rounded-full" style={{ background: "radial-gradient(circle, rgba(22,163,106,0.18), transparent 62%)", animation: "kcw-pulse 5s ease-in-out infinite" }} />
               {/* champagne under-glow */}
-              <div data-kcw-anim className="absolute bottom-[6%] h-[80px] w-[70%] rounded-full" style={{ background: "radial-gradient(ellipse, rgba(216,184,120,0.10), transparent 65%)", animation: "kcw-pulse 6s ease-in-out 1.2s infinite" }} />
+              <div data-kcw-anim className="absolute bottom-[6%] h-[60px] w-[70%] rounded-full" style={{ background: "radial-gradient(ellipse, rgba(216,184,120,0.10), transparent 65%)", animation: "kcw-pulse 6s ease-in-out 1.2s infinite" }} />
               {/* volumetric light beams (static gradient, opacity-animated) */}
-              <div data-kcw-anim className="absolute -top-6 left-1/2 h-[130px] w-[100px] -translate-x-1/2" style={{ background: "linear-gradient(180deg, rgba(245,243,236,0.09), transparent 78%)", clipPath: "polygon(38% 0, 62% 0, 100% 100%, 0 100%)", animation: "kcw-beam 7s ease-in-out infinite" }} />
+              <div data-kcw-anim className="absolute -top-6 left-1/2 h-[100px] w-[90px] -translate-x-1/2" style={{ background: "linear-gradient(180deg, rgba(245,243,236,0.09), transparent 78%)", clipPath: "polygon(38% 0, 62% 0, 100% 100%, 0 100%)", animation: "kcw-beam 7s ease-in-out infinite" }} />
             </div>
 
             {/* orbit ring guides (static transforms, gentle opacity pulse) */}
             <div className="pointer-events-none absolute" style={{ perspective: "900px" }} aria-hidden="true">
-              {[62, 56, 70, 52].map((r, i) => (
+              {[54, 48, 60, 44].map((r, i) => (
                 <div
                   key={i}
                   data-kcw-anim
@@ -596,7 +599,7 @@ export default function WhyKalyanChemist() {
             </div>
 
             {/* ── 3D SCENE CONTAINER ── */}
-            <div ref={sceneRef} className="relative h-[190px] w-[190px] sm:h-[260px] sm:w-[260px]" style={{ perspective: "1100px", transformStyle: "preserve-3d" }}>
+            <div ref={sceneRef} className="relative h-[170px] w-[170px] sm:h-[230px] sm:w-[230px]" style={{ perspective: "1100px", transformStyle: "preserve-3d" }}>
 
               {/* ── KC LOGO — single unified 3D object ── */}
               <div
@@ -676,7 +679,7 @@ export default function WhyKalyanChemist() {
 
           {/* ── CARDS COLUMN ── */}
           <div>
-            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 sm:gap-3">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-2.5">
               {CARDS.map((card, i) => {
                 const isActive = activeIdx === i;
                 const Icon = card.icon;
@@ -716,7 +719,7 @@ export default function WhyKalyanChemist() {
                     {/* card body */}
                     <div
                       ref={(el) => { cardRefs.current[i] = el; }}
-                      className={`group relative z-10 overflow-hidden rounded-2xl border p-4 sm:p-5 transition-[transform,border-color] duration-[260ms] ease-out will-change-transform ${
+                      className={`group relative z-10 overflow-hidden rounded-2xl border p-3.5 sm:p-4 transition-[transform,border-color] duration-[260ms] ease-out will-change-transform ${
                         isActive ? "border-[#16A36A]/30" : "border-[#F5F3EC]/[0.07]"
                       }`}
                       style={{
@@ -766,7 +769,7 @@ export default function WhyKalyanChemist() {
         </div>
 
         {/* ── BOTTOM HEADING ── */}
-        <motion.div initial="hidden" animate={revealed ? "visible" : "hidden"} variants={footV} className="mt-4 sm:mt-6 text-center">
+        <motion.div initial="hidden" animate={revealed ? "visible" : "hidden"} variants={footV} className="mt-3 sm:mt-4 text-center">
           <h2 className="text-[clamp(1.5rem,4vw,3.2rem)] font-black uppercase leading-[1.08] tracking-tight">
             <span className="bg-gradient-to-r from-[#F0D9A3] via-[#F5F3EC] to-[#16A36A] bg-clip-text text-transparent" style={{ WebkitTextFillColor: "transparent" }}>
               Your Health, Our Priority
