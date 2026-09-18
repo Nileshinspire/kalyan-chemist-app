@@ -469,7 +469,7 @@ export default function WhyKalyanChemist() {
   return (
     <section
       ref={sectionRef}
-      className="relative overflow-hidden py-2 sm:py-3 lg:py-4"
+      className="relative overflow-hidden py-1.5 sm:py-2.5 lg:py-3"
       style={{ background: CHARCOAL }}
       onPointerMove={!prefersReducedMotion ? onSectionPointerMove : undefined}
       onPointerLeave={!prefersReducedMotion ? onSectionPointerLeave : undefined}
@@ -543,17 +543,17 @@ export default function WhyKalyanChemist() {
       {/* ════ LAYER 3 — CONTENT ════ */}
       <div className="relative z-10 mx-auto max-w-7xl px-5 sm:px-8">
         {/* ── TOP HEADING ── */}
-        <motion.div initial="hidden" animate={revealed ? "visible" : "hidden"} variants={headV} className="text-center mb-1.5 sm:mb-2">
+        <motion.div initial="hidden" animate={revealed ? "visible" : "hidden"} variants={headV} className="text-center mb-1 sm:mb-1.5">
           <h2 className="text-[clamp(1.8rem,5vw,4rem)] font-black uppercase leading-[0.92] tracking-tight">
             <span className="bg-gradient-to-b from-[#F5F3EC] via-[#F5F3EC]/90 to-[#F5F3EC]/40 bg-clip-text text-transparent" style={{ WebkitTextFillColor: "transparent" }}>
               Why Choose Us?
             </span>
           </h2>
-          <div className="mx-auto mt-1.5 h-px w-28 bg-gradient-to-r from-transparent via-[#16A36A]/70 to-transparent" />
+          <div className="mx-auto mt-1 h-px w-28 bg-gradient-to-r from-transparent via-[#16A36A]/70 to-transparent" />
         </motion.div>
 
         {/* ── MAIN: 3D SCENE + CARDS ── */}
-        <div className="grid items-center gap-2 lg:grid-cols-[1fr_1.3fr] lg:gap-4">
+        <div className="grid items-center gap-1.5 lg:grid-cols-[1fr_1.3fr] lg:gap-3">
 
           {/* ── 3D SCENE ── */}
           <motion.div initial="hidden" animate={revealed ? "visible" : "hidden"} variants={sceneV} className="relative flex items-center justify-center">
@@ -705,7 +705,7 @@ export default function WhyKalyanChemist() {
 
           {/* ── CARDS COLUMN ── */}
           <div>
-            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2 sm:gap-2">
+            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2 sm:gap-1.5">
               {CARDS.map((card, i) => {
                 const isActive = activeIdx === i;
                 const Icon = card.icon;
@@ -745,7 +745,7 @@ export default function WhyKalyanChemist() {
                     {/* card body */}
                     <div
                       ref={(el) => { cardRefs.current[i] = el; }}
-                      className={`group relative z-10 overflow-hidden rounded-2xl border p-3 sm:p-3.5 transition-[transform,border-color] duration-[260ms] ease-out will-change-transform ${
+                      className={`group relative z-10 overflow-hidden rounded-2xl border p-2.5 sm:p-3 transition-[transform,border-color] duration-[260ms] ease-out will-change-transform ${
                         isActive ? "border-[#16A36A]/30" : "border-[#F5F3EC]/[0.07]"
                       }`}
                       style={{
@@ -768,19 +768,19 @@ export default function WhyKalyanChemist() {
 
                       {/* icon */}
                       <div
-                        className={`relative mb-2 flex size-11 shrink-0 items-center justify-center rounded-xl border transition-colors duration-300 ${
+                        className={`relative mb-1.5 flex size-9 shrink-0 items-center justify-center rounded-xl border transition-colors duration-300 ${
                           isActive ? "border-[#D8B878]/30 bg-[#16A36A]/12" : "border-[#F5F3EC]/[0.07] bg-[#F5F3EC]/[0.04] group-hover:bg-[#F5F3EC]/[0.07]"
                         }`}
                         style={isActive ? { ["--gc" as string]: card.glowColor, animation: "kcw-iglow 4s ease-in-out infinite" } : undefined}
                       >
-                        <Icon className={`size-6 transition-colors duration-300 ${isActive ? "text-[#F0D9A3]" : "text-[#B8BBB5] group-hover:text-[#F5F3EC]"}`} strokeWidth={1.6} />
+                        <Icon className={`size-5 transition-colors duration-300 ${isActive ? "text-[#F0D9A3]" : "text-[#B8BBB5] group-hover:text-[#F5F3EC]"}`} strokeWidth={1.6} />
                       </div>
 
                       {/* text */}
-                      <h3 className={`text-[13px] font-bold uppercase tracking-wide leading-snug transition-colors duration-300 ${isActive ? "text-[#F5F3EC]" : "text-[#B8BBB5] group-hover:text-[#F5F3EC]"}`}>
+                      <h3 className={`text-[12px] font-bold uppercase tracking-wide leading-snug transition-colors duration-300 ${isActive ? "text-[#F5F3EC]" : "text-[#B8BBB5] group-hover:text-[#F5F3EC]"}`}>
                         {card.title}
                       </h3>
-                      <p className={`mt-1 text-[12px] leading-relaxed transition-colors duration-300 ${isActive ? "text-[#F5F3EC]/60" : "text-[#B8BBB5]/45 group-hover:text-[#B8BBB5]/70"}`}>
+                      <p className={`mt-0.5 text-[11px] leading-relaxed transition-colors duration-300 ${isActive ? "text-[#F5F3EC]/60" : "text-[#B8BBB5]/45 group-hover:text-[#B8BBB5]/70"}`}>
                         {card.subtitle}
                       </p>
 
@@ -795,7 +795,7 @@ export default function WhyKalyanChemist() {
         </div>
 
         {/* ── BOTTOM HEADING ── */}
-        <motion.div initial="hidden" animate={revealed ? "visible" : "hidden"} variants={footV} className="mt-2 sm:mt-3 text-center">
+        <motion.div initial="hidden" animate={revealed ? "visible" : "hidden"} variants={footV} className="mt-1.5 sm:mt-2 text-center">
           <h2 className="text-[clamp(1.5rem,4vw,3.2rem)] font-black uppercase leading-[1.08] tracking-tight">
             <span className="bg-gradient-to-r from-[#F0D9A3] via-[#F5F3EC] to-[#16A36A] bg-clip-text text-transparent" style={{ WebkitTextFillColor: "transparent" }}>
               Your Health, Our Priority
