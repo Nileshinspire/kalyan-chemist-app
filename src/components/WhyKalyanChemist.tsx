@@ -318,17 +318,22 @@ export default function WhyKalyanChemist() {
       s.style.transform = `translate3d(${(nx * 12).toFixed(2)}px, ${(ny * 10).toFixed(2)}px, 0) rotateX(${(ny * -2.5).toFixed(2)}deg) rotateY(${(nx * 3.5).toFixed(2)}deg)`;
     }
 
-    /* 2) logo continuous circular orbit — single unified object, never splits */
+    /* 2) logo real position orbit — single unified object, travels circular path */
     const logo = logoRef.current;
     if (logo) {
-      spinRef.current += dt * 0.00075 * e;
-      const angle = spinRef.current;
-      const yRot = Math.sin(angle) * 30 * e;
-      const xRot = 12 + Math.cos(angle * 0.6) * 8 * e;
-      const orbitX = Math.sin(angle * 0.8) * 6 * e;
-      const orbitY = Math.cos(angle) * 8 * e;
-      const orbitZ = Math.sin(angle * 1.1) * 10 * e;
-      logo.style.transform = `translate3d(${orbitX.toFixed(2)}px, ${orbitY.toFixed(2)}px, ${orbitZ.toFixed(2)}px) rotateY(${yRot.toFixed(2)}deg) rotateX(${xRot.toFixed(2)}deg)`;
+      /* constant-speed angle — NOT multiplied by energy so orbit is steady */
+      spinRef.current += dt * 0.0008;
+      const a = spinRef.current;
+
+      /* position orbit: 20px horizontal, 22px vertical ellipse */
+      const orbitX = Math.cos(a) * 20;
+      const orbitY = Math.sin(a) * 22;
+
+      /* subtle 3D tilt that follows the orbit direction */
+      const yRot = Math.sin(a) * 14;
+      const xRot = 10 + Math.cos(a) * 6;
+
+      logo.style.transform = `translate3d(${orbitX.toFixed(2)}px, ${orbitY.toFixed(2)}px, 0) rotateY(${yRot.toFixed(2)}deg) rotateX(${xRot.toFixed(2)}deg)`;
     }
 
     /* 3) orbits: gentle float + slow revolution (depth-corrected) */
@@ -486,7 +491,7 @@ export default function WhyKalyanChemist() {
       {/* ════ KEYFRAMES ════ */}
       <style>{`
         /* CSS fallback animations (mobile / reduced-motion only) */
-        @keyframes kcw-logo-float{0%{transform:translate3d(0,8px,0) rotateY(0deg) rotateX(12deg)}25%{transform:translate3d(5px,0,8px) rotateY(30deg) rotateX(20deg)}50%{transform:translate3d(0,-8px,0) rotateY(0deg) rotateX(12deg)}75%{transform:translate3d(-5px,0,-8px) rotateY(-30deg) rotateX(4deg)}100%{transform:translate3d(0,8px,0) rotateY(0deg) rotateX(12deg)}}
+        @keyframes kcw-logo-float{0%{transform:translate3d(20px,0,0) rotateY(0deg) rotateX(10deg)}25%{transform:translate3d(0,22px,0) rotateY(14deg) rotateX(16deg)}50%{transform:translate3d(-20px,0,0) rotateY(0deg) rotateX(10deg)}75%{transform:translate3d(0,-22px,0) rotateY(-14deg) rotateX(4deg)}100%{transform:translate3d(20px,0,0) rotateY(0deg) rotateX(10deg)}}
         @keyframes kcw-orbit-css{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
         @keyframes kcw-deco-f1{0%,100%{transform:translateY(0) rotate3d(1,1,0,0deg)}50%{transform:translateY(-9px) rotate3d(1,1,0,7deg)}}
         @keyframes kcw-deco-f2{0%,100%{transform:translateY(0) rotate3d(0,1,1,0deg)}50%{transform:translateY(7px) rotate3d(0,1,1,-5deg)}}
