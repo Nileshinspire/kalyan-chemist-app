@@ -253,34 +253,50 @@ function KCShield({ size = 200, opacity = 1 }: { size?: number; opacity?: number
 
 function MusicControl() {
   const [playing, setPlaying] = useState(false);
-  const [interacted, setInteracted] = useState(false);
   const padRef = useRef<ReturnType<typeof createAmbientPad> | null>(null);
   const ctxRef = useRef<AudioContext | null>(null);
+  const autoStartedRef = useRef(false);
 
-  const toggle = useCallback(() => {
+  const startMusic = useCallback(() => {
     if (!ctxRef.current) {
       ctxRef.current = new AudioContext();
     }
     const ctx = ctxRef.current;
+    if (ctx.state === "suspended") ctx.resume();
+    if (!padRef.current) padRef.current = createAmbientPad(ctx);
+    padRef.current.fadeIn(3);
+    setPlaying(true);
+  }, []);
 
-    if (ctx.state === "suspended") {
-      ctx.resume();
-    }
+  const stopMusic = useCallback(() => {
+    padRef.current?.fadeOut(2);
+    setPlaying(false);
+  }, []);
 
-    if (!padRef.current) {
-      padRef.current = createAmbientPad(ctx);
-    }
-
-    const next = !playing;
-    setPlaying(next);
-    setInteracted(true);
-
-    if (next) {
-      padRef.current.fadeIn(3);
-    } else {
-      padRef.current.fadeOut(2);
-    }
-  }, [playing]);
+  // Auto-start on first user interaction (scroll, click, touch)
+  useEffect(() => {
+    if (autoStartedRef.current) return;
+    const handler = () => {
+      if (autoStartedRef.current) return;
+      autoStartedRef.current = true;
+      startMusic();
+      // Remove all listeners after first interaction
+      window.removeEventListener("scroll", handler);
+      window.removeEventListener("click", handler);
+      window.removeEventListener("touchstart", handler);
+      window.removeEventListener("pointerdown", handler);
+    };
+    window.addEventListener("scroll", handler, { passive: true, once: false });
+    window.addEventListener("click", handler, { once: true });
+    window.addEventListener("touchstart", handler, { passive: true, once: true });
+    window.addEventListener("pointerdown", handler, { once: true });
+    return () => {
+      window.removeEventListener("scroll", handler);
+      window.removeEventListener("click", handler);
+      window.removeEventListener("touchstart", handler);
+      window.removeEventListener("pointerdown", handler);
+    };
+  }, [startMusic]);
 
   // Clean up on unmount
   useEffect(() => {
@@ -294,8 +310,8 @@ function MusicControl() {
     <motion.button
       initial={{ opacity: 0, scale: 0.8 }}
       animate={{ opacity: 1, scale: 1 }}
-      transition={{ delay: 2, duration: 0.6, ease: EASE }}
-      onClick={toggle}
+      transition={{ delay: 1, duration: 0.6, ease: EASE }}
+      onClick={() => (playing ? stopMusic() : startMusic())}
       className="fixed bottom-6 right-6 z-50 flex size-11 items-center justify-center rounded-full border border-white/10 bg-black/60 text-white/60 backdrop-blur-md transition-all duration-300 hover:border-[#16A36A]/30 hover:text-[#16A36A] hover:shadow-lg hover:shadow-[#16A36A]/10 cursor-pointer"
       aria-label={playing ? "Mute background music" : "Play background music"}
       title={playing ? "Mute" : "Play ambient music"}
@@ -306,8 +322,9 @@ function MusicControl() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   SECTION 1 — CINEMATIC INTRO (smoke + giant typography)
-   Scroll progress 0→1 drives: smoke disperses, words cycle, shield reveals
+   SECTION 1 — CINEMATIC INTRO
+   Hero visual + giant typography visible from FIRST FRAME,
+   transforming together as user scrolls.
    ═══════════════════════════════════════════════════════════════════ */
 
 function CinematicIntro() {
@@ -317,92 +334,135 @@ function CinematicIntro() {
     offset: ["start start", "end start"],
   });
 
-  // Smoke fades out as user scrolls
-  const smokeOpacity = useTransform(scrollYProgress, [0, 0.4], [1, 0]);
-  // Light rays intensify
-  const rayOpacity = useTransform(scrollYProgress, [0, 0.3, 0.6], [0.4, 0.8, 0]);
+  // Hero image zooms as user scrolls
+  const heroScale = useTransform(scrollYProgress, [0, 0.6], [1, 1.25]);
 
-  // Three words cycle: EXPLORE (0-0.3), KALYAN CHEMIST (0.25-0.6), HEALTHCARE (0.55-0.85)
-  const w1Opacity = useTransform(scrollYProgress, [0, 0.05, 0.2, 0.3], [0, 1, 1, 0]);
-  const w1Y = useTransform(scrollYProgress, [0, 0.3], [40, -60]);
-  const w1Scale = useTransform(scrollYProgress, [0, 0.15, 0.3], [0.9, 1, 1.05]);
+  // Smoke starts visible, shifts and fades
+  const smokeOpacity = useTransform(scrollYProgress, [0, 0.5, 0.8], [0.7, 0.4, 0]);
 
-  const w2Opacity = useTransform(scrollYProgress, [0.22, 0.3, 0.5, 0.6], [0, 1, 1, 0]);
-  const w2Y = useTransform(scrollYProgress, [0.22, 0.6], [50, -40]);
-  const w2Scale = useTransform(scrollYProgress, [0.22, 0.4, 0.6], [0.9, 1, 1.05]);
+  // Light rays
+  const rayOpacity = useTransform(scrollYProgress, [0, 0.3, 0.6], [0.5, 0.7, 0]);
 
-  const w3Opacity = useTransform(scrollYProgress, [0.5, 0.58, 0.78, 0.88], [0, 1, 1, 0]);
-  const w3Y = useTransform(scrollYProgress, [0.5, 0.88], [40, -30]);
-  const w3Scale = useTransform(scrollYProgress, [0.5, 0.7, 0.88], [0.92, 1, 1.04]);
+  // Word 1: EXPLORE — visible from frame 1, transforms out
+  const w1Opacity = useTransform(scrollYProgress, [0, 0.18, 0.28], [1, 1, 0]);
+  const w1Y = useTransform(scrollYProgress, [0, 0.28], [0, -80]);
+  const w1Scale = useTransform(scrollYProgress, [0, 0.15, 0.28], [1, 1.08, 1.15]);
 
-  // Shield appears late in the sequence
-  const shieldOpacity = useTransform(scrollYProgress, [0.75, 0.85], [0, 1]);
-  const shieldScale = useTransform(scrollYProgress, [0.75, 0.92], [0.85, 1]);
-  const shieldY = useTransform(scrollYProgress, [0.75, 0.95], [30, 0]);
+  // Word 2: KALYAN CHEMIST — appears mid-scroll
+  const w2Opacity = useTransform(scrollYProgress, [0.2, 0.3, 0.52, 0.62], [0, 1, 1, 0]);
+  const w2Y = useTransform(scrollYProgress, [0.2, 0.62], [60, -50]);
+  const w2Scale = useTransform(scrollYProgress, [0.2, 0.4, 0.62], [0.9, 1, 1.08]);
 
-  // Background darkens then lightens
-  const bgOpacity = useTransform(scrollYProgress, [0, 0.5, 1], [1, 0.8, 0.4]);
+  // Word 3: HEALTHCARE SIMPLIFIED — late in sequence
+  const w3Opacity = useTransform(scrollYProgress, [0.55, 0.63, 0.82, 0.92], [0, 1, 1, 0]);
+  const w3Y = useTransform(scrollYProgress, [0.55, 0.92], [50, -30]);
+  const w3Scale = useTransform(scrollYProgress, [0.55, 0.72, 0.92], [0.92, 1, 1.05]);
+
+  // KC Shield — appears at end
+  const shieldOpacity = useTransform(scrollYProgress, [0.82, 0.92], [0, 1]);
+  const shieldScale = useTransform(scrollYProgress, [0.82, 0.95], [0.8, 1]);
+
+  // Scroll hint fade
+  const hintOpacity = useTransform(scrollYProgress, [0, 0.04], [1, 0]);
 
   return (
     <div ref={containerRef} className="relative" style={{ height: "300vh" }}>
       <div className="sticky top-0 h-screen overflow-hidden" style={{ background: "#060808" }}>
-        {/* Deep background gradient */}
-        <motion.div
+        {/* ── DEEP BACKGROUND ── */}
+        <div
           className="absolute inset-0"
-          style={{
-            opacity: bgOpacity,
-            background: "radial-gradient(ellipse 80% 60% at 50% 45%, #0a2e1f 0%, #060808 70%)",
-          }}
+          style={{ background: "radial-gradient(ellipse 80% 60% at 50% 40%, #0a2e1f 0%, #060808 70%)" }}
         />
 
-        {/* Smoke particles */}
+        {/* ── HERO VISUAL COMPOSITION — visible from FIRST FRAME ── */}
+        <motion.div
+          className="absolute inset-0 flex items-center justify-center"
+          style={{ scale: heroScale }}
+        >
+          {/* Main rounded visual container */}
+          <div
+            className="relative w-[85vw] max-w-[700px] aspect-[4/3] overflow-hidden rounded-3xl"
+            style={{
+              background: "linear-gradient(135deg, #0a3d2e 0%, #0B0D0C 40%, #111614 70%, #0a2e1f 100%)",
+              boxShadow: "0 0 120px rgba(22,163,106,0.15), 0 0 60px rgba(0,0,0,0.5)",
+            }}
+          >
+            {/* Healthcare environment layers */}
+            <div className="absolute inset-0" aria-hidden="true">
+              {/* Background: pharmacy shelves pattern */}
+              <div className="absolute inset-0" style={{ background: "repeating-linear-gradient(90deg, transparent, transparent 60px, rgba(22,163,106,0.03) 60px, rgba(22,163,106,0.03) 61px), repeating-linear-gradient(0deg, transparent, transparent 40px, rgba(22,163,106,0.02) 40px, rgba(22,163,106,0.02) 41px)" }} />
+              {/* Mid: glowing emerald atmosphere */}
+              <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 60% 50% at 50% 50%, rgba(22,163,106,0.2), transparent 65%)" }} />
+              <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 40% 35% at 30% 60%, rgba(216,184,120,0.08), transparent 55%)" }} />
+              {/* KC Shield as central visual element */}
+              <div className="absolute inset-0 flex items-center justify-center">
+                <KCShield size={220} opacity={0.5} />
+              </div>
+              {/* Foreground: floating healthcare elements */}
+              {[
+                { x: "10%", y: "18%", icon: "💊", size: 32, op: 0.18 },
+                { x: "82%", y: "15%", icon: "🩺", size: 28, op: 0.14 },
+                { x: "7%", y: "72%", icon: "💉", size: 26, op: 0.12 },
+                { x: "88%", y: "68%", icon: "🏥", size: 24, op: 0.14 },
+                { x: "50%", y: "8%", icon: "⚕️", size: 22, op: 0.1 },
+                { x: "45%", y: "85%", icon: "🧬", size: 20, op: 0.1 },
+              ].map((el, i) => (
+                <div key={i} className="absolute" style={{ left: el.x, top: el.y, fontSize: el.size, opacity: el.op }}>
+                  {el.icon}
+                </div>
+              ))}
+            </div>
+
+            {/* Inner vignette */}
+            <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse 70% 60% at 50% 45%, transparent 30%, rgba(4,6,5,0.6) 100%)" }} />
+
+            {/* Subtle border glow */}
+            <div className="absolute inset-0 pointer-events-none rounded-[inherit]" style={{ boxShadow: "inset 0 0 40px rgba(22,163,106,0.08)" }} />
+          </div>
+        </motion.div>
+
+        {/* ── SMOKE PARTICLES — visible from frame 1 ── */}
         <motion.div className="absolute inset-0" style={{ opacity: smokeOpacity }}>
           <SmokeParticles />
         </motion.div>
 
-        {/* Light rays */}
+        {/* ── LIGHT RAYS ── */}
         <motion.div className="absolute inset-0" style={{ opacity: rayOpacity }}>
           <LightRays />
         </motion.div>
 
-        {/* Grid overlay — subtle depth */}
-        <div
-          className="absolute inset-0 pointer-events-none opacity-[0.02]"
-          style={{
-            backgroundImage: "linear-gradient(rgba(245,243,236,.5) 1px, transparent 1px), linear-gradient(90deg, rgba(245,243,236,.5) 1px, transparent 1px)",
-            backgroundSize: "100px 100px",
-          }}
-        />
-
-        {/* ── Word 1: EXPLORE ── */}
+        {/* ── WORD 1: EXPLORE — visible immediately ── */}
         <motion.div
-          className="absolute inset-0 flex items-center justify-center px-6"
+          className="absolute inset-0 flex items-center justify-center px-6 z-10"
           style={{ opacity: w1Opacity, y: w1Y, scale: w1Scale }}
         >
           <span
-            className="text-[clamp(4rem,14vw,12rem)] font-black uppercase tracking-tight leading-none"
+            className="text-[clamp(4rem,14vw,12rem)] font-black uppercase tracking-tight leading-none select-none"
             style={{
-              background: "linear-gradient(180deg, rgba(245,243,236,0.9) 0%, rgba(245,243,236,0.3) 100%)",
+              background: "linear-gradient(180deg, rgba(245,243,236,0.95) 0%, rgba(245,243,236,0.4) 100%)",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
+              textShadow: "none",
+              filter: "drop-shadow(0 4px 30px rgba(0,0,0,0.5))",
             }}
           >
             Explore
           </span>
         </motion.div>
 
-        {/* ── Word 2: KALYAN CHEMIST ── */}
+        {/* ── WORD 2: KALYAN CHEMIST ── */}
         <motion.div
-          className="absolute inset-0 flex items-center justify-center px-6"
+          className="absolute inset-0 flex items-center justify-center px-6 z-10"
           style={{ opacity: w2Opacity, y: w2Y, scale: w2Scale }}
         >
-          <div className="text-center">
+          <div className="text-center select-none">
             <span
               className="block text-[clamp(2.5rem,8vw,7rem)] font-black uppercase tracking-tight leading-[0.9]"
               style={{
                 background: "linear-gradient(135deg, #16A36A 0%, #F0D9A3 50%, #16A36A 100%)",
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
+                filter: "drop-shadow(0 4px 30px rgba(0,0,0,0.5))",
               }}
             >
               Kalyan
@@ -413,6 +473,7 @@ function CinematicIntro() {
                 background: "linear-gradient(135deg, #F0D9A3 0%, #16A36A 100%)",
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
+                filter: "drop-shadow(0 4px 30px rgba(0,0,0,0.5))",
               }}
             >
               Chemist
@@ -420,15 +481,13 @@ function CinematicIntro() {
           </div>
         </motion.div>
 
-        {/* ── Word 3: HEALTHCARE, SIMPLIFIED ── */}
+        {/* ── WORD 3: HEALTHCARE, SIMPLIFIED ── */}
         <motion.div
-          className="absolute inset-0 flex items-center justify-center px-6"
+          className="absolute inset-0 flex items-center justify-center px-6 z-10"
           style={{ opacity: w3Opacity, y: w3Y, scale: w3Scale }}
         >
-          <div className="text-center">
-            <span
-              className="block text-[clamp(2rem,6vw,5rem)] font-light uppercase tracking-[0.15em] text-white/50"
-            >
+          <div className="text-center select-none">
+            <span className="block text-[clamp(2rem,6vw,5rem)] font-light uppercase tracking-[0.15em] text-white/60">
               Healthcare
             </span>
             <span
@@ -437,6 +496,7 @@ function CinematicIntro() {
                 background: "linear-gradient(180deg, #F0D9A3 0%, #16A36A 100%)",
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
+                filter: "drop-shadow(0 4px 30px rgba(0,0,0,0.5))",
               }}
             >
               Simplified
@@ -444,124 +504,36 @@ function CinematicIntro() {
           </div>
         </motion.div>
 
-        {/* ── KC Shield reveal ── */}
+        {/* ── KC SHIELD final reveal ── */}
         <motion.div
-          className="absolute inset-0 flex items-center justify-center"
-          style={{ opacity: shieldOpacity, scale: shieldScale, y: shieldY }}
+          className="absolute inset-0 flex items-center justify-center z-10"
+          style={{ opacity: shieldOpacity, scale: shieldScale }}
         >
           <KCShield size={180} />
         </motion.div>
 
-        {/* Vignette */}
+        {/* ── Outer vignette ── */}
         <div
-          className="absolute inset-0 pointer-events-none"
-          style={{
-            background: "radial-gradient(ellipse 65% 55% at 50% 45%, transparent 30%, rgba(4,6,5,0.8) 100%)",
-          }}
+          className="absolute inset-0 pointer-events-none z-20"
+          style={{ background: "radial-gradient(ellipse 65% 55% at 50% 45%, transparent 30%, rgba(4,6,5,0.75) 100%)" }}
         />
 
-        {/* Scroll hint */}
+        {/* ── Scroll hint ── */}
         <motion.div
-          className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2"
-          style={{ opacity: useTransform(scrollYProgress, [0, 0.05], [1, 0]) }}
+          className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 z-20"
+          style={{ opacity: hintOpacity }}
         >
-          <span className="text-[10px] uppercase tracking-[0.25em] text-white/25">Scroll to explore</span>
+          <span className="text-[10px] uppercase tracking-[0.25em] text-white/30">Scroll to explore</span>
           <motion.div
             animate={{ y: [0, 8, 0] }}
             transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-            className="w-5 h-8 rounded-full border border-white/15 flex items-start justify-center pt-1.5"
+            className="w-5 h-8 rounded-full border border-white/20 flex items-start justify-center pt-1.5"
           >
-            <div className="w-1 h-2 rounded-full bg-white/30" />
+            <div className="w-1 h-2 rounded-full bg-white/40" />
           </motion.div>
         </motion.div>
       </div>
     </div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════════════
-   SECTION 2 — BRAND SHIELD + HEALTHCARE VISUAL (parallax depth)
-   ═══════════════════════════════════════════════════════════════════ */
-
-function BrandVisual() {
-  const ref = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({
-    target: ref,
-    offset: ["start end", "end start"],
-  });
-
-  const bgY = useTransform(scrollYProgress, [0, 1], [80, -80]);
-  const midY = useTransform(scrollYProgress, [0, 1], [40, -40]);
-  const fgY = useTransform(scrollYProgress, [0, 1], [20, -20]);
-  const scale = useTransform(scrollYProgress, [0, 0.5], [1, 1.08]);
-  const shieldRotate = useTransform(scrollYProgress, [0, 1], [5, -5]);
-
-  return (
-    <section
-      ref={ref}
-      className="relative overflow-hidden"
-      style={{
-        height: "80vh",
-        minHeight: 500,
-        background: "linear-gradient(180deg, #060808 0%, #0a2e1f 40%, #0a3d2e 60%, #0B0D0C 100%)",
-      }}
-    >
-      {/* Background layer */}
-      <motion.div className="absolute inset-0" style={{ y: bgY }} aria-hidden="true">
-        <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 70% 50% at 50% 50%, rgba(22,163,106,0.12), transparent 65%)" }} />
-        <SmokeParticles opacity={0.5} />
-      </motion.div>
-
-      {/* Mid layer — Shield */}
-      <motion.div
-        className="absolute inset-0 flex items-center justify-center"
-        style={{ y: midY, scale, rotate: shieldRotate }}
-        aria-hidden="true"
-      >
-        <KCShield size={260} opacity={0.7} />
-      </motion.div>
-
-      {/* Foreground layer — healthcare icons */}
-      <motion.div className="absolute inset-0 pointer-events-none" style={{ y: fgY }} aria-hidden="true">
-        {[
-          { x: "15%", y: "25%", icon: "💊", size: 30, opacity: 0.1 },
-          { x: "80%", y: "20%", icon: "🩺", size: 26, opacity: 0.08 },
-          { x: "10%", y: "70%", icon: "💉", size: 24, opacity: 0.06 },
-          { x: "85%", y: "65%", icon: "🏥", size: 22, opacity: 0.08 },
-        ].map((el, i) => (
-          <div key={i} className="absolute" style={{ left: el.x, top: el.y, fontSize: el.size, opacity: el.opacity }}>
-            {el.icon}
-          </div>
-        ))}
-      </motion.div>
-
-      {/* Vignette */}
-      <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse 70% 60% at 50% 50%, transparent 35%, rgba(6,8,8,0.7) 100%)" }} />
-
-      {/* Content */}
-      <div className="relative z-10 flex h-full flex-col items-center justify-center px-6 text-center">
-        <RevealOnScroll>
-          <p className="mb-4 text-xs sm:text-sm font-semibold uppercase tracking-[0.3em] text-[#16A36A]">
-            Since Day One
-          </p>
-          <h2 className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-black uppercase leading-[0.88] tracking-tight">
-            <span className="text-white/90">About</span>{" "}
-            <span
-              style={{
-                background: "linear-gradient(135deg, #16A36A, #F0D9A3)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-              }}
-            >
-              Kalyan Chemist
-            </span>
-          </h2>
-          <p className="mt-6 max-w-xl text-base sm:text-lg text-white/45 leading-relaxed">
-            Healthcare, simplified. A modern pharmacy experience designed around you.
-          </p>
-        </RevealOnScroll>
-      </div>
-    </section>
   );
 }
 
@@ -1136,28 +1108,25 @@ export default function AboutUs() {
         }
       `}</style>
 
-      {/* 1. Cinematic Intro — smoke + giant typography cycle + shield reveal */}
+      {/* 1. Cinematic Intro — hero visual + giant typography cycle + shield reveal */}
       <CinematicIntro />
 
-      {/* 2. Brand Visual — parallax shield + healthcare depth layers */}
-      <BrandVisual />
-
-      {/* 3. Who We Are — editorial story reveal */}
+      {/* 2. Who We Are — editorial story reveal */}
       <WhoWeAre />
 
-      {/* 4. Brand Story — cinematic philosophy statements */}
+      {/* 3. Brand Story — cinematic philosophy statements */}
       <BrandStory />
 
-      {/* 5. Healthcare Ecosystem — connected journey */}
+      {/* 4. Healthcare Ecosystem — connected journey */}
       <EcosystemJourney />
 
-      {/* 6. Premium Cards */}
+      {/* 5. Premium Cards */}
       <PremiumCards />
 
-      {/* 7. Trust + Stats */}
+      {/* 6. Trust + Stats */}
       <TrustSection />
 
-      {/* 8. Final Statement — visual climax */}
+      {/* 7. Final Statement — visual climax */}
       <FinalStatement />
 
       {/* Footer */}
