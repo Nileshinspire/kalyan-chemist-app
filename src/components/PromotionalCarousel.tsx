@@ -85,9 +85,10 @@ export default function PromotionalCarousel() {
     setCurrent((c) => (countRef.current ? (c + 1) % countRef.current : 0));
   };
 
-  // Track which slide images have been loaded/decoded by the browser so a
-  // transition never starts before the next slide's image is available.
-  const loadedRef = useRef<Record<string, boolean>>({});
+  // Track which slide images have been fully decoded by the browser (via
+  // Image.decode()) so a transition never starts before the next slide's
+  // image is truly paint-ready — no blank frame, no flash.
+  const decodedRef = useRef<Record<string, boolean>>({});
 
   const currentRef = useRef(0);
   currentRef.current = current;
@@ -109,16 +110,34 @@ export default function PromotionalCarousel() {
     if (timerRef.current) clearInterval(timerRef.current);
     timerRef.current = setInterval(() => {
       if (pausedRef.current) return;
-      // Defer the transition until the upcoming slide's image is loaded so
+      // Defer the transition until the upcoming slide's image is decoded so
       // the outgoing banner stays fully visible (no blank frame).
       const nextIdx = countRef.current
         ? (currentRef.current + 1) % countRef.current
         : 0;
       const upcoming = slidesRef.current[nextIdx];
       const src = upcoming ? primaryImageOf(upcoming) : "";
-      if (src && !loadedRef.current[src]) return; // try again next tick
+      if (src && !decodedRef.current[src]) return; // try again next tick
       nextRef.current();
     }, AUTOPLAY_MS);
+  }, []);
+
+  // Viewport gating: pause the autoplay timer when the section scrolls out
+  // of view so we never waste ticks or cause unnecessary transitions.
+  const sectionRef = useRef<HTMLElement>(null);
+  const inViewRef = useRef(true);
+
+  useEffect(() => {
+    const el = sectionRef.current;
+    if (!el) return;
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        inViewRef.current = entry.isIntersecting;
+      },
+      { rootMargin: "100px 0px" }
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
   }, []);
 
   useEffect(() => {
@@ -143,8 +162,12 @@ export default function PromotionalCarousel() {
     [startAutoplay]
   );
 
-  // Preload every campaign image (desktop, mobile and fallback variants) as
-  // soon as campaigns are known, so slides are ready before they can be shown.
+  // Preload and fully decode every campaign image (desktop, mobile, and
+  // fallback variants) as soon as campaigns are known, so slides are truly
+  // paint-ready before they can be shown. Using Image.decode() ensures the
+  // browser has fully decoded the image bitmap — not just downloaded the
+  // bytes — preventing the visual flash that occurs when a decoded image
+  // first paints.
   useEffect(() => {
     slides.forEach((s: any) => {
       (
@@ -153,16 +176,18 @@ export default function PromotionalCarousel() {
           | undefined
         )[]
       ).forEach((url) => {
-        if (!url || loadedRef.current[url]) return;
-        loadedRef.current[url] = false;
+        if (!url || decodedRef.current[url]) return;
+        decodedRef.current[url] = false;
         const img = new Image();
-        img.onload = () => {
-          loadedRef.current[url] = true;
-        };
-        img.onerror = () => {
-          loadedRef.current[url] = true; // don't block on a broken variant
-        };
         img.src = url;
+        img
+          .decode()
+          .then(() => {
+            decodedRef.current[url] = true;
+          })
+          .catch(() => {
+            decodedRef.current[url] = true; // don't block on a broken variant
+          });
       });
     });
   }, [slides]);
@@ -202,6 +227,7 @@ export default function PromotionalCarousel() {
 
   return (
     <section
+      ref={sectionRef}
       className="mx-auto max-w-7xl px-4 sm:px-6"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
@@ -230,7 +256,6 @@ export default function PromotionalCarousel() {
                 initial={false}
                 animate={{
                   opacity: active ? 1 : 0,
-                  x: active ? 0 : 24,
                 }}
                 transition={{
                   duration: FADE_DURATION,
@@ -248,9 +273,10 @@ export default function PromotionalCarousel() {
                       src={s.mobileBannerImage}
                       alt={active ? s.title : ""}
                       className="absolute inset-0 w-full h-full object-cover sm:hidden"
-                      loading="lazy"
+                      loading="eager"
+                      decoding="sync"
                       onLoad={() => {
-                        loadedRef.current[s.mobileBannerImage] = true;
+                        decodedRef.current[s.mobileBannerImage] = true;
                       }}
                       onError={(e) => {
                         const img = e.currentTarget as HTMLImageElement;
@@ -270,9 +296,10 @@ export default function PromotionalCarousel() {
                     className={`w-full h-full object-cover ${
                       s.mobileBannerImage ? "hidden sm:block" : ""
                     }`}
-                    loading="lazy"
+                    loading="eager"
+                    decoding="sync"
                     onLoad={() => {
-                      loadedRef.current[
+                      decodedRef.current[
                         s.desktopBannerImage || s.bannerImage
                       ] = true;
                     }}

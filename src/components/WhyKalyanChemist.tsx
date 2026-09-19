@@ -485,7 +485,7 @@ export default function WhyKalyanChemist() {
         @keyframes kcw-drift{0%,100%{transform:translate3d(0,0,0)}50%{transform:translate3d(22px,-14px,0)}}
         @keyframes kcw-pulse{0%,100%{opacity:.28;transform:scale(.94)}50%{opacity:.55;transform:scale(1.06)}}
         @keyframes kcw-particle{0%{opacity:0;transform:translate3d(0,10px,0) scale(.5)}22%{opacity:.85}100%{opacity:0;transform:translate3d(var(--px,20px),var(--py,-40px),0) scale(.2)}}
-        @keyframes kcw-iglow{0%,100%{filter:drop-shadow(0 0 7px var(--gc))}50%{filter:drop-shadow(0 0 15px var(--gc))}}
+        @keyframes kcw-iglow{0%,100%{opacity:.65;transform:scale(1)}50%{opacity:1;transform:scale(1.04)}}
         @keyframes kcw-ring{0%,100%{transform:scale(1);opacity:.12}50%{transform:scale(1.05);opacity:.26}}
         @keyframes kcw-beam{0%,100%{opacity:.5;transform:translateY(0) scaleY(1)}50%{opacity:.85;transform:translateY(-4px) scaleY(1.06)}}
         @keyframes kcw-sheen{0%{transform:translateX(-130%) skewX(-18deg)}100%{transform:translateX(240%) skewX(-18deg)}}
@@ -657,7 +657,7 @@ export default function WhyKalyanChemist() {
                 <div
                   key={obj.label}
                   ref={(el) => { orbitsRef.current[i] = el; }}
-                  className="absolute left-1/2 top-1/2 will-change-transform"
+                  className="absolute left-1/2 top-1/2"
                   style={{
                     width: obj.size,
                     height: obj.size,
