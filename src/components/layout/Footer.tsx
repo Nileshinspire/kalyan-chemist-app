@@ -54,6 +54,15 @@ const Footer = memo(function Footer() {
               <li>
                 <button
                   className="flex items-center gap-1 hover:text-primary transition-colors duration-200 group cursor-pointer"
+                  onClick={() => navigate("/about-us")}
+                >
+                  About Us
+                  <ArrowUpRight className="size-3 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all duration-200" />
+                </button>
+              </li>
+              <li>
+                <button
+                  className="flex items-center gap-1 hover:text-primary transition-colors duration-200 group cursor-pointer"
                   onClick={() => navigate("/products")}
                 >
                   All Medicines

@@ -19,6 +19,7 @@ const convex = new ConvexReactClient(
 );
 
 // Lazy load route components for better code splitting
+const AboutUs = lazy(() => import("./pages/AboutUs.tsx"));
 const Landing = lazy(() => import("./pages/Landing.tsx"));
 const Auth = lazy(() => import("./pages/Auth.tsx"));
 const Login = lazy(() => import("./pages/Login.tsx"));
@@ -196,6 +197,12 @@ function AnimatedRoutes() {
 
   return (
       <Routes location={location}>
+        <Route
+          path="/about-us"
+          element={
+            <AboutUs />
+          }
+        />
         <Route
           path="/"
           element={
