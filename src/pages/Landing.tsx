@@ -822,6 +822,7 @@ export default function Landing() {
               <ul className="space-y-2.5 text-sm text-muted-foreground">
                 {[
                   { label: "Home", to: "/" },
+                  { label: "About Us", to: "/about-us" },
                   { label: "All Medicines", to: "/products" },
                   { label: "Categories", to: "/categories" },
                   { label: "Shopping Cart", to: "/cart" },
