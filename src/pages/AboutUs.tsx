@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect, useCallback } from "react";
+import { useRef, useState, useEffect, useCallback, useMemo } from "react";
 import {
   motion,
   useScroll,
@@ -19,6 +19,10 @@ import {
   Volume2,
   VolumeX,
   Clock,
+  Search,
+  ShoppingBag,
+  Package,
+  Home,
 } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
@@ -28,188 +32,53 @@ import { useNavigate } from "react-router";
 const EASE = [0.22, 1, 0.36, 1] as const;
 
 /* ═══════════════════════════════════════════════════════════════════
-   AMBIENT AUDIO — Programmatic Web Audio API pad
+   PERFORMANCE HELPERS
    ═══════════════════════════════════════════════════════════════════ */
 
-/** Creates a soft, warm ambient pad using multiple detuned oscillators */
-function createAmbientPad(ctx: AudioContext) {
-  const masterGain = ctx.createGain();
-  masterGain.gain.value = 0;
-  masterGain.connect(ctx.destination);
+/** Detect reduced motion preference once at module level */
+const prefersReducedMotion =
+  typeof window !== "undefined" &&
+  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  // Low-pass filter for warmth
-  const filter = ctx.createBiquadFilter();
-  filter.type = "lowpass";
-  filter.frequency.value = 400;
-  filter.Q.value = 0.7;
-  filter.connect(masterGain);
+/** Detect mobile for effect simplification */
+const isMobile =
+  typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches;
 
-  // Notes: a soft D-minor pad spread across octaves
-  const notes = [
-    { freq: 73.42, gain: 0.12 }, // D2
-    { freq: 110, gain: 0.1 },    // A2
-    { freq: 146.83, gain: 0.08 }, // D3
-    { freq: 174.61, gain: 0.06 }, // F3
-    { freq: 220, gain: 0.05 },   // A3
-    { freq: 293.66, gain: 0.04 }, // D4
-  ];
-
-  const oscillators = notes.map(({ freq, gain }) => {
-    const osc = ctx.createOscillator();
-    osc.type = "sine";
-    osc.frequency.value = freq;
-    // Subtle detune for richness
-    osc.detune.value = (Math.random() - 0.5) * 8;
-
-    const oscGain = ctx.createGain();
-    oscGain.gain.value = gain;
-
-    // Gentle LFO for organic movement
-    const lfo = ctx.createOscillator();
-    lfo.type = "sine";
-    lfo.frequency.value = 0.05 + Math.random() * 0.1;
-    const lfoGain = ctx.createGain();
-    lfoGain.gain.value = 0.015;
-    lfo.connect(lfoGain);
-    lfoGain.connect(oscGain.gain);
-    lfo.start();
-
-    osc.connect(oscGain);
-    oscGain.connect(filter);
-    osc.start();
-
-    return { osc, lfo, oscGain };
-  });
-
-  return {
-    masterGain,
-    oscillators,
-    fadeIn(duration = 3) {
-      masterGain.gain.cancelScheduledValues(ctx.currentTime);
-      masterGain.gain.setValueAtTime(masterGain.gain.value, ctx.currentTime);
-      masterGain.gain.linearRampToValueAtTime(0.35, ctx.currentTime + duration);
-    },
-    fadeOut(duration = 2) {
-      masterGain.gain.cancelScheduledValues(ctx.currentTime);
-      masterGain.gain.setValueAtTime(masterGain.gain.value, ctx.currentTime);
-      masterGain.gain.linearRampToValueAtTime(0, ctx.currentTime + duration);
-    },
-    destroy() {
-      this.fadeOut(0.5);
-      setTimeout(() => {
-        oscillators.forEach(({ osc, lfo }) => {
-          osc.stop();
-          lfo.stop();
-        });
-      }, 600);
-    },
-  };
-}
-
-/* ═══════════════════════════════════════════════════════════════════
-   SMOKE / ATMOSPHERIC PARTICLES
+/* ═════════════════════════════════════════════(prefersReducedMotion ? 0 : 30)
+   SMOKE — Lightweight CSS atmosphere (2 layers, no blur filters)
    ═══════════════════════════════════════════════════════════════════ */
 
-function SmokeParticles({ opacity = 1 }: { opacity?: number }) {
-  const particles = useRef(
-    Array.from({ length: 30 }, (_, i) => ({
-      x: (Math.sin(i * 1.7 + i * i * 0.03) * 0.5 + 0.5) * 100,
-      y: (Math.cos(i * 2.3) * 0.5 + 0.5) * 100,
-      size: 60 + (i % 5) * 40,
-      dur: 8 + (i % 4) * 3,
-      delay: (i * 0.7) % 5,
-      drift: ((i % 2 === 0 ? 1 : -1) * (10 + (i % 3) * 8)),
-    }))
-  ).current;
-
+function Smoke({ opacity = 1 }: { opacity?: number }) {
   return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true" style={{ opacity }}>
-      {particles.map((p, i) => (
-        <div
-          key={i}
-          className="absolute rounded-full"
-          style={{
-            left: `${p.x}%`,
-            top: `${p.y}%`,
-            width: p.size,
-            height: p.size,
-            background: `radial-gradient(circle, ${i % 3 === 0 ? "rgba(22,163,106,0.06)" : i % 3 === 1 ? "rgba(216,184,120,0.04)" : "rgba(245,243,236,0.03)"}, transparent 70%)`,
-            animation: `kc-smoke ${p.dur}s ease-in-out ${p.delay}s infinite alternate`,
-            filter: "blur(30px)",
-            transform: `translateX(${p.drift}px)`,
-          }}
-        />
-      ))}
-    </div>
-  );
-}
-
-/* ─── Light rays ─── */
-function LightRays({ opacity = 1 }: { opacity?: number }) {
-  return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true" style={{ opacity }}>
+    <div
+      className="pointer-events-none absolute inset-0 overflow-hidden"
+      aria-hidden="true"
+      style={{ opacity }}
+    >
+      {/* Layer 1: Large drifting emerald haze */}
       <div
-        className="absolute"
+        className="kc-smoke kc-smoke-a"
         style={{
-          top: "-20%",
-          left: "30%",
-          width: "40%",
-          height: "120%",
-          background: "linear-gradient(180deg, rgba(22,163,106,0.08) 0%, transparent 60%)",
-          transform: "rotate(-15deg) scaleX(0.6)",
-          filter: "blur(40px)",
+          background:
+            "radial-gradient(ellipse 60% 45% at 30% 40%, rgba(22,163,106,0.10), transparent 70%)",
         }}
       />
+      {/* Layer 2: Slow gold counter-drift */}
       <div
-        className="absolute"
+        className="kc-smoke kc-smoke-b"
         style={{
-          top: "-10%",
-          right: "20%",
-          width: "30%",
-          height: "100%",
-          background: "linear-gradient(180deg, rgba(216,184,120,0.05) 0%, transparent 50%)",
-          transform: "rotate(10deg) scaleX(0.5)",
-          filter: "blur(50px)",
+          background:
+            "radial-gradient(ellipse 50% 40% at 75% 60%, rgba(216,184,120,0.06), transparent 70%)",
         }}
       />
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════════════
-   FLOATING HEALTHCARE ELEMENTS
-   ═══════════════════════════════════════════════════════════════════ */
-
-function FloatingHealthcare({ progress }: { progress: ReturnType<typeof useScroll>["scrollYProgress"] }) {
-  const items = [
-    { x: 8, y: 20, icon: "💊", size: 28, speed: 0.3 },
-    { x: 88, y: 15, icon: "🩺", size: 24, speed: 0.5 },
-    { x: 5, y: 65, icon: "💉", size: 22, speed: 0.4 },
-    { x: 92, y: 60, icon: "🧬", size: 26, speed: 0.6 },
-    { x: 15, y: 85, icon: "🏥", size: 20, speed: 0.35 },
-    { x: 80, y: 80, icon: "⚕️", size: 22, speed: 0.45 },
-  ];
-
-  return (
-    <div className="pointer-events-none absolute inset-0" aria-hidden="true">
-      {items.map((item, i) => {
-        const y = useTransform(progress, [0, 1], [0, -100 * item.speed]);
-        return (
-          <motion.div
-            key={i}
-            className="absolute"
-            style={{
-              left: `${item.x}%`,
-              top: `${item.y}%`,
-              fontSize: item.size,
-              opacity: 0.08,
-              y,
-            }}
-          >
-            {item.icon}
-          </motion.div>
-        );
-      })}
+      {/* Layer 3: Soft ivory depth wash */}
+      <div
+        className="kc-smoke kc-smoke-c"
+        style={{
+          background:
+            "radial-gradient(ellipse 70% 55% at 50% 70%, rgba(245,243,236,0.04), transparent 75%)",
+        }}
+      />
     </div>
   );
 }
@@ -248,292 +117,209 @@ function KCShield({ size = 200, opacity = 1 }: { size?: number; opacity?: number
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   MUSIC CONTROL — Floating button
+   MUSIC — Real HTMLAudioElement with a small generated loop
+   ═══════════════════════════════════════════════════════════════════
+   The pad is synthesized once with OfflineAudioContext, encoded to a
+   WAV blob URL, and played through a real <audio> element. This gives
+   us a genuine HTMLAudioElement (loop, currentTime, volume) without
+   any external file or network request, and without licensing risk.
    ═══════════════════════════════════════════════════════════════════ */
 
+/** Render a seamless 8s ambient pad offline and return a WAV blob URL */
+async function renderAmbientLoop(): Promise<string> {
+  const sampleRate = 22050;
+  const duration = 8;
+  const OfflineCtx: typeof OfflineAudioContext =
+    window.OfflineAudioContext || (window as any).webkitOfflineAudioContext;
+  const ctx = new OfflineCtx(1, sampleRate * duration, sampleRate);
+
+  // Warm D-minor pad — frequencies chosen so every partial completes
+  // an integer number of cycles in 8s => seamless loop, no click.
+  const notes = [
+    { f: 73.42, g: 0.10 },
+    { f: 110.0, g: 0.08 },
+    { f: 146.83, g: 0.06 },
+    { f: 174.61, g: 0.05 },
+    { f: 220.0, g: 0.04 },
+    { f: 293.66, g: 0.03 },
+  ];
+
+  notes.forEach(({ f, g }) => {
+    const osc = ctx.createOscillator();
+    osc.type = "sine";
+    osc.frequency.value = f;
+    const gain = ctx.createGain();
+    gain.gain.value = g;
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(0);
+    osc.stop(duration);
+  });
+
+  const buffer = await ctx.startRendering();
+
+  // Encode buffer to WAV (16-bit PCM)
+  const numCh = buffer.numberOfChannels;
+  const len = buffer.length;
+  const bytes = new ArrayBuffer(44 + len * numCh * 2);
+  const view = new DataView(bytes);
+  const writeStr = (off: number, s: string) => {
+    for (let i = 0; i < s.length; i++) view.setUint8(off + i, s.charCodeAt(i));
+  };
+  writeStr(0, "RIFF");
+  view.setUint32(4, 36 + len * numCh * 2, true);
+  writeStr(8, "WAVE");
+  writeStr(12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, numCh, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * numCh * 2, true);
+  view.setUint16(32, numCh * 2, true);
+  view.setUint16(34, 16, true);
+  writeStr(36, "data");
+  view.setUint32(40, len * numCh * 2, true);
+
+  let off = 44;
+  const ch0 = buffer.getChannelData(0);
+  for (let i = 0; i < len; i++) {
+    const s = Math.max(-1, Math.min(1, ch0[i]));
+    view.setInt16(off, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+    off += 2;
+  }
+
+  const blob = new Blob([bytes], { type: "audio/wav" });
+  return URL.createObjectURL(blob);
+}
+
 function MusicControl() {
-  const [playing, setPlaying] = useState(false);
-  const padRef = useRef<ReturnType<typeof createAmbientPad> | null>(null);
-  const ctxRef = useRef<AudioContext | null>(null);
-  const autoStartedRef = useRef(false);
+  const [playing, setPlaying] = useState(false); // true ONLY when audio really plays
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const urlRef = useRef<string | null>(null);
+  const triedRef = useRef(false);
+  const wantPlayRef = useRef(false);
 
-  const startMusic = useCallback(() => {
-    if (!ctxRef.current) {
-      ctxRef.current = new AudioContext();
+  // Prepare audio element + generated loop on mount
+  useEffect(() => {
+    let cancelled = false;
+
+    renderAmbientLoop().then((url) => {
+      if (cancelled) {
+        URL.revokeObjectURL(url);
+        return;
+      }
+      urlRef.current = url;
+      const audio = new Audio(url);
+      audio.loop = true;
+      audio.preload = "auto";
+      audio.volume = 0;
+      audioRef.current = audio;
+      // If the user interacted before the loop was ready, start now
+      if (wantPlayRef.current) startPlayback();
+    });
+
+    return () => {
+      cancelled = true;
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = "";
+      }
+      audioRef.current = null;
+      if (urlRef.current) {
+        URL.revokeObjectURL(urlRef.current);
+        urlRef.current = null;
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const startPlayback = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio) {
+      wantPlayRef.current = true;
+      return;
     }
-    const ctx = ctxRef.current;
-    if (ctx.state === "suspended") ctx.resume();
-    if (!padRef.current) padRef.current = createAmbientPad(ctx);
-    padRef.current.fadeIn(3);
-    setPlaying(true);
+    wantPlayRef.current = true;
+    audio.volume = 0;
+    audio
+      .play()
+      .then(() => {
+        if (!wantPlayRef.current) return;
+        // Fade in via rAF-free approach: CSS can't animate HTMLAudioElement
+        // volume, so use a short interval that we clear immediately after.
+        let v = 0;
+        const iv = setInterval(() => {
+          if (!wantPlayRef.current || !audioRef.current) {
+            clearInterval(iv);
+            return;
+          }
+          v = Math.min(0.3, v + 0.01);
+          audio.volume = v;
+          if (v >= 0.3) clearInterval(iv);
+        }, 60);
+        setPlaying(true); // indicator ON only after play() resolved
+      })
+      .catch(() => {
+        // Autoplay blocked or load failed — keep indicator OFF
+        wantPlayRef.current = false;
+        setPlaying(false);
+      });
   }, []);
 
-  const stopMusic = useCallback(() => {
-    padRef.current?.fadeOut(2);
-    setPlaying(false);
+  const stopPlayback = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    wantPlayRef.current = false;
+    // Fade out then pause (position preserved for resume)
+    let v = audio.volume;
+    const iv = setInterval(() => {
+      if (wantPlayRef.current || !audioRef.current) {
+        clearInterval(iv);
+        return;
+      }
+      v = Math.max(0, v - 0.015);
+      audio.volume = v;
+      if (v <= 0) {
+        clearInterval(iv);
+        audio.pause(); // position preserved; play() resumes here
+      }
+    }, 50);
   }, []);
 
-  // Auto-start on first user interaction (scroll, click, touch)
+  // Start on first user interaction (scroll/click/touch) — real playback
   useEffect(() => {
-    if (autoStartedRef.current) return;
+    if (triedRef.current) return;
     const handler = () => {
-      if (autoStartedRef.current) return;
-      autoStartedRef.current = true;
-      startMusic();
-      // Remove all listeners after first interaction
-      window.removeEventListener("scroll", handler);
+      if (triedRef.current) return;
+      triedRef.current = true;
+      startPlayback();
+      cleanup();
+    };
+    const opts = { passive: true } as AddEventListenerOptions;
+    const cleanup = () => {
+      window.removeEventListener("scroll", handler, opts);
       window.removeEventListener("click", handler);
-      window.removeEventListener("touchstart", handler);
+      window.removeEventListener("touchstart", handler, opts);
       window.removeEventListener("pointerdown", handler);
     };
-    window.addEventListener("scroll", handler, { passive: true, once: false });
-    window.addEventListener("click", handler, { once: true });
-    window.addEventListener("touchstart", handler, { passive: true, once: true });
-    window.addEventListener("pointerdown", handler, { once: true });
-    return () => {
-      window.removeEventListener("scroll", handler);
-      window.removeEventListener("click", handler);
-      window.removeEventListener("touchstart", handler);
-      window.removeEventListener("pointerdown", handler);
-    };
-  }, [startMusic]);
+    window.addEventListener("scroll", handler, opts);
+    window.addEventListener("click", handler);
+    window.addEventListener("touchstart", handler, opts);
+    window.addEventListener("pointerdown", handler);
+    return cleanup;
+  }, [startPlayback]);
 
-  // Clean up on unmount
-  useEffect(() => {
-    return () => {
-      padRef.current?.destroy();
-      ctxRef.current?.close();
-    };
-  }, []);
+  const toggle = () => (playing ? stopPlayback() : startPlayback());
 
   return (
-    <motion.button
-      initial={{ opacity: 0, scale: 0.8 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ delay: 1, duration: 0.6, ease: EASE }}
-      onClick={() => (playing ? stopMusic() : startMusic())}
-      className="fixed bottom-6 right-6 z-50 flex size-11 items-center justify-center rounded-full border border-white/10 bg-black/60 text-white/60 backdrop-blur-md transition-all duration-300 hover:border-[#16A36A]/30 hover:text-[#16A36A] hover:shadow-lg hover:shadow-[#16A36A]/10 cursor-pointer"
+    <button
+      onClick={toggle}
+      className="fixed bottom-6 right-6 z-50 flex size-11 items-center justify-center rounded-full border border-white/10 bg-black/60 text-white/60 backdrop-blur-md transition-colors duration-300 hover:border-[#16A36A]/30 hover:text-[#16A36A] cursor-pointer"
       aria-label={playing ? "Mute background music" : "Play background music"}
       title={playing ? "Mute" : "Play ambient music"}
     >
       {playing ? <Volume2 className="size-4" /> : <VolumeX className="size-4" />}
-    </motion.button>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════════════
-   SECTION 1 — CINEMATIC INTRO
-   Hero visual + giant typography visible from FIRST FRAME,
-   transforming together as user scrolls.
-   ═══════════════════════════════════════════════════════════════════ */
-
-function CinematicIntro() {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({
-    target: containerRef,
-    offset: ["start start", "end start"],
-  });
-
-  // Hero image zooms as user scrolls
-  const heroScale = useTransform(scrollYProgress, [0, 0.6], [1, 1.25]);
-
-  // Smoke starts visible, shifts and fades
-  const smokeOpacity = useTransform(scrollYProgress, [0, 0.5, 0.8], [0.7, 0.4, 0]);
-
-  // Light rays
-  const rayOpacity = useTransform(scrollYProgress, [0, 0.3, 0.6], [0.5, 0.7, 0]);
-
-  // Word 1: EXPLORE — visible from frame 1, transforms out
-  const w1Opacity = useTransform(scrollYProgress, [0, 0.18, 0.28], [1, 1, 0]);
-  const w1Y = useTransform(scrollYProgress, [0, 0.28], [0, -80]);
-  const w1Scale = useTransform(scrollYProgress, [0, 0.15, 0.28], [1, 1.08, 1.15]);
-
-  // Word 2: KALYAN CHEMIST — appears mid-scroll
-  const w2Opacity = useTransform(scrollYProgress, [0.2, 0.3, 0.52, 0.62], [0, 1, 1, 0]);
-  const w2Y = useTransform(scrollYProgress, [0.2, 0.62], [60, -50]);
-  const w2Scale = useTransform(scrollYProgress, [0.2, 0.4, 0.62], [0.9, 1, 1.08]);
-
-  // Word 3: HEALTHCARE SIMPLIFIED — late in sequence
-  const w3Opacity = useTransform(scrollYProgress, [0.55, 0.63, 0.82, 0.92], [0, 1, 1, 0]);
-  const w3Y = useTransform(scrollYProgress, [0.55, 0.92], [50, -30]);
-  const w3Scale = useTransform(scrollYProgress, [0.55, 0.72, 0.92], [0.92, 1, 1.05]);
-
-  // KC Shield — appears at end
-  const shieldOpacity = useTransform(scrollYProgress, [0.82, 0.92], [0, 1]);
-  const shieldScale = useTransform(scrollYProgress, [0.82, 0.95], [0.8, 1]);
-
-  // Scroll hint fade
-  const hintOpacity = useTransform(scrollYProgress, [0, 0.04], [1, 0]);
-
-  return (
-    <div ref={containerRef} className="relative" style={{ height: "300vh" }}>
-      <div className="sticky top-0 h-screen overflow-hidden" style={{ background: "#060808" }}>
-        {/* ── DEEP BACKGROUND ── */}
-        <div
-          className="absolute inset-0"
-          style={{ background: "radial-gradient(ellipse 80% 60% at 50% 40%, #0a2e1f 0%, #060808 70%)" }}
-        />
-
-        {/* ── HERO VISUAL COMPOSITION — visible from FIRST FRAME ── */}
-        <motion.div
-          className="absolute inset-0 flex items-center justify-center"
-          style={{ scale: heroScale }}
-        >
-          {/* Main rounded visual container */}
-          <div
-            className="relative w-[85vw] max-w-[700px] aspect-[4/3] overflow-hidden rounded-3xl"
-            style={{
-              background: "linear-gradient(135deg, #0a3d2e 0%, #0B0D0C 40%, #111614 70%, #0a2e1f 100%)",
-              boxShadow: "0 0 120px rgba(22,163,106,0.15), 0 0 60px rgba(0,0,0,0.5)",
-            }}
-          >
-            {/* Healthcare environment layers */}
-            <div className="absolute inset-0" aria-hidden="true">
-              {/* Background: pharmacy shelves pattern */}
-              <div className="absolute inset-0" style={{ background: "repeating-linear-gradient(90deg, transparent, transparent 60px, rgba(22,163,106,0.03) 60px, rgba(22,163,106,0.03) 61px), repeating-linear-gradient(0deg, transparent, transparent 40px, rgba(22,163,106,0.02) 40px, rgba(22,163,106,0.02) 41px)" }} />
-              {/* Mid: glowing emerald atmosphere */}
-              <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 60% 50% at 50% 50%, rgba(22,163,106,0.2), transparent 65%)" }} />
-              <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 40% 35% at 30% 60%, rgba(216,184,120,0.08), transparent 55%)" }} />
-              {/* KC Shield as central visual element */}
-              <div className="absolute inset-0 flex items-center justify-center">
-                <KCShield size={220} opacity={0.5} />
-              </div>
-              {/* Foreground: floating healthcare elements */}
-              {[
-                { x: "10%", y: "18%", icon: "💊", size: 32, op: 0.18 },
-                { x: "82%", y: "15%", icon: "🩺", size: 28, op: 0.14 },
-                { x: "7%", y: "72%", icon: "💉", size: 26, op: 0.12 },
-                { x: "88%", y: "68%", icon: "🏥", size: 24, op: 0.14 },
-                { x: "50%", y: "8%", icon: "⚕️", size: 22, op: 0.1 },
-                { x: "45%", y: "85%", icon: "🧬", size: 20, op: 0.1 },
-              ].map((el, i) => (
-                <div key={i} className="absolute" style={{ left: el.x, top: el.y, fontSize: el.size, opacity: el.op }}>
-                  {el.icon}
-                </div>
-              ))}
-            </div>
-
-            {/* Inner vignette */}
-            <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse 70% 60% at 50% 45%, transparent 30%, rgba(4,6,5,0.6) 100%)" }} />
-
-            {/* Subtle border glow */}
-            <div className="absolute inset-0 pointer-events-none rounded-[inherit]" style={{ boxShadow: "inset 0 0 40px rgba(22,163,106,0.08)" }} />
-          </div>
-        </motion.div>
-
-        {/* ── SMOKE PARTICLES — visible from frame 1 ── */}
-        <motion.div className="absolute inset-0" style={{ opacity: smokeOpacity }}>
-          <SmokeParticles />
-        </motion.div>
-
-        {/* ── LIGHT RAYS ── */}
-        <motion.div className="absolute inset-0" style={{ opacity: rayOpacity }}>
-          <LightRays />
-        </motion.div>
-
-        {/* ── WORD 1: EXPLORE — visible immediately ── */}
-        <motion.div
-          className="absolute inset-0 flex items-center justify-center px-6 z-10"
-          style={{ opacity: w1Opacity, y: w1Y, scale: w1Scale }}
-        >
-          <span
-            className="text-[clamp(4rem,14vw,12rem)] font-black uppercase tracking-tight leading-none select-none"
-            style={{
-              background: "linear-gradient(180deg, rgba(245,243,236,0.95) 0%, rgba(245,243,236,0.4) 100%)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              textShadow: "none",
-              filter: "drop-shadow(0 4px 30px rgba(0,0,0,0.5))",
-            }}
-          >
-            Explore
-          </span>
-        </motion.div>
-
-        {/* ── WORD 2: KALYAN CHEMIST ── */}
-        <motion.div
-          className="absolute inset-0 flex items-center justify-center px-6 z-10"
-          style={{ opacity: w2Opacity, y: w2Y, scale: w2Scale }}
-        >
-          <div className="text-center select-none">
-            <span
-              className="block text-[clamp(2.5rem,8vw,7rem)] font-black uppercase tracking-tight leading-[0.9]"
-              style={{
-                background: "linear-gradient(135deg, #16A36A 0%, #F0D9A3 50%, #16A36A 100%)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                filter: "drop-shadow(0 4px 30px rgba(0,0,0,0.5))",
-              }}
-            >
-              Kalyan
-            </span>
-            <span
-              className="block text-[clamp(2.5rem,8vw,7rem)] font-black uppercase tracking-tight leading-[0.9]"
-              style={{
-                background: "linear-gradient(135deg, #F0D9A3 0%, #16A36A 100%)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                filter: "drop-shadow(0 4px 30px rgba(0,0,0,0.5))",
-              }}
-            >
-              Chemist
-            </span>
-          </div>
-        </motion.div>
-
-        {/* ── WORD 3: HEALTHCARE, SIMPLIFIED ── */}
-        <motion.div
-          className="absolute inset-0 flex items-center justify-center px-6 z-10"
-          style={{ opacity: w3Opacity, y: w3Y, scale: w3Scale }}
-        >
-          <div className="text-center select-none">
-            <span className="block text-[clamp(2rem,6vw,5rem)] font-light uppercase tracking-[0.15em] text-white/60">
-              Healthcare
-            </span>
-            <span
-              className="block text-[clamp(3rem,10vw,9rem)] font-black uppercase tracking-tight leading-[0.85]"
-              style={{
-                background: "linear-gradient(180deg, #F0D9A3 0%, #16A36A 100%)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                filter: "drop-shadow(0 4px 30px rgba(0,0,0,0.5))",
-              }}
-            >
-              Simplified
-            </span>
-          </div>
-        </motion.div>
-
-        {/* ── KC SHIELD final reveal ── */}
-        <motion.div
-          className="absolute inset-0 flex items-center justify-center z-10"
-          style={{ opacity: shieldOpacity, scale: shieldScale }}
-        >
-          <KCShield size={180} />
-        </motion.div>
-
-        {/* ── Outer vignette ── */}
-        <div
-          className="absolute inset-0 pointer-events-none z-20"
-          style={{ background: "radial-gradient(ellipse 65% 55% at 50% 45%, transparent 30%, rgba(4,6,5,0.75) 100%)" }}
-        />
-
-        {/* ── Scroll hint ── */}
-        <motion.div
-          className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 z-20"
-          style={{ opacity: hintOpacity }}
-        >
-          <span className="text-[10px] uppercase tracking-[0.25em] text-white/30">Scroll to explore</span>
-          <motion.div
-            animate={{ y: [0, 8, 0] }}
-            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-            className="w-5 h-8 rounded-full border border-white/20 flex items-start justify-center pt-1.5"
-          >
-            <div className="w-1 h-2 rounded-full bg-white/40" />
-          </motion.div>
-        </motion.div>
-      </div>
-    </div>
+    </button>
   );
 }
 
@@ -551,14 +337,15 @@ function RevealOnScroll({
   delay?: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { once: true, margin: "-80px" });
+  const isInView = useInView(ref, { once: true, margin: "-60px" });
+  const d = prefersReducedMotion ? 0 : delay;
 
   return (
     <motion.div
       ref={ref}
-      initial={{ opacity: 0, y: 50 }}
-      animate={isInView ? { opacity: 1, y: 0 } : { opacity: 0, y: 50 }}
-      transition={{ duration: 0.9, delay, ease: EASE }}
+      initial={{ opacity: 0, y: prefersReducedMotion ? 0 : 40 }}
+      animate={isInView ? { opacity: 1, y: 0 } : undefined}
+      transition={{ duration: 0.7, delay: d, ease: EASE }}
       className={className}
     >
       {children}
@@ -567,19 +354,225 @@ function RevealOnScroll({
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   SECTION 3 — WHO WE ARE (editorial story)
+   SECTION 1 — CINEMATIC INTRO
+   Hero visual + giant typography visible from FIRST FRAME.
+   4 transform layers total (bg, hero, smoke, text) — no per-pixel work.
+   ═══════════════════════════════════════════════════════════════════ */
+
+function CinematicIntro() {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const { scrollYProgress } = useScroll({
+    target: containerRef,
+    offset: ["start start", "end start"],
+  });
+
+  /* Hero: gentle zoom (single transform layer) */
+  const heroScale = useTransform(scrollYProgress, [0, 0.6], [1, 1.18]);
+
+  /* Atmosphere: fades as we move into the story */
+  const smokeOpacity = useTransform(scrollYProgress, [0, 0.6], [1, 0.15]);
+
+  /* Word 1: EXPLORE — visible immediately, lifts away */
+  const w1Opacity = useTransform(scrollYProgress, [0, 0.16, 0.26], [1, 1, 0]);
+  const w1Y = useTransform(scrollYProgress, [0, 0.26], [0, -90]);
+
+  /* Word 2: KALYAN CHEMIST — mid sequence */
+  const w2Opacity = useTransform(scrollYProgress, [0.22, 0.32, 0.5, 0.6], [0, 1, 1, 0]);
+  const w2Y = useTransform(scrollYProgress, [0.22, 0.6], [70, -60]);
+
+  /* Word 3: HEALTHCARE, SIMPLIFIED — late sequence */
+  const w3Opacity = useTransform(scrollYProgress, [0.55, 0.64, 0.8, 0.9], [0, 1, 1, 0]);
+  const w3Y = useTransform(scrollYProgress, [0.55, 0.9], [60, -40]);
+
+  /* Brand shield — finale of the intro */
+  const shieldOpacity = useTransform(scrollYProgress, [0.8, 0.9], [0, 1]);
+  const shieldScale = useTransform(scrollYProgress, [0.8, 0.96], [0.85, 1]);
+
+  /* Scroll hint */
+  const hintOpacity = useTransform(scrollYProgress, [0, 0.04], [1, 0]);
+
+  return (
+    <div ref={containerRef} className="relative" style={{ height: "280vh" }}>
+      <div className="sticky top-0 h-screen overflow-hidden" style={{ background: "#060808" }}>
+        {/* Deep background — static, one paint */}
+        <div
+          className="absolute inset-0"
+          style={{ background: "radial-gradient(ellipse 80% 60% at 50% 40%, #0a2e1f 0%, #060808 70%)" }}
+        />
+
+        {/* HERO VISUAL — visible from FIRST FRAME, single transform layer */}
+        <motion.div
+          className="absolute inset-0 flex items-center justify-center will-change-transform"
+          style={{ scale: heroScale }}
+        >
+          <div
+            className="relative w-[86vw] max-w-[720px] aspect-[4/3] overflow-hidden rounded-3xl"
+            style={{
+              background: "linear-gradient(135deg, #0a3d2e 0%, #0B0D0C 40%, #111614 70%, #0a2e1f 100%)",
+              boxShadow: "0 0 100px rgba(22,163,106,0.14), 0 30px 60px rgba(0,0,0,0.5)",
+            }}
+          >
+            {/* Static interior layers — composed once */}
+            <div className="absolute inset-0" aria-hidden="true">
+              <div
+                className="absolute inset-0"
+                style={{
+                  background:
+                    "repeating-linear-gradient(90deg, transparent, transparent 64px, rgba(22,163,106,0.035) 64px, rgba(22,163,106,0.035) 65px), repeating-linear-gradient(0deg, transparent, transparent 44px, rgba(22,163,106,0.02) 44px, rgba(22,163,106,0.02) 45px)",
+                }}
+              />
+              <div
+                className="absolute inset-0"
+                style={{ background: "radial-gradient(ellipse 60% 50% at 50% 50%, rgba(22,163,106,0.22), transparent 68%)" }}
+              />
+              <div
+                className="absolute inset-0"
+                style={{ background: "radial-gradient(ellipse 40% 35% at 28% 62%, rgba(216,184,120,0.09), transparent 58%)" }}
+              />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <KCShield size={210} opacity={0.55} />
+              </div>
+              {[
+                { x: "10%", y: "18%", icon: "💊", size: 30, op: 0.2 },
+                { x: "82%", y: "15%", icon: "🩺", size: 26, op: 0.16 },
+                { x: "7%", y: "72%", icon: "💉", size: 24, op: 0.13 },
+                { x: "88%", y: "68%", icon: "🏥", size: 22, op: 0.15 },
+                { x: "50%", y: "8%", icon: "⚕️", size: 20, op: 0.11 },
+                { x: "45%", y: "86%", icon: "🧬", size: 19, op: 0.11 },
+              ].map((el, i) => (
+                <span key={i} className="absolute" style={{ left: el.x, top: el.y, fontSize: el.size, opacity: el.op }}>
+                  {el.icon}
+                </span>
+              ))}
+            </div>
+            {/* Inner vignette — static */}
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{ background: "radial-gradient(ellipse 70% 60% at 50% 45%, transparent 30%, rgba(4,6,5,0.6) 100%)" }}
+            />
+          </div>
+        </motion.div>
+
+        {/* SMOKE — 3 CSS layers, animated via keyframes, opacity scroll-linked on wrapper only */}
+        <motion.div className="absolute inset-0" style={{ opacity: smokeOpacity }}>
+          <Smoke />
+        </motion.div>
+
+        {/* WORD 1: EXPLORE */}
+        <motion.div
+          className="absolute inset-0 flex items-center justify-center px-6 z-10"
+          style={{ opacity: w1Opacity, y: w1Y }}
+        >
+          <span
+            className="text-[clamp(4rem,13vw,11rem)] font-black uppercase tracking-tight leading-none select-none"
+            style={{
+              background: "linear-gradient(180deg, rgba(245,243,236,0.95) 0%, rgba(245,243,236,0.45) 100%)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+            }}
+          >
+            Explore
+          </span>
+        </motion.div>
+
+        {/* WORD 2: KALYAN CHEMIST */}
+        <motion.div
+          className="absolute inset-0 flex items-center justify-center px-6 z-10"
+          style={{ opacity: w2Opacity, y: w2Y }}
+        >
+          <div className="text-center select-none">
+            <span
+              className="block text-[clamp(2.4rem,7.5vw,6.5rem)] font-black uppercase tracking-tight leading-[0.92]"
+              style={{
+                background: "linear-gradient(135deg, #16A36A 0%, #F0D9A3 55%, #16A36A 100%)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+              }}
+            >
+              Kalyan
+            </span>
+            <span
+              className="block text-[clamp(2.4rem,7.5vw,6.5rem)] font-black uppercase tracking-tight leading-[0.92]"
+              style={{
+                background: "linear-gradient(135deg, #F0D9A3 0%, #16A36A 100%)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+              }}
+            >
+              Chemist
+            </span>
+          </div>
+        </motion.div>
+
+        {/* WORD 3: HEALTHCARE, SIMPLIFIED */}
+        <motion.div
+          className="absolute inset-0 flex items-center justify-center px-6 z-10"
+          style={{ opacity: w3Opacity, y: w3Y }}
+        >
+          <div className="text-center select-none">
+            <span className="block text-[clamp(1.8rem,5vw,4rem)] font-light uppercase tracking-[0.18em] text-white/60">
+              Healthcare
+            </span>
+            <span
+              className="block text-[clamp(2.8rem,9vw,8rem)] font-black uppercase tracking-tight leading-[0.88]"
+              style={{
+                background: "linear-gradient(180deg, #F0D9A3 0%, #16A36A 100%)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+              }}
+            >
+              Simplified
+            </span>
+          </div>
+        </motion.div>
+
+        {/* KC SHIELD finale */}
+        <motion.div
+          className="absolute inset-0 flex items-center justify-center z-10"
+          style={{ opacity: shieldOpacity, scale: shieldScale }}
+        >
+          <KCShield size={170} />
+        </motion.div>
+
+        {/* Vignette — static */}
+        <div
+          className="absolute inset-0 pointer-events-none z-20"
+          style={{ background: "radial-gradient(ellipse 65% 55% at 50% 45%, transparent 30%, rgba(4,6,5,0.72) 100%)" }}
+        />
+
+        {/* Scroll hint */}
+        <motion.div
+          className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 z-20"
+          style={{ opacity: hintOpacity }}
+        >
+          <span className="text-[10px] uppercase tracking-[0.25em] text-white/30">Scroll to explore</span>
+          <motion.div
+            animate={prefersReducedMotion ? undefined : { y: [0, 8, 0] }}
+            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+            className="w-5 h-8 rounded-full border border-white/20 flex items-start justify-center pt-1.5"
+          >
+            <div className="w-1 h-2 rounded-full bg-white/40" />
+          </motion.div>
+        </motion.div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   SECTION 2 — WHO WE ARE (editorial story)
    ═══════════════════════════════════════════════════════════════════ */
 
 function WhoWeAre() {
   return (
     <section
-      className="relative overflow-hidden py-28 sm:py-36"
+      className="relative overflow-hidden py-24 sm:py-32"
       style={{ background: "linear-gradient(180deg, #0B0D0C, #111614, #0B0D0C)" }}
     >
-      <SmokeParticles opacity={0.3} />
+      <Smoke opacity={0.4} />
 
       <div className="relative z-10 mx-auto max-w-6xl px-6">
-        <RevealOnScroll className="text-center mb-20">
+        <RevealOnScroll className="text-center mb-16">
           <p className="text-xs sm:text-sm font-semibold uppercase tracking-[0.3em] text-[#D8B878] mb-6">
             Who We Are
           </p>
@@ -596,52 +589,56 @@ function WhoWeAre() {
               Simplified
             </span>
           </h2>
+          <p className="mx-auto mt-6 max-w-2xl text-lg sm:text-xl font-light leading-relaxed text-white/60">
+            Kalyan Chemist is a digital healthcare experience designed to make
+            everyday healthcare easier to discover, manage and access.
+          </p>
         </RevealOnScroll>
 
-        <div className="grid gap-16 lg:gap-24 items-center">
+        <div className="grid gap-14 lg:gap-20 items-center">
           <RevealOnScroll className="order-2 lg:order-1">
             <div className="space-y-6">
               <p className="text-lg sm:text-xl md:text-2xl font-light leading-relaxed text-white/70">
-                Kalyan Chemist brings everyday healthcare closer through a
-                <span className="font-semibold text-white/90"> convenient digital experience </span>
-                for medicines, healthcare products and essential health services.
+                From everyday medicines and wellness essentials to prescription
+                support, lab tests and doctor appointments —
+                <span className="font-semibold text-white/90"> one platform, one experience.</span>
               </p>
               <p className="text-base sm:text-lg leading-relaxed text-white/50">
-                Born from the belief that accessing healthcare should be as simple as a few taps on
-                your phone, we built a platform that connects you to genuine medicines, professional
-                pharmacist support, and reliable doorstep delivery — all in one place.
+                We built Kalyan Chemist around a simple belief: accessing
+                healthcare should be as effortless as a few taps. Genuine
+                medicines, pharmacist guidance and reliable doorstep delivery —
+                connected through a single, convenient digital experience.
               </p>
               <p className="text-base sm:text-lg leading-relaxed text-white/50">
-                Whether it is your daily wellness essentials, prescription medicines, lab tests, or a
-                quick doctor consultation, Kalyan Chemist is designed to make your healthcare journey
-                seamless, safe and convenient.
+                Whether it's your daily essentials, an ongoing prescription, or
+                a quick consultation, your healthcare journey stays seamless,
+                safe and close to home.
               </p>
             </div>
           </RevealOnScroll>
 
-          <RevealOnScroll className="order-1 lg:order-2" delay={0.15}>
+          <RevealOnScroll className="order-1 lg:order-2" delay={0.12}>
             <div
               className="relative rounded-3xl overflow-hidden aspect-[4/3]"
               style={{ background: "linear-gradient(135deg, rgba(22,163,106,0.08), rgba(17,22,20,0.9))" }}
             >
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="relative">
-                  {/* Pulse rings */}
                   {[0, 1, 2].map((i) => (
                     <div
                       key={i}
-                      className="absolute rounded-full border"
+                      className="absolute rounded-full border kc-pulse"
                       style={{
-                        inset: `${-48 - i * 32}px`,
-                        borderColor: i % 2 === 0 ? "rgba(22,163,106,0.1)" : "rgba(216,184,120,0.06)",
-                        animation: `kc-pulse-ring ${5 + i * 2}s ease-in-out ${i}s infinite`,
+                        inset: `${-44 - i * 30}px`,
+                        borderColor: i % 2 === 0 ? "rgba(22,163,106,0.1)" : "rgba(216,184,120,0.07)",
+                        animationDelay: `${i}s`,
                       }}
                     />
                   ))}
                   <div className="relative flex items-center gap-4 p-8">
                     <Stethoscope className="size-12 sm:size-16 text-[#16A36A]/40" strokeWidth={1.2} />
                     <Pill className="size-10 sm:size-14 text-[#F0D9A3]/30" strokeWidth={1.2} />
-                    <HeartPulse className="size-12 sm:size-16 text-[#16A36A]/35" strokeWidth={1.2} />
+                    <ShieldCheck className="size-12 sm:size-16 text-[#16A36A]/35" strokeWidth={1.2} />
                   </div>
                 </div>
               </div>
@@ -654,18 +651,8 @@ function WhoWeAre() {
   );
 }
 
-/* ── HeartPulse icon (not in lucide, quick inline) ── */
-function HeartPulse({ className, strokeWidth = 1.5 }: { className?: string; strokeWidth?: number }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M19.5 12.572l-7.5 7.428l-7.5 -7.428a5 5 0 1 1 7.5 -6.566a5 5 0 1 1 7.5 6.572" />
-      <path d="M3 12h3l2 -3l3 6l2 -3h3" />
-    </svg>
-  );
-}
-
 /* ═══════════════════════════════════════════════════════════════════
-   SECTION 4 — BRAND STORY (cinematic statements)
+   SECTION 3 — BRAND STORY (cinematic statements)
    ═══════════════════════════════════════════════════════════════════ */
 
 function BrandStory() {
@@ -673,14 +660,13 @@ function BrandStory() {
     "Healthcare should feel simpler.",
     "Finding what you need should take less effort.",
     "From medicines to everyday healthcare needs.",
-    "From discovery to doorstep.",
     "Everything connected through one experience.",
   ];
 
   return (
-    <section className="relative overflow-hidden py-28 sm:py-36" style={{ background: "#0B0D0C" }}>
+    <section className="relative overflow-hidden py-24 sm:py-32" style={{ background: "#0B0D0C" }}>
       <div className="relative z-10 mx-auto max-w-4xl px-6">
-        <RevealOnScroll className="text-center mb-16">
+        <RevealOnScroll className="text-center mb-14">
           <p className="text-xs sm:text-sm font-semibold uppercase tracking-[0.3em] text-[#16A36A] mb-4">
             Our Philosophy
           </p>
@@ -699,23 +685,17 @@ function BrandStory() {
           </h2>
         </RevealOnScroll>
 
-        <div className="space-y-12 sm:space-y-16">
+        <div className="space-y-10 sm:space-y-12">
           {statements.map((text, i) => (
-            <RevealOnScroll key={i} delay={i * 0.08}>
+            <RevealOnScroll key={i} delay={i * 0.06}>
               <div className="flex items-center gap-6 sm:gap-8">
                 <div className="flex size-10 shrink-0 items-center justify-center rounded-full border border-[#16A36A]/20 text-[#16A36A]/60 text-xs font-bold">
                   {String(i + 1).padStart(2, "0")}
                 </div>
-                <p
-                  className="text-2xl sm:text-3xl md:text-4xl font-light leading-tight text-white/60"
-                  style={{ letterSpacing: "-0.01em" }}
-                >
+                <p className="text-2xl sm:text-3xl md:text-4xl font-light leading-tight text-white/60">
                   {text}
                 </p>
               </div>
-              {i < statements.length - 1 && (
-                <div className="mt-12 sm:mt-16 ml-5 h-px w-px bg-gradient-to-b from-[#16A36A]/20 to-transparent" />
-              )}
             </RevealOnScroll>
           ))}
         </div>
@@ -725,7 +705,76 @@ function BrandStory() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   SECTION 5 — HEALTHCARE ECOSYSTEM (connected journey)
+   SECTION 4 — FROM DISCOVERY TO DOORSTEP (journey)
+   ═══════════════════════════════════════════════════════════════════ */
+
+function DiscoveryToDoorstep() {
+  const steps = [
+    { icon: Search, title: "Search", desc: "Find medicines and health essentials instantly." },
+    { icon: ShoppingBag, title: "Explore", desc: "Browse genuine products across every category." },
+    { icon: Pill, title: "Select", desc: "Choose exactly what your health routine needs." },
+    { icon: Package, title: "Order", desc: "Checkout securely with prescription support built in." },
+    { icon: Home, title: "Receive", desc: "Carefully packed and delivered to your doorstep." },
+  ];
+
+  return (
+    <section
+      className="relative overflow-hidden py-24 sm:py-32"
+      style={{ background: "linear-gradient(180deg, #0B0D0C 0%, #0a2e1f 55%, #0B0D0C 100%)" }}
+    >
+      <Smoke opacity={0.25} />
+
+      <div className="relative z-10 mx-auto max-w-6xl px-6">
+        <RevealOnScroll className="text-center mb-16">
+          <p className="text-xs sm:text-sm font-semibold uppercase tracking-[0.3em] text-[#D8B878] mb-5">
+            The Journey
+          </p>
+          <h2 className="text-4xl sm:text-6xl md:text-7xl font-black uppercase leading-[0.92] tracking-tight">
+            <span className="text-white/90">From Discovery</span>
+            <br />
+            <span
+              style={{
+                background: "linear-gradient(90deg, #16A36A, #F0D9A3)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+              }}
+            >
+              to Doorstep
+            </span>
+          </h2>
+        </RevealOnScroll>
+
+        {/* Horizontal connected journey on desktop, vertical on mobile */}
+        <div className="relative">
+          {/* Connecting line (desktop) */}
+          <div className="hidden lg:block absolute left-[10%] right-[10%] top-7 h-px bg-gradient-to-r from-[#16A36A]/10 via-[#F0D9A3]/25 to-[#16A36A]/10" />
+
+          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-5 lg:gap-4">
+            {steps.map((step, i) => (
+              <RevealOnScroll key={step.title} delay={i * 0.08}>
+                <div className="flex flex-col items-center text-center lg:px-2">
+                  <div className="relative z-10 mb-5 flex size-14 items-center justify-center rounded-2xl border border-[#16A36A]/20 bg-[#0d1712] shadow-lg shadow-black/30">
+                    <step.icon className="size-6 text-[#16A36A]" strokeWidth={1.5} />
+                  </div>
+                  <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.25em] text-[#D8B878]/70">
+                    Step {String(i + 1).padStart(2, "0")}
+                  </p>
+                  <h3 className="text-lg font-bold text-white/90">{step.title}</h3>
+                  <p className="mt-1.5 max-w-[220px] text-sm leading-relaxed text-white/45">
+                    {step.desc}
+                  </p>
+                </div>
+              </RevealOnScroll>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   SECTION 5 — ONE HEALTHCARE EXPERIENCE (ecosystem)
    ═══════════════════════════════════════════════════════════════════ */
 
 function EcosystemJourney() {
@@ -742,17 +791,17 @@ function EcosystemJourney() {
   return (
     <section
       className="relative overflow-hidden py-24 sm:py-32"
-      style={{ background: "linear-gradient(180deg, #0B0D0C 0%, #0a2e1f 50%, #0B0D0C 100%)" }}
+      style={{ background: "#0B0D0C" }}
     >
-      <SmokeParticles opacity={0.2} />
+      <Smoke opacity={0.2} />
 
       <div className="relative z-10 mx-auto max-w-6xl px-6">
-        <RevealOnScroll className="text-center mb-16">
-          <p className="text-xs sm:text-sm font-semibold uppercase tracking-[0.3em] text-[#D8B878] mb-4">
-            The Ecosystem
+        <RevealOnScroll className="text-center mb-14">
+          <p className="text-xs sm:text-sm font-semibold uppercase tracking-[0.3em] text-[#D8B878] mb-5">
+            One Healthcare Experience
           </p>
           <h2 className="text-3xl sm:text-5xl font-black leading-[0.95] tracking-tight text-white/90">
-            One connected{" "}
+            Everything connected,{" "}
             <span
               style={{
                 background: "linear-gradient(90deg, #F0D9A3, #16A36A)",
@@ -760,38 +809,26 @@ function EcosystemJourney() {
                 WebkitTextFillColor: "transparent",
               }}
             >
-              healthcare journey
+              nothing missing
             </span>
           </h2>
         </RevealOnScroll>
 
-        {/* Vertical connected journey */}
         <div className="relative mx-auto max-w-lg">
-          {/* Connecting line */}
-          <div className="absolute left-5 top-0 bottom-0 w-px bg-gradient-to-b from-[#16A36A]/30 via-[#F0D9A3]/20 to-[#16A36A]/30" />
-
+          <div className="absolute left-5 top-0 bottom-0 w-px bg-gradient-to-b from-[#16A36A]/25 via-[#F0D9A3]/20 to-[#16A36A]/25" />
           <div className="space-y-1">
             {steps.map((step, i) => {
               const Icon = step.icon;
               return (
-                <RevealOnScroll key={step.label} delay={i * 0.06}>
-                  <div className="flex items-center gap-5 py-4">
-                    {/* Node */}
+                <RevealOnScroll key={step.label} delay={i * 0.05}>
+                  <div className="flex items-center gap-5 py-3.5">
                     <div
                       className="relative z-10 flex size-10 shrink-0 items-center justify-center rounded-full border"
-                      style={{
-                        borderColor: `${step.color}30`,
-                        background: `${step.color}10`,
-                      }}
+                      style={{ borderColor: `${step.color}30`, background: `${step.color}10` }}
                     >
                       <Icon className="size-4" style={{ color: step.color }} strokeWidth={1.5} />
                     </div>
-                    {/* Label */}
                     <p className="text-base sm:text-lg font-medium text-white/70">{step.label}</p>
-                    {/* Arrow */}
-                    {i < steps.length - 1 && (
-                      <ArrowUpRight className="size-3 text-white/15 ml-auto" />
-                    )}
                   </div>
                 </RevealOnScroll>
               );
@@ -811,55 +848,52 @@ function PremiumCards() {
   const cards = [
     {
       title: "Medicines & Products",
-      desc: "Genuine medicines and healthcare products from trusted brands, delivered with care.",
+      desc: "Genuine medicines and healthcare products from trusted brands.",
       accent: "#16A36A",
       icon: Pill,
-      gradient: "from-[#16A36A]/8 to-[#16A36A]/2",
     },
     {
       title: "Lab Tests & Doctors",
-      desc: "Book lab tests and doctor consultations from the comfort of your home.",
+      desc: "Book lab tests and doctor consultations from home.",
       accent: "#F0D9A3",
       icon: Stethoscope,
-      gradient: "from-[#F0D9A3]/8 to-[#F0D9A3]/2",
     },
     {
-      title: "Prescriptions & Refills",
-      desc: "Upload prescriptions easily and set up convenient medicine refill schedules.",
+      title: "Healthcare Devices & Wellness",
+      desc: "Everyday devices and wellness essentials for your family.",
       accent: "#16A36A",
-      icon: Upload,
-      gradient: "from-[#16A36A]/8 to-[#16A36A]/2",
+      icon: ShieldCheck,
     },
     {
-      title: "Home Delivery",
-      desc: "Fast, reliable doorstep delivery so you never miss your healthcare essentials.",
+      title: "Refills & Home Delivery",
+      desc: "Convenient refill schedules and reliable doorstep delivery.",
       accent: "#D8B878",
       icon: Truck,
-      gradient: "from-[#D8B878]/8 to-[#D8B878]/2",
     },
   ];
 
-  const containerVariants: Variants = {
-    hidden: {},
-    visible: { transition: { staggerChildren: 0.12 } },
-  };
+  const containerVariants: Variants = useMemo(
+    () => ({
+      hidden: {},
+      visible: { transition: { staggerChildren: 0.1 } },
+    }),
+    []
+  );
 
-  const cardVariants: Variants = {
-    hidden: { opacity: 0, y: 40, scale: 0.96 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      scale: 1,
-      transition: { duration: 0.7, ease: EASE },
-    },
-  };
+  const cardVariants: Variants = useMemo(
+    () => ({
+      hidden: { opacity: 0, y: 30 },
+      visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: EASE } },
+    }),
+    []
+  );
 
   const navigate = useNavigate();
 
   return (
     <section className="relative overflow-hidden py-24 sm:py-32" style={{ background: "#0B0D0C" }}>
       <div className="relative z-10 mx-auto max-w-6xl px-6">
-        <RevealOnScroll className="text-center mb-16">
+        <RevealOnScroll className="text-center mb-14">
           <p className="text-xs sm:text-sm font-semibold uppercase tracking-[0.3em] text-[#16A36A] mb-4">
             The Experience
           </p>
@@ -882,7 +916,7 @@ function PremiumCards() {
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-60px" }}
-          className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4"
+          className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
         >
           {cards.map((card) => {
             const Icon = card.icon;
@@ -890,30 +924,18 @@ function PremiumCards() {
               <motion.div
                 key={card.title}
                 variants={cardVariants}
-                className="group relative rounded-3xl border border-white/[0.06] p-6 sm:p-7 transition-all duration-500 hover:border-[#16A36A]/20 hover:shadow-lg hover:shadow-[#16A36A]/5 hover:-translate-y-1 cursor-pointer"
+                className="group relative rounded-3xl border border-white/[0.06] p-5 sm:p-6 transition-colors duration-300 hover:border-[#16A36A]/20 cursor-pointer"
                 style={{ background: "linear-gradient(160deg, rgba(245,243,236,0.03), rgba(245,243,236,0.01))" }}
                 onClick={() => navigate("/products")}
               >
-                {/* Top hover glow */}
-                <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/[0.06] to-transparent group-hover:via-[#16A36A]/20 transition-all duration-500" />
-
-                {/* Icon */}
                 <div
-                  className="mb-5 flex size-12 items-center justify-center rounded-2xl transition-all duration-500 group-hover:scale-110"
+                  className="mb-4 flex size-11 items-center justify-center rounded-2xl transition-transform duration-300 group-hover:scale-105"
                   style={{ background: `${card.accent}12`, border: `1px solid ${card.accent}20` }}
                 >
                   <Icon className="size-5" style={{ color: card.accent }} strokeWidth={1.5} />
                 </div>
-
-                <h3 className="text-base font-bold text-white/90 mb-2 group-hover:text-white transition-colors">
-                  {card.title}
-                </h3>
-                <p className="text-sm leading-relaxed text-white/40 group-hover:text-white/55 transition-colors">
-                  {card.desc}
-                </p>
-
-                {/* Bottom accent */}
-                <div className="absolute bottom-0 left-6 right-6 h-[2px] rounded-full bg-gradient-to-r from-transparent via-transparent to-transparent group-hover:via-[#16A36A]/30 transition-all duration-700" />
+                <h3 className="text-[15px] font-bold text-white/90 mb-1.5">{card.title}</h3>
+                <p className="text-[13px] leading-relaxed text-white/40">{card.desc}</p>
               </motion.div>
             );
           })}
@@ -924,86 +946,82 @@ function PremiumCards() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   SECTION 7 — TRUST + STATS
+   SECTION 7 — WHY KALYAN CHEMIST (purpose + trust)
    ═══════════════════════════════════════════════════════════════════ */
 
 function TrustSection() {
+  const points = [
+    { icon: ShieldCheck, text: "Genuine medicines from trusted pharmaceutical sources" },
+    { icon: BadgeCheck, text: "Professional pharmacist support whenever you need it" },
+    { icon: Clock, text: "Convenient digital access, any hour of the day" },
+    { icon: Upload, text: "Simple prescription upload and refill management" },
+    { icon: Truck, text: "Careful packaging and dependable doorstep delivery" },
+  ];
+
   return (
     <section
       className="relative overflow-hidden py-24 sm:py-32"
       style={{ background: "linear-gradient(180deg, #0B0D0C, #0f1a15, #0B0D0C)" }}
     >
-      <SmokeParticles opacity={0.2} />
+      <Smoke opacity={0.2} />
 
       <div className="relative z-10 mx-auto max-w-6xl px-6">
-        <div className="grid gap-16 lg:gap-24 items-center">
-          <RevealOnScroll className="order-2 lg:order-1">
-            <div className="space-y-8">
-              <div>
-                <p className="text-xs sm:text-sm font-semibold uppercase tracking-[0.3em] text-[#D8B878] mb-4">
-                  Built on Trust
-                </p>
-                <h2 className="text-3xl sm:text-4xl md:text-5xl font-black leading-[0.95] tracking-tight text-white/90">
-                  Your health deserves
-                  <br />
-                  <span
-                    style={{
-                      background: "linear-gradient(90deg, #16A36A, #F0D9A3)",
-                      WebkitBackgroundClip: "text",
-                      WebkitTextFillColor: "transparent",
-                    }}
-                  >
-                    nothing less
-                  </span>
-                </h2>
-              </div>
+        <RevealOnScroll className="text-center mb-14">
+          <p className="text-xs sm:text-sm font-semibold uppercase tracking-[0.3em] text-[#D8B878] mb-5">
+            Why Kalyan Chemist
+          </p>
+          <h2 className="text-3xl sm:text-5xl font-black leading-[0.95] tracking-tight text-white/90">
+            Healthcare should feel{" "}
+            <span
+              style={{
+                background: "linear-gradient(90deg, #16A36A, #F0D9A3)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+              }}
+            >
+              simpler
+            </span>
+          </h2>
+          <p className="mx-auto mt-5 max-w-2xl text-lg font-light leading-relaxed text-white/50">
+            Built around convenience, trust and everyday healthcare support —
+            a customer-focused experience designed for real life.
+          </p>
+        </RevealOnScroll>
 
-              <div className="space-y-5">
-                {[
-                  { icon: ShieldCheck, text: "Genuine medicines from verified and trusted pharmaceutical sources" },
-                  { icon: BadgeCheck, text: "Professional pharmacist consultations available around the clock" },
-                  { icon: Clock, text: "Convenient digital access to healthcare whenever you need it" },
-                  { icon: Truck, text: "Reliable doorstep delivery with secure and careful packaging" },
-                  { icon: Upload, text: "Easy prescription upload and seamless refill management" },
-                ].map((item, i) => (
-                  <RevealOnScroll key={i} delay={i * 0.08}>
-                    <div className="flex items-start gap-4 group">
-                      <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#16A36A]/10 text-[#16A36A] group-hover:bg-[#16A36A]/15 transition-colors">
-                        <item.icon className="size-[18px]" strokeWidth={1.6} />
-                      </div>
-                      <p className="text-base leading-relaxed text-white/55 group-hover:text-white/70 transition-colors pt-2">
-                        {item.text}
-                      </p>
-                    </div>
-                  </RevealOnScroll>
-                ))}
-              </div>
-            </div>
-          </RevealOnScroll>
+        <div className="grid gap-10 lg:grid-cols-2 lg:gap-16 items-start">
+          <div className="space-y-4">
+            {points.map((item, i) => (
+              <RevealOnScroll key={i} delay={i * 0.06}>
+                <div className="flex items-start gap-4">
+                  <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#16A36A]/10 text-[#16A36A]">
+                    <item.icon className="size-[18px]" strokeWidth={1.6} />
+                  </div>
+                  <p className="pt-2 text-base leading-relaxed text-white/55">{item.text}</p>
+                </div>
+              </RevealOnScroll>
+            ))}
+          </div>
 
-          <RevealOnScroll className="order-1 lg:order-2" delay={0.1}>
-            <div className="grid grid-cols-2 gap-4">
+          {/* Experience pillars — visual composition instead of stats */}
+          <RevealOnScroll delay={0.1}>
+            <div className="grid grid-cols-2 gap-3">
               {[
-                { value: "10,000+", label: "Orders Delivered", icon: Truck },
-                { value: "5,000+", label: "Products Available", icon: Pill },
-                { value: "100%", label: "Genuine Medicines", icon: ShieldCheck },
-                { value: "4.9 ★", label: "Customer Rating", icon: Star },
-              ].map((stat, i) => (
-                <motion.div
-                  key={stat.label}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.1, duration: 0.6, ease: EASE }}
-                  className="group rounded-2xl border border-white/[0.06] p-5 sm:p-6 text-center hover:border-[#16A36A]/15 transition-all duration-500"
+                { title: "Discover", desc: "Medicines, devices & wellness", icon: Search },
+                { title: "Order", desc: "Secure checkout with Rx support", icon: ShoppingBag },
+                { title: "Consult", desc: "Lab tests & doctor appointments", icon: Stethoscope },
+                { title: "Receive", desc: "Doorstep delivery & refills", icon: Truck },
+              ].map((p, i) => (
+                <div
+                  key={p.title}
+                  className="rounded-2xl border border-white/[0.06] p-4 sm:p-5"
                   style={{ background: "linear-gradient(160deg, rgba(245,243,236,0.025), rgba(245,243,236,0.008))" }}
                 >
-                  <div className="mx-auto mb-3 flex size-10 items-center justify-center rounded-xl bg-[#16A36A]/10 text-[#16A36A] group-hover:bg-[#16A36A]/15 transition-colors">
-                    <stat.icon className="size-[18px]" strokeWidth={1.5} />
+                  <div className="mb-3 flex size-9 items-center justify-center rounded-xl bg-[#16A36A]/10 text-[#16A36A]">
+                    <p.icon className="size-4" strokeWidth={1.5} />
                   </div>
-                  <p className="text-2xl sm:text-3xl font-extrabold text-white/90">{stat.value}</p>
-                  <p className="mt-1 text-[11px] font-medium uppercase tracking-wider text-white/35">{stat.label}</p>
-                </motion.div>
+                  <p className="text-sm font-bold text-white/85">{p.title}</p>
+                  <p className="mt-1 text-xs leading-relaxed text-white/40">{p.desc}</p>
+                </div>
               ))}
             </div>
           </RevealOnScroll>
@@ -1022,22 +1040,20 @@ function FinalStatement() {
 
   return (
     <section
-      className="relative overflow-hidden py-32 sm:py-44"
+      className="relative overflow-hidden py-28 sm:py-40"
       style={{ background: "linear-gradient(180deg, #0B0D0C 0%, #0a3d2e 50%, #0B0D0C 100%)" }}
     >
-      {/* Atmospheric backdrop */}
       <div className="absolute inset-0 pointer-events-none" aria-hidden="true">
         <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 50% 40% at 50% 50%, rgba(22,163,106,0.12), transparent 65%)" }} />
         <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 30% 25% at 50% 50%, rgba(216,184,120,0.06), transparent 55%)" }} />
       </div>
-      <SmokeParticles opacity={0.3} />
+      <Smoke opacity={0.3} />
 
       <div className="relative z-10 mx-auto max-w-5xl px-6 text-center">
         <RevealOnScroll>
-          {/* Decorative divider */}
           <div className="mx-auto mb-10 h-px w-20 bg-gradient-to-r from-transparent via-[#16A36A]/50 to-transparent" />
 
-          <h2 className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-black uppercase leading-[0.88] tracking-tight">
+          <h2 className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-black uppercase leading-[0.9] tracking-tight">
             <span
               style={{
                 background: "linear-gradient(90deg, #F0D9A3, white, #16A36A)",
@@ -1059,20 +1075,18 @@ function FinalStatement() {
             </span>
           </h2>
 
-          <p className="mt-8 text-lg sm:text-xl md:text-2xl font-light leading-relaxed text-white/45 max-w-2xl mx-auto">
+          <p className="mx-auto mt-8 max-w-2xl text-lg sm:text-xl md:text-2xl font-light leading-relaxed text-white/45">
             Making everyday healthcare simpler, more convenient and accessible
             through Kalyan Chemist.
           </p>
 
-          {/* Decorative divider */}
           <div className="mx-auto mt-10 h-px w-20 bg-gradient-to-r from-transparent via-[#D8B878]/40 to-transparent" />
         </RevealOnScroll>
 
-        {/* CTA */}
-        <RevealOnScroll delay={0.2} className="mt-14">
+        <RevealOnScroll delay={0.15} className="mt-12">
           <button
             onClick={() => navigate("/products")}
-            className="group inline-flex items-center gap-3 rounded-full bg-[#16A36A] px-8 py-4 text-sm font-semibold text-white shadow-lg shadow-[#16A36A]/20 hover:bg-[#128a55] transition-all duration-300 hover:shadow-xl hover:shadow-[#16A36A]/30 hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+            className="group inline-flex items-center gap-3 rounded-full bg-[#16A36A] px-8 py-4 text-sm font-semibold text-white shadow-lg shadow-[#16A36A]/20 transition-colors duration-300 hover:bg-[#128a55] cursor-pointer"
           >
             Explore Kalyan Chemist
             <ArrowRight className="size-4 transition-transform duration-300 group-hover:translate-x-1" />
@@ -1092,47 +1106,61 @@ export default function AboutUs() {
     <div className="min-h-screen bg-background text-foreground">
       <Navbar />
 
-      {/* Global keyframes */}
+      {/* Page-scoped keyframes — transform-only, compositor friendly */}
       <style>{`
-        @keyframes kc-smoke {
-          0% { transform: translateY(0) translateX(0) scale(1); }
-          100% { transform: translateY(-30px) translateX(15px) scale(1.1); }
+        .kc-smoke {
+          position: absolute;
+          inset: -10%;
+          will-change: transform;
         }
+        .kc-smoke-a { animation: kc-drift-a 26s ease-in-out infinite alternate; }
+        .kc-smoke-b { animation: kc-drift-b 34s ease-in-out infinite alternate; }
+        .kc-smoke-c { animation: kc-drift-a 42s ease-in-out infinite alternate-reverse; }
+        @keyframes kc-drift-a {
+          0%   { transform: translate3d(-2%, 0, 0) scale(1); }
+          100% { transform: translate3d(3%, -2%, 0) scale(1.06); }
+        }
+        @keyframes kc-drift-b {
+          0%   { transform: translate3d(2%, 1%, 0) scale(1.04); }
+          100% { transform: translate3d(-3%, -1%, 0) scale(1); }
+        }
+        .kc-pulse { animation: kc-pulse-ring 6s ease-in-out infinite; }
         @keyframes kc-pulse-ring {
-          0% { transform: scale(1); opacity: 0.12; }
-          50% { transform: scale(1.06); opacity: 0.22; }
-          100% { transform: scale(1); opacity: 0.12; }
+          0%, 100% { transform: scale(1); opacity: 0.5; }
+          50% { transform: scale(1.05); opacity: 0.9; }
         }
         @media (prefers-reduced-motion: reduce) {
-          [style*="animation"] { animation: none !important; }
+          .kc-smoke, .kc-pulse { animation: none !important; }
         }
       `}</style>
 
-      {/* 1. Cinematic Intro — hero visual + giant typography cycle + shield reveal */}
+      {/* 1. Cinematic intro — hero visual + giant typography, visible from frame 1 */}
       <CinematicIntro />
 
-      {/* 2. Who We Are — editorial story reveal */}
+      {/* 2. Who we are */}
       <WhoWeAre />
 
-      {/* 3. Brand Story — cinematic philosophy statements */}
+      {/* 3. Brand story */}
       <BrandStory />
 
-      {/* 4. Healthcare Ecosystem — connected journey */}
+      {/* 4. From discovery to doorstep */}
+      <DiscoveryToDoorstep />
+
+      {/* 5. One healthcare experience (ecosystem) */}
       <EcosystemJourney />
 
-      {/* 5. Premium Cards */}
+      {/* 6. Premium visual cards */}
       <PremiumCards />
 
-      {/* 6. Trust + Stats */}
+      {/* 7. Why Kalyan Chemist */}
       <TrustSection />
 
-      {/* 7. Final Statement — visual climax */}
+      {/* 8. Final statement */}
       <FinalStatement />
 
-      {/* Footer */}
       <Footer />
 
-      {/* Music Control — floating ON/OFF button */}
+      {/* Music control — one instance, real playback */}
       <MusicControl />
     </div>
   );
