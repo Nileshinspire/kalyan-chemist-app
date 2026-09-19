@@ -275,21 +275,9 @@ function CinematicIntro() {
 
   useEffect(() => {
     if (prefersReducedMotion) { setIntroDone(true); return; }
-    // Lock scroll during the automatic intro
-    const prevOverflow = document.body.style.overflow;
-    const prevOverscroll = document.body.style.overscrollBehavior;
-    document.body.style.overflow = "hidden";
-    document.body.style.overscrollBehavior = "none";
-    const t = setTimeout(() => {
-      document.body.style.overflow = prevOverflow;
-      document.body.style.overscrollBehavior = prevOverscroll;
-      setIntroDone(true);
-    }, INTRO_MS);
-    return () => {
-      clearTimeout(t);
-      document.body.style.overflow = prevOverflow;
-      document.body.style.overscrollBehavior = prevOverscroll;
-    };
+    // NO scroll lock — user can scroll freely during intro
+    const t = setTimeout(() => setIntroDone(true), INTRO_MS);
+    return () => clearTimeout(t);
   }, []);
 
   /* ── Phase B: scroll-driven transforms ── */
@@ -398,11 +386,11 @@ function CinematicIntro() {
            Always mounted. Visible/active after Phase A ends.
            ════════════════════════════════════════════════ */}
         <div className="absolute inset-0 z-10 pointer-events-none">
-          {/* Smoke — scroll-driven fade */}
+          {/* Smoke — VISIBLE + MOVING, scroll fades it out */}
           <motion.div className="absolute inset-0" style={{ opacity: smokeScrollOp }}>
-            <div className="absolute inset-[-10%] kc-smoke-a" style={{ background: "radial-gradient(ellipse 60% 45% at 30% 40%, rgba(22,163,106,0.10), transparent 70%)" }} />
-            <div className="absolute inset-[-10%] kc-smoke-b" style={{ background: "radial-gradient(ellipse 50% 40% at 75% 60%, rgba(216,184,120,0.06), transparent 70%)" }} />
-            <div className="absolute inset-[-10%] kc-smoke-c" style={{ background: "radial-gradient(ellipse 70% 55% at 50% 70%, rgba(245,243,236,0.04), transparent 75%)" }} />
+            <div className="absolute inset-[-10%] kc-smoke-a" style={{ background: "radial-gradient(ellipse 65% 50% at 30% 40%, rgba(22,163,106,0.25), transparent 60%)" }} />
+            <div className="absolute inset-[-10%] kc-smoke-b" style={{ background: "radial-gradient(ellipse 55% 45% at 75% 55%, rgba(216,184,120,0.15), transparent 55%)" }} />
+            <div className="absolute inset-[-10%] kc-smoke-c" style={{ background: "radial-gradient(ellipse 70% 55% at 50% 65%, rgba(245,243,236,0.10), transparent 60%)" }} />
           </motion.div>
           {/* EXPLORE — scroll-driven exit */}
           <motion.div className="absolute inset-0 flex items-center justify-center px-6"
@@ -807,41 +795,45 @@ export default function AboutUs() {
            No scroll involvement. No Framer Motion conflict.
            Phase A div unmounts after completion. */
 
-        /* Smoke auto-parting (opacity 0.70 → 0 over 3s) */
+        /* Smoke — VISIBLE, MOVING, cinematic. Auto-parting over 3s. */
         .kc-phase-a-smoke {
           background:
-            radial-gradient(ellipse 70% 55% at 35% 45%, rgba(22,163,106,0.12), transparent 65%),
-            radial-gradient(ellipse 55% 45% at 70% 55%, rgba(216,184,120,0.07), transparent 60%),
-            radial-gradient(ellipse 80% 60% at 50% 50%, rgba(245,243,236,0.05), transparent 70%);
-          animation: kc-smoke-auto 3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+            radial-gradient(ellipse 70% 55% at 30% 40%, rgba(22,163,106,0.30), transparent 60%),
+            radial-gradient(ellipse 60% 50% at 70% 55%, rgba(216,184,120,0.18), transparent 55%),
+            radial-gradient(ellipse 80% 60% at 50% 50%, rgba(245,243,236,0.12), transparent 65%),
+            radial-gradient(ellipse 50% 45% at 20% 70%, rgba(22,163,106,0.15), transparent 55%);
+          animation: kc-smoke-auto 3s cubic-bezier(0.22, 1, 0.36, 1) forwards,
+                     kc-drift-a 12s ease-in-out infinite alternate;
         }
         @keyframes kc-smoke-auto {
-          0%   { opacity: 0.70; }
-          35%  { opacity: 0.50; }
+          0%   { opacity: 0.85; }
+          40%  { opacity: 0.55; }
           100% { opacity: 0.00; }
         }
 
-        /* EXPLORE emerges from smoke, holds, then fades out */
+        /* EXPLORE emerges from smoke, holds, then exits. GPU-only (no filter). */
         .kc-phase-a-explore {
           opacity: 0;
           animation: kc-explore-auto 2.4s cubic-bezier(0.22, 1, 0.36, 1) 0.2s forwards;
+          will-change: transform, opacity;
         }
         @keyframes kc-explore-auto {
-          0%   { opacity: 0; transform: translateY(25px) scale(0.95); filter: blur(10px); }
-          35%  { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
-          65%  { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
-          100% { opacity: 0; transform: translateY(-20px) scale(1.05); filter: blur(4px); }
+          0%   { opacity: 0; transform: translateY(25px) scale(0.95); }
+          35%  { opacity: 1; transform: translateY(0) scale(1); }
+          65%  { opacity: 1; transform: translateY(0) scale(1); }
+          100% { opacity: 0; transform: translateY(-20px) scale(1.05); }
         }
 
-        /* KALYAN CHEMIST appears after EXPLORE fades */
+        /* KALYAN CHEMIST appears after EXPLORE fades. GPU-only. */
         .kc-phase-a-kalyan {
           opacity: 0;
           animation: kc-kalyan-auto 1.4s cubic-bezier(0.22, 1, 0.36, 1) 1.8s forwards;
+          will-change: transform, opacity;
         }
         @keyframes kc-kalyan-auto {
-          0%   { opacity: 0; transform: translateY(20px) scale(0.96); filter: blur(6px); }
-          60%  { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
-          100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+          0%   { opacity: 0; transform: translateY(20px) scale(0.96); }
+          60%  { opacity: 1; transform: translateY(0) scale(1); }
+          100% { opacity: 1; transform: translateY(0) scale(1); }
         }
 
         /* ═══ AMBIENT SMOKE DRIFT (CSS, transform-only) ═══ */
