@@ -267,7 +267,7 @@ function RevealOnScroll({ children, className = "", delay = 0 }: {
    Phase B always renders but only becomes visible/active after intro.
    ═══════════════════════════════════════════════════════════════════ */
 
-const INTRO_MS = 2500;
+const INTRO_MS = 3000;
 
 function CinematicIntro() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -275,8 +275,21 @@ function CinematicIntro() {
 
   useEffect(() => {
     if (prefersReducedMotion) { setIntroDone(true); return; }
-    const t = setTimeout(() => setIntroDone(true), INTRO_MS);
-    return () => clearTimeout(t);
+    // Lock scroll during the automatic intro
+    const prevOverflow = document.body.style.overflow;
+    const prevOverscroll = document.body.style.overscrollBehavior;
+    document.body.style.overflow = "hidden";
+    document.body.style.overscrollBehavior = "none";
+    const t = setTimeout(() => {
+      document.body.style.overflow = prevOverflow;
+      document.body.style.overscrollBehavior = prevOverscroll;
+      setIntroDone(true);
+    }, INTRO_MS);
+    return () => {
+      clearTimeout(t);
+      document.body.style.overflow = prevOverflow;
+      document.body.style.overscrollBehavior = prevOverscroll;
+    };
   }, []);
 
   /* ── Phase B: scroll-driven transforms ── */
@@ -794,37 +807,36 @@ export default function AboutUs() {
            No scroll involvement. No Framer Motion conflict.
            Phase A div unmounts after completion. */
 
-        /* Smoke auto-parting (opacity 0.7 → 0.15 over 2.5s) */
+        /* Smoke auto-parting (opacity 0.70 → 0 over 3s) */
         .kc-phase-a-smoke {
           background:
             radial-gradient(ellipse 70% 55% at 35% 45%, rgba(22,163,106,0.12), transparent 65%),
             radial-gradient(ellipse 55% 45% at 70% 55%, rgba(216,184,120,0.07), transparent 60%),
             radial-gradient(ellipse 80% 60% at 50% 50%, rgba(245,243,236,0.05), transparent 70%);
-          animation: kc-smoke-auto 2.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+          animation: kc-smoke-auto 3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
         }
         @keyframes kc-smoke-auto {
           0%   { opacity: 0.70; }
-          30%  { opacity: 0.55; }
+          35%  { opacity: 0.50; }
           100% { opacity: 0.00; }
         }
 
-        /* EXPLORE emerges from smoke (0 → 1, y: 25px → 0, blur: 10px → 0) */
+        /* EXPLORE emerges from smoke, holds, then fades out */
         .kc-phase-a-explore {
           opacity: 0;
-          animation: kc-explore-auto 1.8s cubic-bezier(0.22, 1, 0.36, 1) 0.2s forwards;
+          animation: kc-explore-auto 2.4s cubic-bezier(0.22, 1, 0.36, 1) 0.2s forwards;
         }
         @keyframes kc-explore-auto {
           0%   { opacity: 0; transform: translateY(25px) scale(0.95); filter: blur(10px); }
-          50%  { opacity: 0.8; filter: blur(2px); }
-          75%  { opacity: 1; filter: blur(0); }
-          85%  { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+          35%  { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+          65%  { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
           100% { opacity: 0; transform: translateY(-20px) scale(1.05); filter: blur(4px); }
         }
 
-        /* KALYAN CHEMIST appears (delayed, 0 → 1 → hold) */
+        /* KALYAN CHEMIST appears after EXPLORE fades */
         .kc-phase-a-kalyan {
           opacity: 0;
-          animation: kc-kalyan-auto 1.5s cubic-bezier(0.22, 1, 0.36, 1) 1.6s forwards;
+          animation: kc-kalyan-auto 1.4s cubic-bezier(0.22, 1, 0.36, 1) 1.8s forwards;
         }
         @keyframes kc-kalyan-auto {
           0%   { opacity: 0; transform: translateY(20px) scale(0.96); filter: blur(6px); }
