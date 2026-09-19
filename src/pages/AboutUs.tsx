@@ -38,42 +38,6 @@ const prefersReducedMotion =
   window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /* ═══════════════════════════════════════════════════════════════════
-   SMOKE — Lightweight CSS atmosphere (3 gradient layers, no blur)
-   ═══════════════════════════════════════════════════════════════════ */
-
-function Smoke({ opacity = 1 }: { opacity?: number }) {
-  return (
-    <div
-      className="pointer-events-none absolute inset-0 overflow-hidden"
-      aria-hidden="true"
-      style={{ opacity }}
-    >
-      <div
-        className="kc-smoke kc-smoke-a"
-        style={{
-          background:
-            "radial-gradient(ellipse 60% 45% at 30% 40%, rgba(22,163,106,0.10), transparent 70%)",
-        }}
-      />
-      <div
-        className="kc-smoke kc-smoke-b"
-        style={{
-          background:
-            "radial-gradient(ellipse 50% 40% at 75% 60%, rgba(216,184,120,0.06), transparent 70%)",
-        }}
-      />
-      <div
-        className="kc-smoke kc-smoke-c"
-        style={{
-          background:
-            "radial-gradient(ellipse 70% 55% at 50% 70%, rgba(245,243,236,0.04), transparent 75%)",
-        }}
-      />
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════════════
    KC SHIELD — Reusable brand visual
    ═══════════════════════════════════════════════════════════════════ */
 
@@ -108,10 +72,6 @@ function KCShield({ size = 200, opacity = 1 }: { size?: number; opacity?: number
 
 /* ═══════════════════════════════════════════════════════════════════
    MUSIC — Real HTMLAudioElement with generated ambient pad
-   ═══════════════════════════════════════════════════════════════════
-   Synthesised once via OfflineAudioContext, encoded to WAV blob URL,
-   played through a real <audio> element — no network request, no
-   licensing risk, genuine HTMLAudioElement with loop / volume.
    ═══════════════════════════════════════════════════════════════════ */
 
 async function renderAmbientLoop(): Promise<string> {
@@ -144,7 +104,6 @@ async function renderAmbientLoop(): Promise<string> {
   });
 
   const buffer = await ctx.startRendering();
-
   const numCh = buffer.numberOfChannels;
   const len = buffer.length;
   const bytes = new ArrayBuffer(44 + len * numCh * 2);
@@ -187,15 +146,11 @@ function MusicControl() {
   const wantPlayRef = useRef(false);
   const fadeIvRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  /* Prepare audio on mount */
   useEffect(() => {
     let cancelled = false;
     renderAmbientLoop()
       .then((url) => {
-        if (cancelled) {
-          URL.revokeObjectURL(url);
-          return;
-        }
+        if (cancelled) { URL.revokeObjectURL(url); return; }
         urlRef.current = url;
         const audio = new Audio(url);
         audio.loop = true;
@@ -203,92 +158,60 @@ function MusicControl() {
         audio.volume = 0;
         audioRef.current = audio;
         setReady(true);
-        // If user interacted before loop was ready, start now
-        if (wantPlayRef.current) startPlayback();
+        if (wantPlayRef.current) doPlay();
       })
-      .catch((err) => {
-        console.error("[AboutUs Music] Failed to generate ambient loop:", err);
-      });
+      .catch((err) => console.error("[AboutUs Music] Failed:", err));
 
     return () => {
       cancelled = true;
       if (fadeIvRef.current) clearInterval(fadeIvRef.current);
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.src = "";
-      }
+      if (audioRef.current) { audioRef.current.pause(); audioRef.current.src = ""; }
       audioRef.current = null;
-      if (urlRef.current) {
-        URL.revokeObjectURL(urlRef.current);
-        urlRef.current = null;
-      }
+      if (urlRef.current) { URL.revokeObjectURL(urlRef.current); urlRef.current = null; }
     };
   }, []);
 
-  const fadeTo = useCallback(
-    (target: number, onDone?: () => void) => {
-      if (fadeIvRef.current) clearInterval(fadeIvRef.current);
-      const audio = audioRef.current;
-      if (!audio) return;
-      const step = target > audio.volume ? 0.015 : -0.012;
-      fadeIvRef.current = setInterval(() => {
-        if (!audioRef.current) {
-          if (fadeIvRef.current) clearInterval(fadeIvRef.current);
-          return;
-        }
-        const v = audio.volume + step;
-        if (
-          (step > 0 && v >= target) ||
-          (step < 0 && v <= target)
-        ) {
-          audio.volume = target;
-          if (fadeIvRef.current) clearInterval(fadeIvRef.current);
-          onDone?.();
-          return;
-        }
-        audio.volume = v;
-      }, 40);
-    },
-    []
-  );
-
-  const startPlayback = useCallback(() => {
+  const fadeTo = useCallback((target: number, onDone?: () => void) => {
+    if (fadeIvRef.current) clearInterval(fadeIvRef.current);
     const audio = audioRef.current;
-    if (!audio) {
-      wantPlayRef.current = true;
-      return;
-    }
+    if (!audio) return;
+    const step = target > audio.volume ? 0.015 : -0.012;
+    fadeIvRef.current = setInterval(() => {
+      if (!audioRef.current) { if (fadeIvRef.current) clearInterval(fadeIvRef.current); return; }
+      const v = audio.volume + step;
+      if ((step > 0 && v >= target) || (step < 0 && v <= target)) {
+        audio.volume = target;
+        if (fadeIvRef.current) clearInterval(fadeIvRef.current);
+        onDone?.();
+        return;
+      }
+      audio.volume = v;
+    }, 40);
+  }, []);
+
+  const doPlay = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio) { wantPlayRef.current = true; return; }
     wantPlayRef.current = true;
     audio.volume = 0;
-    audio
-      .play()
+    audio.play()
       .then(() => {
         if (!wantPlayRef.current) return;
         fadeTo(0.25);
         setPlaying(true);
       })
-      .catch((err) => {
-        console.warn("[AboutUs Music] Playback blocked:", err);
-        wantPlayRef.current = false;
-        setPlaying(false);
-      });
+      .catch(() => { wantPlayRef.current = false; setPlaying(false); });
   }, [fadeTo]);
 
-  const stopPlayback = useCallback(() => {
+  const doPause = useCallback(() => {
     wantPlayRef.current = false;
-    fadeTo(0, () => {
-      audioRef.current?.pause();
-    });
+    fadeTo(0, () => { audioRef.current?.pause(); });
     setPlaying(false);
   }, [fadeTo]);
 
   const toggle = useCallback(() => {
-    if (playing) {
-      stopPlayback();
-    } else {
-      startPlayback();
-    }
-  }, [playing, startPlayback, stopPlayback]);
+    if (playing) doPause(); else doPlay();
+  }, [playing, doPlay, doPause]);
 
   /* Auto-start on first user interaction */
   useEffect(() => {
@@ -296,7 +219,7 @@ function MusicControl() {
     const handler = () => {
       if (triedRef.current) return;
       triedRef.current = true;
-      startPlayback();
+      doPlay();
       window.removeEventListener("scroll", handler);
       window.removeEventListener("click", handler);
       window.removeEventListener("touchstart", handler);
@@ -312,16 +235,9 @@ function MusicControl() {
       window.removeEventListener("touchstart", handler);
       window.removeEventListener("pointerdown", handler);
     };
-  }, [startPlayback]);
+  }, [doPlay]);
 
-  /* Stop audio when leaving About Us */
-  useEffect(() => {
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-      }
-    };
-  }, []);
+  useEffect(() => () => { audioRef.current?.pause(); }, []);
 
   return (
     <button
@@ -330,11 +246,7 @@ function MusicControl() {
       aria-label={playing ? "Mute background music" : "Play background music"}
       title={playing ? "Mute" : ready ? "Play ambient music" : "Loading music…"}
     >
-      {playing ? (
-        <Volume2 className="size-4" />
-      ) : (
-        <VolumeX className="size-4 opacity-60" />
-      )}
+      {playing ? <Volume2 className="size-4" /> : <VolumeX className="size-4 opacity-60" />}
     </button>
   );
 }
@@ -371,17 +283,22 @@ function RevealOnScroll({
 
 /* ═══════════════════════════════════════════════════════════════════
    SECTION 1 — CINEMATIC INTRO
-   150vh pinned container (≈ 50vh of real scroll before full transition).
-   EXPLORE visible from first frame, transforms begin on FIRST scroll.
 
-   Scroll progress → visual mapping (150vh container):
-   0.00–0.10  EXPLORE holds, hero static
-   0.10–0.28  EXPLORE fades up + hero zooms
-   0.25–0.42  KALYAN CHEMIST fades in
-   0.40–0.58  KALYAN CHEMIST fades out
-   0.55–0.70  HEALTHCARE SIMPLIFIED fades in
-   0.70–0.85  HEALTHCARE SIMPLIFIED fades out
-   0.82–0.95  KC SHIELD finale fades in
+   TWO-PHASE ARCHITECTURE:
+   Phase A (auto, ~2s): smoke parts, EXPLORE + hero emerge from darkness.
+                         CSS keyframes — no scroll needed.
+   Phase B (scroll):    180vh pinned container. Framer Motion useScroll
+                         drives all transforms. First scroll immediately
+                         begins the story.
+
+   Scroll timeline (180vh = 80vh scroll at 0.5→1.0):
+   0.00–0.12  EXPLORE holds briefly, hero starts zoom
+   0.12–0.28  EXPLORE lifts away, hero zooms more
+   0.24–0.42  KALYAN CHEMIST enters
+   0.38–0.56  KALYAN CHEMIST exits
+   0.52–0.68  HEALTHCARE SIMPLIFIED enters
+   0.64–0.80  HEALTHCARE SIMPLIFIED exits
+   0.78–0.92  KC SHIELD finale
    ═══════════════════════════════════════════════════════════════════ */
 
 function CinematicIntro() {
@@ -391,54 +308,55 @@ function CinematicIntro() {
     offset: ["start start", "end start"],
   });
 
-  /* Hero zoom — starts immediately, visible on first scroll */
-  const heroScale = useTransform(scrollYProgress, [0, 0.8], [1, 1.22]);
+  /* ── Phase B: scroll-driven transforms ── */
+  const heroScale = useTransform(scrollYProgress, [0, 0.85], [1, 1.25]);
+  const smokeOpacity = useTransform(scrollYProgress, [0, 0.5], [0.35, 0]);
 
-  /* Smoke fades as we enter the story */
-  const smokeOpacity = useTransform(scrollYProgress, [0, 0.6], [1, 0.15]);
+  /* EXPLORE — visible from frame 1, lifts away on first scroll */
+  const w1Opacity = useTransform(scrollYProgress, [0, 0.08, 0.24], [1, 1, 0]);
+  const w1Y = useTransform(scrollYProgress, [0, 0.24], [0, -80]);
+  const w1Scale = useTransform(scrollYProgress, [0, 0.2], [1, 1.1]);
 
-  /* Word 1: EXPLORE — visible from frame 1, lifts away quickly */
-  const w1Opacity = useTransform(scrollYProgress, [0, 0.06, 0.22], [1, 1, 0]);
-  const w1Y = useTransform(scrollYProgress, [0, 0.22], [0, -80]);
-  const w1Scale = useTransform(scrollYProgress, [0, 0.18], [1, 1.08]);
+  /* KALYAN CHEMIST */
+  const w2Opacity = useTransform(scrollYProgress, [0.20, 0.30, 0.48, 0.58], [0, 1, 1, 0]);
+  const w2Y = useTransform(scrollYProgress, [0.20, 0.58], [50, -50]);
 
-  /* Word 2: KALYAN CHEMIST */
-  const w2Opacity = useTransform(scrollYProgress, [0.18, 0.28, 0.46, 0.56], [0, 1, 1, 0]);
-  const w2Y = useTransform(scrollYProgress, [0.18, 0.56], [60, -50]);
-
-  /* Word 3: HEALTHCARE, SIMPLIFIED */
-  const w3Opacity = useTransform(scrollYProgress, [0.50, 0.60, 0.76, 0.86], [0, 1, 1, 0]);
-  const w3Y = useTransform(scrollYProgress, [0.50, 0.86], [50, -35]);
+  /* HEALTHCARE, SIMPLIFIED */
+  const w3Opacity = useTransform(scrollYProgress, [0.50, 0.60, 0.76, 0.84], [0, 1, 1, 0]);
+  const w3Y = useTransform(scrollYProgress, [0.50, 0.84], [45, -35]);
 
   /* Shield finale */
   const shieldOpacity = useTransform(scrollYProgress, [0.80, 0.92], [0, 1]);
-  const shieldScale = useTransform(scrollYProgress, [0.80, 0.96], [0.88, 1]);
+  const shieldScale = useTransform(scrollYProgress, [0.80, 0.96], [0.85, 1]);
 
-  /* Scroll hint — fades quickly so it's gone after first scroll */
-  const hintOpacity = useTransform(scrollYProgress, [0, 0.03], [1, 0]);
+  /* Scroll hint fades immediately */
+  const hintOpacity = useTransform(scrollYProgress, [0, 0.02], [1, 0]);
 
   return (
-    <div ref={containerRef} className="relative" style={{ height: "150vh" }}>
-      <div className="sticky top-0 h-screen overflow-hidden" style={{ background: "#060808" }}>
-        {/* Deep background — static */}
+    <div ref={containerRef} className="relative" style={{ height: "180vh" }}>
+      <div
+        className="sticky top-0 h-screen overflow-hidden"
+        style={{ background: "#060808" }}
+      >
+        {/* Deep background */}
         <div
           className="absolute inset-0"
           style={{ background: "radial-gradient(ellipse 80% 60% at 50% 40%, #0a2e1f 0%, #060808 70%)" }}
         />
 
-        {/* HERO VISUAL — visible from FIRST FRAME, single transform layer */}
+        {/* ── HERO VISUAL with 4-layer parallax ── */}
         <motion.div
           className="absolute inset-0 flex items-center justify-center"
           style={{ scale: heroScale }}
         >
           <div
-            className="relative w-[86vw] max-w-[720px] aspect-[4/3] overflow-hidden rounded-3xl"
+            className="relative w-[88vw] max-w-[740px] aspect-[4/3] overflow-hidden rounded-3xl"
             style={{
               background: "linear-gradient(135deg, #0a3d2e 0%, #0B0D0C 40%, #111614 70%, #0a2e1f 100%)",
               boxShadow: "0 0 100px rgba(22,163,106,0.14), 0 30px 60px rgba(0,0,0,0.5)",
             }}
           >
-            {/* Static interior layers */}
+            {/* Layer 1: Background grid pattern */}
             <div className="absolute inset-0" aria-hidden="true">
               <div
                 className="absolute inset-0"
@@ -447,6 +365,10 @@ function CinematicIntro() {
                     "repeating-linear-gradient(90deg, transparent, transparent 64px, rgba(22,163,106,0.035) 64px, rgba(22,163,106,0.035) 65px), repeating-linear-gradient(0deg, transparent, transparent 44px, rgba(22,163,106,0.02) 44px, rgba(22,163,106,0.02) 45px)",
                 }}
               />
+            </div>
+
+            {/* Layer 2: Atmosphere glow */}
+            <div className="absolute inset-0" aria-hidden="true">
               <div
                 className="absolute inset-0"
                 style={{ background: "radial-gradient(ellipse 60% 50% at 50% 50%, rgba(22,163,106,0.22), transparent 68%)" }}
@@ -455,38 +377,73 @@ function CinematicIntro() {
                 className="absolute inset-0"
                 style={{ background: "radial-gradient(ellipse 40% 35% at 28% 62%, rgba(216,184,120,0.09), transparent 58%)" }}
               />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <KCShield size={210} opacity={0.55} />
-              </div>
+            </div>
+
+            {/* Layer 3: Main subject — KC Shield + healthcare icons */}
+            <div className="absolute inset-0 flex items-center justify-center">
+              <KCShield size={220} opacity={0.55} />
+            </div>
+
+            {/* Layer 4: Foreground healthcare objects */}
+            <div className="absolute inset-0" aria-hidden="true">
               {[
-                { x: "10%", y: "18%", icon: "💊", size: 30, op: 0.2 },
-                { x: "82%", y: "15%", icon: "🩺", size: 26, op: 0.16 },
-                { x: "7%", y: "72%", icon: "💉", size: 24, op: 0.13 },
-                { x: "88%", y: "68%", icon: "🏥", size: 22, op: 0.15 },
-                { x: "50%", y: "8%", icon: "⚕️", size: 20, op: 0.11 },
-                { x: "45%", y: "86%", icon: "🧬", size: 19, op: 0.11 },
+                { x: "10%", y: "18%", icon: "💊", size: 30, op: 0.22 },
+                { x: "82%", y: "15%", icon: "🩺", size: 26, op: 0.18 },
+                { x: "7%", y: "72%", icon: "💉", size: 24, op: 0.15 },
+                { x: "88%", y: "68%", icon: "🏥", size: 22, op: 0.16 },
+                { x: "50%", y: "8%", icon: "⚕️", size: 20, op: 0.12 },
+                { x: "45%", y: "86%", icon: "🧬", size: 19, op: 0.12 },
               ].map((el, i) => (
                 <span key={i} className="absolute" style={{ left: el.x, top: el.y, fontSize: el.size, opacity: el.op }}>
                   {el.icon}
                 </span>
               ))}
             </div>
+
             {/* Inner vignette */}
             <div
               className="absolute inset-0 pointer-events-none"
-              style={{ background: "radial-gradient(ellipse 70% 60% at 50% 45%, transparent 30%, rgba(4,6,5,0.6) 100%)" }}
+              style={{ background: "radial-gradient(ellipse 70% 60% at 50% 45%, transparent 30%, rgba(4,6,5,0.55) 100%)" }}
             />
           </div>
         </motion.div>
 
-        {/* SMOKE — 3 CSS layers, opacity scroll-linked on wrapper only */}
-        <motion.div className="absolute inset-0" style={{ opacity: smokeOpacity }}>
-          <Smoke />
+        {/* SMOKE — Phase A uses CSS animation, Phase B scroll-linked opacity */}
+        <motion.div className="absolute inset-0 kc-intro-smoke" style={{ opacity: smokeOpacity }}>
+          {/* Smoke layer 1 */}
+          <div
+            className="absolute inset-[-10%] kc-smoke-a"
+            style={{ background: "radial-gradient(ellipse 60% 45% at 30% 40%, rgba(22,163,106,0.10), transparent 70%)" }}
+          />
+          {/* Smoke layer 2 */}
+          <div
+            className="absolute inset-[-10%] kc-smoke-b"
+            style={{ background: "radial-gradient(ellipse 50% 40% at 75% 60%, rgba(216,184,120,0.06), transparent 70%)" }}
+          />
+          {/* Smoke layer 3 */}
+          <div
+            className="absolute inset-[-10%] kc-smoke-c"
+            style={{ background: "radial-gradient(ellipse 70% 55% at 50% 70%, rgba(245,243,236,0.04), transparent 75%)" }}
+          />
         </motion.div>
 
-        {/* WORD 1: EXPLORE — visible from FIRST FRAME */}
+        {/* WORD 1: EXPLORE — auto-reveals via CSS, then scroll-driven out */}
+        <div className="absolute inset-0 flex items-center justify-center px-6 z-10 kc-intro-text">
+          <span
+            className="text-[clamp(4rem,13vw,11rem)] font-black uppercase tracking-tight leading-none select-none"
+            style={{
+              background: "linear-gradient(180deg, rgba(245,243,236,0.95) 0%, rgba(245,243,236,0.45) 100%)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+            }}
+          >
+            Explore
+          </span>
+        </div>
+
+        {/* Scroll-driven typography overlay — covers auto text after scroll begins */}
         <motion.div
-          className="absolute inset-0 flex items-center justify-center px-6 z-10"
+          className="absolute inset-0 flex items-center justify-center px-6 z-10 pointer-events-none"
           style={{ opacity: w1Opacity, y: w1Y, scale: w1Scale }}
         >
           <span
@@ -560,13 +517,13 @@ function CinematicIntro() {
           <KCShield size={170} />
         </motion.div>
 
-        {/* Vignette — static */}
+        {/* Vignette */}
         <div
           className="absolute inset-0 pointer-events-none z-20"
           style={{ background: "radial-gradient(ellipse 65% 55% at 50% 45%, transparent 30%, rgba(4,6,5,0.72) 100%)" }}
         />
 
-        {/* Scroll hint — fades on first scroll */}
+        {/* Scroll hint */}
         <motion.div
           className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 z-20"
           style={{ opacity: hintOpacity }}
@@ -586,7 +543,7 @@ function CinematicIntro() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   SECTION 2 — WHO WE ARE (editorial story)
+   SECTION 2 — WHO WE ARE
    ═══════════════════════════════════════════════════════════════════ */
 
 function WhoWeAre() {
@@ -595,8 +552,6 @@ function WhoWeAre() {
       className="relative overflow-hidden py-20 sm:py-28"
       style={{ background: "linear-gradient(180deg, #0B0D0C, #111614, #0B0D0C)" }}
     >
-      <Smoke opacity={0.35} />
-
       <div className="relative z-10 mx-auto max-w-6xl px-6">
         <RevealOnScroll className="text-center mb-14">
           <p className="text-xs sm:text-sm font-semibold uppercase tracking-[0.3em] text-[#D8B878] mb-5">
@@ -678,7 +633,7 @@ function WhoWeAre() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   SECTION 3 — BRAND STORY (cinematic statements)
+   SECTION 3 — BRAND STORY
    ═══════════════════════════════════════════════════════════════════ */
 
 function BrandStory() {
@@ -731,7 +686,7 @@ function BrandStory() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   SECTION 4 — FROM DISCOVERY TO DOORSTEP (journey)
+   SECTION 4 — FROM DISCOVERY TO DOORSTEP
    ═══════════════════════════════════════════════════════════════════ */
 
 function DiscoveryToDoorstep() {
@@ -748,8 +703,6 @@ function DiscoveryToDoorstep() {
       className="relative overflow-hidden py-20 sm:py-28"
       style={{ background: "linear-gradient(180deg, #0B0D0C 0%, #0a2e1f 55%, #0B0D0C 100%)" }}
     >
-      <Smoke opacity={0.25} />
-
       <div className="relative z-10 mx-auto max-w-6xl px-6">
         <RevealOnScroll className="text-center mb-14">
           <p className="text-xs sm:text-sm font-semibold uppercase tracking-[0.3em] text-[#D8B878] mb-5">
@@ -798,7 +751,7 @@ function DiscoveryToDoorstep() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   SECTION 5 — ONE HEALTHCARE EXPERIENCE (ecosystem)
+   SECTION 5 — ONE HEALTHCARE EXPERIENCE
    ═══════════════════════════════════════════════════════════════════ */
 
 function EcosystemJourney() {
@@ -817,8 +770,6 @@ function EcosystemJourney() {
       className="relative overflow-hidden py-20 sm:py-28"
       style={{ background: "#0B0D0C" }}
     >
-      <Smoke opacity={0.2} />
-
       <div className="relative z-10 mx-auto max-w-6xl px-6">
         <RevealOnScroll className="text-center mb-12">
           <p className="text-xs sm:text-sm font-semibold uppercase tracking-[0.3em] text-[#D8B878] mb-5">
@@ -841,10 +792,10 @@ function EcosystemJourney() {
         <div className="relative mx-auto max-w-lg">
           <div className="absolute left-5 top-0 bottom-0 w-px bg-gradient-to-b from-[#16A36A]/25 via-[#F0D9A3]/20 to-[#16A36A]/25" />
           <div className="space-y-1">
-            {steps.map((step, i) => {
+            {steps.map((step) => {
               const Icon = step.icon;
               return (
-                <RevealOnScroll key={step.label} delay={i * 0.05}>
+                <RevealOnScroll key={step.label} delay={0}>
                   <div className="flex items-center gap-5 py-3.5">
                     <div
                       className="relative z-10 flex size-10 shrink-0 items-center justify-center rounded-full border"
@@ -870,47 +821,21 @@ function EcosystemJourney() {
 
 function PremiumCards() {
   const cards = [
-    {
-      title: "Medicines & Products",
-      desc: "Genuine medicines and healthcare products from trusted brands.",
-      accent: "#16A36A",
-      icon: Pill,
-    },
-    {
-      title: "Lab Tests & Doctors",
-      desc: "Book lab tests and doctor consultations from home.",
-      accent: "#F0D9A3",
-      icon: Stethoscope,
-    },
-    {
-      title: "Healthcare Devices & Wellness",
-      desc: "Everyday devices and wellness essentials for your family.",
-      accent: "#16A36A",
-      icon: ShieldCheck,
-    },
-    {
-      title: "Refills & Home Delivery",
-      desc: "Convenient refill schedules and reliable doorstep delivery.",
-      accent: "#D8B878",
-      icon: Truck,
-    },
+    { title: "Medicines & Products", desc: "Genuine medicines and healthcare products from trusted brands.", accent: "#16A36A", icon: Pill },
+    { title: "Lab Tests & Doctors", desc: "Book lab tests and doctor consultations from home.", accent: "#F0D9A3", icon: Stethoscope },
+    { title: "Healthcare Devices & Wellness", desc: "Everyday devices and wellness essentials for your family.", accent: "#16A36A", icon: ShieldCheck },
+    { title: "Refills & Home Delivery", desc: "Convenient refill schedules and reliable doorstep delivery.", accent: "#D8B878", icon: Truck },
   ];
 
-  const containerVariants: Variants = useMemo(
-    () => ({
-      hidden: {},
-      visible: { transition: { staggerChildren: 0.1 } },
-    }),
-    []
-  );
+  const containerVariants: Variants = useMemo(() => ({
+    hidden: {},
+    visible: { transition: { staggerChildren: 0.1 } },
+  }), []);
 
-  const cardVariants: Variants = useMemo(
-    () => ({
-      hidden: { opacity: 0, y: 30 },
-      visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: EASE } },
-    }),
-    []
-  );
+  const cardVariants: Variants = useMemo(() => ({
+    hidden: { opacity: 0, y: 30 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: EASE } },
+  }), []);
 
   const navigate = useNavigate();
 
@@ -970,7 +895,7 @@ function PremiumCards() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   SECTION 7 — WHY KALYAN CHEMIST (purpose + trust)
+   SECTION 7 — WHY KALYAN CHEMIST
    ═══════════════════════════════════════════════════════════════════ */
 
 function TrustSection() {
@@ -987,8 +912,6 @@ function TrustSection() {
       className="relative overflow-hidden py-20 sm:py-28"
       style={{ background: "linear-gradient(180deg, #0B0D0C, #0f1a15, #0B0D0C)" }}
     >
-      <Smoke opacity={0.2} />
-
       <div className="relative z-10 mx-auto max-w-6xl px-6">
         <RevealOnScroll className="text-center mb-12">
           <p className="text-xs sm:text-sm font-semibold uppercase tracking-[0.3em] text-[#D8B878] mb-5">
@@ -1055,7 +978,7 @@ function TrustSection() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   SECTION 8 — FINAL BRAND STATEMENT (visual climax)
+   SECTION 8 — FINAL BRAND STATEMENT
    ═══════════════════════════════════════════════════════════════════ */
 
 function FinalStatement() {
@@ -1070,7 +993,6 @@ function FinalStatement() {
         <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 50% 40% at 50% 50%, rgba(22,163,106,0.12), transparent 65%)" }} />
         <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 30% 25% at 50% 50%, rgba(216,184,120,0.06), transparent 55%)" }} />
       </div>
-      <Smoke opacity={0.3} />
 
       <div className="relative z-10 mx-auto max-w-5xl px-6 text-center">
         <RevealOnScroll>
@@ -1121,7 +1043,7 @@ function FinalStatement() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   MAIN PAGE — Assembles the cinematic scroll story
+   MAIN PAGE
    ═══════════════════════════════════════════════════════════════════ */
 
 export default function AboutUs() {
@@ -1129,12 +1051,29 @@ export default function AboutUs() {
     <div className="min-h-screen bg-background text-foreground">
       <Navbar />
 
-      {/* Page-scoped keyframes — transform-only, compositor friendly */}
+      {/* Page-scoped keyframes */}
       <style>{`
-        .kc-smoke {
-          position: absolute;
-          inset: -10%;
+        /* ── Phase A: Auto-intro smoke animation (runs once on mount) ── */
+        .kc-intro-smoke {
+          animation: kc-smoke-part 2.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
         }
+        @keyframes kc-smoke-part {
+          0%   { opacity: 1; }
+          40%  { opacity: 0.9; }
+          100% { opacity: 0.35; }
+        }
+
+        /* ── Phase A: EXPLORE emerges from smoke ── */
+        .kc-intro-text {
+          animation: kc-explore-reveal 2s cubic-bezier(0.22, 1, 0.36, 1) 0.3s both;
+        }
+        @keyframes kc-explore-reveal {
+          0%   { opacity: 0; transform: translateY(20px) scale(0.96); filter: blur(8px); }
+          50%  { opacity: 0.7; filter: blur(2px); }
+          100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+        }
+
+        /* ── Ambient smoke drift (CSS-only, GPU composited) ── */
         .kc-smoke-a { animation: kc-drift-a 26s ease-in-out infinite alternate; }
         .kc-smoke-b { animation: kc-drift-b 34s ease-in-out infinite alternate; }
         .kc-smoke-c { animation: kc-drift-a 42s ease-in-out infinite alternate-reverse; }
@@ -1146,17 +1085,21 @@ export default function AboutUs() {
           0%   { transform: translate3d(2%, 1%, 0) scale(1.04); }
           100% { transform: translate3d(-3%, -1%, 0) scale(1); }
         }
+
         .kc-pulse { animation: kc-pulse-ring 6s ease-in-out infinite; }
         @keyframes kc-pulse-ring {
           0%, 100% { transform: scale(1); opacity: 0.5; }
           50% { transform: scale(1.05); opacity: 0.9; }
         }
+
         @media (prefers-reduced-motion: reduce) {
-          .kc-smoke, .kc-pulse { animation: none !important; }
+          .kc-intro-smoke { animation: none !important; opacity: 0.35 !important; }
+          .kc-intro-text { animation: none !important; opacity: 1 !important; }
+          .kc-smoke-a, .kc-smoke-b, .kc-smoke-c, .kc-pulse { animation: none !important; }
         }
       `}</style>
 
-      {/* 1. Cinematic intro — hero visual + giant typography, visible from frame 1, 150vh scroll */}
+      {/* 1. Cinematic intro — auto-reveal + 180vh scroll transformation */}
       <CinematicIntro />
 
       {/* 2. Who we are */}
@@ -1168,7 +1111,7 @@ export default function AboutUs() {
       {/* 4. From discovery to doorstep */}
       <DiscoveryToDoorstep />
 
-      {/* 5. One healthcare experience (ecosystem) */}
+      {/* 5. One healthcare experience */}
       <EcosystemJourney />
 
       {/* 6. Premium visual cards */}
@@ -1182,7 +1125,7 @@ export default function AboutUs() {
 
       <Footer />
 
-      {/* Music control — one instance, real playback */}
+      {/* Music — real HTMLAudioElement, honest playback state */}
       <MusicControl />
     </div>
   );
