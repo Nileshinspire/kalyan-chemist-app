@@ -29,10 +29,7 @@ import { useNavigate } from "react-router";
 /* ─── Shared easing ─── */
 const EASE = [0.22, 1, 0.36, 1] as const;
 
-/* ═══════════════════════════════════════════════════════════════════
-   PERFORMANCE HELPERS
-   ═══════════════════════════════════════════════════════════════════ */
-
+/* ─── Performance helpers ─── */
 const prefersReducedMotion =
   typeof window !== "undefined" &&
   window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -83,12 +80,8 @@ async function renderAmbientLoop(): Promise<string> {
   const ctx = new OfflineCtx(1, sampleRate * duration, sampleRate);
 
   const notes = [
-    { f: 73.42, g: 0.10 },
-    { f: 110.0, g: 0.08 },
-    { f: 146.83, g: 0.06 },
-    { f: 174.61, g: 0.05 },
-    { f: 220.0, g: 0.04 },
-    { f: 293.66, g: 0.03 },
+    { f: 73.42, g: 0.10 }, { f: 110.0, g: 0.08 }, { f: 146.83, g: 0.06 },
+    { f: 174.61, g: 0.05 }, { f: 220.0, g: 0.04 }, { f: 293.66, g: 0.03 },
   ];
 
   notes.forEach(({ f, g }) => {
@@ -161,7 +154,6 @@ function MusicControl() {
         if (wantPlayRef.current) doPlay();
       })
       .catch((err) => console.error("[AboutUs Music] Failed:", err));
-
     return () => {
       cancelled = true;
       if (fadeIvRef.current) clearInterval(fadeIvRef.current);
@@ -195,11 +187,7 @@ function MusicControl() {
     wantPlayRef.current = true;
     audio.volume = 0;
     audio.play()
-      .then(() => {
-        if (!wantPlayRef.current) return;
-        fadeTo(0.25);
-        setPlaying(true);
-      })
+      .then(() => { if (!wantPlayRef.current) return; fadeTo(0.25); setPlaying(true); })
       .catch(() => { wantPlayRef.current = false; setPlaying(false); });
   }, [fadeTo]);
 
@@ -213,7 +201,6 @@ function MusicControl() {
     if (playing) doPause(); else doPlay();
   }, [playing, doPlay, doPause]);
 
-  /* Auto-start on first user interaction */
   useEffect(() => {
     if (triedRef.current) return;
     const handler = () => {
@@ -284,21 +271,22 @@ function RevealOnScroll({
 /* ═══════════════════════════════════════════════════════════════════
    SECTION 1 — CINEMATIC INTRO
 
-   TWO-PHASE ARCHITECTURE:
-   Phase A (auto, ~2s): smoke parts, EXPLORE + hero emerge from darkness.
-                         CSS keyframes — no scroll needed.
-   Phase B (scroll):    180vh pinned container. Framer Motion useScroll
-                         drives all transforms. First scroll immediately
-                         begins the story.
+   ARCHITECTURE:
+   - 160vh pinned container (~60vh of real scroll)
+   - Smoke: CSS keyframes on mount (auto-parting), then scroll fades it out
+   - EXPLORE: Single Framer Motion element, auto-reveals on mount via
+     initial→animate (no CSS animation conflict), fades on scroll
+   - Hero: Always visible, zooms continuously on scroll
+   - All other text: Purely scroll-driven
 
-   Scroll timeline (180vh = 80vh scroll at 0.5→1.0):
-   0.00–0.12  EXPLORE holds briefly, hero starts zoom
-   0.12–0.28  EXPLORE lifts away, hero zooms more
-   0.24–0.42  KALYAN CHEMIST enters
-   0.38–0.56  KALYAN CHEMIST exits
-   0.52–0.68  HEALTHCARE SIMPLIFIED enters
-   0.64–0.80  HEALTHCARE SIMPLIFIED exits
-   0.78–0.92  KC SHIELD finale
+   Scroll timeline (160vh pinned):
+   0.00–0.05  EXPLORE holds (3vh — barely any scroll)
+   0.05–0.20  EXPLORE fades up + hero zooms
+   0.18–0.35  KALYAN CHEMIST enters
+   0.32–0.48  KALYAN CHEMIST exits
+   0.44–0.60  HEALTHCARE SIMPLIFIED enters
+   0.56–0.72  HEALTHCARE SIMPLIFIED exits
+   0.70–0.85  KC SHIELD finale
    ═══════════════════════════════════════════════════════════════════ */
 
 function CinematicIntro() {
@@ -308,43 +296,47 @@ function CinematicIntro() {
     offset: ["start start", "end start"],
   });
 
-  /* ── Phase B: scroll-driven transforms ── */
-  const heroScale = useTransform(scrollYProgress, [0, 0.85], [1, 1.25]);
-  const smokeOpacity = useTransform(scrollYProgress, [0, 0.5], [0.35, 0]);
+  /* Hero zoom — continuous throughout */
+  const heroScale = useTransform(scrollYProgress, [0, 0.80], [1, 1.25]);
 
-  /* EXPLORE — visible from frame 1, lifts away on first scroll */
-  const w1Opacity = useTransform(scrollYProgress, [0, 0.08, 0.24], [1, 1, 0]);
-  const w1Y = useTransform(scrollYProgress, [0, 0.24], [0, -80]);
-  const w1Scale = useTransform(scrollYProgress, [0, 0.2], [1, 1.1]);
+  /* Smoke: CSS handles auto-parting on mount, scroll fades it out.
+     We use an initial CSS animation class + Framer Motion scroll opacity.
+     The CSS animation sets initial opacity to 0.55; Framer Motion
+     overrides on scroll via the style prop. After CSS animation ends,
+     Framer Motion has full control. */
+  const smokeScrollOpacity = useTransform(scrollYProgress, [0, 0.4], [0.55, 0]);
 
-  /* KALYAN CHEMIST */
-  const w2Opacity = useTransform(scrollYProgress, [0.20, 0.30, 0.48, 0.58], [0, 1, 1, 0]);
-  const w2Y = useTransform(scrollYProgress, [0.20, 0.58], [50, -50]);
+  /* EXPLORE — single element, auto-reveals via Framer Motion initial→animate,
+     then fades on scroll. NO CSS animation to avoid conflict. */
+  const w1Opacity = useTransform(scrollYProgress, [0, 0.04, 0.20], [1, 1, 0]);
+  const w1Y = useTransform(scrollYProgress, [0, 0.20], [0, -80]);
+  const w1Scale = useTransform(scrollYProgress, [0, 0.16], [1, 1.08]);
+
+  /* KALYAN CHEMIST — enters early, exits mid */
+  const w2Opacity = useTransform(scrollYProgress, [0.18, 0.28, 0.42, 0.52], [0, 1, 1, 0]);
+  const w2Y = useTransform(scrollYProgress, [0.18, 0.52], [50, -50]);
 
   /* HEALTHCARE, SIMPLIFIED */
-  const w3Opacity = useTransform(scrollYProgress, [0.50, 0.60, 0.76, 0.84], [0, 1, 1, 0]);
-  const w3Y = useTransform(scrollYProgress, [0.50, 0.84], [45, -35]);
+  const w3Opacity = useTransform(scrollYProgress, [0.44, 0.54, 0.68, 0.78], [0, 1, 1, 0]);
+  const w3Y = useTransform(scrollYProgress, [0.44, 0.78], [40, -30]);
 
   /* Shield finale */
-  const shieldOpacity = useTransform(scrollYProgress, [0.80, 0.92], [0, 1]);
-  const shieldScale = useTransform(scrollYProgress, [0.80, 0.96], [0.85, 1]);
+  const shieldOpacity = useTransform(scrollYProgress, [0.74, 0.88], [0, 1]);
+  const shieldScale = useTransform(scrollYProgress, [0.74, 0.92], [0.85, 1]);
 
   /* Scroll hint fades immediately */
   const hintOpacity = useTransform(scrollYProgress, [0, 0.02], [1, 0]);
 
   return (
-    <div ref={containerRef} className="relative" style={{ height: "180vh" }}>
-      <div
-        className="sticky top-0 h-screen overflow-hidden"
-        style={{ background: "#060808" }}
-      >
+    <div ref={containerRef} className="relative" style={{ height: "160vh" }}>
+      <div className="sticky top-0 h-screen overflow-hidden" style={{ background: "#060808" }}>
         {/* Deep background */}
         <div
           className="absolute inset-0"
           style={{ background: "radial-gradient(ellipse 80% 60% at 50% 40%, #0a2e1f 0%, #060808 70%)" }}
         />
 
-        {/* ── HERO VISUAL with 4-layer parallax ── */}
+        {/* HERO VISUAL — always visible, zooms on scroll */}
         <motion.div
           className="absolute inset-0 flex items-center justify-center"
           style={{ scale: heroScale }}
@@ -356,7 +348,7 @@ function CinematicIntro() {
               boxShadow: "0 0 100px rgba(22,163,106,0.14), 0 30px 60px rgba(0,0,0,0.5)",
             }}
           >
-            {/* Layer 1: Background grid pattern */}
+            {/* Background grid */}
             <div className="absolute inset-0" aria-hidden="true">
               <div
                 className="absolute inset-0"
@@ -367,7 +359,7 @@ function CinematicIntro() {
               />
             </div>
 
-            {/* Layer 2: Atmosphere glow */}
+            {/* Atmosphere glow */}
             <div className="absolute inset-0" aria-hidden="true">
               <div
                 className="absolute inset-0"
@@ -379,12 +371,12 @@ function CinematicIntro() {
               />
             </div>
 
-            {/* Layer 3: Main subject — KC Shield + healthcare icons */}
+            {/* Main subject — KC Shield */}
             <div className="absolute inset-0 flex items-center justify-center">
               <KCShield size={220} opacity={0.55} />
             </div>
 
-            {/* Layer 4: Foreground healthcare objects */}
+            {/* Foreground healthcare objects */}
             <div className="absolute inset-0" aria-hidden="true">
               {[
                 { x: "10%", y: "18%", icon: "💊", size: 30, op: 0.22 },
@@ -408,42 +400,33 @@ function CinematicIntro() {
           </div>
         </motion.div>
 
-        {/* SMOKE — Phase A uses CSS animation, Phase B scroll-linked opacity */}
-        <motion.div className="absolute inset-0 kc-intro-smoke" style={{ opacity: smokeOpacity }}>
-          {/* Smoke layer 1 */}
-          <div
-            className="absolute inset-[-10%] kc-smoke-a"
-            style={{ background: "radial-gradient(ellipse 60% 45% at 30% 40%, rgba(22,163,106,0.10), transparent 70%)" }}
-          />
-          {/* Smoke layer 2 */}
-          <div
-            className="absolute inset-[-10%] kc-smoke-b"
-            style={{ background: "radial-gradient(ellipse 50% 40% at 75% 60%, rgba(216,184,120,0.06), transparent 70%)" }}
-          />
-          {/* Smoke layer 3 */}
-          <div
-            className="absolute inset-[-10%] kc-smoke-c"
-            style={{ background: "radial-gradient(ellipse 70% 55% at 50% 70%, rgba(245,243,236,0.04), transparent 75%)" }}
-          />
-        </motion.div>
-
-        {/* WORD 1: EXPLORE — auto-reveals via CSS, then scroll-driven out */}
-        <div className="absolute inset-0 flex items-center justify-center px-6 z-10 kc-intro-text">
-          <span
-            className="text-[clamp(4rem,13vw,11rem)] font-black uppercase tracking-tight leading-none select-none"
-            style={{
-              background: "linear-gradient(180deg, rgba(245,243,236,0.95) 0%, rgba(245,243,236,0.45) 100%)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-            }}
-          >
-            Explore
-          </span>
+        {/* SMOKE — CSS animation handles auto-parting on mount.
+            Framer Motion scroll handles the fade-out.
+            CSS animation runs independently (ambient drift) on the inner layers. */}
+        <div className="absolute inset-0 kc-intro-smoke" style={{ opacity: 0.55 }}>
+          <motion.div className="absolute inset-0" style={{ opacity: smokeScrollOpacity }}>
+            <div
+              className="absolute inset-[-10%] kc-smoke-a"
+              style={{ background: "radial-gradient(ellipse 60% 45% at 30% 40%, rgba(22,163,106,0.10), transparent 70%)" }}
+            />
+            <div
+              className="absolute inset-[-10%] kc-smoke-b"
+              style={{ background: "radial-gradient(ellipse 50% 40% at 75% 60%, rgba(216,184,120,0.06), transparent 70%)" }}
+            />
+            <div
+              className="absolute inset-[-10%] kc-smoke-c"
+              style={{ background: "radial-gradient(ellipse 70% 55% at 50% 70%, rgba(245,243,236,0.04), transparent 75%)" }}
+            />
+          </motion.div>
         </div>
 
-        {/* Scroll-driven typography overlay — covers auto text after scroll begins */}
+        {/* EXPLORE — single element, auto-reveals on mount via Framer Motion,
+            fades on scroll. NO CSS animation (avoids Framer Motion conflict). */}
         <motion.div
           className="absolute inset-0 flex items-center justify-center px-6 z-10 pointer-events-none"
+          initial={{ opacity: 0, y: 15, filter: "blur(6px)" }}
+          animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+          transition={{ duration: 1.6, delay: 0.3, ease: EASE }}
           style={{ opacity: w1Opacity, y: w1Y, scale: w1Scale }}
         >
           <span
@@ -458,7 +441,7 @@ function CinematicIntro() {
           </span>
         </motion.div>
 
-        {/* WORD 2: KALYAN CHEMIST */}
+        {/* KALYAN CHEMIST */}
         <motion.div
           className="absolute inset-0 flex items-center justify-center px-6 z-10"
           style={{ opacity: w2Opacity, y: w2Y }}
@@ -487,7 +470,7 @@ function CinematicIntro() {
           </div>
         </motion.div>
 
-        {/* WORD 3: HEALTHCARE, SIMPLIFIED */}
+        {/* HEALTHCARE, SIMPLIFIED */}
         <motion.div
           className="absolute inset-0 flex items-center justify-center px-6 z-10"
           style={{ opacity: w3Opacity, y: w3Y }}
@@ -653,13 +636,7 @@ function BrandStory() {
           </p>
           <h2 className="text-3xl sm:text-5xl font-black leading-[0.95] tracking-tight text-white/90">
             Why{" "}
-            <span
-              style={{
-                background: "linear-gradient(90deg, #16A36A, #F0D9A3)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-              }}
-            >
+            <span style={{ background: "linear-gradient(90deg, #16A36A, #F0D9A3)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
               Kalyan Chemist
             </span>{" "}
             Exists
@@ -711,13 +688,7 @@ function DiscoveryToDoorstep() {
           <h2 className="text-4xl sm:text-6xl md:text-7xl font-black uppercase leading-[0.92] tracking-tight">
             <span className="text-white/90">From Discovery</span>
             <br />
-            <span
-              style={{
-                background: "linear-gradient(90deg, #16A36A, #F0D9A3)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-              }}
-            >
+            <span style={{ background: "linear-gradient(90deg, #16A36A, #F0D9A3)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
               to Doorstep
             </span>
           </h2>
@@ -725,7 +696,6 @@ function DiscoveryToDoorstep() {
 
         <div className="relative">
           <div className="hidden lg:block absolute left-[10%] right-[10%] top-7 h-px bg-gradient-to-r from-[#16A36A]/10 via-[#F0D9A3]/25 to-[#16A36A]/10" />
-
           <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-5 lg:gap-4">
             {steps.map((step, i) => (
               <RevealOnScroll key={step.title} delay={i * 0.08}>
@@ -766,10 +736,7 @@ function EcosystemJourney() {
   ];
 
   return (
-    <section
-      className="relative overflow-hidden py-20 sm:py-28"
-      style={{ background: "#0B0D0C" }}
-    >
+    <section className="relative overflow-hidden py-20 sm:py-28" style={{ background: "#0B0D0C" }}>
       <div className="relative z-10 mx-auto max-w-6xl px-6">
         <RevealOnScroll className="text-center mb-12">
           <p className="text-xs sm:text-sm font-semibold uppercase tracking-[0.3em] text-[#D8B878] mb-5">
@@ -777,13 +744,7 @@ function EcosystemJourney() {
           </p>
           <h2 className="text-3xl sm:text-5xl font-black leading-[0.95] tracking-tight text-white/90">
             Everything connected,{" "}
-            <span
-              style={{
-                background: "linear-gradient(90deg, #F0D9A3, #16A36A)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-              }}
-            >
+            <span style={{ background: "linear-gradient(90deg, #F0D9A3, #16A36A)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
               nothing missing
             </span>
           </h2>
@@ -848,13 +809,7 @@ function PremiumCards() {
           </p>
           <h2 className="text-3xl sm:text-5xl font-black leading-[0.95] tracking-tight text-white/90">
             Everything you need,{" "}
-            <span
-              style={{
-                background: "linear-gradient(90deg, #F0D9A3, #16A36A)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-              }}
-            >
+            <span style={{ background: "linear-gradient(90deg, #F0D9A3, #16A36A)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
               in one place
             </span>
           </h2>
@@ -919,13 +874,7 @@ function TrustSection() {
           </p>
           <h2 className="text-3xl sm:text-5xl font-black leading-[0.95] tracking-tight text-white/90">
             Healthcare should feel{" "}
-            <span
-              style={{
-                background: "linear-gradient(90deg, #16A36A, #F0D9A3)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-              }}
-            >
+            <span style={{ background: "linear-gradient(90deg, #16A36A, #F0D9A3)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
               simpler
             </span>
           </h2>
@@ -997,34 +946,19 @@ function FinalStatement() {
       <div className="relative z-10 mx-auto max-w-5xl px-6 text-center">
         <RevealOnScroll>
           <div className="mx-auto mb-8 h-px w-20 bg-gradient-to-r from-transparent via-[#16A36A]/50 to-transparent" />
-
           <h2 className="text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-black uppercase leading-[0.9] tracking-tight">
-            <span
-              style={{
-                background: "linear-gradient(90deg, #F0D9A3, white, #16A36A)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-              }}
-            >
+            <span style={{ background: "linear-gradient(90deg, #F0D9A3, white, #16A36A)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
               Your Health,
             </span>
             <br />
-            <span
-              style={{
-                background: "linear-gradient(90deg, #16A36A, #F0D9A3, white)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-              }}
-            >
+            <span style={{ background: "linear-gradient(90deg, #16A36A, #F0D9A3, white)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
               Our Priority
             </span>
           </h2>
-
           <p className="mx-auto mt-7 max-w-2xl text-lg sm:text-xl md:text-2xl font-light leading-relaxed text-white/45">
             Making everyday healthcare simpler, more convenient and accessible
             through Kalyan Chemist.
           </p>
-
           <div className="mx-auto mt-8 h-px w-20 bg-gradient-to-r from-transparent via-[#D8B878]/40 to-transparent" />
         </RevealOnScroll>
 
@@ -1051,29 +985,18 @@ export default function AboutUs() {
     <div className="min-h-screen bg-background text-foreground">
       <Navbar />
 
-      {/* Page-scoped keyframes */}
       <style>{`
-        /* ── Phase A: Auto-intro smoke animation (runs once on mount) ── */
+        /* Smoke auto-parting on mount (CSS only, no conflict with Framer Motion) */
         .kc-intro-smoke {
-          animation: kc-smoke-part 2.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+          animation: kc-smoke-part 2.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
         }
         @keyframes kc-smoke-part {
-          0%   { opacity: 1; }
-          40%  { opacity: 0.9; }
-          100% { opacity: 0.35; }
+          0%   { opacity: 0.55; }
+          30%  { opacity: 0.50; }
+          100% { opacity: 0.15; }
         }
 
-        /* ── Phase A: EXPLORE emerges from smoke ── */
-        .kc-intro-text {
-          animation: kc-explore-reveal 2s cubic-bezier(0.22, 1, 0.36, 1) 0.3s both;
-        }
-        @keyframes kc-explore-reveal {
-          0%   { opacity: 0; transform: translateY(20px) scale(0.96); filter: blur(8px); }
-          50%  { opacity: 0.7; filter: blur(2px); }
-          100% { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
-        }
-
-        /* ── Ambient smoke drift (CSS-only, GPU composited) ── */
+        /* Ambient smoke drift (CSS keyframes on transform only) */
         .kc-smoke-a { animation: kc-drift-a 26s ease-in-out infinite alternate; }
         .kc-smoke-b { animation: kc-drift-b 34s ease-in-out infinite alternate; }
         .kc-smoke-c { animation: kc-drift-a 42s ease-in-out infinite alternate-reverse; }
@@ -1093,39 +1016,20 @@ export default function AboutUs() {
         }
 
         @media (prefers-reduced-motion: reduce) {
-          .kc-intro-smoke { animation: none !important; opacity: 0.35 !important; }
-          .kc-intro-text { animation: none !important; opacity: 1 !important; }
+          .kc-intro-smoke { animation: none !important; opacity: 0.15 !important; }
           .kc-smoke-a, .kc-smoke-b, .kc-smoke-c, .kc-pulse { animation: none !important; }
         }
       `}</style>
 
-      {/* 1. Cinematic intro — auto-reveal + 180vh scroll transformation */}
       <CinematicIntro />
-
-      {/* 2. Who we are */}
       <WhoWeAre />
-
-      {/* 3. Brand story */}
       <BrandStory />
-
-      {/* 4. From discovery to doorstep */}
       <DiscoveryToDoorstep />
-
-      {/* 5. One healthcare experience */}
       <EcosystemJourney />
-
-      {/* 6. Premium visual cards */}
       <PremiumCards />
-
-      {/* 7. Why Kalyan Chemist */}
       <TrustSection />
-
-      {/* 8. Final statement */}
       <FinalStatement />
-
       <Footer />
-
-      {/* Music — real HTMLAudioElement, honest playback state */}
       <MusicControl />
     </div>
   );
