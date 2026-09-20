@@ -71,15 +71,21 @@ function KCShield({ size = 200, opacity = 1 }: { size?: number; opacity?: number
 
 async function renderAmbientLoop(): Promise<string> {
   const sampleRate = 22050;
-  const duration = 8;
+  const duration = 10;
   const OfflineCtx: typeof OfflineAudioContext =
     window.OfflineAudioContext || (window as any).webkitOfflineAudioContext;
   if (!OfflineCtx) throw new Error("OfflineAudioContext not supported");
   const ctx = new OfflineCtx(1, sampleRate * duration, sampleRate);
 
+  /* D-minor ambient pad — richer voicing, higher gain for audibility */
   const notes = [
-    { f: 73.42, g: 0.10 }, { f: 110.0, g: 0.08 }, { f: 146.83, g: 0.06 },
-    { f: 174.61, g: 0.05 }, { f: 220.0, g: 0.04 }, { f: 293.66, g: 0.03 },
+    { f: 73.42, g: 0.22 },  /* D2 */
+    { f: 110.0, g: 0.18 },  /* A2 */
+    { f: 146.83, g: 0.14 }, /* D3 */
+    { f: 174.61, g: 0.12 }, /* F3 */
+    { f: 220.0, g: 0.10 },  /* A3 */
+    { f: 293.66, g: 0.08 }, /* D4 */
+    { f: 349.23, g: 0.06 }, /* F4 */
   ];
 
   notes.forEach(({ f, g }) => {
@@ -93,6 +99,17 @@ async function renderAmbientLoop(): Promise<string> {
     osc.start(0);
     osc.stop(duration);
   });
+
+  /* Gentle LFO on a sub-oscillator for movement */
+  const lfoOsc = ctx.createOscillator();
+  lfoOsc.type = "sine";
+  lfoOsc.frequency.value = 0.15;
+  const lfoGain = ctx.createGain();
+  lfoGain.gain.value = 0.04;
+  lfoOsc.connect(lfoGain);
+  lfoGain.connect(ctx.destination);
+  lfoOsc.start(0);
+  lfoOsc.stop(duration);
 
   const buffer = await ctx.startRendering();
   const numCh = buffer.numberOfChannels;
@@ -185,7 +202,7 @@ function MusicControl() {
     wantPlayRef.current = true;
     audio.volume = 0;
     audio.play()
-      .then(() => { if (!wantPlayRef.current) return; fadeTo(0.25); setPlaying(true); })
+      .then(() => { if (!wantPlayRef.current) return; fadeTo(0.35); setPlaying(true); })
       .catch(() => { wantPlayRef.current = false; setPlaying(false); });
   }, [fadeTo]);
 
@@ -255,19 +272,21 @@ function RevealOnScroll({ children, className = "", delay = 0 }: {
 /* ═══════════════════════════════════════════════════════════════════
    SECTION 1 — CINEMATIC INTRO
 
-   TWO DISTINCT PHASES:
+   TWO SEPARATE PHASES (NO SCROLL LOCK):
 
-   PHASE A (automatic, 0–2.5s): CSS keyframes on mount. No scroll.
-     → Smoke parts, EXPLORE emerges, KALYAN CHEMIST appears.
+   PHASE A (automatic, 0–2.8s): Pure CSS keyframes. No scroll.
+     Dense smoke fills screen → smoke parts → EXPLORE emerges →
+     KALYAN CHEMIST reveals → Phase A unmounts.
 
-   PHASE B (scroll-driven, after 2.5s): Framer Motion useScroll.
-     → Hero zooms, text transitions, 3D depth, story progression.
+   PHASE B (scroll-driven): Framer Motion useScroll.
+     Starts with KALYAN CHEMIST visible (matching Phase A end state).
+     Hero zooms, text transitions, 3D depth, story progression.
 
-   They are SEPARATE DOM layers. Phase A auto-unmounts after 2.5s.
-   Phase B always renders but only becomes visible/active after intro.
+   Phase A sits on top (z-30), Phase B underneath (z-10).
+   When Phase A unmounts, Phase B takes over seamlessly.
    ═══════════════════════════════════════════════════════════════════ */
 
-const INTRO_MS = 3000;
+const INTRO_MS = 2800;
 
 function CinematicIntro() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -275,7 +294,6 @@ function CinematicIntro() {
 
   useEffect(() => {
     if (prefersReducedMotion) { setIntroDone(true); return; }
-    // NO scroll lock — user can scroll freely during intro
     const t = setTimeout(() => setIntroDone(true), INTRO_MS);
     return () => clearTimeout(t);
   }, []);
@@ -286,18 +304,27 @@ function CinematicIntro() {
     offset: ["start start", "end start"],
   });
 
-  const heroScale = useTransform(scrollYProgress, [0, 0.80], [1, 1.25]);
-  const smokeScrollOp = useTransform(scrollYProgress, [0, 0.40], [0.60, 0]);
-  const exploreOp = useTransform(scrollYProgress, [0, 0.04, 0.20], [1, 1, 0]);
-  const exploreY = useTransform(scrollYProgress, [0, 0.20], [0, -80]);
-  const exploreScale = useTransform(scrollYProgress, [0, 0.16], [1, 1.08]);
-  const kalyanOp = useTransform(scrollYProgress, [0.18, 0.28, 0.42, 0.52], [0, 1, 1, 0]);
-  const kalyanY = useTransform(scrollYProgress, [0.18, 0.52], [50, -50]);
-  const healthOp = useTransform(scrollYProgress, [0.44, 0.54, 0.68, 0.78], [0, 1, 1, 0]);
-  const healthY = useTransform(scrollYProgress, [0.44, 0.78], [40, -30]);
-  const shieldOp = useTransform(scrollYProgress, [0.74, 0.88], [0, 1]);
-  const shieldSc = useTransform(scrollYProgress, [0.74, 0.92], [0.85, 1]);
-  const hintOp = useTransform(scrollYProgress, [0, 0.02], [1, 0]);
+  /* Hero image zooms continuously */
+  const heroScale = useTransform(scrollYProgress, [0, 0.85], [1, 1.20]);
+
+  /* Phase B smoke — always visible but fades as user scrolls */
+  const smokeOp = useTransform(scrollYProgress, [0, 0.45], [0.55, 0]);
+
+  /* Phase B starts with KALYAN CHEMIST visible (matches Phase A end).
+     No EXPLORE in Phase B — it was shown in Phase A only. */
+  const kalyanOp = useTransform(scrollYProgress, [0, 0.02, 0.30, 0.42], [1, 1, 1, 0]);
+  const kalyanY = useTransform(scrollYProgress, [0, 0.42], [0, -60]);
+
+  /* HEALTHCARE SIMPLIFIED — enters after KALYAN exits */
+  const healthOp = useTransform(scrollYProgress, [0.32, 0.44, 0.62, 0.74], [0, 1, 1, 0]);
+  const healthY = useTransform(scrollYProgress, [0.32, 0.74], [40, -30]);
+
+  /* KC Shield finale */
+  const shieldOp = useTransform(scrollYProgress, [0.68, 0.82], [0, 1]);
+  const shieldSc = useTransform(scrollYProgress, [0.68, 0.88], [0.85, 1]);
+
+  /* Scroll hint */
+  const hintOp = useTransform(scrollYProgress, [0, 0.03], [1, 0]);
 
   const TEXT_GRADIENT = "linear-gradient(180deg, rgba(245,243,236,0.95) 0%, rgba(245,243,236,0.45) 100%)";
   const KC_GRADIENT_1 = "linear-gradient(135deg, #16A36A 0%, #F0D9A3 55%, #16A36A 100%)";
@@ -305,7 +332,7 @@ function CinematicIntro() {
   const HC_GRADIENT = "linear-gradient(180deg, #F0D9A3 0%, #16A36A 100%)";
 
   return (
-    <div ref={containerRef} className="relative" style={{ height: "160vh" }}>
+    <div ref={containerRef} className="relative" style={{ height: "180vh" }}>
       <div className="sticky top-0 h-screen overflow-hidden" style={{ background: "#060808" }}>
 
         {/* ── Deep background ── */}
@@ -355,17 +382,22 @@ function CinematicIntro() {
 
         {/* ════════════════════════════════════════════════
            PHASE A — AUTOMATIC INTRO (CSS keyframes only)
-           Runs 0–2.5s. No scroll involvement.
-           After 2.5s: unmounts → Phase B takes over.
+           Dense smoke → parts → EXPLORE emerges →
+           KALYAN CHEMIST appears → unmounts at 2.8s.
            ════════════════════════════════════════════════ */}
         {!introDone && !prefersReducedMotion && (
           <div className="absolute inset-0 z-30 pointer-events-none">
-            {/* Smoke — auto-parting via CSS */}
-            <div className="absolute inset-0 kc-phase-a-smoke" />
+            {/* Dense smoke layers — each drifts independently */}
+            <div className="absolute inset-0 kc-phase-a-smoke">
+              <div className="absolute inset-[-20%] kc-smoke-layer-1" />
+              <div className="absolute inset-[-20%] kc-smoke-layer-2" />
+              <div className="absolute inset-[-20%] kc-smoke-layer-3" />
+              <div className="absolute inset-[-15%] kc-smoke-layer-4" />
+            </div>
             {/* EXPLORE — emerges from smoke via CSS */}
             <div className="absolute inset-0 flex items-center justify-center px-6 kc-phase-a-explore">
               <span className="text-[clamp(4rem,13vw,11rem)] font-black uppercase tracking-tight leading-none select-none"
-                style={{ background: TEXT_GRADIENT, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+                style={{ background: TEXT_GRADIENT, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", filter: "drop-shadow(0 0 30px rgba(22,163,106,0.25))" }}>
                 Explore
               </span>
             </div>
@@ -383,22 +415,18 @@ function CinematicIntro() {
 
         {/* ════════════════════════════════════════════════
            PHASE B — SCROLL-DRIVEN (Framer Motion)
-           Always mounted. Visible/active after Phase A ends.
+           Always mounted. Takes over after Phase A unmounts.
+           Starts with KALYAN CHEMIST visible (matches Phase A end).
            ════════════════════════════════════════════════ */}
         <div className="absolute inset-0 z-10 pointer-events-none">
           {/* Smoke — VISIBLE + MOVING, scroll fades it out */}
-          <motion.div className="absolute inset-0" style={{ opacity: smokeScrollOp }}>
-            <div className="absolute inset-[-10%] kc-smoke-a" style={{ background: "radial-gradient(ellipse 65% 50% at 30% 40%, rgba(22,163,106,0.25), transparent 60%)" }} />
-            <div className="absolute inset-[-10%] kc-smoke-b" style={{ background: "radial-gradient(ellipse 55% 45% at 75% 55%, rgba(216,184,120,0.15), transparent 55%)" }} />
-            <div className="absolute inset-[-10%] kc-smoke-c" style={{ background: "radial-gradient(ellipse 70% 55% at 50% 65%, rgba(245,243,236,0.10), transparent 60%)" }} />
+          <motion.div className="absolute inset-0" style={{ opacity: smokeOp }}>
+            <div className="absolute inset-[-15%] kc-smoke-a" style={{ background: "radial-gradient(ellipse 70% 55% at 30% 40%, rgba(22,163,106,0.40), transparent 60%)" }} />
+            <div className="absolute inset-[-15%] kc-smoke-b" style={{ background: "radial-gradient(ellipse 60% 50% at 75% 55%, rgba(216,184,120,0.25), transparent 55%)" }} />
+            <div className="absolute inset-[-15%] kc-smoke-c" style={{ background: "radial-gradient(ellipse 75% 60% at 50% 65%, rgba(245,243,236,0.18), transparent 60%)" }} />
           </motion.div>
-          {/* EXPLORE — scroll-driven exit */}
-          <motion.div className="absolute inset-0 flex items-center justify-center px-6"
-            style={{ opacity: exploreOp, y: exploreY, scale: exploreScale }}>
-            <span className="text-[clamp(4rem,13vw,11rem)] font-black uppercase tracking-tight leading-none select-none"
-              style={{ background: TEXT_GRADIENT, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Explore</span>
-          </motion.div>
-          {/* KALYAN CHEMIST — scroll-driven */}
+
+          {/* KALYAN CHEMIST — starts visible, fades on scroll */}
           <motion.div className="absolute inset-0 flex items-center justify-center px-6"
             style={{ opacity: kalyanOp, y: kalyanY }}>
             <div className="text-center select-none">
@@ -408,6 +436,7 @@ function CinematicIntro() {
                 style={{ background: KC_GRADIENT_2, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Chemist</span>
             </div>
           </motion.div>
+
           {/* HEALTHCARE, SIMPLIFIED */}
           <motion.div className="absolute inset-0 flex items-center justify-center px-6"
             style={{ opacity: healthOp, y: healthY }}>
@@ -417,6 +446,7 @@ function CinematicIntro() {
                 style={{ background: HC_GRADIENT, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Simplified</span>
             </div>
           </motion.div>
+
           {/* KC Shield finale */}
           <motion.div className="absolute inset-0 flex items-center justify-center"
             style={{ opacity: shieldOp, scale: shieldSc }}>
@@ -427,7 +457,7 @@ function CinematicIntro() {
         {/* Vignette */}
         <div className="absolute inset-0 pointer-events-none z-20" style={{ background: "radial-gradient(ellipse 65% 55% at 50% 45%, transparent 30%, rgba(4,6,5,0.72) 100%)" }} />
 
-        {/* Scroll hint — only during/after intro */}
+        {/* Scroll hint — only after intro */}
         {introDone && (
           <motion.div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 z-20"
             style={{ opacity: hintOp }}>
@@ -790,65 +820,99 @@ export default function AboutUs() {
       <Navbar />
 
       <style>{`
-        /* ═══ PHASE A — AUTOMATIC INTRO CSS KEYFRAMES ═══
-           These run ONCE on mount, complete in ~2.5s.
-           No scroll involvement. No Framer Motion conflict.
-           Phase A div unmounts after completion. */
+        /* ═══ PHASE A — DENSE CINEMATIC SMOKE ═══
+           Multiple layers fill the screen with visible, moving smoke.
+           Each layer drifts independently via CSS transform.
+           Overall wrapper fades to let content emerge. */
 
-        /* Smoke — VISIBLE, MOVING, cinematic. Auto-parting over 3s. */
         .kc-phase-a-smoke {
-          background:
-            radial-gradient(ellipse 70% 55% at 30% 40%, rgba(22,163,106,0.30), transparent 60%),
-            radial-gradient(ellipse 60% 50% at 70% 55%, rgba(216,184,120,0.18), transparent 55%),
-            radial-gradient(ellipse 80% 60% at 50% 50%, rgba(245,243,236,0.12), transparent 65%),
-            radial-gradient(ellipse 50% 45% at 20% 70%, rgba(22,163,106,0.15), transparent 55%);
-          animation: kc-smoke-auto 3s cubic-bezier(0.22, 1, 0.36, 1) forwards,
-                     kc-drift-a 12s ease-in-out infinite alternate;
+          animation: kc-smoke-parts 2.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
         }
-        @keyframes kc-smoke-auto {
-          0%   { opacity: 0.85; }
-          40%  { opacity: 0.55; }
-          100% { opacity: 0.00; }
+        @keyframes kc-smoke-parts {
+          0%   { opacity: 1; }
+          30%  { opacity: 0.85; }
+          100% { opacity: 0.0; }
         }
 
-        /* EXPLORE emerges from smoke, holds, then exits. GPU-only (no filter). */
+        /* Individual smoke layers — dense, visible, drifting */
+        .kc-smoke-layer-1 {
+          background: radial-gradient(ellipse 80% 70% at 30% 35%, rgba(22,163,106,0.55), transparent 55%);
+          animation: kc-drift-1 8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        }
+        @keyframes kc-drift-1 {
+          0%   { transform: translate3d(0, 0, 0) scale(1); opacity: 1; }
+          50%  { opacity: 0.8; }
+          100% { transform: translate3d(-18%, -12%, 0) scale(1.15); opacity: 0; }
+        }
+
+        .kc-smoke-layer-2 {
+          background: radial-gradient(ellipse 70% 65% at 70% 50%, rgba(216,184,120,0.38), transparent 50%);
+          animation: kc-drift-2 9s cubic-bezier(0.22, 1, 0.36, 1) 0.1s forwards;
+        }
+        @keyframes kc-drift-2 {
+          0%   { transform: translate3d(0, 0, 0) scale(1.05); opacity: 1; }
+          50%  { opacity: 0.7; }
+          100% { transform: translate3d(15%, -15%, 0) scale(1.2); opacity: 0; }
+        }
+
+        .kc-smoke-layer-3 {
+          background: radial-gradient(ellipse 90% 75% at 50% 55%, rgba(245,243,236,0.22), transparent 55%);
+          animation: kc-drift-3 10s cubic-bezier(0.22, 1, 0.36, 1) 0.2s forwards;
+        }
+        @keyframes kc-drift-3 {
+          0%   { transform: translate3d(0, 0, 0) scale(1); opacity: 1; }
+          40%  { opacity: 0.6; }
+          100% { transform: translate3d(5%, 18%, 0) scale(1.1); opacity: 0; }
+        }
+
+        .kc-smoke-layer-4 {
+          background: radial-gradient(ellipse 60% 55% at 45% 45%, rgba(22,163,106,0.30), transparent 50%);
+          animation: kc-drift-4 7s cubic-bezier(0.22, 1, 0.36, 1) 0.15s forwards;
+        }
+        @keyframes kc-drift-4 {
+          0%   { transform: translate3d(0, 0, 0) scale(0.95); opacity: 0.9; }
+          100% { transform: translate3d(-10%, 10%, 0) scale(1.12); opacity: 0; }
+        }
+
+        /* EXPLORE — emerges from inside the smoke. GPU-only. */
         .kc-phase-a-explore {
           opacity: 0;
-          animation: kc-explore-auto 2.4s cubic-bezier(0.22, 1, 0.36, 1) 0.2s forwards;
-          will-change: transform, opacity;
+          animation: kc-explore-auto 2.2s cubic-bezier(0.22, 1, 0.36, 1) 0.3s forwards;
         }
         @keyframes kc-explore-auto {
-          0%   { opacity: 0; transform: translateY(25px) scale(0.95); }
-          35%  { opacity: 1; transform: translateY(0) scale(1); }
-          65%  { opacity: 1; transform: translateY(0) scale(1); }
-          100% { opacity: 0; transform: translateY(-20px) scale(1.05); }
+          0%   { opacity: 0; transform: translateY(30px) scale(0.92); }
+          30%  { opacity: 0.9; }
+          50%  { opacity: 1; transform: translateY(0) scale(1); }
+          70%  { opacity: 1; transform: translateY(0) scale(1); }
+          100% { opacity: 0; transform: translateY(-25px) scale(1.06); }
         }
 
-        /* KALYAN CHEMIST appears after EXPLORE fades. GPU-only. */
+        /* KALYAN CHEMIST — appears after EXPLORE. GPU-only. */
         .kc-phase-a-kalyan {
           opacity: 0;
-          animation: kc-kalyan-auto 1.4s cubic-bezier(0.22, 1, 0.36, 1) 1.8s forwards;
-          will-change: transform, opacity;
+          animation: kc-kalyan-auto 1.6s cubic-bezier(0.22, 1, 0.36, 1) 1.5s forwards;
         }
         @keyframes kc-kalyan-auto {
-          0%   { opacity: 0; transform: translateY(20px) scale(0.96); }
-          60%  { opacity: 1; transform: translateY(0) scale(1); }
+          0%   { opacity: 0; transform: translateY(25px) scale(0.95); }
+          50%  { opacity: 1; transform: translateY(0) scale(1); }
           100% { opacity: 1; transform: translateY(0) scale(1); }
         }
 
-        /* ═══ AMBIENT SMOKE DRIFT (CSS, transform-only) ═══ */
-        .kc-smoke-a { animation: kc-drift-a 26s ease-in-out infinite alternate; }
-        .kc-smoke-b { animation: kc-drift-b 34s ease-in-out infinite alternate; }
-        .kc-smoke-c { animation: kc-drift-a 42s ease-in-out infinite alternate-reverse; }
-        @keyframes kc-drift-a {
-          0%   { transform: translate3d(-2%, 0, 0) scale(1); }
-          100% { transform: translate3d(3%, -2%, 0) scale(1.06); }
+        /* ═══ AMBIENT SMOKE DRIFT (Phase B, CSS, transform-only) ═══ */
+        .kc-smoke-a { animation: kc-amb-a 22s ease-in-out infinite alternate; }
+        .kc-smoke-b { animation: kc-amb-b 30s ease-in-out infinite alternate; }
+        .kc-smoke-c { animation: kc-amb-a 38s ease-in-out infinite alternate-reverse; }
+
+        @keyframes kc-amb-a {
+          0%   { transform: translate3d(-3%, 0, 0) scale(1); }
+          100% { transform: translate3d(4%, -2%, 0) scale(1.08); }
         }
-        @keyframes kc-drift-b {
-          0%   { transform: translate3d(2%, 1%, 0) scale(1.04); }
-          100% { transform: translate3d(-3%, -1%, 0) scale(1); }
+        @keyframes kc-amb-b {
+          0%   { transform: translate3d(3%, 1%, 0) scale(1.05); }
+          100% { transform: translate3d(-4%, -1%, 0) scale(1); }
         }
 
+        /* ═══ PULSE RING (WhoWeAre section) ═══ */
         .kc-pulse { animation: kc-pulse-ring 6s ease-in-out infinite; }
         @keyframes kc-pulse-ring {
           0%, 100% { transform: scale(1); opacity: 0.5; }
@@ -856,11 +920,18 @@ export default function AboutUs() {
         }
 
         @media (prefers-reduced-motion: reduce) {
-          .kc-phase-a-smoke, .kc-phase-a-explore, .kc-phase-a-kalyan { animation: none !important; }
+          .kc-phase-a-smoke,
+          .kc-smoke-layer-1, .kc-smoke-layer-2,
+          .kc-smoke-layer-3, .kc-smoke-layer-4,
+          .kc-phase-a-explore, .kc-phase-a-kalyan {
+            animation: none !important;
+          }
           .kc-phase-a-smoke { opacity: 0 !important; }
           .kc-phase-a-explore { opacity: 1 !important; }
           .kc-phase-a-kalyan { opacity: 1 !important; }
-          .kc-smoke-a, .kc-smoke-b, .kc-smoke-c, .kc-pulse { animation: none !important; }
+          .kc-smoke-a, .kc-smoke-b, .kc-smoke-c, .kc-pulse {
+            animation: none !important;
+          }
         }
       `}</style>
 
