@@ -387,21 +387,15 @@ function CinematicIntro() {
            ════════════════════════════════════════════════ */}
         {!introDone && !prefersReducedMotion && (
           <div className="absolute inset-0 z-30 pointer-events-none">
-            {/* Dense smoke layers — each drifts independently */}
-            <div className="absolute inset-0 kc-phase-a-smoke">
-              <div className="absolute inset-[-20%] kc-smoke-layer-1" />
-              <div className="absolute inset-[-20%] kc-smoke-layer-2" />
-              <div className="absolute inset-[-20%] kc-smoke-layer-3" />
-              <div className="absolute inset-[-15%] kc-smoke-layer-4" />
-            </div>
-            {/* EXPLORE — emerges from smoke via CSS */}
+            {/* Text BEHIND smoke — revealed as smoke drifts apart */}
+            {/* EXPLORE — fades in while smoke still covers it, then becomes visible */}
             <div className="absolute inset-0 flex items-center justify-center px-6 kc-phase-a-explore">
               <span className="text-[clamp(4rem,13vw,11rem)] font-black uppercase tracking-tight leading-none select-none"
-                style={{ background: TEXT_GRADIENT, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", filter: "drop-shadow(0 0 30px rgba(22,163,106,0.25))" }}>
+                style={{ background: TEXT_GRADIENT, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", filter: "drop-shadow(0 0 30px rgba(22,163,106,0.35))" }}>
                 Explore
               </span>
             </div>
-            {/* KALYAN CHEMIST — appears after EXPLORE via CSS */}
+            {/* KALYAN CHEMIST — appears after EXPLORE, revealed as smoke clears */}
             <div className="absolute inset-0 flex items-center justify-center px-6 kc-phase-a-kalyan">
               <div className="text-center select-none">
                 <span className="block text-[clamp(2.4rem,7.5vw,6.5rem)] font-black uppercase tracking-tight leading-[0.92]"
@@ -409,6 +403,13 @@ function CinematicIntro() {
                 <span className="block text-[clamp(2.4rem,7.5vw,6.5rem)] font-black uppercase tracking-tight leading-[0.92]"
                   style={{ background: KC_GRADIENT_2, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Chemist</span>
               </div>
+            </div>
+            {/* Dense smoke ON TOP — drifts apart to reveal text underneath */}
+            <div className="absolute inset-0 kc-phase-a-smoke">
+              <div className="absolute inset-[-25%] kc-smoke-layer-1" />
+              <div className="absolute inset-[-25%] kc-smoke-layer-2" />
+              <div className="absolute inset-[-20%] kc-smoke-layer-3" />
+              <div className="absolute inset-[-20%] kc-smoke-layer-4" />
             </div>
           </div>
         )}
@@ -421,9 +422,9 @@ function CinematicIntro() {
         <div className="absolute inset-0 z-10 pointer-events-none">
           {/* Smoke — VISIBLE + MOVING, scroll fades it out */}
           <motion.div className="absolute inset-0" style={{ opacity: smokeOp }}>
-            <div className="absolute inset-[-15%] kc-smoke-a" style={{ background: "radial-gradient(ellipse 70% 55% at 30% 40%, rgba(22,163,106,0.40), transparent 60%)" }} />
-            <div className="absolute inset-[-15%] kc-smoke-b" style={{ background: "radial-gradient(ellipse 60% 50% at 75% 55%, rgba(216,184,120,0.25), transparent 55%)" }} />
-            <div className="absolute inset-[-15%] kc-smoke-c" style={{ background: "radial-gradient(ellipse 75% 60% at 50% 65%, rgba(245,243,236,0.18), transparent 60%)" }} />
+            <div className="absolute inset-[-15%] kc-smoke-a" style={{ background: "radial-gradient(ellipse 70% 55% at 30% 40%, rgba(22,163,106,0.50), transparent 55%)" }} />
+            <div className="absolute inset-[-15%] kc-smoke-b" style={{ background: "radial-gradient(ellipse 60% 50% at 75% 55%, rgba(216,184,120,0.32), transparent 50%)" }} />
+            <div className="absolute inset-[-15%] kc-smoke-c" style={{ background: "radial-gradient(ellipse 75% 60% at 50% 65%, rgba(245,243,236,0.22), transparent 55%)" }} />
           </motion.div>
 
           {/* KALYAN CHEMIST — starts visible, fades on scroll */}
@@ -821,80 +822,77 @@ export default function AboutUs() {
 
       <style>{`
         /* ═══ PHASE A — DENSE CINEMATIC SMOKE ═══
-           Multiple layers fill the screen with visible, moving smoke.
-           Each layer drifts independently via CSS transform.
-           Overall wrapper fades to let content emerge. */
+           Smoke layers ON TOP of text. They drift apart to REVEAL text.
+           Wrapper holds opacity 1, then fades quickly at end (smooth unmount).
+           Individual layers: NO opacity animation — ONLY transform (drift). */
 
         .kc-phase-a-smoke {
           animation: kc-smoke-parts 2.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
         }
         @keyframes kc-smoke-parts {
           0%   { opacity: 1; }
-          30%  { opacity: 0.85; }
-          100% { opacity: 0.0; }
+          82%  { opacity: 1; }
+          100% { opacity: 0; }
         }
 
-        /* Individual smoke layers — dense, visible, drifting */
+        /* Smoke layers — GPU-only drift (no opacity, no filter). */
         .kc-smoke-layer-1 {
           background: radial-gradient(ellipse 80% 70% at 30% 35%, rgba(22,163,106,0.55), transparent 55%);
-          animation: kc-drift-1 8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+          animation: kc-drift-1 2.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
         }
         @keyframes kc-drift-1 {
-          0%   { transform: translate3d(0, 0, 0) scale(1); opacity: 1; }
-          50%  { opacity: 0.8; }
-          100% { transform: translate3d(-18%, -12%, 0) scale(1.15); opacity: 0; }
+          0%   { transform: translate3d(0, 0, 0) scale(1); }
+          100% { transform: translate3d(-28%, -20%, 0) scale(1.25); }
         }
 
         .kc-smoke-layer-2 {
-          background: radial-gradient(ellipse 70% 65% at 70% 50%, rgba(216,184,120,0.38), transparent 50%);
-          animation: kc-drift-2 9s cubic-bezier(0.22, 1, 0.36, 1) 0.1s forwards;
+          background: radial-gradient(ellipse 70% 65% at 70% 50%, rgba(216,184,120,0.40), transparent 50%);
+          animation: kc-drift-2 2.5s cubic-bezier(0.22, 1, 0.36, 1) 0.05s forwards;
         }
         @keyframes kc-drift-2 {
-          0%   { transform: translate3d(0, 0, 0) scale(1.05); opacity: 1; }
-          50%  { opacity: 0.7; }
-          100% { transform: translate3d(15%, -15%, 0) scale(1.2); opacity: 0; }
+          0%   { transform: translate3d(0, 0, 0) scale(1.05); }
+          100% { transform: translate3d(25%, -22%, 0) scale(1.3); }
         }
 
         .kc-smoke-layer-3 {
-          background: radial-gradient(ellipse 90% 75% at 50% 55%, rgba(245,243,236,0.22), transparent 55%);
-          animation: kc-drift-3 10s cubic-bezier(0.22, 1, 0.36, 1) 0.2s forwards;
+          background: radial-gradient(ellipse 90% 75% at 50% 55%, rgba(245,243,236,0.24), transparent 55%);
+          animation: kc-drift-3 2.5s cubic-bezier(0.22, 1, 0.36, 1) 0.1s forwards;
         }
         @keyframes kc-drift-3 {
-          0%   { transform: translate3d(0, 0, 0) scale(1); opacity: 1; }
-          40%  { opacity: 0.6; }
-          100% { transform: translate3d(5%, 18%, 0) scale(1.1); opacity: 0; }
+          0%   { transform: translate3d(0, 0, 0) scale(1); }
+          100% { transform: translate3d(8%, 25%, 0) scale(1.15); }
         }
 
         .kc-smoke-layer-4 {
-          background: radial-gradient(ellipse 60% 55% at 45% 45%, rgba(22,163,106,0.30), transparent 50%);
-          animation: kc-drift-4 7s cubic-bezier(0.22, 1, 0.36, 1) 0.15s forwards;
+          background: radial-gradient(ellipse 60% 55% at 45% 45%, rgba(22,163,106,0.32), transparent 50%);
+          animation: kc-drift-4 2.5s cubic-bezier(0.22, 1, 0.36, 1) 0.08s forwards;
         }
         @keyframes kc-drift-4 {
-          0%   { transform: translate3d(0, 0, 0) scale(0.95); opacity: 0.9; }
-          100% { transform: translate3d(-10%, 10%, 0) scale(1.12); opacity: 0; }
+          0%   { transform: translate3d(0, 0, 0) scale(0.95); }
+          100% { transform: translate3d(-15%, 15%, 0) scale(1.2); }
         }
 
-        /* EXPLORE — emerges from inside the smoke. GPU-only. */
+        /* EXPLORE — fades in while smoke still covers it (emerges through gaps). */
         .kc-phase-a-explore {
           opacity: 0;
-          animation: kc-explore-auto 2.2s cubic-bezier(0.22, 1, 0.36, 1) 0.3s forwards;
+          animation: kc-explore-auto 2.2s cubic-bezier(0.22, 1, 0.36, 1) 0.2s forwards;
         }
         @keyframes kc-explore-auto {
-          0%   { opacity: 0; transform: translateY(30px) scale(0.92); }
-          30%  { opacity: 0.9; }
-          50%  { opacity: 1; transform: translateY(0) scale(1); }
-          70%  { opacity: 1; transform: translateY(0) scale(1); }
-          100% { opacity: 0; transform: translateY(-25px) scale(1.06); }
+          0%   { opacity: 0; transform: translateY(20px) scale(0.94); }
+          30%  { opacity: 0.8; }
+          55%  { opacity: 1; transform: translateY(0) scale(1); }
+          75%  { opacity: 1; transform: translateY(0) scale(1); }
+          100% { opacity: 0; transform: translateY(-20px) scale(1.05); }
         }
 
-        /* KALYAN CHEMIST — appears after EXPLORE. GPU-only. */
+        /* KALYAN CHEMIST — appears as smoke wrapper fades. */
         .kc-phase-a-kalyan {
           opacity: 0;
-          animation: kc-kalyan-auto 1.6s cubic-bezier(0.22, 1, 0.36, 1) 1.5s forwards;
+          animation: kc-kalyan-auto 1.5s cubic-bezier(0.22, 1, 0.36, 1) 1.4s forwards;
         }
         @keyframes kc-kalyan-auto {
-          0%   { opacity: 0; transform: translateY(25px) scale(0.95); }
-          50%  { opacity: 1; transform: translateY(0) scale(1); }
+          0%   { opacity: 0; transform: translateY(20px) scale(0.96); }
+          55%  { opacity: 1; transform: translateY(0) scale(1); }
           100% { opacity: 1; transform: translateY(0) scale(1); }
         }
 
