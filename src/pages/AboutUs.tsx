@@ -59,7 +59,7 @@ function KCShield({ size = 200, opacity = 1 }: { size?: number; opacity?: number
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   MUSIC — Generated ambient pad
+   MUSIC
    ═══════════════════════════════════════════════════════════════════ */
 async function generateAmbientWav(): Promise<string> {
   const sr = 22050, dur = 10;
@@ -195,61 +195,68 @@ function RevealOnScroll({ children, className = "", delay = 0 }: {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   PHASE A — FIXED OVERLAY (time-driven, pure CSS)
+   SECTION 1 — NORMAL 100VH CINEMATIC HERO (CSS-only animation)
 
-   A fixed overlay covers the viewport for 3 seconds.
-   Smoke layers drift apart to reveal text.
-   Overlay fades out, revealing Phase B underneath.
-   Zero scroll involvement. Zero Framer Motion in this phase.
+   A normal viewport-height section.
+   Animation is TIME-BASED via CSS keyframes.
+   Zero scroll involvement. Zero Framer Motion.
+   User can scroll away at any time.
    ═══════════════════════════════════════════════════════════════════ */
-const INTRO_MS = 3000;
+function CinematicHero() {
+  const TG = "linear-gradient(180deg, rgba(245,243,236,0.95), rgba(245,243,236,0.45))";
+  const K1 = "linear-gradient(135deg, #16A36A 0%, #F0D9A3 55%, #16A36A 100%)";
+  const K2 = "linear-gradient(135deg, #F0D9A3 0%, #16A36A 100%)";
 
-function IntroOverlay() {
-  if (prefersReducedMotion) return null;
   return (
-    <div className="kc-intro" aria-hidden="true">
-      {/* Background — healthcare visual */}
-      <div className="kc-intro-bg">
-        <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 80% 60% at 50% 40%, #0a2e1f, #060808 70%)" }} />
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="relative w-[80vw] max-w-[640px] aspect-[4/3] overflow-hidden rounded-3xl"
-            style={{ background: "linear-gradient(135deg, #0a3d2e, #0B0D0C 40%, #111614 70%, #0a2e1f)", boxShadow: "0 0 120px rgba(22,163,106,0.12), 0 40px 80px rgba(0,0,0,0.6)" }}>
-            <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 60% 50% at 50% 50%, rgba(22,163,106,0.22), transparent 68%)" }} />
-            <div className="absolute inset-0 flex items-center justify-center"><KCShield size={200} opacity={0.5} /></div>
-            <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse 70% 60% at 50% 45%, transparent 30%, rgba(4,6,5,0.55) 100%)" }} />
+    <section className="relative w-full h-screen overflow-hidden" style={{ background: "#060808" }}>
+
+      {/* ── Background ── */}
+      <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 80% 60% at 50% 40%, #0a2e1f, #060808 70%)" }} />
+
+      {/* ── Hero visual ── */}
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="relative w-[80vw] max-w-[640px] aspect-[4/3] overflow-hidden rounded-3xl"
+          style={{ background: "linear-gradient(135deg, #0a3d2e, #0B0D0C 40%, #111614 70%, #0a2e1f)", boxShadow: "0 0 120px rgba(22,163,106,0.12), 0 40px 80px rgba(0,0,0,0.6)" }}>
+          <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 60% 50% at 50% 50%, rgba(22,163,106,0.22), transparent 68%)" }} />
+          <div className="absolute inset-0 flex items-center justify-center"><KCShield size={200} opacity={0.5} /></div>
+          <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse 70% 60% at 50% 45%, transparent 30%, rgba(4,6,5,0.55) 100%)" }} />
+        </div>
+      </div>
+
+      {/* ── Text BEHIND smoke (z-1) ── */}
+      <div className="absolute inset-0 flex items-center justify-center z-10">
+        <div className="kc-hero-explore">
+          <span style={{ background: TG, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", filter: "drop-shadow(0 0 30px rgba(22,163,106,0.35))" }}>Explore</span>
+        </div>
+        <div className="kc-hero-kalyan">
+          <div className="text-center select-none">
+            <span className="block" style={{ background: K1, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Kalyan</span>
+            <span className="block" style={{ background: K2, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Chemist</span>
           </div>
         </div>
       </div>
 
-      {/* Smoke ON TOP of text — drifts apart to reveal text */}
-      <div className="kc-intro-smoke">
-        <div className="kc-intro-s1" />
-        <div className="kc-intro-s2" />
-        <div className="kc-intro-s3" />
-        <div className="kc-intro-s4" />
+      {/* ── Smoke ON TOP (z-20) — drifts apart to reveal text ── */}
+      <div className="absolute inset-0 z-20 pointer-events-none">
+        <div className="kc-hero-s1" />
+        <div className="kc-hero-s2" />
+        <div className="kc-hero-s3" />
+        <div className="kc-hero-s4" />
       </div>
 
-      {/* Text BEHIND smoke — revealed as smoke parts */}
-      <div className="kc-intro-text">
-        <div className="kc-intro-explore">
-          <span>Explore</span>
-        </div>
-        <div className="kc-intro-kalyan">
-          <span className="block" style={{ background: "linear-gradient(135deg, #16A36A 0%, #F0D9A3 55%, #16A36A 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Kalyan</span>
-          <span className="block" style={{ background: "linear-gradient(135deg, #F0D9A3 0%, #16A36A 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Chemist</span>
-        </div>
-      </div>
-    </div>
+      {/* ── Vignette ── */}
+      <div className="absolute inset-0 pointer-events-none z-30" style={{ background: "radial-gradient(ellipse 65% 55% at 50% 45%, transparent 30%, rgba(4,6,5,0.6) 100%)" }} />
+    </section>
   );
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   PHASE B — SCROLL-DRIVEN CINEMATIC HERO
+   SECTION 2 — SCROLL-DRIVEN 3D PARALLAX (Framer Motion)
 
-   Single scroll controller. All GPU transforms.
-   Starts with KALYAN CHEMIST visible (matching Phase A end state).
+   150vh container = 50vh of scroll distance.
+   Single useScroll controller. All GPU transforms.
    ═══════════════════════════════════════════════════════════════════ */
-function ScrollHero() {
+function ScrollParallax() {
   const ref = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end start"] });
 
@@ -268,11 +275,11 @@ function ScrollHero() {
   const HC = "linear-gradient(180deg, #F0D9A3 0%, #16A36A 100%)";
 
   return (
-    <div ref={ref} className="relative" style={{ height: "180vh" }}>
+    <section ref={ref} className="relative" style={{ height: "150vh" }}>
       <div className="sticky top-0 h-screen overflow-hidden" style={{ background: "#060808" }}>
         <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 80% 60% at 50% 40%, #0a2e1f, #060808 70%)" }} />
 
-        {/* Hero visual */}
+        {/* Hero visual — zooms on scroll */}
         <motion.div className="absolute inset-0 flex items-center justify-center" style={{ scale: heroScale }}>
           <div className="relative w-[88vw] max-w-[740px] aspect-[4/3] overflow-hidden rounded-3xl"
             style={{ background: "linear-gradient(135deg, #0a3d2e, #0B0D0C 40%, #111614 70%, #0a2e1f)", boxShadow: "0 0 100px rgba(22,163,106,0.14), 0 30px 60px rgba(0,0,0,0.5)" }}>
@@ -330,12 +337,12 @@ function ScrollHero() {
           </motion.div>
         </motion.div>
       </div>
-    </div>
+    </section>
   );
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   SECTION 2 — WHO WE ARE
+   SECTION 3 — WHO WE ARE
    ═══════════════════════════════════════════════════════════════════ */
 function WhoWeAre() {
   return (
@@ -393,7 +400,7 @@ function WhoWeAre() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   SECTION 3 — BRAND STORY
+   SECTION 4 — BRAND STORY
    ═══════════════════════════════════════════════════════════════════ */
 function BrandStory() {
   const statements = [
@@ -427,7 +434,7 @@ function BrandStory() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   SECTION 4 — FROM DISCOVERY TO DOORSTEP
+   SECTION 5 — FROM DISCOVERY TO DOORSTEP
    ═══════════════════════════════════════════════════════════════════ */
 function DiscoveryToDoorstep() {
   const steps = [
@@ -470,7 +477,7 @@ function DiscoveryToDoorstep() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   SECTION 5 — ONE HEALTHCARE EXPERIENCE
+   SECTION 6 — ONE HEALTHCARE EXPERIENCE
    ═══════════════════════════════════════════════════════════════════ */
 function EcosystemJourney() {
   const steps = [
@@ -517,7 +524,7 @@ function EcosystemJourney() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   SECTION 6 — PREMIUM VISUAL CARDS
+   SECTION 7 — PREMIUM VISUAL CARDS
    ═══════════════════════════════════════════════════════════════════ */
 function PremiumCards() {
   const cards = [
@@ -565,7 +572,7 @@ function PremiumCards() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   SECTION 7 — WHY KALYAN CHEMIST
+   SECTION 8 — WHY KALYAN CHEMIST
    ═══════════════════════════════════════════════════════════════════ */
 function TrustSection() {
   const points = [
@@ -627,7 +634,7 @@ function TrustSection() {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   SECTION 8 — FINAL BRAND STATEMENT
+   SECTION 9 — FINAL BRAND STATEMENT
    ═══════════════════════════════════════════════════════════════════ */
 function FinalStatement() {
   const navigate = useNavigate();
@@ -665,159 +672,115 @@ function FinalStatement() {
    MAIN PAGE
    ═══════════════════════════════════════════════════════════════════ */
 export default function AboutUs() {
-  const [introDone, setIntroDone] = useState(prefersReducedMotion);
-
-  useEffect(() => {
-    if (prefersReducedMotion) return;
-    const t = setTimeout(() => setIntroDone(true), INTRO_MS);
-    return () => clearTimeout(t);
-  }, []);
-
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Navbar />
 
       <style>{`
         /* ═══════════════════════════════════════════════════════
-           PHASE A — FIXED OVERLAY INTRO
-           Covers viewport for 3s. Pure CSS. No scroll.
-           Smoke drifts apart → reveals text → overlay fades.
+           SECTION 1 — CSS-ONLY AUTO-INTRO (no scroll)
+           Normal 100vh section. Time-driven CSS keyframes.
+           Smoke layers ON TOP of text. Drift apart to reveal.
            ═══════════════════════════════════════════════════════ */
 
-        .kc-intro {
-          position: fixed;
-          inset: 0;
-          z-index: 50;
-          pointer-events: none;
-          animation: kc-intro-fade 0.6s ease-out ${INTRO_MS - 600}ms forwards;
-        }
-        @keyframes kc-intro-fade {
-          to { opacity: 0; }
-        }
-
-        .kc-intro-bg {
-          position: absolute;
-          inset: 0;
-          background: #060808;
-        }
-
-        /* Text layer — BEHIND smoke */
-        .kc-intro-text {
-          position: absolute;
-          inset: 0;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          z-index: 1;
-        }
-
-        .kc-intro-explore {
+        /* EXPLORE — clip-path reveal from center, then collapse */
+        .kc-hero-explore {
           position: absolute;
           inset: 0;
           display: flex;
           align-items: center;
           justify-content: center;
           opacity: 0;
-          animation: kc-explore-in 2.2s cubic-bezier(0.22, 1, 0.36, 1) 0.2s forwards;
+          animation: kc-hero-explore 2.0s cubic-bezier(0.22, 1, 0.36, 1) 0.2s forwards;
         }
-        .kc-intro-explore span {
+        .kc-hero-explore span {
           font-size: clamp(4rem, 13vw, 11rem);
           font-weight: 900;
           text-transform: uppercase;
           letter-spacing: -0.02em;
           line-height: 1;
           user-select: none;
-          background: linear-gradient(180deg, rgba(245,243,236,0.95), rgba(245,243,236,0.45));
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          filter: drop-shadow(0 0 30px rgba(22,163,106,0.35));
         }
-        @keyframes kc-explore-in {
+        @keyframes kc-hero-explore {
           0%   { opacity: 0; clip-path: inset(0 50% 0 50%); transform: scale(0.92); }
-          25%  { opacity: 0.7; clip-path: inset(0 25% 0 25%); }
-          45%  { opacity: 1; clip-path: inset(0 0 0 0); transform: scale(1); }
-          65%  { opacity: 1; clip-path: inset(0 0 0 0); }
+          20%  { opacity: 0.6; clip-path: inset(0 30% 0 30%); }
+          40%  { opacity: 1; clip-path: inset(0 0 0 0); transform: scale(1); }
+          60%  { opacity: 1; clip-path: inset(0 0 0 0); }
           100% { opacity: 0; clip-path: inset(40% 0 40% 0); transform: scale(1.04); }
         }
 
-        .kc-intro-kalyan {
+        /* KALYAN CHEMIST — clip-path reveal from center */
+        .kc-hero-kalyan {
           position: absolute;
           inset: 0;
           display: flex;
           align-items: center;
           justify-content: center;
           opacity: 0;
-          animation: kc-kalyan-in 1.5s cubic-bezier(0.22, 1, 0.36, 1) 1.5s forwards;
-          text-align: center;
+          animation: kc-hero-kalyan 1.2s cubic-bezier(0.22, 1, 0.36, 1) 1.5s forwards;
         }
-        .kc-intro-kalyan span {
+        .kc-hero-kalyan span {
           font-size: clamp(2.4rem, 7.5vw, 6.5rem);
           font-weight: 900;
           text-transform: uppercase;
           letter-spacing: -0.02em;
           line-height: 0.92;
         }
-        @keyframes kc-kalyan-in {
+        @keyframes kc-hero-kalyan {
           0%   { opacity: 0; clip-path: inset(0 50% 0 50%); transform: translateY(15px); }
           55%  { opacity: 1; clip-path: inset(0 0 0 0); transform: translateY(0); }
           100% { opacity: 1; clip-path: inset(0 0 0 0); }
         }
 
-        /* Smoke ON TOP — dense, drifts apart to reveal text */
-        .kc-intro-smoke {
-          position: absolute;
-          inset: 0;
-          z-index: 2;
-        }
-
-        .kc-intro-s1 {
+        /* Smoke layers ON TOP — dense radial gradients, drift apart */
+        .kc-hero-s1 {
           position: absolute;
           inset: -30%;
           background: radial-gradient(ellipse 90% 80% at 25% 30%, rgba(22,163,106,0.70), transparent 50%);
-          animation: kc-s-drift1 2.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+          animation: kc-hero-sd1 2.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
         }
-        @keyframes kc-s-drift1 {
+        @keyframes kc-hero-sd1 {
           0%   { transform: translate3d(0, 0, 0) scale(1); opacity: 1; }
-          60%  { opacity: 0.5; }
+          60%  { opacity: 0.4; }
           100% { transform: translate3d(-35%, -25%, 0) scale(1.4); opacity: 0; }
         }
 
-        .kc-intro-s2 {
+        .kc-hero-s2 {
           position: absolute;
           inset: -30%;
           background: radial-gradient(ellipse 80% 75% at 72% 48%, rgba(216,184,120,0.50), transparent 48%);
-          animation: kc-s-drift2 2.5s cubic-bezier(0.22, 1, 0.36, 1) 0.06s forwards;
+          animation: kc-hero-sd2 2.5s cubic-bezier(0.22, 1, 0.36, 1) 0.06s forwards;
         }
-        @keyframes kc-s-drift2 {
+        @keyframes kc-hero-sd2 {
           0%   { transform: translate3d(0, 0, 0) scale(1.05); opacity: 1; }
           60%  { opacity: 0.4; }
           100% { transform: translate3d(30%, -26%, 0) scale(1.45); opacity: 0; }
         }
 
-        .kc-intro-s3 {
+        .kc-hero-s3 {
           position: absolute;
           inset: -28%;
           background: radial-gradient(ellipse 100% 85% at 50% 58%, rgba(245,243,236,0.32), transparent 52%);
-          animation: kc-s-drift3 2.5s cubic-bezier(0.22, 1, 0.36, 1) 0.1s forwards;
+          animation: kc-hero-sd3 2.5s cubic-bezier(0.22, 1, 0.36, 1) 0.1s forwards;
         }
-        @keyframes kc-s-drift3 {
+        @keyframes kc-hero-sd3 {
           0%   { transform: translate3d(0, 0, 0) scale(1); opacity: 1; }
           50%  { opacity: 0.4; }
           100% { transform: translate3d(8%, 30%, 0) scale(1.25); opacity: 0; }
         }
 
-        .kc-intro-s4 {
+        .kc-hero-s4 {
           position: absolute;
           inset: -25%;
           background: radial-gradient(ellipse 70% 65% at 42% 42%, rgba(22,163,106,0.45), transparent 48%);
-          animation: kc-s-drift4 2.5s cubic-bezier(0.22, 1, 0.36, 1) 0.08s forwards;
+          animation: kc-hero-sd4 2.5s cubic-bezier(0.22, 1, 0.36, 1) 0.08s forwards;
         }
-        @keyframes kc-s-drift4 {
+        @keyframes kc-hero-sd4 {
           0%   { transform: translate3d(0, 0, 0) scale(0.95); opacity: 0.9; }
           100% { transform: translate3d(-20%, 20%, 0) scale(1.3); opacity: 0; }
         }
 
-        /* ═══ PHASE B — AMBIENT SMOKE DRIFT ═══ */
+        /* ═══ SECTION 2 — AMBIENT SMOKE DRIFT ═══ */
         .kc-sb-a { animation: kc-sba 22s ease-in-out infinite alternate; }
         .kc-sb-b { animation: kc-sbb 30s ease-in-out infinite alternate; }
         .kc-sb-c { animation: kc-sba 38s ease-in-out infinite alternate-reverse; }
@@ -830,21 +793,22 @@ export default function AboutUs() {
 
         /* ═══ REDUCED MOTION ═══ */
         @media (prefers-reduced-motion: reduce) {
-          .kc-intro, .kc-intro-s1, .kc-intro-s2, .kc-intro-s3, .kc-intro-s4,
-          .kc-intro-explore, .kc-intro-kalyan,
+          .kc-hero-explore, .kc-hero-kalyan,
+          .kc-hero-s1, .kc-hero-s2, .kc-hero-s3, .kc-hero-s4,
           .kc-sb-a, .kc-sb-b, .kc-sb-c, .kc-pulse { animation: none !important; }
-          .kc-intro { opacity: 0 !important; }
-          .kc-intro-explore { opacity: 1 !important; clip-path: none !important; }
-          .kc-intro-kalyan { opacity: 1 !important; clip-path: none !important; }
-          .kc-intro-s1, .kc-intro-s2, .kc-intro-s3, .kc-intro-s4 { opacity: 0 !important; }
+          .kc-hero-explore { opacity: 1 !important; clip-path: none !important; }
+          .kc-hero-kalyan { opacity: 1 !important; clip-path: none !important; }
+          .kc-hero-s1, .kc-hero-s2, .kc-hero-s3, .kc-hero-s4 { opacity: 0 !important; }
         }
       `}</style>
 
-      {/* Phase A: Fixed overlay intro — auto-plays, unmounts after 3s */}
-      {!introDone && <IntroOverlay />}
+      {/* Section 1 — Normal 100vh cinematic intro (CSS-only auto-animation) */}
+      <CinematicHero />
 
-      {/* Phase B: Scroll-driven hero + content sections */}
-      <ScrollHero />
+      {/* Section 2 — Scroll-driven 3D parallax (150vh, Framer Motion) */}
+      <ScrollParallax />
+
+      {/* Sections 3-9 — Content */}
       <WhoWeAre />
       <BrandStory />
       <DiscoveryToDoorstep />
