@@ -32,7 +32,7 @@ const prefersReducedMotion =
   window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /* ═══════════════════════════════════════════════════════════════════
-   KC SHIELD
+   KC SHIELD SVG (used in Section 2)
    ═══════════════════════════════════════════════════════════════════ */
 function KCShield({ size = 200, opacity = 1 }: { size?: number; opacity?: number }) {
   return (
@@ -59,7 +59,7 @@ function KCShield({ size = 200, opacity = 1 }: { size?: number; opacity?: number
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   MUSIC
+   MUSIC — generated ambient pad + real HTMLAudioElement
    ═══════════════════════════════════════════════════════════════════ */
 async function generateAmbientWav(): Promise<string> {
   const sr = 22050, dur = 10;
@@ -195,66 +195,323 @@ function RevealOnScroll({ children, className = "", delay = 0 }: {
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   SECTION 1 — NORMAL 100VH CINEMATIC HERO (CSS-only animation)
-
-   A normal viewport-height section.
-   Animation is TIME-BASED via CSS keyframes.
-   Zero scroll involvement. Zero Framer Motion.
-   User can scroll away at any time.
+   INTRO VIDEO RENDERER
+   Pure canvas rendering of the complete cinematic sequence:
+   SMOKE → EXPLORE emerges → KALYAN CHEMIST reveals.
+   Everything is baked into ONE canvas/video element. No DOM layers.
    ═══════════════════════════════════════════════════════════════════ */
-function CinematicHero() {
-  const TG = "linear-gradient(180deg, rgba(245,243,236,0.95), rgba(245,243,236,0.45))";
-  const K1 = "linear-gradient(135deg, #16A36A 0%, #F0D9A3 55%, #16A36A 100%)";
-  const K2 = "linear-gradient(135deg, #F0D9A3 0%, #16A36A 100%)";
+
+const INTRO_W = 1280;
+const INTRO_H = 720;
+const INTRO_DUR = 4.2; // seconds
+
+type Cloud = {
+  x: number; y: number;      // start position (0..1 fraction)
+  dx: number; dy: number;    // drift over lifetime (fraction)
+  r: number;                  // radius (fraction of width)
+  c: [number, number, number];
+  a: number;                  // peak alpha
+  d: number;                  // delay (s)
+};
+
+const CLOUDS: Cloud[] = [
+  { x: 0.25, y: 0.30, dx: -0.38, dy: -0.26, r: 0.80, c: [22, 163, 106],  a: 0.78, d: 0.00 },
+  { x: 0.72, y: 0.46, dx: 0.32, dy: -0.30, r: 0.70, c: [216, 184, 120],  a: 0.55, d: 0.05 },
+  { x: 0.50, y: 0.60, dx: 0.05, dy: 0.34, r: 0.90, c: [245, 243, 236], a: 0.36, d: 0.10 },
+  { x: 0.42, y: 0.42, dx: -0.22, dy: 0.24, r: 0.58, c: [22, 163, 106],  a: 0.52, d: 0.08 },
+  { x: 0.14, y: 0.75, dx: -0.30, dy: -0.16, r: 0.62, c: [22, 163, 106],  a: 0.46, d: 0.12 },
+  { x: 0.86, y: 0.72, dx: 0.26, dy: 0.22, r: 0.60, c: [216, 184, 120],  a: 0.42, d: 0.10 },
+  { x: 0.60, y: 0.18, dx: 0.20, dy: -0.32, r: 0.52, c: [245, 243, 236], a: 0.32, d: 0.15 },
+  { x: 0.35, y: 0.14, dx: -0.16, dy: -0.30, r: 0.48, c: [22, 163, 106],  a: 0.38, d: 0.14 },
+  { x: 0.55, y: 0.85, dx: 0.10, dy: -0.18, r: 0.55, c: [22, 163, 106],  a: 0.30, d: 0.18 },
+];
+
+const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
+const easeOutCubic = (v: number) => 1 - Math.pow(1 - v, 3);
+const easeInOutQuad = (v: number) => (v < 0.5 ? 2 * v * v : 1 - Math.pow(-2 * v + 2, 2) / 2);
+const easeInCubic = (v: number) => v * v * v;
+
+/* Simplified KC shield drawn on canvas */
+function drawShield(ctx: CanvasRenderingContext2D, w: number, h: number, alpha: number) {
+  const cx = w / 2, cy = h * 0.5;
+  const s = Math.min(w, h) * 0.30;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.translate(cx, cy);
+
+  // shield body
+  ctx.beginPath();
+  ctx.moveTo(0, -s * 1.05);
+  ctx.lineTo(s * 0.88, -s * 0.62);
+  ctx.lineTo(s * 0.88, s * 0.28);
+  ctx.bezierCurveTo(s * 0.88, s * 0.85, s * 0.42, s * 1.12, 0, s * 1.2);
+  ctx.bezierCurveTo(-s * 0.42, s * 1.12, -s * 0.88, s * 0.85, -s * 0.88, s * 0.28);
+  ctx.lineTo(-s * 0.88, -s * 0.62);
+  ctx.closePath();
+  const face = ctx.createLinearGradient(-s, -s, s, s);
+  face.addColorStop(0, "rgba(17,146,94,0.42)");
+  face.addColorStop(1, "rgba(9,84,58,0.28)");
+  ctx.fillStyle = face;
+  ctx.fill();
+  const edge = ctx.createLinearGradient(-s, -s, s, s);
+  edge.addColorStop(0, "rgba(240,217,163,0.55)");
+  edge.addColorStop(1, "rgba(22,163,106,0.35)");
+  ctx.strokeStyle = edge;
+  ctx.lineWidth = Math.max(1.5, s * 0.012);
+  ctx.stroke();
+
+  // cross
+  ctx.fillStyle = "rgba(22,163,106,0.32)";
+  const bar = s * 0.24;
+  ctx.fillRect(-bar * 0.34, -s * 0.42, bar * 0.68, s * 0.84);
+  ctx.fillRect(-s * 0.42, -bar * 0.34, s * 0.84, bar * 0.68);
+
+  // KC text
+  ctx.fillStyle = "rgba(245,243,236,0.42)";
+  ctx.font = `900 ${Math.round(s * 0.34)}px ui-sans-serif, system-ui, sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("KC", 0, s * 0.62);
+  ctx.fillStyle = "rgba(216,184,120,0.38)";
+  ctx.font = `700 ${Math.round(s * 0.115)}px ui-sans-serif, system-ui, sans-serif`;
+  ctx.fillText("PHARMACY", 0, s * 0.86);
+  ctx.restore();
+}
+
+function drawTextExplore(ctx: CanvasRenderingContext2D, w: number, h: number, t: number) {
+  const inP = easeOutCubic(clamp01((t - 0.35) / 0.95));
+  const outP = easeInCubic(clamp01((t - 1.75) / 0.65));
+  const alpha = inP * (1 - outP);
+  if (alpha <= 0.004) return;
+
+  const size = Math.round(w * 0.155);
+  const scale = 0.93 + 0.07 * inP + 0.05 * outP;
+  const y = h * 0.5 + (1 - inP) * 22 - outP * 26;
+
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.translate(w / 2, y);
+  ctx.scale(scale, scale);
+
+  // soft glow behind text (cheap radial, no shadowBlur)
+  const glow = ctx.createRadialGradient(0, 0, 0, 0, 0, size * 2.1);
+  glow.addColorStop(0, `rgba(22,163,106,${0.20 * alpha})`);
+  glow.addColorStop(1, "rgba(22,163,106,0)");
+  ctx.fillStyle = glow;
+  ctx.fillRect(-size * 2.4, -size * 1.4, size * 4.8, size * 2.8);
+
+  ctx.font = `900 ${size}px ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  try { (ctx as any).letterSpacing = "-0.02em"; } catch { /* ignore */ }
+  const grad = ctx.createLinearGradient(0, -size * 0.55, 0, size * 0.55);
+  grad.addColorStop(0, "rgba(245,243,236,0.97)");
+  grad.addColorStop(1, "rgba(245,243,236,0.5)");
+  ctx.fillStyle = grad;
+  ctx.fillText("EXPLORE", 0, 0);
+  ctx.restore();
+}
+
+function drawTextKalyan(ctx: CanvasRenderingContext2D, w: number, h: number, t: number) {
+  const inP = easeOutCubic(clamp01((t - 1.8) / 1.0));
+  if (inP <= 0.004) return;
+
+  const size = Math.round(w * 0.085);
+  const y = h * 0.5 + (1 - inP) * 20;
+
+  ctx.save();
+  ctx.globalAlpha = inP;
+  ctx.translate(w / 2, y);
+
+  ctx.font = `900 ${size}px ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  try { (ctx as any).letterSpacing = "-0.015em"; } catch { /* ignore */ }
+
+  const g1 = ctx.createLinearGradient(-w * 0.28, 0, w * 0.28, 0);
+  g1.addColorStop(0, "#16A36A");
+  g1.addColorStop(0.55, "#F0D9A3");
+  g1.addColorStop(1, "#16A36A");
+  ctx.fillStyle = g1;
+  ctx.fillText("KALYAN", 0, -size * 0.62);
+
+  const g2 = ctx.createLinearGradient(-w * 0.30, 0, w * 0.30, 0);
+  g2.addColorStop(0, "#F0D9A3");
+  g2.addColorStop(1, "#16A36A");
+  ctx.fillStyle = g2;
+  ctx.fillText("CHEMIST", 0, size * 0.62);
+  ctx.restore();
+}
+
+function drawSmoke(ctx: CanvasRenderingContext2D, w: number, h: number, t: number) {
+  // gentle extra density in the very first moments (clouds already present)
+  const opening = 1 + 0.35 * (1 - clamp01(t / 0.45));
+
+  for (let i = 0; i < CLOUDS.length; i++) {
+    const cl = CLOUDS[i];
+    const p = easeInOutQuad(clamp01((t - cl.d) / 2.7));
+    if (p >= 1) continue;
+    const fade = 1 - p;
+    const alpha = cl.a * fade * opening;
+    if (alpha <= 0.004) continue;
+
+    const wob = Math.sin(t * 0.9 + i * 1.7) * 0.012;
+    const x = (cl.x + cl.dx * p + wob) * w;
+    const y = (cl.y + cl.dy * p) * h;
+    const r = cl.r * w * (1 + 0.38 * p);
+
+    const grad = ctx.createRadialGradient(x, y, 0, x, y, r);
+    grad.addColorStop(0, `rgba(${cl.c[0]},${cl.c[1]},${cl.c[2]},${alpha})`);
+    grad.addColorStop(0.55, `rgba(${cl.c[0]},${cl.c[1]},${cl.c[2]},${alpha * 0.45})`);
+    grad.addColorStop(1, `rgba(${cl.c[0]},${cl.c[1]},${cl.c[2]},0)`);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, w, h);
+  }
+}
+
+function renderIntroFrame(ctx: CanvasRenderingContext2D, w: number, h: number, t: number) {
+  // 1. Background
+  const bg = ctx.createRadialGradient(w * 0.5, h * 0.4, 0, w * 0.5, h * 0.4, w * 0.75);
+  bg.addColorStop(0, "#0a2e1f");
+  bg.addColorStop(0.7, "#07110d");
+  bg.addColorStop(1, "#060808");
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, w, h);
+
+  // 2. Healthcare visual (subtle, always present — never blank)
+  const shieldAlpha = 0.42 + 0.10 * easeInOutQuad(clamp01(t / INTRO_DUR));
+  drawShield(ctx, w, h, shieldAlpha);
+
+  // 3. Typography (behind smoke)
+  drawTextExplore(ctx, w, h, t);
+  drawTextKalyan(ctx, w, h, t);
+
+  // 4. Smoke ON TOP — drifts apart, revealing the text
+  drawSmoke(ctx, w, h, t);
+
+  // 5. Cinematic vignette
+  const vig = ctx.createRadialGradient(w * 0.5, h * 0.45, w * 0.18, w * 0.5, h * 0.45, w * 0.72);
+  vig.addColorStop(0, "rgba(4,6,5,0)");
+  vig.addColorStop(1, "rgba(4,6,5,0.55)");
+  ctx.fillStyle = vig;
+  ctx.fillRect(0, 0, w, h);
+}
+
+/* ── Session cache for the recorded video blob ── */
+let cachedIntroUrl: string | null = null;
+
+/* ═══════════════════════════════════════════════════════════════════
+   SECTION 1 — CINEMATIC INTRO (single self-contained element)
+
+   First visit : canvas plays the sequence live (zero wait) while
+                 MediaRecorder records it to a WebM blob for the session.
+   Revisits    : the real <video> element plays the cached blob instantly.
+   Zero scroll involvement. Normal 100vh section.
+   ═══════════════════════════════════════════════════════════════════ */
+function IntroSection() {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [mode, setMode] = useState<"video" | "canvas">(cachedIntroUrl ? "video" : "canvas");
+
+  useEffect(() => {
+    if (mode === "video") return;
+
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d", { alpha: false });
+    if (!ctx) return;
+
+    /* Reduced motion → static final frame, no animation, no recording */
+    if (prefersReducedMotion) {
+      renderIntroFrame(ctx, INTRO_W, INTRO_H, INTRO_DUR);
+      return;
+    }
+
+    /* Draw frame 0 immediately — poster, never blank */
+    renderIntroFrame(ctx, INTRO_W, INTRO_H, 0);
+
+    /* Set up recording (best-effort; canvas playback works regardless) */
+    let recorder: MediaRecorder | null = null;
+    let chunks: Blob[] = [];
+    const canRecord =
+      typeof MediaRecorder !== "undefined" &&
+      typeof canvas.captureStream === "function" &&
+      !cachedIntroUrl;
+
+    if (canRecord) {
+      const mimes = ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm", "video/mp4"];
+      const mime = mimes.find((m) => MediaRecorder.isTypeSupported(m));
+      if (mime) {
+        try {
+          const stream = canvas.captureStream(30);
+          recorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 4_500_000 });
+          recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+          recorder.onstop = () => {
+            if (chunks.length > 0 && !cachedIntroUrl) {
+              const blob = new Blob(chunks, { type: mime });
+              cachedIntroUrl = URL.createObjectURL(blob);
+            }
+            chunks = [];
+            stream.getTracks().forEach((tr) => tr.stop());
+          };
+        } catch { recorder = null; }
+      }
+    }
+
+    /* Animation loop — TIME-driven, zero scroll coupling */
+    let raf = 0;
+    const start = performance.now();
+    if (recorder) { try { recorder.start(120); } catch { recorder = null; } }
+
+    const frame = (now: number) => {
+      const t = (now - start) / 1000;
+      if (t >= INTRO_DUR) {
+        renderIntroFrame(ctx, INTRO_W, INTRO_H, INTRO_DUR); // hold final frame
+        if (recorder && recorder.state !== "inactive") { try { recorder.stop(); } catch { /* */ } }
+        return;
+      }
+      renderIntroFrame(ctx, INTRO_W, INTRO_H, t);
+      raf = requestAnimationFrame(frame);
+    };
+    raf = requestAnimationFrame(frame);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      if (recorder && recorder.state !== "inactive") {
+        try { recorder.stop(); } catch { /* */ }
+      }
+    };
+  }, [mode]);
+
+  if (mode === "video" && cachedIntroUrl) {
+    return (
+      <section className="relative w-full h-screen overflow-hidden" style={{ background: "#060808" }} aria-label="Kalyan Chemist cinematic intro">
+        <video
+          src={cachedIntroUrl}
+          autoPlay
+          muted
+          playsInline
+          preload="auto"
+          onEnded={(e) => { const v = e.currentTarget; if (v.currentTime < v.duration) v.currentTime = v.duration; }}
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+      </section>
+    );
+  }
 
   return (
-    <section className="relative w-full h-screen overflow-hidden" style={{ background: "#060808" }}>
-
-      {/* ── Background ── */}
-      <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 80% 60% at 50% 40%, #0a2e1f, #060808 70%)" }} />
-
-      {/* ── Hero visual ── */}
-      <div className="absolute inset-0 flex items-center justify-center">
-        <div className="relative w-[80vw] max-w-[640px] aspect-[4/3] overflow-hidden rounded-3xl"
-          style={{ background: "linear-gradient(135deg, #0a3d2e, #0B0D0C 40%, #111614 70%, #0a2e1f)", boxShadow: "0 0 120px rgba(22,163,106,0.12), 0 40px 80px rgba(0,0,0,0.6)" }}>
-          <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 60% 50% at 50% 50%, rgba(22,163,106,0.22), transparent 68%)" }} />
-          <div className="absolute inset-0 flex items-center justify-center"><KCShield size={200} opacity={0.5} /></div>
-          <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse 70% 60% at 50% 45%, transparent 30%, rgba(4,6,5,0.55) 100%)" }} />
-        </div>
-      </div>
-
-      {/* ── Text BEHIND smoke (z-1) ── */}
-      <div className="absolute inset-0 flex items-center justify-center z-10">
-        <div className="kc-hero-explore">
-          <span style={{ background: TG, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", filter: "drop-shadow(0 0 30px rgba(22,163,106,0.35))" }}>Explore</span>
-        </div>
-        <div className="kc-hero-kalyan">
-          <div className="text-center select-none">
-            <span className="block" style={{ background: K1, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Kalyan</span>
-            <span className="block" style={{ background: K2, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Chemist</span>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Smoke ON TOP (z-20) — drifts apart to reveal text ── */}
-      <div className="absolute inset-0 z-20 pointer-events-none">
-        <div className="kc-hero-s1" />
-        <div className="kc-hero-s2" />
-        <div className="kc-hero-s3" />
-        <div className="kc-hero-s4" />
-      </div>
-
-      {/* ── Vignette ── */}
-      <div className="absolute inset-0 pointer-events-none z-30" style={{ background: "radial-gradient(ellipse 65% 55% at 50% 45%, transparent 30%, rgba(4,6,5,0.6) 100%)" }} />
+    <section className="relative w-full h-screen overflow-hidden" style={{ background: "#060808" }} aria-label="Kalyan Chemist cinematic intro">
+      <canvas
+        ref={canvasRef}
+        width={INTRO_W}
+        height={INTRO_H}
+        className="absolute inset-0 h-full w-full object-cover"
+      />
     </section>
   );
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   SECTION 2 — SCROLL-DRIVEN 3D PARALLAX (Framer Motion)
-
-   150vh container = 50vh of scroll distance.
-   Single useScroll controller. All GPU transforms.
+   SECTION 2 — SCROLL-DRIVEN 3D / PARALLAX STORY (150vh)
    ═══════════════════════════════════════════════════════════════════ */
 function ScrollParallax() {
   const ref = useRef<HTMLDivElement>(null);
@@ -279,7 +536,6 @@ function ScrollParallax() {
       <div className="sticky top-0 h-screen overflow-hidden" style={{ background: "#060808" }}>
         <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 80% 60% at 50% 40%, #0a2e1f, #060808 70%)" }} />
 
-        {/* Hero visual — zooms on scroll */}
         <motion.div className="absolute inset-0 flex items-center justify-center" style={{ scale: heroScale }}>
           <div className="relative w-[88vw] max-w-[740px] aspect-[4/3] overflow-hidden rounded-3xl"
             style={{ background: "linear-gradient(135deg, #0a3d2e, #0B0D0C 40%, #111614 70%, #0a2e1f)", boxShadow: "0 0 100px rgba(22,163,106,0.14), 0 30px 60px rgba(0,0,0,0.5)" }}>
@@ -297,14 +553,12 @@ function ScrollParallax() {
           </div>
         </motion.div>
 
-        {/* Ambient smoke */}
         <motion.div className="absolute inset-0 pointer-events-none" style={{ opacity: smokeOp }}>
           <div className="absolute inset-[-15%] kc-sb-a" style={{ background: "radial-gradient(ellipse 70% 55% at 30% 40%, rgba(22,163,106,0.50), transparent 55%)" }} />
           <div className="absolute inset-[-15%] kc-sb-b" style={{ background: "radial-gradient(ellipse 60% 50% at 75% 55%, rgba(216,184,120,0.32), transparent 50%)" }} />
           <div className="absolute inset-[-15%] kc-sb-c" style={{ background: "radial-gradient(ellipse 75% 60% at 50% 65%, rgba(245,243,236,0.22), transparent 55%)" }} />
         </motion.div>
 
-        {/* KALYAN CHEMIST — starts visible, exits on scroll */}
         <motion.div className="absolute inset-0 flex items-center justify-center px-6 pointer-events-none" style={{ opacity: kalyanOp, y: kalyanY }}>
           <div className="text-center select-none">
             <span className="block text-[clamp(2.4rem,7.5vw,6.5rem)] font-black uppercase tracking-tight leading-[0.92]" style={{ background: K1, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Kalyan</span>
@@ -312,7 +566,6 @@ function ScrollParallax() {
           </div>
         </motion.div>
 
-        {/* HEALTHCARE, SIMPLIFIED */}
         <motion.div className="absolute inset-0 flex items-center justify-center px-6 pointer-events-none" style={{ opacity: healthOp, y: healthY }}>
           <div className="text-center select-none">
             <span className="block text-[clamp(1.8rem,5vw,4rem)] font-light uppercase tracking-[0.18em] text-white/60">Healthcare</span>
@@ -320,15 +573,12 @@ function ScrollParallax() {
           </div>
         </motion.div>
 
-        {/* KC Shield finale */}
         <motion.div className="absolute inset-0 flex items-center justify-center pointer-events-none" style={{ opacity: shieldOp, scale: shieldSc }}>
           <KCShield size={170} />
         </motion.div>
 
-        {/* Vignette */}
         <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse 65% 55% at 50% 45%, transparent 30%, rgba(4,6,5,0.72) 100%)" }} />
 
-        {/* Scroll hint */}
         <motion.div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 pointer-events-none" style={{ opacity: hintOp }}>
           <span className="text-[10px] uppercase tracking-[0.25em] text-white/30">Scroll to explore</span>
           <motion.div animate={prefersReducedMotion ? undefined : { y: [0, 8, 0] }} transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
@@ -677,138 +927,28 @@ export default function AboutUs() {
       <Navbar />
 
       <style>{`
-        /* ═══════════════════════════════════════════════════════
-           SECTION 1 — CSS-ONLY AUTO-INTRO (no scroll)
-           Normal 100vh section. Time-driven CSS keyframes.
-           Smoke layers ON TOP of text. Drift apart to reveal.
-           ═══════════════════════════════════════════════════════ */
-
-        /* EXPLORE — clip-path reveal from center, then collapse */
-        .kc-hero-explore {
-          position: absolute;
-          inset: 0;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          opacity: 0;
-          animation: kc-hero-explore 2.0s cubic-bezier(0.22, 1, 0.36, 1) 0.2s forwards;
-        }
-        .kc-hero-explore span {
-          font-size: clamp(4rem, 13vw, 11rem);
-          font-weight: 900;
-          text-transform: uppercase;
-          letter-spacing: -0.02em;
-          line-height: 1;
-          user-select: none;
-        }
-        @keyframes kc-hero-explore {
-          0%   { opacity: 0; clip-path: inset(0 50% 0 50%); transform: scale(0.92); }
-          20%  { opacity: 0.6; clip-path: inset(0 30% 0 30%); }
-          40%  { opacity: 1; clip-path: inset(0 0 0 0); transform: scale(1); }
-          60%  { opacity: 1; clip-path: inset(0 0 0 0); }
-          100% { opacity: 0; clip-path: inset(40% 0 40% 0); transform: scale(1.04); }
-        }
-
-        /* KALYAN CHEMIST — clip-path reveal from center */
-        .kc-hero-kalyan {
-          position: absolute;
-          inset: 0;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          opacity: 0;
-          animation: kc-hero-kalyan 1.2s cubic-bezier(0.22, 1, 0.36, 1) 1.5s forwards;
-        }
-        .kc-hero-kalyan span {
-          font-size: clamp(2.4rem, 7.5vw, 6.5rem);
-          font-weight: 900;
-          text-transform: uppercase;
-          letter-spacing: -0.02em;
-          line-height: 0.92;
-        }
-        @keyframes kc-hero-kalyan {
-          0%   { opacity: 0; clip-path: inset(0 50% 0 50%); transform: translateY(15px); }
-          55%  { opacity: 1; clip-path: inset(0 0 0 0); transform: translateY(0); }
-          100% { opacity: 1; clip-path: inset(0 0 0 0); }
-        }
-
-        /* Smoke layers ON TOP — dense radial gradients, drift apart */
-        .kc-hero-s1 {
-          position: absolute;
-          inset: -30%;
-          background: radial-gradient(ellipse 90% 80% at 25% 30%, rgba(22,163,106,0.70), transparent 50%);
-          animation: kc-hero-sd1 2.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-        }
-        @keyframes kc-hero-sd1 {
-          0%   { transform: translate3d(0, 0, 0) scale(1); opacity: 1; }
-          60%  { opacity: 0.4; }
-          100% { transform: translate3d(-35%, -25%, 0) scale(1.4); opacity: 0; }
-        }
-
-        .kc-hero-s2 {
-          position: absolute;
-          inset: -30%;
-          background: radial-gradient(ellipse 80% 75% at 72% 48%, rgba(216,184,120,0.50), transparent 48%);
-          animation: kc-hero-sd2 2.5s cubic-bezier(0.22, 1, 0.36, 1) 0.06s forwards;
-        }
-        @keyframes kc-hero-sd2 {
-          0%   { transform: translate3d(0, 0, 0) scale(1.05); opacity: 1; }
-          60%  { opacity: 0.4; }
-          100% { transform: translate3d(30%, -26%, 0) scale(1.45); opacity: 0; }
-        }
-
-        .kc-hero-s3 {
-          position: absolute;
-          inset: -28%;
-          background: radial-gradient(ellipse 100% 85% at 50% 58%, rgba(245,243,236,0.32), transparent 52%);
-          animation: kc-hero-sd3 2.5s cubic-bezier(0.22, 1, 0.36, 1) 0.1s forwards;
-        }
-        @keyframes kc-hero-sd3 {
-          0%   { transform: translate3d(0, 0, 0) scale(1); opacity: 1; }
-          50%  { opacity: 0.4; }
-          100% { transform: translate3d(8%, 30%, 0) scale(1.25); opacity: 0; }
-        }
-
-        .kc-hero-s4 {
-          position: absolute;
-          inset: -25%;
-          background: radial-gradient(ellipse 70% 65% at 42% 42%, rgba(22,163,106,0.45), transparent 48%);
-          animation: kc-hero-sd4 2.5s cubic-bezier(0.22, 1, 0.36, 1) 0.08s forwards;
-        }
-        @keyframes kc-hero-sd4 {
-          0%   { transform: translate3d(0, 0, 0) scale(0.95); opacity: 0.9; }
-          100% { transform: translate3d(-20%, 20%, 0) scale(1.3); opacity: 0; }
-        }
-
-        /* ═══ SECTION 2 — AMBIENT SMOKE DRIFT ═══ */
+        /* Section 2 ambient smoke drift (transform-only) */
         .kc-sb-a { animation: kc-sba 22s ease-in-out infinite alternate; }
         .kc-sb-b { animation: kc-sbb 30s ease-in-out infinite alternate; }
         .kc-sb-c { animation: kc-sba 38s ease-in-out infinite alternate-reverse; }
         @keyframes kc-sba { 0% { transform: translate3d(-3%, 0, 0) scale(1); } 100% { transform: translate3d(4%, -2%, 0) scale(1.08); } }
         @keyframes kc-sbb { 0% { transform: translate3d(3%, 1%, 0) scale(1.05); } 100% { transform: translate3d(-4%, -1%, 0) scale(1); } }
 
-        /* ═══ PULSE RING ═══ */
         .kc-pulse { animation: kc-pulse-ring 6s ease-in-out infinite; }
         @keyframes kc-pulse-ring { 0%, 100% { transform: scale(1); opacity: 0.5; } 50% { transform: scale(1.05); opacity: 0.9; } }
 
-        /* ═══ REDUCED MOTION ═══ */
         @media (prefers-reduced-motion: reduce) {
-          .kc-hero-explore, .kc-hero-kalyan,
-          .kc-hero-s1, .kc-hero-s2, .kc-hero-s3, .kc-hero-s4,
           .kc-sb-a, .kc-sb-b, .kc-sb-c, .kc-pulse { animation: none !important; }
-          .kc-hero-explore { opacity: 1 !important; clip-path: none !important; }
-          .kc-hero-kalyan { opacity: 1 !important; clip-path: none !important; }
-          .kc-hero-s1, .kc-hero-s2, .kc-hero-s3, .kc-hero-s4 { opacity: 0 !important; }
         }
       `}</style>
 
-      {/* Section 1 — Normal 100vh cinematic intro (CSS-only auto-animation) */}
-      <CinematicHero />
+      {/* SECTION 1 — cinematic intro video (single element, auto-plays, no scroll) */}
+      <IntroSection />
 
-      {/* Section 2 — Scroll-driven 3D parallax (150vh, Framer Motion) */}
+      {/* SECTION 2 — scroll-driven 3D / parallax story */}
       <ScrollParallax />
 
-      {/* Sections 3-9 — Content */}
+      {/* SECTIONS 3-9 — content */}
       <WhoWeAre />
       <BrandStory />
       <DiscoveryToDoorstep />
