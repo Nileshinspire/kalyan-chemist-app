@@ -63,7 +63,8 @@ function KCShield({ size = 200, opacity = 1 }: { size?: number; opacity?: number
    ═══════════════════════════════════════════════════════════════════ */
 async function generateAmbientWav(): Promise<string> {
   const sr = 22050, dur = 10;
-  const OC = window.OfflineAudioContext || (window as any).webkitOfflineAudioContext;
+  const OC = window.OfflineAudioContext ||
+    (window as unknown as { webkitOfflineAudioContext?: typeof OfflineAudioContext }).webkitOfflineAudioContext;
   if (!OC) throw new Error("OfflineAudioContext not supported");
   const ctx = new OC(1, sr * dur, sr);
   [
@@ -106,24 +107,6 @@ function MusicControl() {
   const wantRef = useRef(false);
   const fadeRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  useEffect(() => {
-    let dead = false;
-    generateAmbientWav().then((url) => {
-      if (dead) { URL.revokeObjectURL(url); return; }
-      urlRef.current = url;
-      const a = new Audio(url); a.loop = true; a.preload = "auto"; a.volume = 0;
-      audioRef.current = a; setReady(true);
-      if (wantRef.current) doPlay();
-    }).catch((e) => console.error("[Music]", e));
-    return () => {
-      dead = true;
-      if (fadeRef.current) clearInterval(fadeRef.current);
-      if (audioRef.current) { audioRef.current.pause(); audioRef.current.src = ""; }
-      audioRef.current = null;
-      if (urlRef.current) { URL.revokeObjectURL(urlRef.current); urlRef.current = null; }
-    };
-  }, []);
-
   const fadeTo = useCallback((t: number, cb?: () => void) => {
     if (fadeRef.current) clearInterval(fadeRef.current);
     const a = audioRef.current; if (!a) return;
@@ -151,6 +134,24 @@ function MusicControl() {
     fadeTo(0, () => { audioRef.current?.pause(); });
     setPlaying(false);
   }, [fadeTo]);
+
+  useEffect(() => {
+    let dead = false;
+    generateAmbientWav().then((url) => {
+      if (dead) { URL.revokeObjectURL(url); return; }
+      urlRef.current = url;
+      const a = new Audio(url); a.loop = true; a.preload = "auto"; a.volume = 0;
+      audioRef.current = a; setReady(true);
+      if (wantRef.current) doPlay();
+    }).catch((e) => console.error("[Music]", e));
+    return () => {
+      dead = true;
+      if (fadeRef.current) clearInterval(fadeRef.current);
+      if (audioRef.current) { audioRef.current.pause(); audioRef.current.src = ""; }
+      audioRef.current = null;
+      if (urlRef.current) { URL.revokeObjectURL(urlRef.current); urlRef.current = null; }
+    };
+  }, [doPlay]);
 
   useEffect(() => {
     if (triedRef.current) return;
@@ -303,7 +304,7 @@ function drawTextExplore(ctx: CanvasRenderingContext2D, w: number, h: number, t:
   ctx.font = `900 ${size}px ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  try { (ctx as any).letterSpacing = "-0.02em"; } catch { /* ignore */ }
+  try { (ctx as CanvasRenderingContext2D & { letterSpacing?: string }).letterSpacing = "-0.02em"; } catch { /* ignore */ }
   const grad = ctx.createLinearGradient(0, -size * 0.55, 0, size * 0.55);
   grad.addColorStop(0, "rgba(245,243,236,0.97)");
   grad.addColorStop(1, "rgba(245,243,236,0.5)");
@@ -326,7 +327,7 @@ function drawTextKalyan(ctx: CanvasRenderingContext2D, w: number, h: number, t: 
   ctx.font = `900 ${size}px ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  try { (ctx as any).letterSpacing = "-0.015em"; } catch { /* ignore */ }
+  try { (ctx as CanvasRenderingContext2D & { letterSpacing?: string }).letterSpacing = "-0.015em"; } catch { /* ignore */ }
 
   const g1 = ctx.createLinearGradient(-w * 0.28, 0, w * 0.28, 0);
   g1.addColorStop(0, "#16A36A");
@@ -410,7 +411,7 @@ let cachedIntroUrl: string | null = null;
    ═══════════════════════════════════════════════════════════════════ */
 function IntroSection() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [mode, setMode] = useState<"video" | "canvas">(cachedIntroUrl ? "video" : "canvas");
+  const [mode] = useState<"video" | "canvas">(cachedIntroUrl ? "video" : "canvas");
 
   useEffect(() => {
     if (mode === "video") return;
