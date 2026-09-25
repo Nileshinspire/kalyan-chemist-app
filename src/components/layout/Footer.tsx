@@ -460,8 +460,6 @@ const Footer = memo(function Footer() {
             links={COMPANY_LINKS}
             isOpen={openGroup === "about"}
             onToggle={toggleGroup}
-            linkAlignment="symbol"
-            contentClassName="pl-2"
             afterTitle={
               <div className="mt-8">
                 <div className="flex items-center justify-between gap-2">
@@ -470,7 +468,7 @@ const Footer = memo(function Footer() {
                     className="flex min-w-0 items-center gap-2 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60 sm:gap-3"
                   >
                     <BrandMark
-                      className="size-24 sm:size-28 lg:size-32"
+                      className="size-28 sm:size-32 lg:size-36"
                       alt="Kalyan Chemist"
                     />
                     <span className="min-w-0 leading-tight">
