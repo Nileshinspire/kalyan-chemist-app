@@ -8,6 +8,7 @@ import {
   MapPin,
   MessageCircle,
   Phone,
+  Pill,
   ShieldCheck,
   Smartphone,
   Truck,
@@ -19,18 +20,24 @@ import { cn } from "@/lib/utils";
    KALYAN CHEMIST — SITE FOOTER
    ---------------------------------------------------------------------------
    Information architecture (each destination appears exactly once):
-     Column 1  About Kalyan Chemist
+     Column 1  About Kalyan Chemist   (slightly wider — brand block)
      Column 2  Healthcare Services
      Column 3  Shop / Medicines
      Column 4  Customer Support
      Column 5  Policies & Legal
-   Then two compact bands:
-     · contact · popular categories · trust + payments
+   Then two compact utility bands:
+     · contact + app   (one horizontal row)
+     · popular categories
+     · trust + payments
      · the legal bottom bar (Privacy Policy · Terms · Sitemap)
 
-   Height is kept low by sharing paddings inside one combined lower band
-   instead of stacking four independently padded blocks, by tightening
-   row/line spacing, and by rendering the contact details as one inline row.
+   HORIZONTAL: a single centred `max-w-6xl` container plus a
+   `1.1fr 1fr 1fr 1fr 1fr` grid with a controlled gap keeps the five groups
+   visually grouped instead of pushed toward the screen edges.
+
+   VERTICAL: paddings, line-heights and row gaps are tightened, and the lower
+   rows share one band separated by hairline borders instead of stacking
+   independently padded blocks.
 
    Responsive behaviour — driven purely by CSS, so there is no layout JS,
    no matchMedia dependency and no horizontal overflow at any width:
@@ -231,7 +238,7 @@ function PwaInstallButton() {
 /* ── A single footer link (internal route or real external destination) ── */
 function FooterLinkItem({ link }: { link: FooterLink }) {
   const classes = cn(
-    "inline-flex max-w-full items-start gap-1 text-[12.5px] leading-snug text-white/70",
+    "inline-flex max-w-full items-start gap-1 text-[12.5px] leading-tight text-white/70",
     "transition-colors duration-200 hover:text-emerald-200",
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60 rounded-sm",
     link.breakAll && "break-all"
@@ -294,7 +301,7 @@ function FooterColumn({
       <h3 id={`footer-heading-${id}`} className="m-0">
         {/* Desktop heading */}
         {!hideTitleOnDesktop && (
-          <span className="hidden text-[11px] font-semibold uppercase tracking-wider text-white/90 md:mb-2 md:block">
+          <span className="hidden text-[11px] font-semibold uppercase tracking-wider text-white/90 md:mb-1.5 md:block">
             {title}
           </span>
         )}
@@ -335,8 +342,8 @@ function FooterColumn({
         <div className="min-h-0">
           <ul
             className={cn(
-              "space-y-1 pb-3 pt-0.5 md:pb-0 md:pt-0",
-              hideTitleOnDesktop && "md:mt-3"
+              "space-y-0.5 pb-2.5 pt-0.5 md:pb-0 md:pt-0",
+              hideTitleOnDesktop && "md:mt-2"
             )}
           >
             {links.map((link) => (
@@ -413,9 +420,11 @@ const Footer = memo(function Footer() {
       className="mt-auto border-t border-white/10 bg-[#07281f] text-white/70"
       aria-label="Kalyan Chemist footer"
     >
-      {/* ── Main navigation columns ── */}
-      <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 md:py-6">
-        <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2 md:gap-y-6 lg:grid-cols-5">
+      {/* ── Main navigation columns ──
+          Centred `max-w-6xl` container + `1.1fr 1fr…` grid keeps the five
+          groups close together instead of stretched across the viewport. */}
+      <div className="mx-auto max-w-6xl px-4 py-4 sm:px-6">
+        <div className="grid grid-cols-1 gap-x-6 md:grid-cols-2 md:gap-y-5 lg:grid-cols-[1.1fr_1fr_1fr_1fr_1fr] lg:gap-x-7">
           <FooterColumn
             id="about"
             title="About Kalyan Chemist"
@@ -425,23 +434,44 @@ const Footer = memo(function Footer() {
             hideTitleOnDesktop
             leading={
               <div>
-                <Link
-                  to="/"
-                  className="inline-flex items-center gap-2.5 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60"
-                >
-                  <span className="flex size-8 items-center justify-center rounded-xl gradient-primary text-[13px] font-bold text-white shadow-glow">
-                    KC
-                  </span>
-                  <span className="leading-tight">
-                    <span className="block text-[15px] font-bold tracking-tight text-white">
-                      Kalyan Chemist
+                <div className="flex items-center justify-between gap-2">
+                  <Link
+                    to="/"
+                    className="inline-flex min-w-0 items-center gap-2.5 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60"
+                  >
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-xl gradient-primary text-[13px] font-bold text-white shadow-glow">
+                      KC
                     </span>
-                    <span className="block text-[10px] font-medium uppercase tracking-widest text-emerald-200/70">
-                      Trusted Pharmacy
+                    <span className="leading-tight">
+                      <span className="block text-[15px] font-bold tracking-tight text-white">
+                        Kalyan Chemist
+                      </span>
+                      <span className="block text-[10px] font-medium uppercase tracking-widest text-emerald-200/70">
+                        Trusted Pharmacy
+                      </span>
+                    </span>
+                  </Link>
+
+                  {/* Reserved visual zone — today two subtle glyphs; a future
+                      trust icon set, pharmacy symbol, certification mark or
+                      small illustration can slot in here without restructuring
+                      the footer or adding any height. Scoped to xl where the
+                      brand column has guaranteed room for it. */}
+                  <span
+                    data-footer-visual-slot
+                    aria-hidden="true"
+                    className="hidden shrink-0 items-center gap-1 xl:flex"
+                  >
+                    <span className="flex size-5 items-center justify-center rounded-md bg-white/[0.06] text-emerald-200/70 ring-1 ring-white/10">
+                      <ShieldCheck className="size-3" />
+                    </span>
+                    <span className="flex size-5 items-center justify-center rounded-md bg-white/[0.06] text-emerald-200/70 ring-1 ring-white/10">
+                      <Pill className="size-3" />
                     </span>
                   </span>
-                </Link>
-                <p className="mt-2 max-w-xs text-[12.5px] leading-snug text-white/55">
+                </div>
+
+                <p className="mt-1.5 max-w-xs text-[12.5px] leading-tight text-white/55">
                   A digital healthcare experience for medicines, healthcare
                   products and essential health services.
                 </p>
@@ -483,55 +513,41 @@ const Footer = memo(function Footer() {
         </div>
       </div>
 
-      {/* ── Contact · categories · trust & payments (one compact band) ── */}
+      {/* ── Compact stacked utility band ── */}
       <div className="border-t border-white/10">
-        <div className="mx-auto max-w-7xl px-4 py-3.5 sm:px-6">
-          {/* Contact — one inline row */}
-          <ul className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
-            <ContactChip icon={Phone} label="Call us" href={`tel:${PHONE_TEL}`}>
-              {PHONE_DISPLAY}
-            </ContactChip>
+        <div className="mx-auto max-w-6xl px-4 py-3 sm:px-6">
+          {/* Contact + app in one horizontal utility row */}
+          <div className="flex flex-col gap-x-6 gap-y-1.5 sm:flex-row sm:items-center sm:justify-between">
+            <ul className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-1">
+              <ContactChip icon={Phone} label="Call us" href={`tel:${PHONE_TEL}`}>
+                {PHONE_DISPLAY}
+              </ContactChip>
 
-            <ContactChip
-              icon={MessageCircle}
-              label="WhatsApp"
-              href={WHATSAPP_URL}
-              external
-            >
-              WhatsApp support
-            </ContactChip>
+              <ContactChip
+                icon={MessageCircle}
+                label="WhatsApp"
+                href={WHATSAPP_URL}
+                external
+              >
+                WhatsApp support
+              </ContactChip>
 
-            <ContactChip icon={Mail} label="Email" href={`mailto:${SUPPORT_EMAIL}`}>
-              <span className="break-all">{SUPPORT_EMAIL}</span>
-            </ContactChip>
+              <ContactChip
+                icon={Mail}
+                label="Email"
+                href={`mailto:${SUPPORT_EMAIL}`}
+              >
+                <span className="break-all">{SUPPORT_EMAIL}</span>
+              </ContactChip>
 
-            <ContactChip icon={Clock} label="Business hours">
-              {BUSINESS_HOURS}
-            </ContactChip>
+              <ContactChip icon={Clock} label="Business hours">
+                {BUSINESS_HOURS}
+              </ContactChip>
 
-            <ContactChip icon={MapPin} label="Store" href={MAPS_URL} external>
-              {STORE_ADDRESS}
-            </ContactChip>
-          </ul>
-
-          <div className="my-2.5 h-px bg-white/10" />
-
-          {/* Popular categories + app */}
-          <div className="flex flex-col gap-x-6 gap-y-2 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-              <h2 className="mr-0.5 text-[10px] font-semibold uppercase tracking-wider text-white/45">
-                Popular Categories
-              </h2>
-              {POPULAR_CATEGORIES.map((cat) => (
-                <Link
-                  key={cat.label}
-                  to={cat.to as string}
-                  className="inline-flex max-w-full items-center rounded-full bg-white/[0.06] px-2.5 py-0.5 text-[11.5px] font-medium text-white/75 ring-1 ring-white/10 transition-colors duration-200 hover:bg-white/[0.12] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70"
-                >
-                  {cat.label}
-                </Link>
-              ))}
-            </div>
+              <ContactChip icon={MapPin} label="Store" href={MAPS_URL} external>
+                {STORE_ADDRESS}
+              </ContactChip>
+            </ul>
 
             <div className="flex shrink-0 flex-wrap items-center gap-2">
               <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-white/45">
@@ -542,55 +558,73 @@ const Footer = memo(function Footer() {
             </div>
           </div>
 
-          <div className="my-2.5 h-px bg-white/10" />
-
-          {/* Trust + payments */}
-          <div className="flex flex-col gap-x-6 gap-y-2 lg:flex-row lg:items-center lg:justify-between">
-            <ul className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
-              {TRUST_ITEMS.map(({ label, icon: Icon }) => (
-                <li
-                  key={label}
-                  className="flex min-w-0 items-center gap-1.5 text-[11.5px] font-medium text-white/80"
+          {/* Popular categories */}
+          <div className="mt-2 border-t border-white/10 pt-2">
+            <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+              <h2 className="shrink-0 text-[10px] font-semibold uppercase tracking-wider text-white/45">
+                Popular Categories
+              </h2>
+              {POPULAR_CATEGORIES.map((cat) => (
+                <Link
+                  key={cat.label}
+                  to={cat.to as string}
+                  className="inline-flex max-w-full items-center rounded-full bg-white/[0.06] px-2 py-px text-[11.5px] font-medium text-white/75 ring-1 ring-white/10 transition-colors duration-200 hover:bg-white/[0.12] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70"
                 >
-                  <Icon
-                    className="size-3.5 shrink-0 text-emerald-300/90"
-                    aria-hidden="true"
-                  />
-                  {label}
-                </li>
-              ))}
-            </ul>
-
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-white/45">
-                We accept
-              </span>
-              {PAYMENT_METHODS.map((method) => (
-                <span
-                  key={method}
-                  className="inline-flex max-w-full items-center gap-1 rounded-md bg-white/[0.06] px-2 py-0.5 text-[11px] font-medium text-white/75 ring-1 ring-white/10"
-                >
-                  <Wallet
-                    className="size-3 shrink-0 text-emerald-200"
-                    aria-hidden="true"
-                  />
-                  {method}
-                </span>
+                  {cat.label}
+                </Link>
               ))}
             </div>
           </div>
 
-          <p className="mt-2 text-[10.5px] leading-snug text-white/40">
-            Prepaid orders are processed through Razorpay&apos;s secure checkout.
-            Cash on Delivery is available for eligible orders.
-          </p>
+          {/* Trust + payments */}
+          <div className="mt-2 border-t border-white/10 pt-2">
+            <div className="flex flex-col gap-x-6 gap-y-1.5 lg:flex-row lg:items-center lg:justify-between">
+              <ul className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                {TRUST_ITEMS.map(({ label, icon: Icon }) => (
+                  <li
+                    key={label}
+                    className="flex min-w-0 items-center gap-1.5 text-[11.5px] font-medium text-white/80"
+                  >
+                    <Icon
+                      className="size-3.5 shrink-0 text-emerald-300/90"
+                      aria-hidden="true"
+                    />
+                    {label}
+                  </li>
+                ))}
+              </ul>
+
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-white/45">
+                  We accept
+                </span>
+                {PAYMENT_METHODS.map((method) => (
+                  <span
+                    key={method}
+                    className="inline-flex max-w-full items-center gap-1 rounded-md bg-white/[0.06] px-1.5 py-px text-[11px] font-medium text-white/75 ring-1 ring-white/10"
+                  >
+                    <Wallet
+                      className="size-3 shrink-0 text-emerald-200"
+                      aria-hidden="true"
+                    />
+                    {method}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <p className="mt-1.5 text-[10.5px] leading-tight text-white/40">
+              Prepaid orders are processed through Razorpay&apos;s secure checkout.
+              Cash on Delivery is available for eligible orders.
+            </p>
+          </div>
         </div>
       </div>
 
       {/* ── Bottom legal bar ── */}
       <div className="border-t border-white/10">
-        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-1.5 px-4 py-3 sm:px-6 md:flex-row">
-          <p className="text-center text-[11.5px] text-white/55 md:text-left">
+        <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-1 px-4 py-2.5 sm:px-6 md:flex-row">
+          <p className="text-center text-[11.5px] leading-tight text-white/55 md:text-left">
             © {year} Kalyan Chemist. All rights reserved.
           </p>
           <ul className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1">
@@ -598,7 +632,7 @@ const Footer = memo(function Footer() {
               <li key={item.label}>
                 <Link
                   to={item.to as string}
-                  className="rounded-sm text-[11.5px] text-white/55 transition-colors duration-200 hover:text-emerald-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60"
+                  className="rounded-sm text-[11.5px] leading-tight text-white/55 transition-colors duration-200 hover:text-emerald-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60"
                 >
                   {item.label}
                 </Link>

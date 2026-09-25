@@ -45,7 +45,19 @@ export default function InfoPage({
     <div className="flex min-h-screen flex-col bg-background">
       <Navbar />
 
-      <main className="flex-1">
+      <main className="relative flex-1 overflow-hidden">
+        {/* Subtle page background — soft off-white base with a very light
+            emerald ambience, so no informational page renders as plain white.
+            Static gradients only: no blur, no loops, no animation cost. */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0"
+          style={{
+            background:
+              "radial-gradient(55% 35% at 12% 4%, rgba(16,185,129,0.055), transparent 70%), radial-gradient(45% 40% at 88% 72%, rgba(16,185,129,0.05), transparent 70%), radial-gradient(40% 30% at 50% 100%, rgba(16,185,129,0.035), transparent 70%)",
+          }}
+        />
+
         <section className="relative isolate overflow-hidden border-b border-border/40">
           {/* Ambient healthcare light */}
           <div
@@ -121,7 +133,7 @@ export default function InfoPage({
           </div>
         </section>
 
-        <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-10">
+        <div className="relative mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-10">
           {children}
         </div>
       </main>
