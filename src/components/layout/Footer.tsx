@@ -19,19 +19,20 @@ import { cn } from "@/lib/utils";
 /* ═══════════════════════════════════════════════════════════════════════════
    KALYAN CHEMIST — SITE FOOTER
    ---------------------------------------------------------------------------
-   Information architecture:
-     Column 1  About Kalyan Chemist   (brand + company links)
+   Information architecture (each destination appears exactly once):
+     Column 1  About Kalyan Chemist
      Column 2  Healthcare Services
      Column 3  Shop / Medicines
      Column 4  Customer Support
      Column 5  Policies & Legal
-   Followed by: contact/help, popular categories, payment, app install, bottom bar.
+   Then: contact/help, popular categories + app, one combined trust + payment
+   strip, and a compact legal bottom bar (Privacy Policy · Terms · Sitemap).
 
    Responsive behaviour — driven purely by CSS, so there is no layout JS,
    no matchMedia dependency and no horizontal overflow at any width:
      ≥ 1024px  five columns, always expanded
      ≥  768px  balanced two-column grid, always expanded
-     <  768px  one accessible accordion per group
+     <  768px  one accessible accordion per group, only one open at a time
                (aria-expanded + aria-controls, collapsed by default)
 
    Every destination below is a real, existing route or a real configured
@@ -63,12 +64,12 @@ interface FooterLink {
   breakAll?: boolean;
 }
 
+/* About group — Sitemap lives in the bottom legal bar so it is not repeated. */
 const COMPANY_LINKS: FooterLink[] = [
   { label: "About Us", to: "/about-us" },
   { label: "Contact Us", to: "/contact-us" },
   { label: "FAQs", to: "/faqs" },
   { label: "Why Choose Us", to: "/why-choose-us" },
-  { label: "Sitemap", to: "/sitemap" },
   { label: "Careers", to: "/careers" },
 ];
 
@@ -92,16 +93,14 @@ const SHOP_LINKS: FooterLink[] = [
   { label: "All Medicines", to: "/products" },
   { label: "Medicine Categories", to: "/categories" },
   { label: "Healthcare Products", to: "/products?nav=all" },
-  {
-    label: "Healthcare Devices",
-    to: "/products?category=health-safety&nav=health-devices",
-  },
   { label: "New Arrivals", to: "/products?sort=newest" },
   { label: "Hot Sellers", to: "/hot-sellers" },
   { label: "Value Deals Under ₹100", to: "/value-deals" },
   { label: "Wishlist", to: "/wishlist" },
 ];
 
+/* "Contact Support" points at the account help centre so "Contact Us" stays
+   unique to the About group; refunds are documented under Policies & Legal. */
 const SUPPORT_LINKS: FooterLink[] = [
   { label: "My Account", to: "/account" },
   { label: "My Orders", to: "/account/orders" },
@@ -109,14 +108,13 @@ const SUPPORT_LINKS: FooterLink[] = [
   { label: "My Addresses", to: "/account/addresses" },
   { label: "My Prescriptions", to: "/account/prescriptions" },
   { label: "Notifications", to: "/account/notifications" },
-  { label: "Contact Support", to: "/contact-us" },
+  { label: "Contact Support", to: "/account/help-support" },
   { label: "WhatsApp Support", href: WHATSAPP_URL },
-  { label: "Cancellation & Refund", to: "/cancellation-refund" },
 ];
 
+/* Privacy Policy, Terms & Conditions and Sitemap intentionally live in the
+   bottom legal bar only — they are not repeated here. */
 const POLICY_LINKS: FooterLink[] = [
-  { label: "Privacy Policy", to: "/privacy-policy" },
-  { label: "Terms & Conditions", to: "/terms-conditions" },
   { label: "Shipping & Delivery", to: "/shipping-delivery" },
   { label: "Cancellation & Refund Policy", to: "/cancellation-refund" },
   { label: "Return Policy", to: "/return-policy" },
@@ -125,20 +123,16 @@ const POLICY_LINKS: FooterLink[] = [
   { label: "Disclaimer", to: "/disclaimer" },
 ];
 
-/* Existing category navigation used by the header — same slugs/keys. */
+/* Category navigation used by the header — same slugs/keys. Duplicates of the
+   column destinations above (medicines, health devices, health conditions) are
+   removed so every destination resolves to a single footer entry. */
 const POPULAR_CATEGORIES: FooterLink[] = [
-  { label: "Medicines", to: "/products?nav=all" },
   { label: "Baby Care", to: "/products?category=baby-mother&nav=baby-care" },
   { label: "Women Care", to: "/products?category=baby-mother&nav=women-care" },
   { label: "Personal Care", to: "/products?category=personal-care&nav=personal-care" },
   { label: "Nutrition & Supplements", to: "/products?category=nutrition&nav=nutrition" },
   { label: "Ayurveda", to: "/products?category=alternative-medicine&nav=ayurveda" },
-  { label: "Health Devices", to: "/products?category=health-safety&nav=health-devices" },
   { label: "Home Essentials", to: "/products?category=others&nav=home-essentials" },
-  {
-    label: "Health Conditions",
-    to: "/products?category=health-safety&nav=health-conditions",
-  },
 ];
 
 const TRUST_ITEMS = [
@@ -154,6 +148,12 @@ const PAYMENT_METHODS = [
   "UPI",
   "Credit / Debit Cards",
   "Net Banking",
+];
+
+const LEGAL_LINKS: FooterLink[] = [
+  { label: "Privacy Policy", to: "/privacy-policy" },
+  { label: "Terms & Conditions", to: "/terms-conditions" },
+  { label: "Sitemap", to: "/sitemap" },
 ];
 
 /* ── PWA install: only ever rendered when the browser offers a real prompt ── */
@@ -199,7 +199,7 @@ function PwaInstallButton() {
 
   if (installed) {
     return (
-      <p className="text-xs font-medium text-emerald-200">
+      <p className="text-[12px] font-medium text-emerald-200">
         Kalyan Chemist is installed on this device.
       </p>
     );
@@ -210,7 +210,7 @@ function PwaInstallButton() {
       <button
         type="button"
         onClick={handleInstall}
-        className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3.5 py-2 text-xs font-semibold text-white ring-1 ring-white/20 transition-colors duration-200 hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70"
+        className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-[12px] font-semibold text-white ring-1 ring-white/20 transition-colors duration-200 hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70"
       >
         <Smartphone className="size-3.5" aria-hidden="true" />
         Install App
@@ -219,7 +219,7 @@ function PwaInstallButton() {
   }
 
   return (
-    <p className="text-xs leading-relaxed text-white/60">
+    <p className="text-[11.5px] leading-relaxed text-white/55">
       Use your browser&apos;s{" "}
       <span className="text-white/80">“Add to Home Screen”</span> option for
       one-tap access on mobile.
@@ -230,7 +230,7 @@ function PwaInstallButton() {
 /* ── A single footer link (internal route or real external destination) ── */
 function FooterLinkItem({ link }: { link: FooterLink }) {
   const classes = cn(
-    "group inline-flex max-w-full items-start gap-1 text-[13px] leading-relaxed text-white/70",
+    "group inline-flex max-w-full items-start gap-1 text-[12.5px] leading-snug text-white/70",
     "transition-colors duration-200 hover:text-emerald-200",
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60 rounded-sm",
     link.breakAll && "break-all"
@@ -296,7 +296,7 @@ function FooterColumn({
       <h3 id={`footer-heading-${id}`} className="m-0">
         {/* Desktop heading */}
         {!hideTitleOnDesktop && (
-          <span className="hidden text-[13px] font-semibold tracking-wide text-white md:mb-3 md:block">
+          <span className="hidden text-[11.5px] font-semibold uppercase tracking-wider text-white/90 md:mb-2.5 md:block">
             {title}
           </span>
         )}
@@ -308,8 +308,8 @@ function FooterColumn({
           aria-expanded={isOpen}
           aria-controls={panelId}
           className={cn(
-            "flex w-full items-center justify-between gap-3 rounded-md py-3.5 text-left",
-            "text-[13px] font-semibold tracking-wide text-white",
+            "flex w-full items-center justify-between gap-3 rounded-md py-2.5 text-left",
+            "text-[12.5px] font-semibold uppercase tracking-wider text-white",
             "transition-colors duration-200 hover:text-emerald-200",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60",
             "md:hidden"
@@ -337,8 +337,8 @@ function FooterColumn({
         <div className="min-h-0">
           <ul
             className={cn(
-              "space-y-2 pb-3 pt-0.5 md:pb-0 md:pt-0",
-              hideTitleOnDesktop && "md:mt-4"
+              "space-y-1.5 pb-3 pt-0.5 md:pb-0 md:pt-0",
+              hideTitleOnDesktop && "md:mt-3.5"
             )}
           >
             {links.map((link) => (
@@ -353,43 +353,37 @@ function FooterColumn({
   );
 }
 
-/* ── Compact contact tile ── */
-function ContactTile({
+/* ── Compact inline contact row (phone / WhatsApp / email / store) ── */
+function ContactItem({
   icon: Icon,
   label,
-  value,
   href,
   external,
   children,
 }: {
   icon: typeof Phone;
   label: string;
-  value?: string;
   href?: string;
   external?: boolean;
-  children?: ReactNode;
+  children: ReactNode;
 }) {
   const body = (
     <>
-      <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-white/10 text-emerald-200">
-        <Icon className="size-4" aria-hidden="true" />
+      <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg bg-white/10 text-emerald-200">
+        <Icon className="size-3.5" aria-hidden="true" />
       </span>
       <span className="min-w-0">
-        <span className="block text-[11px] font-medium uppercase tracking-wider text-white/50">
+        <span className="block text-[10px] font-medium uppercase tracking-wider text-white/45">
           {label}
         </span>
-        {value && (
-          <span className="mt-0.5 block break-words text-[13px] font-medium leading-snug text-white">
-            {value}
-          </span>
-        )}
-        {children}
+        <span className="block text-[12.5px] font-medium leading-snug text-white/90">
+          {children}
+        </span>
       </span>
     </>
   );
 
-  const shell =
-    "flex min-w-0 items-start gap-3 rounded-2xl bg-white/[0.04] p-3.5 ring-1 ring-white/10 transition-colors duration-200";
+  const shell = "flex min-w-0 items-start gap-2.5 rounded-lg py-1";
 
   if (!href) {
     return <div className={shell}>{body}</div>;
@@ -402,7 +396,7 @@ function ContactTile({
       rel={external ? "noopener noreferrer" : undefined}
       className={cn(
         shell,
-        "hover:bg-white/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70"
+        "transition-colors duration-200 hover:text-emerald-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70"
       )}
     >
       {body}
@@ -413,12 +407,12 @@ function ContactTile({
 /* ═══════════════════════════════════════════════════════════════════════════ */
 
 const Footer = memo(function Footer() {
-  /* Mobile accordion state — groups start collapsed to keep the footer compact.
+  /* Mobile accordion — only one group open at a time keeps the footer short.
      Desktop ignores this state entirely (CSS forces every panel open). */
-  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  const [openGroup, setOpenGroup] = useState<string | null>(null);
 
   const toggleGroup = useCallback((id: string) => {
-    setOpenGroups((prev) => ({ ...prev, [id]: !prev[id] }));
+    setOpenGroup((current) => (current === id ? null : id));
   }, []);
 
   const year = new Date().getFullYear();
@@ -428,43 +422,27 @@ const Footer = memo(function Footer() {
       className="mt-auto border-t border-white/10 bg-[#07281f] text-white/70"
       aria-label="Kalyan Chemist footer"
     >
-      {/* ── Trust strip ── */}
-      <div className="border-b border-white/10 bg-white/[0.03]">
-        <ul className="mx-auto grid max-w-7xl grid-cols-2 gap-x-4 gap-y-3 px-4 py-5 sm:px-6 lg:grid-cols-4">
-          {TRUST_ITEMS.map(({ label, icon: Icon }) => (
-            <li key={label} className="flex min-w-0 items-center gap-2.5">
-              <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-emerald-400/15 text-emerald-200">
-                <Icon className="size-4" aria-hidden="true" />
-              </span>
-              <span className="min-w-0 text-[12px] font-medium leading-snug text-white/85 sm:text-[13px]">
-                {label}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </div>
-
       {/* ── Main navigation columns ── */}
-      <div className="mx-auto max-w-7xl px-4 py-9 sm:px-6 md:py-12">
-        <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2 md:gap-y-9 lg:grid-cols-5">
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 md:py-8">
+        <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2 md:gap-y-7 lg:grid-cols-5">
           <FooterColumn
             id="about"
             title="About Kalyan Chemist"
             links={COMPANY_LINKS}
-            isOpen={!!openGroups.about}
+            isOpen={openGroup === "about"}
             onToggle={toggleGroup}
             hideTitleOnDesktop
             leading={
-              <div className="pb-1 md:pb-0">
+              <div className="pb-0.5 md:pb-0">
                 <Link
                   to="/"
                   className="inline-flex items-center gap-2.5 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60"
                 >
-                  <span className="flex size-9 items-center justify-center rounded-xl gradient-primary text-sm font-bold text-white shadow-glow">
+                  <span className="flex size-8 items-center justify-center rounded-xl gradient-primary text-[13px] font-bold text-white shadow-glow">
                     KC
                   </span>
                   <span className="leading-tight">
-                    <span className="block text-base font-bold tracking-tight text-white">
+                    <span className="block text-[15px] font-bold tracking-tight text-white">
                       Kalyan Chemist
                     </span>
                     <span className="block text-[10px] font-medium uppercase tracking-widest text-emerald-200/70">
@@ -472,7 +450,7 @@ const Footer = memo(function Footer() {
                     </span>
                   </span>
                 </Link>
-                <p className="mt-4 max-w-xs text-[13px] leading-relaxed text-white/60">
+                <p className="mt-2.5 max-w-xs text-[12.5px] leading-relaxed text-white/55">
                   Kalyan Chemist is a digital healthcare experience for
                   medicines, healthcare products and essential health services.
                 </p>
@@ -484,7 +462,7 @@ const Footer = memo(function Footer() {
             id="healthcare"
             title="Healthcare Services"
             links={HEALTHCARE_LINKS}
-            isOpen={!!openGroups.healthcare}
+            isOpen={openGroup === "healthcare"}
             onToggle={toggleGroup}
           />
 
@@ -492,7 +470,7 @@ const Footer = memo(function Footer() {
             id="shop"
             title="Shop / Medicines"
             links={SHOP_LINKS}
-            isOpen={!!openGroups.shop}
+            isOpen={openGroup === "shop"}
             onToggle={toggleGroup}
           />
 
@@ -500,7 +478,7 @@ const Footer = memo(function Footer() {
             id="support"
             title="Customer Support"
             links={SUPPORT_LINKS}
-            isOpen={!!openGroups.support}
+            isOpen={openGroup === "support"}
             onToggle={toggleGroup}
           />
 
@@ -508,84 +486,76 @@ const Footer = memo(function Footer() {
             id="policies"
             title="Policies & Legal"
             links={POLICY_LINKS}
-            isOpen={!!openGroups.policies}
+            isOpen={openGroup === "policies"}
             onToggle={toggleGroup}
           />
         </div>
       </div>
 
-      {/* ── Contact / help ── */}
+      {/* ── Contact / help (compact) ── */}
       <div className="border-t border-white/10">
-        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
-          <h2 className="mb-4 text-[13px] font-semibold tracking-wide text-white">
+        <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6">
+          <h2 className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider text-white/60">
             Contact & Help
           </h2>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <ContactTile icon={Phone} label="Call us" href={`tel:${PHONE_TEL}`}>
-              <span className="mt-0.5 block text-[13px] font-medium text-white">
-                {PHONE_DISPLAY}
-              </span>
-              <span className="mt-1 flex items-center gap-1 text-[11px] text-white/50">
+          <div className="grid gap-x-6 gap-y-1.5 sm:grid-cols-2 lg:grid-cols-4">
+            <ContactItem icon={Phone} label="Call us" href={`tel:${PHONE_TEL}`}>
+              {PHONE_DISPLAY}
+              <span className="mt-0.5 flex items-center gap-1 text-[11px] font-normal text-white/50">
                 <Clock className="size-3" aria-hidden="true" />
                 {BUSINESS_HOURS}
               </span>
-            </ContactTile>
+            </ContactItem>
 
-            <ContactTile
+            <ContactItem
               icon={MessageCircle}
               label="WhatsApp"
               href={WHATSAPP_URL}
               external
             >
-              <span className="mt-0.5 block text-[13px] font-medium text-white">
-                Chat with our pharmacist
-              </span>
-              <span className="mt-1 block text-[11px] text-white/50">
+              Chat with our pharmacist
+              <span className="mt-0.5 block text-[11px] font-normal text-white/50">
                 Quick replies during business hours
               </span>
-            </ContactTile>
+            </ContactItem>
 
-            <ContactTile
+            <ContactItem
               icon={Mail}
               label="Email"
               href={`mailto:${SUPPORT_EMAIL}`}
             >
-              <span className="mt-0.5 block break-all text-[13px] font-medium text-white">
-                {SUPPORT_EMAIL}
-              </span>
-              <span className="mt-1 block text-[11px] text-white/50">
+              <span className="break-all">{SUPPORT_EMAIL}</span>
+              <span className="mt-0.5 block text-[11px] font-normal text-white/50">
                 We reply within 24 hours
               </span>
-            </ContactTile>
+            </ContactItem>
 
-            <ContactTile
+            <ContactItem
               icon={MapPin}
               label="Visit our store"
               href={MAPS_URL}
               external
             >
-              <span className="mt-0.5 block text-[13px] font-medium leading-snug text-white">
-                {STORE_ADDRESS}
-              </span>
-            </ContactTile>
+              {STORE_ADDRESS}
+            </ContactItem>
           </div>
         </div>
       </div>
 
-      {/* ── Categories · payments · app ── */}
+      {/* ── Categories · app ── */}
       <div className="border-t border-white/10">
-        <div className="mx-auto grid max-w-7xl gap-8 px-4 py-8 sm:px-6 lg:grid-cols-3">
+        <div className="mx-auto grid max-w-7xl gap-x-8 gap-y-4 px-4 py-4 sm:px-6 lg:grid-cols-3">
           {/* Popular categories */}
-          <div className="min-w-0">
-            <h2 className="mb-3 text-[13px] font-semibold tracking-wide text-white">
+          <div className="min-w-0 lg:col-span-2">
+            <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-white/60">
               Popular Categories
             </h2>
-            <ul className="flex flex-wrap gap-2">
+            <ul className="flex flex-wrap gap-1.5">
               {POPULAR_CATEGORIES.map((cat) => (
-                <li key={cat.label}>
+                <li key={cat.label} className="min-w-0">
                   <Link
                     to={cat.to as string}
-                    className="inline-flex max-w-full items-center rounded-full bg-white/[0.06] px-3 py-1.5 text-[12px] font-medium text-white/75 ring-1 ring-white/10 transition-colors duration-200 hover:bg-white/[0.12] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70"
+                    className="inline-flex max-w-full items-center rounded-full bg-white/[0.06] px-2.5 py-1 text-[11.5px] font-medium text-white/75 ring-1 ring-white/10 transition-colors duration-200 hover:bg-white/[0.12] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70"
                   >
                     {cat.label}
                   </Link>
@@ -594,45 +564,20 @@ const Footer = memo(function Footer() {
             </ul>
           </div>
 
-          {/* Payments */}
-          <div className="min-w-0">
-            <h2 className="mb-3 text-[13px] font-semibold tracking-wide text-white">
-              We Accept
-            </h2>
-            <ul className="flex flex-wrap gap-2">
-              {PAYMENT_METHODS.map((method) => (
-                <li
-                  key={method}
-                  className="inline-flex max-w-full items-center gap-1.5 rounded-lg bg-white/[0.06] px-2.5 py-1.5 text-[12px] font-medium text-white/75 ring-1 ring-white/10"
-                >
-                  <Wallet
-                    className="size-3.5 shrink-0 text-emerald-200"
-                    aria-hidden="true"
-                  />
-                  {method}
-                </li>
-              ))}
-            </ul>
-            <p className="mt-3 text-[11px] leading-relaxed text-white/50">
-              Prepaid orders are processed through Razorpay&apos;s secure
-              checkout. Cash on Delivery is available for eligible orders.
-            </p>
-          </div>
-
           {/* App / PWA */}
           <div className="min-w-0">
-            <h2 className="mb-3 text-[13px] font-semibold tracking-wide text-white">
+            <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-white/60">
               Get the Kalyan Chemist App
             </h2>
-            <div className="flex items-start gap-3 rounded-2xl bg-white/[0.04] p-3.5 ring-1 ring-white/10">
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-white/10 text-emerald-200">
-                <Pill className="size-4" aria-hidden="true" />
+            <div className="flex items-start gap-2.5">
+              <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-white/10 text-emerald-200">
+                <Pill className="size-3.5" aria-hidden="true" />
               </span>
               <div className="min-w-0">
-                <p className="text-[13px] font-medium leading-snug text-white">
+                <p className="text-[12.5px] font-medium leading-snug text-white/90">
                   Order medicines and book health services from your phone.
                 </p>
-                <div className="mt-2.5">
+                <div className="mt-1.5">
                   <PwaInstallButton />
                 </div>
               </div>
@@ -641,22 +586,62 @@ const Footer = memo(function Footer() {
         </div>
       </div>
 
-      {/* ── Bottom bar ── */}
+      {/* ── Trust + payments (one compact strip) ── */}
+      <div className="border-t border-white/10 bg-white/[0.03]">
+        <div className="mx-auto max-w-7xl px-4 py-3.5 sm:px-6">
+          <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">
+            <ul className="flex flex-wrap items-center gap-x-5 gap-y-2">
+              {TRUST_ITEMS.map(({ label, icon: Icon }) => (
+                <li
+                  key={label}
+                  className="flex min-w-0 items-center gap-1.5 text-[11.5px] font-medium text-white/80"
+                >
+                  <Icon
+                    className="size-3.5 shrink-0 text-emerald-300/90"
+                    aria-hidden="true"
+                  />
+                  {label}
+                </li>
+              ))}
+            </ul>
+
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-white/45">
+                We accept
+              </span>
+              {PAYMENT_METHODS.map((method) => (
+                <span
+                  key={method}
+                  className="inline-flex max-w-full items-center gap-1 rounded-md bg-white/[0.06] px-2 py-0.5 text-[11px] font-medium text-white/75 ring-1 ring-white/10"
+                >
+                  <Wallet
+                    className="size-3 shrink-0 text-emerald-200"
+                    aria-hidden="true"
+                  />
+                  {method}
+                </span>
+              ))}
+            </div>
+          </div>
+          <p className="mt-2 text-[10.5px] leading-relaxed text-white/40">
+            Prepaid orders are processed through Razorpay&apos;s secure checkout.
+            Cash on Delivery is available for eligible orders.
+          </p>
+        </div>
+      </div>
+
+      {/* ── Bottom legal bar ── */}
       <div className="border-t border-white/10">
-        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-4 py-5 sm:px-6 md:flex-row">
-          <p className="text-center text-[12px] text-white/55 md:text-left">
+        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-2 px-4 py-3.5 sm:px-6 md:flex-row">
+          <p className="text-center text-[11.5px] text-white/55 md:text-left">
             © {year} Kalyan Chemist. All rights reserved.
           </p>
-          <ul className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
-            {[
-              { label: "Privacy Policy", to: "/privacy-policy" },
-              { label: "Terms & Conditions", to: "/terms-conditions" },
-              { label: "Sitemap", to: "/sitemap" },
-            ].map((item) => (
+          <ul className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5">
+            {LEGAL_LINKS.map((item) => (
               <li key={item.label}>
                 <Link
-                  to={item.to}
-                  className="rounded-sm text-[12px] text-white/55 transition-colors duration-200 hover:text-emerald-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60"
+                  to={item.to as string}
+                  className="rounded-sm text-[11.5px] text-white/55 transition-colors duration-200 hover:text-emerald-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60"
                 >
                   {item.label}
                 </Link>

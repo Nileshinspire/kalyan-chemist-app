@@ -1,6 +1,16 @@
 import { Link } from "react-router";
-import { HelpCircle, MessageCircle } from "lucide-react";
-import InfoPage from "@/components/layout/InfoPage";
+import {
+  HelpCircle,
+  MessageCircle,
+  Package,
+  Pill,
+  RefreshCw,
+  ShieldCheck,
+  Stethoscope,
+  Wallet,
+  type LucideIcon,
+} from "lucide-react";
+import InfoPage, { InfoSection } from "@/components/layout/InfoPage";
 import {
   Accordion,
   AccordionContent,
@@ -16,9 +26,14 @@ import {
    notifications. No capability is promised that the app does not have.
    ═══════════════════════════════════════════════════════════════════════════ */
 
-const FAQ_GROUPS: { title: string; items: { q: string; a: string }[] }[] = [
+const FAQ_GROUPS: {
+  title: string;
+  icon: LucideIcon;
+  items: { q: string; a: string }[];
+}[] = [
   {
     title: "Orders & Delivery",
+    icon: Package,
     items: [
       {
         q: "How do I track my order?",
@@ -44,6 +59,7 @@ const FAQ_GROUPS: { title: string; items: { q: string; a: string }[] }[] = [
   },
   {
     title: "Medicines & Prescriptions",
+    icon: Pill,
     items: [
       {
         q: "What does “Rx Required” mean?",
@@ -69,6 +85,7 @@ const FAQ_GROUPS: { title: string; items: { q: string; a: string }[] }[] = [
   },
   {
     title: "Payments & Refunds",
+    icon: Wallet,
     items: [
       {
         q: "Which payment methods are accepted?",
@@ -94,6 +111,7 @@ const FAQ_GROUPS: { title: string; items: { q: string; a: string }[] }[] = [
   },
   {
     title: "Lab Tests & Doctor Appointments",
+    icon: Stethoscope,
     items: [
       {
         q: "How do I book a lab test?",
@@ -115,6 +133,7 @@ const FAQ_GROUPS: { title: string; items: { q: string; a: string }[] }[] = [
   },
   {
     title: "Refills & Your Account",
+    icon: RefreshCw,
     items: [
       {
         q: "What is Medicine Refill?",
@@ -136,6 +155,7 @@ const FAQ_GROUPS: { title: string; items: { q: string; a: string }[] }[] = [
   },
   {
     title: "Returns & Support",
+    icon: ShieldCheck,
     items: [
       {
         q: "Can I return a product?",
@@ -162,40 +182,44 @@ export default function Faqs() {
     <InfoPage
       badge="Help Centre"
       badgeIcon={<HelpCircle className="size-3" aria-hidden="true" />}
+      heroIcon={HelpCircle}
       title="Frequently Asked Questions"
       subtitle="Answers about orders, prescriptions, payments, lab tests, appointments, refills and returns at Kalyan Chemist."
     >
-      <div className="space-y-8">
+      <div className="space-y-3.5">
         {FAQ_GROUPS.map((group) => (
-          <section key={group.title}>
-            <h2 className="text-base font-semibold tracking-tight text-foreground sm:text-lg">
-              {group.title}
-            </h2>
-            <Accordion
-              type="multiple"
-              className="mt-2 rounded-2xl border border-border/60 bg-card px-5"
-            >
+          <InfoSection
+            key={group.title}
+            icon={group.icon}
+            title={group.title}
+            action={
+              <span className="rounded-full bg-muted/60 px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-wider text-muted-foreground">
+                {group.items.length} answers
+              </span>
+            }
+          >
+            <Accordion type="multiple" className="-mx-1">
               {group.items.map((item, index) => (
                 <AccordionItem
                   key={item.q}
                   value={`${group.title}-${index}`}
                   className="border-border/50"
                 >
-                  <AccordionTrigger className="py-4 text-left text-[13px] font-semibold leading-snug hover:no-underline hover:text-primary sm:text-sm">
+                  <AccordionTrigger className="py-3 text-left text-[13px] font-semibold leading-snug hover:no-underline hover:text-primary sm:text-sm">
                     {item.q}
                   </AccordionTrigger>
-                  <AccordionContent className="pb-4 text-[13px] leading-relaxed text-muted-foreground sm:text-sm">
+                  <AccordionContent className="pb-3 text-[13px] leading-relaxed text-muted-foreground">
                     {item.a}
                   </AccordionContent>
                 </AccordionItem>
               ))}
             </Accordion>
-          </section>
+          </InfoSection>
         ))}
       </div>
 
       {/* Still need help */}
-      <div className="mt-10 flex flex-col gap-4 rounded-2xl border border-primary/15 bg-primary/[0.04] p-5 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mt-8 flex flex-col gap-4 rounded-2xl border border-primary/15 bg-primary/[0.04] p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
         <div className="flex items-start gap-3">
           <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
             <MessageCircle className="size-4" aria-hidden="true" />

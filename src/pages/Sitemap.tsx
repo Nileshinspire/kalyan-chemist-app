@@ -1,6 +1,14 @@
 import { Link } from "react-router";
-import { Map as MapIcon } from "lucide-react";
-import InfoPage from "@/components/layout/InfoPage";
+import {
+  HeartPulse,
+  Map as MapIcon,
+  ShieldCheck,
+  Stethoscope,
+  Store,
+  UserRound,
+  type LucideIcon,
+} from "lucide-react";
+import InfoPage, { InfoSection } from "@/components/layout/InfoPage";
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Sitemap — dedicated footer-linked page.
@@ -15,9 +23,15 @@ interface SitemapLink {
   to: string;
 }
 
-const SECTIONS: { title: string; note?: string; links: SitemapLink[] }[] = [
+const SECTIONS: {
+  title: string;
+  icon: LucideIcon;
+  note?: string;
+  links: SitemapLink[];
+}[] = [
   {
     title: "Kalyan Chemist",
+    icon: HeartPulse,
     links: [
       { label: "Home", to: "/" },
       { label: "About Us", to: "/about-us" },
@@ -30,6 +44,7 @@ const SECTIONS: { title: string; note?: string; links: SitemapLink[] }[] = [
   },
   {
     title: "Shop",
+    icon: Store,
     links: [
       { label: "All Medicines & Products", to: "/products" },
       { label: "Categories", to: "/categories" },
@@ -47,6 +62,7 @@ const SECTIONS: { title: string; note?: string; links: SitemapLink[] }[] = [
   },
   {
     title: "Healthcare Services",
+    icon: Stethoscope,
     links: [
       { label: "Doctor Appointments", to: "/doctor-appointment" },
       { label: "Lab Tests", to: "/lab-tests" },
@@ -57,6 +73,7 @@ const SECTIONS: { title: string; note?: string; links: SitemapLink[] }[] = [
   },
   {
     title: "My Account",
+    icon: UserRound,
     note: "You'll be asked to sign in first.",
     links: [
       { label: "Account Overview", to: "/account" },
@@ -75,6 +92,7 @@ const SECTIONS: { title: string; note?: string; links: SitemapLink[] }[] = [
   },
   {
     title: "Policies & Legal",
+    icon: ShieldCheck,
     links: [
       { label: "Privacy Policy", to: "/privacy-policy" },
       { label: "Terms & Conditions", to: "/terms-conditions" },
@@ -93,35 +111,31 @@ export default function Sitemap() {
     <InfoPage
       badge="Sitemap"
       badgeIcon={<MapIcon className="size-3" aria-hidden="true" />}
+      heroIcon={MapIcon}
       title="Sitemap"
       subtitle="Every customer-facing page on Kalyan Chemist, organised by section."
     >
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid items-start gap-3.5 sm:grid-cols-2">
         {SECTIONS.map((section) => (
-          <nav
+          <InfoSection
             key={section.title}
-            aria-label={section.title}
-            className="min-w-0 rounded-2xl border border-border/60 bg-card p-5"
+            icon={section.icon}
+            title={section.title}
+            description={section.note}
           >
-            <h2 className="text-sm font-semibold text-foreground">
-              {section.title}
-            </h2>
-            {section.note && (
-              <p className="mt-1 text-xs text-muted-foreground">{section.note}</p>
-            )}
-            <ul className="mt-3 space-y-2">
+            <ul className="grid grid-cols-1 gap-1.5">
               {section.links.map((link) => (
                 <li key={link.label} className="min-w-0">
                   <Link
                     to={link.to}
-                    className="inline-flex max-w-full text-[13px] leading-snug text-muted-foreground transition-colors duration-200 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 rounded-sm"
+                    className="inline-flex max-w-full rounded-sm text-[13px] leading-snug text-muted-foreground transition-colors duration-200 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
                   >
                     {link.label}
                   </Link>
                 </li>
               ))}
             </ul>
-          </nav>
+          </InfoSection>
         ))}
       </div>
     </InfoPage>

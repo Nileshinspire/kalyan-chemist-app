@@ -1,11 +1,16 @@
 import { Link } from "react-router";
 import {
   Briefcase,
+  ClipboardCheck,
+  Headset,
   Heart,
   Mail,
   MessageCircle,
+  MonitorSmartphone,
   Sparkles,
+  Truck,
   Users,
+  type LucideIcon,
 } from "lucide-react";
 import InfoPage from "@/components/layout/InfoPage";
 
@@ -49,23 +54,27 @@ const WHY_JOIN = [
   },
 ];
 
-const AREAS = [
+const AREAS: { icon: LucideIcon; title: string; description: string }[] = [
   {
+    icon: ClipboardCheck,
     title: "Pharmacy Operations",
     description:
       "Prescription verification, dispensing and inventory accuracy alongside our pharmacists.",
   },
   {
+    icon: Headset,
     title: "Customer Support",
     description:
       "Helping customers with orders, prescriptions, refunds and account queries across phone, email and WhatsApp.",
   },
   {
+    icon: Truck,
     title: "Delivery & Logistics",
     description:
       "Getting medicines to customers safely, on time and with the right handling.",
   },
   {
+    icon: MonitorSmartphone,
     title: "Technology & Product",
     description:
       "Building and improving the ordering, prescriptions, lab tests and appointments experience.",
@@ -77,19 +86,20 @@ export default function Careers() {
     <InfoPage
       badge="Careers"
       badgeIcon={<Briefcase className="size-3" aria-hidden="true" />}
+      heroIcon={Briefcase}
       title="Careers at Kalyan Chemist"
       subtitle="We are a pharmacy first and a technology platform second. If you care about getting healthcare right for people, we would like to hear from you."
     >
       {/* Why work with us */}
       <section>
-        <h2 className="text-base font-semibold tracking-tight text-foreground sm:text-lg">
+        <h2 className="text-[15px] font-semibold tracking-tight text-foreground sm:text-base">
           Why work with us
         </h2>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <div className="mt-3.5 grid gap-3.5 sm:grid-cols-2">
           {WHY_JOIN.map((item) => (
             <div
               key={item.title}
-              className="flex min-w-0 items-start gap-3.5 rounded-2xl border border-border/60 bg-card p-5"
+              className="flex min-w-0 items-start gap-3.5 rounded-2xl border border-border/60 bg-card p-4 shadow-sm sm:p-5"
             >
               <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/[0.07] text-primary">
                 <item.icon className="size-5" aria-hidden="true" />
@@ -108,34 +118,39 @@ export default function Careers() {
       </section>
 
       {/* Areas of opportunity */}
-      <section className="mt-12">
-        <h2 className="text-base font-semibold tracking-tight text-foreground sm:text-lg">
+      <section className="mt-8">
+        <h2 className="text-[15px] font-semibold tracking-tight text-foreground sm:text-base">
           Areas of opportunity
         </h2>
-        <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+        <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
           These are the teams we hire into. They describe the kind of work we
           do, not a list of current vacancies.
         </p>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <div className="mt-3.5 grid gap-3 sm:grid-cols-2">
           {AREAS.map((area) => (
             <div
               key={area.title}
-              className="min-w-0 rounded-2xl border border-border/60 bg-muted/25 p-5"
+              className="flex min-w-0 items-start gap-3 rounded-2xl border border-border/60 bg-muted/25 p-4"
             >
-              <h3 className="text-sm font-semibold text-foreground">
-                {area.title}
-              </h3>
-              <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
-                {area.description}
-              </p>
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-card text-primary ring-1 ring-border/60">
+                <area.icon className="size-4" aria-hidden="true" />
+              </span>
+              <div className="min-w-0">
+                <h3 className="text-sm font-semibold text-foreground">
+                  {area.title}
+                </h3>
+                <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
+                  {area.description}
+                </p>
+              </div>
             </div>
           ))}
         </div>
       </section>
 
       {/* Openings + how to apply */}
-      <section className="mt-12 rounded-2xl border border-border/60 bg-card p-5 sm:p-6">
-        <h2 className="text-base font-semibold tracking-tight text-foreground sm:text-lg">
+      <section className="mt-8 rounded-2xl border border-border/60 bg-card p-4 shadow-sm sm:p-5">
+        <h2 className="text-[15px] font-semibold tracking-tight text-foreground sm:text-base">
           Current openings
         </h2>
         <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
@@ -195,7 +210,7 @@ export default function Careers() {
         </div>
       </section>
 
-      <p className="mt-6 text-[13px] text-muted-foreground">
+      <p className="mt-6 text-[13px] leading-relaxed text-muted-foreground">
         Looking for something else? Visit{" "}
         <Link
           to="/contact-us"

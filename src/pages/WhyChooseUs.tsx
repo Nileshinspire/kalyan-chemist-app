@@ -103,15 +103,16 @@ export default function WhyChooseUs() {
     <InfoPage
       badge="Why Kalyan Chemist"
       badgeIcon={<Sparkles className="size-3" aria-hidden="true" />}
+      heroIcon={Sparkles}
       title="Healthcare you can rely on, delivered"
       subtitle="Kalyan Chemist brings your neighbourhood pharmacy online — genuine medicines, pharmacist-reviewed prescriptions and essential health services, with the same care you expect at the counter."
     >
       {/* Reasons */}
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-3.5 sm:grid-cols-2">
         {REASONS.map((reason) => (
           <div
             key={reason.title}
-            className="group flex min-w-0 items-start gap-3.5 rounded-2xl border border-border/60 bg-card p-5 transition-all duration-300 hover:border-primary/25 hover:shadow-card-hover"
+            className="group flex min-w-0 items-start gap-3.5 rounded-2xl border border-border/60 bg-card p-4 shadow-sm transition-all duration-300 hover:border-primary/25 hover:shadow-card-hover sm:p-5"
           >
             <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/[0.07] text-primary transition-colors duration-300 group-hover:bg-primary group-hover:text-primary-foreground">
               <reason.icon className="size-5" aria-hidden="true" />
@@ -129,15 +130,15 @@ export default function WhyChooseUs() {
       </div>
 
       {/* How an order works */}
-      <section className="mt-12">
-        <h2 className="text-base font-semibold tracking-tight text-foreground sm:text-lg">
+      <section className="mt-8">
+        <h2 className="text-[15px] font-semibold tracking-tight text-foreground sm:text-base">
           How your order reaches you
         </h2>
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-3.5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {STEPS.map((step, index) => (
             <div
               key={step.title}
-              className="min-w-0 rounded-2xl border border-border/60 bg-muted/25 p-5"
+              className="min-w-0 rounded-2xl border border-border/60 bg-muted/25 p-4"
             >
               <div className="flex items-center gap-2.5">
                 <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
@@ -159,7 +160,7 @@ export default function WhyChooseUs() {
       </section>
 
       {/* Trust note + CTA */}
-      <div className="mt-10 flex flex-col gap-4 rounded-2xl border border-primary/15 bg-primary/[0.04] p-5 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mt-8 flex flex-col gap-4 rounded-2xl border border-primary/15 bg-primary/[0.04] p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
         <div className="flex items-start gap-3">
           <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
             <ShieldCheck className="size-4" aria-hidden="true" />

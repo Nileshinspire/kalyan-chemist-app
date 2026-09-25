@@ -7,11 +7,12 @@ import {
   Mail,
   MapPin,
   MessageCircle,
+  Lightbulb,
   Package,
   Phone,
   RotateCcw,
 } from "lucide-react";
-import InfoPage from "@/components/layout/InfoPage";
+import InfoPage, { InfoBullets, InfoSection } from "@/components/layout/InfoPage";
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Contact Us — dedicated footer-linked page.
@@ -102,6 +103,7 @@ export default function ContactUs() {
     <InfoPage
       badge="We're here to help"
       badgeIcon={<HelpCircle className="size-3" aria-hidden="true" />}
+      heroIcon={MessageCircle}
       title="Contact Kalyan Chemist"
       subtitle="Questions about an order, a prescription, a lab test or a delivery? Reach our team through any of the channels below — or use the quick links to manage it yourself."
     >
@@ -147,11 +149,11 @@ export default function ContactUs() {
       </div>
 
       {/* Quick self-service */}
-      <section className="mt-10">
-        <h2 className="text-base font-semibold tracking-tight text-foreground sm:text-lg">
+      <section className="mt-8">
+        <h2 className="text-[15px] font-semibold tracking-tight text-foreground sm:text-base">
           Manage it yourself
         </h2>
-        <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
+        <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
           Most order and prescription requests can be handled directly from your
           account. You will be asked to sign in first.
         </p>
@@ -183,29 +185,19 @@ export default function ContactUs() {
       </section>
 
       {/* Before you write */}
-      <section className="mt-10 rounded-2xl border border-border/60 bg-muted/30 p-5">
-        <h2 className="text-sm font-semibold text-foreground">
-          To help us resolve it faster
-        </h2>
-        <ul className="mt-3 space-y-2">
-          {[
+      <InfoSection
+        className="mt-8"
+        icon={Lightbulb}
+        title="To help us resolve it faster"
+      >
+        <InfoBullets
+          items={[
             "Keep your order or invoice number ready (found under My Orders).",
             "For a return or quality issue, share photos of the product and packaging.",
             "For prescription queries, mention the medicine and the prescribing doctor's reference.",
-          ].map((tip) => (
-            <li
-              key={tip}
-              className="flex gap-2.5 text-[13px] leading-relaxed text-muted-foreground"
-            >
-              <span
-                aria-hidden="true"
-                className="mt-2 size-1.5 shrink-0 rounded-full bg-primary/50"
-              />
-              <span className="min-w-0">{tip}</span>
-            </li>
-          ))}
-        </ul>
-        <p className="mt-4 text-[13px] text-muted-foreground">
+          ]}
+        />
+        <p className="mt-3.5 text-[13px] text-muted-foreground">
           You may also find an instant answer in our{" "}
           <Link
             to="/faqs"
@@ -215,7 +207,7 @@ export default function ContactUs() {
           </Link>
           .
         </p>
-      </section>
+      </InfoSection>
     </InfoPage>
   );
 }
