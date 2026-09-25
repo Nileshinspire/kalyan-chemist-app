@@ -439,10 +439,10 @@ const Footer = memo(function Footer() {
                 <div className="flex items-center justify-between gap-2">
                   <Link
                     to="/"
-                    className="inline-flex min-w-0 items-center gap-2.5 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60"
+                    className="flex min-w-0 flex-col items-center gap-2 rounded-md text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60"
                   >
                     <BrandMark
-                      className="size-12 sm:size-14 xl:size-16"
+                      className="size-16 sm:size-20 lg:size-24"
                       alt="Kalyan Chemist"
                     />
                     <span className="leading-tight">
@@ -474,10 +474,6 @@ const Footer = memo(function Footer() {
                   </span>
                 </div>
 
-                <p className="mt-1.5 max-w-xs text-[12.5px] leading-tight text-white/55">
-                  A digital healthcare experience for medicines, healthcare
-                  products and essential health services.
-                </p>
               </div>
             }
           />
