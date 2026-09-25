@@ -185,22 +185,42 @@ const TOTAL_ANSWERS = FAQ_GROUPS.reduce(
   0
 );
 
+/* Shared chip styling for the topic filter row. */
+function chipClass(active: boolean) {
+  return [
+    "inline-flex max-w-full items-center rounded-full px-2.5 py-1 text-[11.5px] font-medium transition-colors duration-200",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50",
+    active
+      ? "bg-primary text-primary-foreground"
+      : "bg-muted/60 text-muted-foreground ring-1 ring-border/60 hover:bg-muted hover:text-foreground",
+  ].join(" ");
+}
+
 export default function Faqs() {
   const [query, setQuery] = useState("");
+  const [activeTopic, setActiveTopic] = useState<string | null>(null);
   const [openItems, setOpenItems] = useState<string[]>([]);
 
   const normalizedQuery = query.trim().toLowerCase();
 
-  /* Match against both the question and the answer text. */
+  /* A topic chip narrows the list; the search box then matches against both
+     the question and the answer text within that scope. */
   const filteredGroups = useMemo(() => {
-    if (!normalizedQuery) return FAQ_GROUPS;
-    return FAQ_GROUPS.map((group) => ({
-      ...group,
-      items: group.items.filter((item) =>
-        `${item.q} ${item.a}`.toLowerCase().includes(normalizedQuery)
-      ),
-    })).filter((group) => group.items.length > 0);
-  }, [normalizedQuery]);
+    const scoped = activeTopic
+      ? FAQ_GROUPS.filter((group) => group.title === activeTopic)
+      : FAQ_GROUPS;
+
+    if (!normalizedQuery) return scoped;
+
+    return scoped
+      .map((group) => ({
+        ...group,
+        items: group.items.filter((item) =>
+          `${item.q} ${item.a}`.toLowerCase().includes(normalizedQuery)
+        ),
+      }))
+      .filter((group) => group.items.length > 0);
+  }, [activeTopic, normalizedQuery]);
 
   const matchCount = useMemo(
     () => filteredGroups.reduce((total, group) => total + group.items.length, 0),
@@ -270,8 +290,37 @@ export default function Faqs() {
         >
           {normalizedQuery
             ? `${matchCount} ${matchCount === 1 ? "answer" : "answers"} match “${query.trim()}”`
-            : `${FAQ_GROUPS.length} topics · ${TOTAL_ANSWERS} answers`}
+            : activeTopic
+              ? `${filteredGroups.length} topic · ${matchCount} answers`
+              : `${FAQ_GROUPS.length} topics · ${TOTAL_ANSWERS} answers`}
         </p>
+
+        {/* Topic filter chips */}
+        <div className="mt-2.5 flex flex-wrap gap-1.5 border-t border-border/50 pt-2.5">
+          <button
+            type="button"
+            onClick={() => setActiveTopic(null)}
+            aria-pressed={activeTopic === null}
+            className={chipClass(activeTopic === null)}
+          >
+            All topics
+          </button>
+          {FAQ_GROUPS.map((group) => (
+            <button
+              key={group.title}
+              type="button"
+              onClick={() =>
+                setActiveTopic((current) =>
+                  current === group.title ? null : group.title
+                )
+              }
+              aria-pressed={activeTopic === group.title}
+              className={chipClass(activeTopic === group.title)}
+            >
+              {group.title}
+            </button>
+          ))}
+        </div>
       </div>
 
       {filteredGroups.length === 0 ? (

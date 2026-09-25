@@ -8,7 +8,6 @@ import {
   MapPin,
   MessageCircle,
   Phone,
-  Pill,
   ShieldCheck,
   Smartphone,
   Truck,
@@ -25,15 +24,19 @@ import { cn } from "@/lib/utils";
      Column 3  Shop / Medicines
      Column 4  Customer Support
      Column 5  Policies & Legal
-   Then: contact/help, popular categories + app, one combined trust + payment
-   strip, and a compact legal bottom bar (Privacy Policy · Terms · Sitemap).
+   Then two compact bands:
+     · contact · popular categories · trust + payments
+     · the legal bottom bar (Privacy Policy · Terms · Sitemap)
+
+   Height is kept low by sharing paddings inside one combined lower band
+   instead of stacking four independently padded blocks, by tightening
+   row/line spacing, and by rendering the contact details as one inline row.
 
    Responsive behaviour — driven purely by CSS, so there is no layout JS,
    no matchMedia dependency and no horizontal overflow at any width:
      ≥ 1024px  five columns, always expanded
      ≥  768px  balanced two-column grid, always expanded
      <  768px  one accessible accordion per group, only one open at a time
-               (aria-expanded + aria-controls, collapsed by default)
 
    Every destination below is a real, existing route or a real configured
    contact channel. No placeholder ("#"), no invented numbers, no fake socials.
@@ -199,9 +202,9 @@ function PwaInstallButton() {
 
   if (installed) {
     return (
-      <p className="text-[12px] font-medium text-emerald-200">
-        Kalyan Chemist is installed on this device.
-      </p>
+      <span className="text-[11.5px] font-medium text-emerald-200">
+        Installed on this device
+      </span>
     );
   }
 
@@ -210,7 +213,7 @@ function PwaInstallButton() {
       <button
         type="button"
         onClick={handleInstall}
-        className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1.5 text-[12px] font-semibold text-white ring-1 ring-white/20 transition-colors duration-200 hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70"
+        className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-2.5 py-1 text-[11.5px] font-semibold text-white ring-1 ring-white/20 transition-colors duration-200 hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70"
       >
         <Smartphone className="size-3.5" aria-hidden="true" />
         Install App
@@ -219,18 +222,16 @@ function PwaInstallButton() {
   }
 
   return (
-    <p className="text-[11.5px] leading-relaxed text-white/55">
-      Use your browser&apos;s{" "}
-      <span className="text-white/80">“Add to Home Screen”</span> option for
-      one-tap access on mobile.
-    </p>
+    <span className="text-[11px] text-white/50">
+      Add to Home Screen from your browser menu
+    </span>
   );
 }
 
 /* ── A single footer link (internal route or real external destination) ── */
 function FooterLinkItem({ link }: { link: FooterLink }) {
   const classes = cn(
-    "group inline-flex max-w-full items-start gap-1 text-[12.5px] leading-snug text-white/70",
+    "inline-flex max-w-full items-start gap-1 text-[12.5px] leading-snug text-white/70",
     "transition-colors duration-200 hover:text-emerald-200",
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60 rounded-sm",
     link.breakAll && "break-all"
@@ -286,17 +287,14 @@ function FooterColumn({
   return (
     <nav
       aria-label={title}
-      className={cn(
-        "min-w-0 border-b border-white/10 last:border-b-0",
-        "md:border-b-0"
-      )}
+      className="min-w-0 border-b border-white/10 last:border-b-0 md:border-b-0"
     >
       {leading}
 
       <h3 id={`footer-heading-${id}`} className="m-0">
         {/* Desktop heading */}
         {!hideTitleOnDesktop && (
-          <span className="hidden text-[11.5px] font-semibold uppercase tracking-wider text-white/90 md:mb-2.5 md:block">
+          <span className="hidden text-[11px] font-semibold uppercase tracking-wider text-white/90 md:mb-2 md:block">
             {title}
           </span>
         )}
@@ -337,8 +335,8 @@ function FooterColumn({
         <div className="min-h-0">
           <ul
             className={cn(
-              "space-y-1.5 pb-3 pt-0.5 md:pb-0 md:pt-0",
-              hideTitleOnDesktop && "md:mt-3.5"
+              "space-y-1 pb-3 pt-0.5 md:pb-0 md:pt-0",
+              hideTitleOnDesktop && "md:mt-3"
             )}
           >
             {links.map((link) => (
@@ -353,8 +351,8 @@ function FooterColumn({
   );
 }
 
-/* ── Compact inline contact row (phone / WhatsApp / email / store) ── */
-function ContactItem({
+/* ── One inline contact channel (icon + value, no tall card) ── */
+function ContactChip({
   icon: Icon,
   label,
   href,
@@ -369,38 +367,31 @@ function ContactItem({
 }) {
   const body = (
     <>
-      <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg bg-white/10 text-emerald-200">
-        <Icon className="size-3.5" aria-hidden="true" />
-      </span>
-      <span className="min-w-0">
-        <span className="block text-[10px] font-medium uppercase tracking-wider text-white/45">
-          {label}
-        </span>
-        <span className="block text-[12.5px] font-medium leading-snug text-white/90">
-          {children}
-        </span>
-      </span>
+      <Icon className="size-3.5 shrink-0 text-emerald-300/90" aria-hidden="true" />
+      <span className="sr-only">{label}: </span>
+      <span className="min-w-0">{children}</span>
     </>
   );
 
-  const shell = "flex min-w-0 items-start gap-2.5 rounded-lg py-1";
-
   if (!href) {
-    return <div className={shell}>{body}</div>;
+    return (
+      <li className="flex min-w-0 items-center gap-1.5 text-[11.5px] text-white/60">
+        {body}
+      </li>
+    );
   }
 
   return (
-    <a
-      href={href}
-      target={external ? "_blank" : undefined}
-      rel={external ? "noopener noreferrer" : undefined}
-      className={cn(
-        shell,
-        "transition-colors duration-200 hover:text-emerald-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70"
-      )}
-    >
-      {body}
-    </a>
+    <li className="min-w-0">
+      <a
+        href={href}
+        target={external ? "_blank" : undefined}
+        rel={external ? "noopener noreferrer" : undefined}
+        className="flex min-w-0 items-center gap-1.5 rounded-sm text-[11.5px] font-medium text-white/80 transition-colors duration-200 hover:text-emerald-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70"
+      >
+        {body}
+      </a>
+    </li>
   );
 }
 
@@ -423,8 +414,8 @@ const Footer = memo(function Footer() {
       aria-label="Kalyan Chemist footer"
     >
       {/* ── Main navigation columns ── */}
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 md:py-8">
-        <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2 md:gap-y-7 lg:grid-cols-5">
+      <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 md:py-6">
+        <div className="grid grid-cols-1 gap-x-10 md:grid-cols-2 md:gap-y-6 lg:grid-cols-5">
           <FooterColumn
             id="about"
             title="About Kalyan Chemist"
@@ -433,7 +424,7 @@ const Footer = memo(function Footer() {
             onToggle={toggleGroup}
             hideTitleOnDesktop
             leading={
-              <div className="pb-0.5 md:pb-0">
+              <div>
                 <Link
                   to="/"
                   className="inline-flex items-center gap-2.5 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60"
@@ -450,9 +441,9 @@ const Footer = memo(function Footer() {
                     </span>
                   </span>
                 </Link>
-                <p className="mt-2.5 max-w-xs text-[12.5px] leading-relaxed text-white/55">
-                  Kalyan Chemist is a digital healthcare experience for
-                  medicines, healthcare products and essential health services.
+                <p className="mt-2 max-w-xs text-[12.5px] leading-snug text-white/55">
+                  A digital healthcare experience for medicines, healthcare
+                  products and essential health services.
                 </p>
               </div>
             }
@@ -492,105 +483,70 @@ const Footer = memo(function Footer() {
         </div>
       </div>
 
-      {/* ── Contact / help (compact) ── */}
+      {/* ── Contact · categories · trust & payments (one compact band) ── */}
       <div className="border-t border-white/10">
-        <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6">
-          <h2 className="mb-2.5 text-[11px] font-semibold uppercase tracking-wider text-white/60">
-            Contact & Help
-          </h2>
-          <div className="grid gap-x-6 gap-y-1.5 sm:grid-cols-2 lg:grid-cols-4">
-            <ContactItem icon={Phone} label="Call us" href={`tel:${PHONE_TEL}`}>
+        <div className="mx-auto max-w-7xl px-4 py-3.5 sm:px-6">
+          {/* Contact — one inline row */}
+          <ul className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+            <ContactChip icon={Phone} label="Call us" href={`tel:${PHONE_TEL}`}>
               {PHONE_DISPLAY}
-              <span className="mt-0.5 flex items-center gap-1 text-[11px] font-normal text-white/50">
-                <Clock className="size-3" aria-hidden="true" />
-                {BUSINESS_HOURS}
-              </span>
-            </ContactItem>
+            </ContactChip>
 
-            <ContactItem
+            <ContactChip
               icon={MessageCircle}
               label="WhatsApp"
               href={WHATSAPP_URL}
               external
             >
-              Chat with our pharmacist
-              <span className="mt-0.5 block text-[11px] font-normal text-white/50">
-                Quick replies during business hours
-              </span>
-            </ContactItem>
+              WhatsApp support
+            </ContactChip>
 
-            <ContactItem
-              icon={Mail}
-              label="Email"
-              href={`mailto:${SUPPORT_EMAIL}`}
-            >
+            <ContactChip icon={Mail} label="Email" href={`mailto:${SUPPORT_EMAIL}`}>
               <span className="break-all">{SUPPORT_EMAIL}</span>
-              <span className="mt-0.5 block text-[11px] font-normal text-white/50">
-                We reply within 24 hours
-              </span>
-            </ContactItem>
+            </ContactChip>
 
-            <ContactItem
-              icon={MapPin}
-              label="Visit our store"
-              href={MAPS_URL}
-              external
-            >
+            <ContactChip icon={Clock} label="Business hours">
+              {BUSINESS_HOURS}
+            </ContactChip>
+
+            <ContactChip icon={MapPin} label="Store" href={MAPS_URL} external>
               {STORE_ADDRESS}
-            </ContactItem>
-          </div>
-        </div>
-      </div>
+            </ContactChip>
+          </ul>
 
-      {/* ── Categories · app ── */}
-      <div className="border-t border-white/10">
-        <div className="mx-auto grid max-w-7xl gap-x-8 gap-y-4 px-4 py-4 sm:px-6 lg:grid-cols-3">
-          {/* Popular categories */}
-          <div className="min-w-0 lg:col-span-2">
-            <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-white/60">
-              Popular Categories
-            </h2>
-            <ul className="flex flex-wrap gap-1.5">
+          <div className="my-2.5 h-px bg-white/10" />
+
+          {/* Popular categories + app */}
+          <div className="flex flex-col gap-x-6 gap-y-2 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+              <h2 className="mr-0.5 text-[10px] font-semibold uppercase tracking-wider text-white/45">
+                Popular Categories
+              </h2>
               {POPULAR_CATEGORIES.map((cat) => (
-                <li key={cat.label} className="min-w-0">
-                  <Link
-                    to={cat.to as string}
-                    className="inline-flex max-w-full items-center rounded-full bg-white/[0.06] px-2.5 py-1 text-[11.5px] font-medium text-white/75 ring-1 ring-white/10 transition-colors duration-200 hover:bg-white/[0.12] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70"
-                  >
-                    {cat.label}
-                  </Link>
-                </li>
+                <Link
+                  key={cat.label}
+                  to={cat.to as string}
+                  className="inline-flex max-w-full items-center rounded-full bg-white/[0.06] px-2.5 py-0.5 text-[11.5px] font-medium text-white/75 ring-1 ring-white/10 transition-colors duration-200 hover:bg-white/[0.12] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70"
+                >
+                  {cat.label}
+                </Link>
               ))}
-            </ul>
-          </div>
+            </div>
 
-          {/* App / PWA */}
-          <div className="min-w-0">
-            <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-white/60">
-              Get the Kalyan Chemist App
-            </h2>
-            <div className="flex items-start gap-2.5">
-              <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-white/10 text-emerald-200">
-                <Pill className="size-3.5" aria-hidden="true" />
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-white/45">
+                <Smartphone className="size-3.5 text-emerald-200" aria-hidden="true" />
+                Get the app
               </span>
-              <div className="min-w-0">
-                <p className="text-[12.5px] font-medium leading-snug text-white/90">
-                  Order medicines and book health services from your phone.
-                </p>
-                <div className="mt-1.5">
-                  <PwaInstallButton />
-                </div>
-              </div>
+              <PwaInstallButton />
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* ── Trust + payments (one compact strip) ── */}
-      <div className="border-t border-white/10 bg-white/[0.03]">
-        <div className="mx-auto max-w-7xl px-4 py-3.5 sm:px-6">
-          <div className="flex flex-col gap-2.5 lg:flex-row lg:items-center lg:justify-between">
-            <ul className="flex flex-wrap items-center gap-x-5 gap-y-2">
+          <div className="my-2.5 h-px bg-white/10" />
+
+          {/* Trust + payments */}
+          <div className="flex flex-col gap-x-6 gap-y-2 lg:flex-row lg:items-center lg:justify-between">
+            <ul className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
               {TRUST_ITEMS.map(({ label, icon: Icon }) => (
                 <li
                   key={label}
@@ -623,7 +579,8 @@ const Footer = memo(function Footer() {
               ))}
             </div>
           </div>
-          <p className="mt-2 text-[10.5px] leading-relaxed text-white/40">
+
+          <p className="mt-2 text-[10.5px] leading-snug text-white/40">
             Prepaid orders are processed through Razorpay&apos;s secure checkout.
             Cash on Delivery is available for eligible orders.
           </p>
@@ -632,11 +589,11 @@ const Footer = memo(function Footer() {
 
       {/* ── Bottom legal bar ── */}
       <div className="border-t border-white/10">
-        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-2 px-4 py-3.5 sm:px-6 md:flex-row">
+        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-1.5 px-4 py-3 sm:px-6 md:flex-row">
           <p className="text-center text-[11.5px] text-white/55 md:text-left">
             © {year} Kalyan Chemist. All rights reserved.
           </p>
-          <ul className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5">
+          <ul className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1">
             {LEGAL_LINKS.map((item) => (
               <li key={item.label}>
                 <Link

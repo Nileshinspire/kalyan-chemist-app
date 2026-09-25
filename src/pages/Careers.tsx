@@ -4,6 +4,7 @@ import {
   ClipboardCheck,
   Headset,
   Heart,
+  LayoutGrid,
   Mail,
   MessageCircle,
   MonitorSmartphone,
@@ -12,7 +13,7 @@ import {
   Users,
   type LucideIcon,
 } from "lucide-react";
-import InfoPage from "@/components/layout/InfoPage";
+import InfoPage, { InfoSection } from "@/components/layout/InfoPage";
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Careers — dedicated footer-linked page.
@@ -99,8 +100,12 @@ export default function Careers() {
           {WHY_JOIN.map((item) => (
             <div
               key={item.title}
-              className="flex min-w-0 items-start gap-3.5 rounded-2xl border border-border/60 bg-card p-4 shadow-sm sm:p-5"
+              className="group relative flex min-w-0 items-start gap-3.5 overflow-hidden rounded-2xl border border-border/60 bg-card p-4 shadow-sm transition-shadow duration-300 hover:shadow-card-hover sm:p-5"
             >
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/25 to-transparent"
+              />
               <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/[0.07] text-primary">
                 <item.icon className="size-5" aria-hidden="true" />
               </span>
@@ -118,15 +123,13 @@ export default function Careers() {
       </section>
 
       {/* Areas of opportunity */}
-      <section className="mt-8">
-        <h2 className="text-[15px] font-semibold tracking-tight text-foreground sm:text-base">
-          Areas of opportunity
-        </h2>
-        <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
-          These are the teams we hire into. They describe the kind of work we
-          do, not a list of current vacancies.
-        </p>
-        <div className="mt-3.5 grid gap-3 sm:grid-cols-2">
+      <InfoSection
+        className="mt-6"
+        icon={LayoutGrid}
+        title="Areas of opportunity"
+        description="These are the teams we hire into. They describe the kind of work we do, not a list of current vacancies."
+      >
+        <div className="grid gap-3 sm:grid-cols-2">
           {AREAS.map((area) => (
             <div
               key={area.title}
@@ -146,21 +149,21 @@ export default function Careers() {
             </div>
           ))}
         </div>
-      </section>
+      </InfoSection>
 
       {/* Openings + how to apply */}
-      <section className="mt-8 rounded-2xl border border-border/60 bg-card p-4 shadow-sm sm:p-5">
-        <h2 className="text-[15px] font-semibold tracking-tight text-foreground sm:text-base">
-          Current openings
-        </h2>
-        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-          We do not have any positions listed at the moment. We keep
-          applications on record, so if your experience fits any of the areas
-          above you are welcome to introduce yourself — we will reach out when a
-          matching role opens up.
-        </p>
-
-        <h3 className="mt-6 text-sm font-semibold text-foreground">
+      <InfoSection
+        className="mt-6"
+        icon={Briefcase}
+        title="Current openings"
+        description="We do not have any positions listed at the moment. We keep applications on record, so if your experience fits any of the areas above you are welcome to introduce yourself — we will reach out when a matching role opens up."
+        action={
+          <span className="rounded-full bg-muted/60 px-2.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-wider text-muted-foreground">
+            No open roles
+          </span>
+        }
+      >
+        <h3 className="text-sm font-semibold text-foreground">
           How to apply
         </h3>
         <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
@@ -208,7 +211,7 @@ export default function Careers() {
             </span>
           </a>
         </div>
-      </section>
+      </InfoSection>
 
       <p className="mt-6 text-[13px] leading-relaxed text-muted-foreground">
         Looking for something else? Visit{" "}

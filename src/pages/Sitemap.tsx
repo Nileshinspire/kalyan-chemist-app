@@ -9,13 +9,14 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import InfoPage, { InfoSection } from "@/components/layout/InfoPage";
+import { cn } from "@/lib/utils";
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Sitemap — dedicated footer-linked page.
 
-   Lists only public customer routes that exist in the router. Admin routes
-   and internal tooling are intentionally excluded, and every entry below is
-   a working destination.
+   Lists only public customer routes that exist in the router, grouped into
+   compact panels. Admin routes and internal tooling are intentionally
+   excluded, and every entry below is a working destination.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 interface SitemapLink {
@@ -106,6 +107,11 @@ const SECTIONS: {
   },
 ];
 
+const TOTAL_PAGES = SECTIONS.reduce(
+  (total, section) => total + section.links.length,
+  0
+);
+
 export default function Sitemap() {
   return (
     <InfoPage
@@ -114,6 +120,16 @@ export default function Sitemap() {
       heroIcon={MapIcon}
       title="Sitemap"
       subtitle="Every customer-facing page on Kalyan Chemist, organised by section."
+      heroExtra={
+        <>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-card/70 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+            {SECTIONS.length} sections
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-card/70 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+            {TOTAL_PAGES} public pages
+          </span>
+        </>
+      }
     >
       <div className="grid items-start gap-3.5 sm:grid-cols-2">
         {SECTIONS.map((section) => (
@@ -122,21 +138,60 @@ export default function Sitemap() {
             icon={section.icon}
             title={section.title}
             description={section.note}
+            action={
+              <span className="rounded-full bg-muted/60 px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-wider text-muted-foreground">
+                {section.links.length}
+              </span>
+            }
           >
-            <ul className="grid grid-cols-1 gap-1.5">
+            <ul
+              className={cn(
+                "grid grid-cols-1 gap-1.5",
+                section.links.length > 8 && "sm:grid-cols-2"
+              )}
+            >
               {section.links.map((link) => (
                 <li key={link.label} className="min-w-0">
                   <Link
                     to={link.to}
-                    className="inline-flex max-w-full rounded-sm text-[13px] leading-snug text-muted-foreground transition-colors duration-200 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                    className="inline-flex max-w-full items-center gap-1.5 rounded-sm text-[12.5px] leading-snug text-muted-foreground transition-colors duration-200 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
                   >
-                    {link.label}
+                    <span
+                      aria-hidden="true"
+                      className="size-1 shrink-0 rounded-full bg-primary/40"
+                    />
+                    <span className="min-w-0">{link.label}</span>
                   </Link>
                 </li>
               ))}
             </ul>
           </InfoSection>
         ))}
+      </div>
+
+      <div className="mt-3.5 flex flex-col gap-3 rounded-2xl border border-primary/15 bg-gradient-to-br from-primary/[0.07] to-primary/[0.02] p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-[13px] font-semibold text-foreground">
+            Can&apos;t find the page you need?
+          </p>
+          <p className="mt-0.5 text-[12px] leading-relaxed text-muted-foreground">
+            Tell us what you were looking for and we&apos;ll point you to it.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            to="/contact-us"
+            className="inline-flex items-center rounded-xl bg-primary px-3.5 py-2 text-[12.5px] font-semibold text-primary-foreground transition-opacity duration-200 hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          >
+            Contact Support
+          </Link>
+          <Link
+            to="/faqs"
+            className="inline-flex items-center rounded-xl border border-border/70 bg-card px-3.5 py-2 text-[12.5px] font-semibold text-foreground transition-colors duration-200 hover:border-primary/30 hover:bg-primary/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          >
+            Read FAQs
+          </Link>
+        </div>
       </div>
     </InfoPage>
   );
