@@ -291,6 +291,8 @@ interface FooterColumnProps {
   linkVariant?: "default" | "category";
   /** Align a link list relative to the leading brand symbol. */
   linkAlignment?: "left" | "symbol";
+  /** Optional alignment offset applied to the entire column content. */
+  contentClassName?: string;
 }
 
 function FooterColumn({
@@ -304,13 +306,17 @@ function FooterColumn({
   hideTitleOnDesktop = false,
   linkVariant = "default",
   linkAlignment = "left",
+  contentClassName,
 }: FooterColumnProps) {
   const panelId = `footer-panel-${id}`;
 
   return (
     <nav
       aria-label={title}
-      className="min-w-0 border-b border-white/10 last:border-b-0 md:border-b-0"
+      className={cn(
+        "min-w-0 border-b border-white/10 last:border-b-0 md:border-b-0",
+        contentClassName
+      )}
     >
       <h3 id={`footer-heading-${id}`} className="m-0">
         {/* Desktop heading */}
@@ -455,6 +461,7 @@ const Footer = memo(function Footer() {
             isOpen={openGroup === "about"}
             onToggle={toggleGroup}
             linkAlignment="symbol"
+            contentClassName="pl-2"
             afterTitle={
               <div className="mt-8">
                 <div className="flex items-center justify-between gap-2">
@@ -463,7 +470,7 @@ const Footer = memo(function Footer() {
                     className="flex min-w-0 items-center gap-2 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60 sm:gap-3"
                   >
                     <BrandMark
-                      className="size-20 sm:size-24 lg:size-28"
+                      className="size-24 sm:size-28 lg:size-32"
                       alt="Kalyan Chemist"
                     />
                     <span className="min-w-0 leading-tight">
