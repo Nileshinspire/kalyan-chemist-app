@@ -281,8 +281,10 @@ interface FooterColumnProps {
   links: FooterLink[];
   isOpen: boolean;
   onToggle: (id: string) => void;
-  /** Rendered above the heading — used by the brand column */
+  /** Rendered directly below the heading — used by the brand column */
   leading?: ReactNode;
+  /** Rendered inside the expanded panel directly below the heading. */
+  afterTitle?: ReactNode;
   /** Desktop: skip the visible heading because `leading` already labels the group */
   hideTitleOnDesktop?: boolean;
   /** Preserve the compact category-chip treatment in the navigation column. */
@@ -296,6 +298,7 @@ function FooterColumn({
   isOpen,
   onToggle,
   leading,
+  afterTitle,
   hideTitleOnDesktop = false,
   linkVariant = "default",
 }: FooterColumnProps) {
@@ -306,8 +309,6 @@ function FooterColumn({
       aria-label={title}
       className="min-w-0 border-b border-white/10 last:border-b-0 md:border-b-0"
     >
-      {leading}
-
       <h3 id={`footer-heading-${id}`} className="m-0">
         {/* Desktop heading */}
         {!hideTitleOnDesktop && (
@@ -341,6 +342,8 @@ function FooterColumn({
         </button>
       </h3>
 
+      {leading}
+
       <div
         id={panelId}
         className={cn(
@@ -350,6 +353,7 @@ function FooterColumn({
         )}
       >
         <div className="min-h-0">
+          {afterTitle}
           <ul
             className={cn(
               linkVariant === "category"
@@ -443,7 +447,6 @@ const Footer = memo(function Footer() {
             links={COMPANY_LINKS}
             isOpen={openGroup === "about"}
             onToggle={toggleGroup}
-            hideTitleOnDesktop
             leading={
               <div>
                 <div className="flex items-center justify-between gap-2">
@@ -494,6 +497,48 @@ const Footer = memo(function Footer() {
             links={HEALTHCARE_LINKS}
             isOpen={openGroup === "healthcare"}
             onToggle={toggleGroup}
+            afterTitle={
+              <div className="mb-2" aria-label="Contact information">
+                <ul className="flex flex-col gap-1">
+                  <ContactChip icon={Phone} label="Call us" href={`tel:${PHONE_TEL}`}>
+                    {PHONE_DISPLAY}
+                  </ContactChip>
+
+                  <ContactChip
+                    icon={MessageCircle}
+                    label="WhatsApp"
+                    href={WHATSAPP_URL}
+                    external
+                  >
+                    WhatsApp support
+                  </ContactChip>
+
+                  <ContactChip
+                    icon={Mail}
+                    label="Email"
+                    href={`mailto:${SUPPORT_EMAIL}`}
+                  >
+                    <span className="break-all">{SUPPORT_EMAIL}</span>
+                  </ContactChip>
+
+                  <ContactChip icon={Clock} label="Business hours">
+                    {BUSINESS_HOURS}
+                  </ContactChip>
+
+                  <ContactChip icon={MapPin} label="Store" href={MAPS_URL} external>
+                    {STORE_ADDRESS}
+                  </ContactChip>
+                </ul>
+
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-white/45">
+                    <Smartphone className="size-3.5 text-emerald-200" aria-hidden="true" />
+                    Get the app
+                  </span>
+                  <PwaInstallButton />
+                </div>
+              </div>
+            }
           />
 
           <FooterColumn
@@ -502,6 +547,27 @@ const Footer = memo(function Footer() {
             links={SHOP_LINKS}
             isOpen={openGroup === "shop"}
             onToggle={toggleGroup}
+            afterTitle={
+              <div className="mb-2" aria-label="Payment methods">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-white/45">
+                  We accept
+                </span>
+                <div className="mt-1.5 flex flex-col items-start gap-1.5">
+                  {PAYMENT_METHODS.map((method) => (
+                    <span
+                      key={method}
+                      className="inline-flex max-w-full items-center gap-1 rounded-md bg-white/[0.06] px-1.5 py-px text-[11px] font-medium text-white/75 ring-1 ring-white/10"
+                    >
+                      <Wallet
+                        className="size-3 shrink-0 text-emerald-200"
+                        aria-hidden="true"
+                      />
+                      {method}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            }
           />
 
           <FooterColumn
@@ -510,6 +576,25 @@ const Footer = memo(function Footer() {
             links={SUPPORT_LINKS}
             isOpen={openGroup === "support"}
             onToggle={toggleGroup}
+            afterTitle={
+              <ul
+                className="mb-2 flex flex-col items-start gap-1.5"
+                aria-label="Trust indicators"
+              >
+                {TRUST_ITEMS.map(({ label, icon: Icon }) => (
+                  <li
+                    key={label}
+                    className="flex min-w-0 items-center gap-1.5 text-[11.5px] font-medium text-white/80"
+                  >
+                    <Icon
+                      className="size-3.5 shrink-0 text-emerald-300/90"
+                      aria-hidden="true"
+                    />
+                    {label}
+                  </li>
+                ))}
+              </ul>
+            }
           />
 
           <FooterColumn
@@ -531,96 +616,10 @@ const Footer = memo(function Footer() {
         </div>
       </div>
 
-      {/* ── Row 2: contact, payments, and trust ── */}
+      {/* ── Payment note ── */}
       <div className="border-t border-white/10">
-        <div className="mx-auto max-w-6xl px-4 py-3 sm:px-6">
-          <div className="grid gap-4 lg:grid-cols-[1.35fr_0.9fr_1.45fr] lg:gap-x-6">
-            <section aria-label="Contact information" className="min-w-0">
-              <ul className="grid min-w-0 gap-x-4 gap-y-1.5 sm:grid-cols-2">
-                <ContactChip icon={Phone} label="Call us" href={`tel:${PHONE_TEL}`}>
-                  {PHONE_DISPLAY}
-                </ContactChip>
-
-                <ContactChip
-                  icon={MessageCircle}
-                  label="WhatsApp"
-                  href={WHATSAPP_URL}
-                  external
-                >
-                  WhatsApp support
-                </ContactChip>
-
-                <ContactChip
-                  icon={Mail}
-                  label="Email"
-                  href={`mailto:${SUPPORT_EMAIL}`}
-                >
-                  <span className="break-all">{SUPPORT_EMAIL}</span>
-                </ContactChip>
-
-                <ContactChip icon={Clock} label="Business hours">
-                  {BUSINESS_HOURS}
-                </ContactChip>
-
-                <ContactChip icon={MapPin} label="Store" href={MAPS_URL} external>
-                  {STORE_ADDRESS}
-                </ContactChip>
-              </ul>
-
-              <div className="mt-2 flex shrink-0 flex-wrap items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-white/45">
-                  <Smartphone className="size-3.5 text-emerald-200" aria-hidden="true" />
-                  Get the app
-                </span>
-                <PwaInstallButton />
-              </div>
-            </section>
-
-            <section
-              aria-label="Payment methods"
-              className="min-w-0 lg:border-l lg:border-white/10 lg:pl-6"
-            >
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-white/45">
-                  We accept
-                </span>
-                {PAYMENT_METHODS.map((method) => (
-                  <span
-                    key={method}
-                    className="inline-flex max-w-full items-center gap-1 rounded-md bg-white/[0.06] px-1.5 py-px text-[11px] font-medium text-white/75 ring-1 ring-white/10"
-                  >
-                    <Wallet
-                      className="size-3 shrink-0 text-emerald-200"
-                      aria-hidden="true"
-                    />
-                    {method}
-                  </span>
-                ))}
-              </div>
-            </section>
-
-            <section
-              aria-label="Trust indicators"
-              className="min-w-0 lg:border-l lg:border-white/10 lg:pl-6"
-            >
-              <ul className="grid min-w-0 gap-x-4 gap-y-1.5 sm:grid-cols-2">
-                {TRUST_ITEMS.map(({ label, icon: Icon }) => (
-                  <li
-                    key={label}
-                    className="flex min-w-0 items-center gap-1.5 text-[11.5px] font-medium text-white/80"
-                  >
-                    <Icon
-                      className="size-3.5 shrink-0 text-emerald-300/90"
-                      aria-hidden="true"
-                    />
-                    {label}
-                  </li>
-                ))}
-              </ul>
-            </section>
-          </div>
-
-          <p className="mt-2 border-t border-white/10 pt-2 text-[10.5px] leading-tight text-white/40">
+        <div className="mx-auto max-w-6xl px-4 py-2.5 sm:px-6">
+          <p className="text-[10.5px] leading-tight text-white/40">
             Prepaid orders are processed through Razorpay&apos;s secure checkout.
             Cash on Delivery is available for eligible orders.
           </p>
