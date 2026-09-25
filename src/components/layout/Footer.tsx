@@ -462,14 +462,14 @@ const Footer = memo(function Footer() {
             onToggle={toggleGroup}
             contentClassName="translate-x-2 lg:translate-x-[5.5rem]"
             afterTitle={
-              <div className="mt-8">
+              <div className="mt-8 lg:-translate-x-[5.5rem]">
                 <div className="flex items-center justify-between gap-2">
                   <Link
                     to="/"
                     className="flex min-w-0 items-center gap-2 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60 sm:gap-3"
                   >
                     <BrandMark
-                      className="size-28 sm:size-32 lg:size-36 lg:-translate-x-5 lg:translate-y-7"
+                      className="size-24 sm:size-28 lg:size-32"
                       alt="Kalyan Chemist"
                     />
                     <span className="min-w-0 leading-tight">
