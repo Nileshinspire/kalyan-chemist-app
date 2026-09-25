@@ -26,14 +26,13 @@ import BrandMark from "@/components/BrandMark";
      Column 3  Shop / Medicines
      Column 4  Customer Support
      Column 5  Policies & Legal
-   Then two compact utility bands:
-     · contact + app   (one horizontal row)
-     · popular categories
-     · trust + payments
+     Column 6  Popular Categories
+   Then compact information rows:
+     · contact + app, payments, and trust indicators
      · the legal bottom bar (Privacy Policy · Terms · Sitemap)
 
    HORIZONTAL: a single centred `max-w-6xl` container plus a
-   `1.1fr 1fr 1fr 1fr 1fr` grid with a controlled gap keeps the five groups
+   `1.6fr 1fr 1fr 1fr 1fr 1fr` grid with a controlled gap keeps the six groups
    visually grouped instead of pushed toward the screen edges.
 
    VERTICAL: paddings, line-heights and row gaps are tightened, and the lower
@@ -42,8 +41,8 @@ import BrandMark from "@/components/BrandMark";
 
    Responsive behaviour — driven purely by CSS, so there is no layout JS,
    no matchMedia dependency and no horizontal overflow at any width:
-     ≥ 1024px  five columns, always expanded
-     ≥  768px  balanced two-column grid, always expanded
+     ≥ 1024px  six columns, always expanded
+     ≥  768px  balanced three-column grid, always expanded
      <  768px  one accessible accordion per group, only one open at a time
 
    Every destination below is a real, existing route or a real configured
@@ -238,11 +237,17 @@ function PwaInstallButton() {
 }
 
 /* ── A single footer link (internal route or real external destination) ── */
-function FooterLinkItem({ link }: { link: FooterLink }) {
+function FooterLinkItem({
+  link,
+  linkVariant = "default",
+}: {
+  link: FooterLink;
+  linkVariant?: "default" | "category";
+}) {
   const classes = cn(
-    "inline-flex max-w-full items-start gap-1 text-[12.5px] leading-tight text-white/70",
-    "transition-colors duration-200 hover:text-emerald-200",
-    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60 rounded-sm",
+    linkVariant === "category"
+      ? "inline-flex max-w-full items-center rounded-full bg-white/[0.06] px-2 py-px text-[11.5px] font-medium text-white/75 ring-1 ring-white/10 transition-colors duration-200 hover:bg-white/[0.12] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70"
+      : "inline-flex max-w-full items-start gap-1 text-[12.5px] leading-tight text-white/70 transition-colors duration-200 hover:text-emerald-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60 rounded-sm",
     link.breakAll && "break-all"
   );
 
@@ -280,6 +285,8 @@ interface FooterColumnProps {
   leading?: ReactNode;
   /** Desktop: skip the visible heading because `leading` already labels the group */
   hideTitleOnDesktop?: boolean;
+  /** Preserve the compact category-chip treatment in the navigation column. */
+  linkVariant?: "default" | "category";
 }
 
 function FooterColumn({
@@ -290,6 +297,7 @@ function FooterColumn({
   onToggle,
   leading,
   hideTitleOnDesktop = false,
+  linkVariant = "default",
 }: FooterColumnProps) {
   const panelId = `footer-panel-${id}`;
 
@@ -344,13 +352,15 @@ function FooterColumn({
         <div className="min-h-0">
           <ul
             className={cn(
-              "space-y-0.5 pb-2.5 pt-0.5 md:pb-0 md:pt-0",
+              linkVariant === "category"
+                ? "flex flex-wrap items-center gap-1.5 pb-2.5 pt-1 md:pb-0 md:pt-0.5"
+                : "space-y-0.5 pb-2.5 pt-0.5 md:pb-0 md:pt-0",
               hideTitleOnDesktop && "md:mt-2"
             )}
           >
             {links.map((link) => (
               <li key={link.label} className="min-w-0">
-                <FooterLinkItem link={link} />
+                <FooterLinkItem link={link} linkVariant={linkVariant} />
               </li>
             ))}
           </ul>
@@ -423,10 +433,10 @@ const Footer = memo(function Footer() {
       aria-label="Kalyan Chemist footer"
     >
       {/* ── Main navigation columns ──
-          Centred `max-w-6xl` container + `1.1fr 1fr…` grid keeps the five
-          groups close together instead of stretched across the viewport. */}
+          Centred `max-w-6xl` container + `1.6fr 1fr 1fr 1fr 1fr 1fr` grid keeps
+          the six groups close together instead of stretched across the viewport. */}
       <div className="mx-auto max-w-6xl px-4 py-4 sm:px-6">
-        <div className="grid grid-cols-1 gap-x-6 md:grid-cols-2 md:gap-y-5 lg:grid-cols-[1.1fr_1fr_1fr_1fr_1fr] lg:gap-x-7">
+        <div className="grid grid-cols-1 gap-x-5 gap-y-4 md:grid-cols-3 lg:grid-cols-[1.6fr_1fr_1fr_1fr_1fr_1fr] lg:gap-x-5">
           <FooterColumn
             id="about"
             title="About Kalyan Chemist"
@@ -509,90 +519,67 @@ const Footer = memo(function Footer() {
             isOpen={openGroup === "policies"}
             onToggle={toggleGroup}
           />
+
+          <FooterColumn
+            id="popular-categories"
+            title="Popular Categories"
+            links={POPULAR_CATEGORIES}
+            isOpen={openGroup === "popular-categories"}
+            onToggle={toggleGroup}
+            linkVariant="category"
+          />
         </div>
       </div>
 
-      {/* ── Compact stacked utility band ── */}
+      {/* ── Row 2: contact, payments, and trust ── */}
       <div className="border-t border-white/10">
         <div className="mx-auto max-w-6xl px-4 py-3 sm:px-6">
-          {/* Contact + app in one horizontal utility row */}
-          <div className="flex flex-col gap-x-6 gap-y-1.5 sm:flex-row sm:items-center sm:justify-between">
-            <ul className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-1">
-              <ContactChip icon={Phone} label="Call us" href={`tel:${PHONE_TEL}`}>
-                {PHONE_DISPLAY}
-              </ContactChip>
+          <div className="grid gap-4 lg:grid-cols-[1.35fr_0.9fr_1.45fr] lg:gap-x-6">
+            <section aria-label="Contact information" className="min-w-0">
+              <ul className="grid min-w-0 gap-x-4 gap-y-1.5 sm:grid-cols-2">
+                <ContactChip icon={Phone} label="Call us" href={`tel:${PHONE_TEL}`}>
+                  {PHONE_DISPLAY}
+                </ContactChip>
 
-              <ContactChip
-                icon={MessageCircle}
-                label="WhatsApp"
-                href={WHATSAPP_URL}
-                external
-              >
-                WhatsApp support
-              </ContactChip>
-
-              <ContactChip
-                icon={Mail}
-                label="Email"
-                href={`mailto:${SUPPORT_EMAIL}`}
-              >
-                <span className="break-all">{SUPPORT_EMAIL}</span>
-              </ContactChip>
-
-              <ContactChip icon={Clock} label="Business hours">
-                {BUSINESS_HOURS}
-              </ContactChip>
-
-              <ContactChip icon={MapPin} label="Store" href={MAPS_URL} external>
-                {STORE_ADDRESS}
-              </ContactChip>
-            </ul>
-
-            <div className="flex shrink-0 flex-wrap items-center gap-2">
-              <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-white/45">
-                <Smartphone className="size-3.5 text-emerald-200" aria-hidden="true" />
-                Get the app
-              </span>
-              <PwaInstallButton />
-            </div>
-          </div>
-
-          {/* Popular categories */}
-          <div className="mt-2 border-t border-white/10 pt-2">
-            <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-              <h2 className="shrink-0 text-[10px] font-semibold uppercase tracking-wider text-white/45">
-                Popular Categories
-              </h2>
-              {POPULAR_CATEGORIES.map((cat) => (
-                <Link
-                  key={cat.label}
-                  to={cat.to as string}
-                  className="inline-flex max-w-full items-center rounded-full bg-white/[0.06] px-2 py-px text-[11.5px] font-medium text-white/75 ring-1 ring-white/10 transition-colors duration-200 hover:bg-white/[0.12] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/70"
+                <ContactChip
+                  icon={MessageCircle}
+                  label="WhatsApp"
+                  href={WHATSAPP_URL}
+                  external
                 >
-                  {cat.label}
-                </Link>
-              ))}
-            </div>
-          </div>
+                  WhatsApp support
+                </ContactChip>
 
-          {/* Trust + payments */}
-          <div className="mt-2 border-t border-white/10 pt-2">
-            <div className="flex flex-col gap-x-6 gap-y-1.5 lg:flex-row lg:items-center lg:justify-between">
-              <ul className="flex flex-wrap items-center gap-x-4 gap-y-1">
-                {TRUST_ITEMS.map(({ label, icon: Icon }) => (
-                  <li
-                    key={label}
-                    className="flex min-w-0 items-center gap-1.5 text-[11.5px] font-medium text-white/80"
-                  >
-                    <Icon
-                      className="size-3.5 shrink-0 text-emerald-300/90"
-                      aria-hidden="true"
-                    />
-                    {label}
-                  </li>
-                ))}
+                <ContactChip
+                  icon={Mail}
+                  label="Email"
+                  href={`mailto:${SUPPORT_EMAIL}`}
+                >
+                  <span className="break-all">{SUPPORT_EMAIL}</span>
+                </ContactChip>
+
+                <ContactChip icon={Clock} label="Business hours">
+                  {BUSINESS_HOURS}
+                </ContactChip>
+
+                <ContactChip icon={MapPin} label="Store" href={MAPS_URL} external>
+                  {STORE_ADDRESS}
+                </ContactChip>
               </ul>
 
+              <div className="mt-2 flex shrink-0 flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-white/45">
+                  <Smartphone className="size-3.5 text-emerald-200" aria-hidden="true" />
+                  Get the app
+                </span>
+                <PwaInstallButton />
+              </div>
+            </section>
+
+            <section
+              aria-label="Payment methods"
+              className="min-w-0 lg:border-l lg:border-white/10 lg:pl-6"
+            >
               <div className="flex flex-wrap items-center gap-1.5">
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-white/45">
                   We accept
@@ -610,13 +597,33 @@ const Footer = memo(function Footer() {
                   </span>
                 ))}
               </div>
-            </div>
+            </section>
 
-            <p className="mt-1.5 text-[10.5px] leading-tight text-white/40">
-              Prepaid orders are processed through Razorpay&apos;s secure checkout.
-              Cash on Delivery is available for eligible orders.
-            </p>
+            <section
+              aria-label="Trust indicators"
+              className="min-w-0 lg:border-l lg:border-white/10 lg:pl-6"
+            >
+              <ul className="grid min-w-0 gap-x-4 gap-y-1.5 sm:grid-cols-2">
+                {TRUST_ITEMS.map(({ label, icon: Icon }) => (
+                  <li
+                    key={label}
+                    className="flex min-w-0 items-center gap-1.5 text-[11.5px] font-medium text-white/80"
+                  >
+                    <Icon
+                      className="size-3.5 shrink-0 text-emerald-300/90"
+                      aria-hidden="true"
+                    />
+                    {label}
+                  </li>
+                ))}
+              </ul>
+            </section>
           </div>
+
+          <p className="mt-2 border-t border-white/10 pt-2 text-[10.5px] leading-tight text-white/40">
+            Prepaid orders are processed through Razorpay&apos;s secure checkout.
+            Cash on Delivery is available for eligible orders.
+          </p>
         </div>
       </div>
 
