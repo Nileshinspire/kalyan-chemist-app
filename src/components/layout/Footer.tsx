@@ -460,6 +460,7 @@ const Footer = memo(function Footer() {
             links={COMPANY_LINKS}
             isOpen={openGroup === "about"}
             onToggle={toggleGroup}
+            contentClassName="translate-x-1"
             afterTitle={
               <div className="mt-8">
                 <div className="flex items-center justify-between gap-2">
