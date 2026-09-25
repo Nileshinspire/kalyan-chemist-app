@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 
 // The page shell only needs routing; the header is covered elsewhere and
@@ -59,6 +59,26 @@ describe("Footer-linked informational pages", () => {
       screen.getByText("How do I track my order?")
     ).toBeInTheDocument();
     expectNoDeadLinks();
+  });
+
+  it("filters FAQ answers from the search box", () => {
+    renderPage(<Faqs />, "/faqs");
+
+    const search = screen.getByRole("searchbox", {
+      name: /search frequently asked questions/i,
+    });
+
+    fireEvent.change(search, { target: { value: "refund" } });
+    expect(screen.getByText(/answers? match/i)).toBeInTheDocument();
+    expect(
+      screen.getByText("How long do refunds take?")
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("How do I track my order?")
+    ).not.toBeInTheDocument();
+
+    fireEvent.change(search, { target: { value: "zzzzzz" } });
+    expect(screen.getByText(/No answers match/i)).toBeInTheDocument();
   });
 
   it("renders the Why Choose Us page", () => {

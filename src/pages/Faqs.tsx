@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import { Link } from "react-router";
 import {
   HelpCircle,
@@ -5,9 +6,11 @@ import {
   Package,
   Pill,
   RefreshCw,
+  Search,
   ShieldCheck,
   Stethoscope,
   Wallet,
+  X,
   type LucideIcon,
 } from "lucide-react";
 import InfoPage, { InfoSection } from "@/components/layout/InfoPage";
@@ -177,7 +180,46 @@ const FAQ_GROUPS: {
   },
 ];
 
+const TOTAL_ANSWERS = FAQ_GROUPS.reduce(
+  (total, group) => total + group.items.length,
+  0
+);
+
 export default function Faqs() {
+  const [query, setQuery] = useState("");
+  const [openItems, setOpenItems] = useState<string[]>([]);
+
+  const normalizedQuery = query.trim().toLowerCase();
+
+  /* Match against both the question and the answer text. */
+  const filteredGroups = useMemo(() => {
+    if (!normalizedQuery) return FAQ_GROUPS;
+    return FAQ_GROUPS.map((group) => ({
+      ...group,
+      items: group.items.filter((item) =>
+        `${item.q} ${item.a}`.toLowerCase().includes(normalizedQuery)
+      ),
+    })).filter((group) => group.items.length > 0);
+  }, [normalizedQuery]);
+
+  const matchCount = useMemo(
+    () => filteredGroups.reduce((total, group) => total + group.items.length, 0),
+    [filteredGroups]
+  );
+
+  /* While searching, matching answers open automatically so a result is
+     readable without expanding every group by hand. */
+  const openValues = normalizedQuery
+    ? Array.from(
+        new Set([
+          ...openItems,
+          ...filteredGroups.flatMap((group) =>
+            group.items.map((item) => item.q)
+          ),
+        ])
+      )
+    : openItems;
+
   return (
     <InfoPage
       badge="Help Centre"
@@ -186,8 +228,83 @@ export default function Faqs() {
       title="Frequently Asked Questions"
       subtitle="Answers about orders, prescriptions, payments, lab tests, appointments, refills and returns at Kalyan Chemist."
     >
+      {/* Search */}
+      <div
+        role="search"
+        className="mb-3.5 rounded-2xl border border-border/60 bg-card p-3.5 shadow-sm sm:p-4"
+      >
+        <label htmlFor="faq-search" className="sr-only">
+          Search frequently asked questions
+        </label>
+        <div className="relative">
+          <Search
+            aria-hidden="true"
+            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+          />
+          <input
+            id="faq-search"
+            type="search"
+            inputMode="search"
+            autoComplete="off"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search orders, prescriptions, payments, refunds…"
+            aria-describedby="faq-search-status"
+            className="h-10 w-full min-w-0 rounded-xl border border-border/70 bg-background pl-9 pr-9 text-sm text-foreground placeholder:text-muted-foreground/70 transition-colors duration-200 focus:border-primary/40 focus:outline-none focus:ring-2 focus:ring-ring/30 [&::-webkit-search-cancel-button]:appearance-none"
+          />
+          {query.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setQuery("")}
+              aria-label="Clear search"
+              className="absolute right-2 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded-full text-muted-foreground transition-colors duration-200 hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+            >
+              <X className="size-3.5" aria-hidden="true" />
+            </button>
+          )}
+        </div>
+        <p
+          id="faq-search-status"
+          aria-live="polite"
+          className="mt-2 text-[11.5px] leading-relaxed text-muted-foreground"
+        >
+          {normalizedQuery
+            ? `${matchCount} ${matchCount === 1 ? "answer" : "answers"} match “${query.trim()}”`
+            : `${FAQ_GROUPS.length} topics · ${TOTAL_ANSWERS} answers`}
+        </p>
+      </div>
+
+      {filteredGroups.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-border/70 bg-card p-6 text-center">
+          <span className="mx-auto flex size-10 items-center justify-center rounded-xl bg-primary/[0.08] text-primary">
+            <Search className="size-4" aria-hidden="true" />
+          </span>
+          <p className="mt-3 text-sm font-semibold text-foreground">
+            No answers match “{query.trim()}”
+          </p>
+          <p className="mx-auto mt-1 max-w-md text-[13px] leading-relaxed text-muted-foreground">
+            Try a shorter phrase, or reach our team directly — we can look into
+            your specific order or account.
+          </p>
+          <div className="mt-4 flex flex-wrap justify-center gap-2">
+            <button
+              type="button"
+              onClick={() => setQuery("")}
+              className="inline-flex items-center rounded-xl border border-border/70 px-4 py-2 text-[13px] font-semibold text-foreground transition-colors duration-200 hover:border-primary/30 hover:bg-primary/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+            >
+              Clear search
+            </button>
+            <Link
+              to="/contact-us"
+              className="inline-flex items-center rounded-xl bg-primary px-4 py-2 text-[13px] font-semibold text-primary-foreground transition-opacity duration-200 hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+            >
+              Contact Support
+            </Link>
+          </div>
+        </div>
+      ) : (
       <div className="space-y-3.5">
-        {FAQ_GROUPS.map((group) => (
+        {filteredGroups.map((group) => (
           <InfoSection
             key={group.title}
             icon={group.icon}
@@ -198,11 +315,16 @@ export default function Faqs() {
               </span>
             }
           >
-            <Accordion type="multiple" className="-mx-1">
-              {group.items.map((item, index) => (
+            <Accordion
+              type="multiple"
+              value={openValues}
+              onValueChange={setOpenItems}
+              className="-mx-1"
+            >
+              {group.items.map((item) => (
                 <AccordionItem
                   key={item.q}
-                  value={`${group.title}-${index}`}
+                  value={item.q}
                   className="border-border/50"
                 >
                   <AccordionTrigger className="py-3 text-left text-[13px] font-semibold leading-snug hover:no-underline hover:text-primary sm:text-sm">
@@ -216,7 +338,8 @@ export default function Faqs() {
             </Accordion>
           </InfoSection>
         ))}
-      </div>
+        </div>
+      )}
 
       {/* Still need help */}
       <div className="mt-8 flex flex-col gap-4 rounded-2xl border border-primary/15 bg-primary/[0.04] p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
