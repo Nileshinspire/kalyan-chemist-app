@@ -471,13 +471,13 @@ const Footer = memo(function Footer() {
                 <div className="flex flex-col items-start gap-3">
                   <Link
                     to="/"
-                    className="flex min-w-0 flex-col items-start gap-3 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60"
+                    className="flex min-w-0 flex-row items-center gap-2 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60 sm:gap-3"
                   >
                     <BrandMark
                       className="size-24 sm:size-28 lg:size-36"
                       alt="Kalyan Chemist"
                     />
-                    <span className="min-w-0 leading-tight">
+                    <span className="w-20 min-w-0 leading-tight">
                       <span className="block text-[15px] font-bold tracking-tight text-white">
                         Kalyan Chemist
                       </span>
