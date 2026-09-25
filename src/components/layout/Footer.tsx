@@ -469,7 +469,7 @@ const Footer = memo(function Footer() {
                     className="flex min-w-0 items-center gap-2 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60 sm:gap-3"
                   >
                     <BrandMark
-                      className="size-28 sm:size-32 lg:size-36"
+                      className="size-28 sm:size-32 lg:size-36 lg:-translate-x-5 lg:translate-y-7"
                       alt="Kalyan Chemist"
                     />
                     <span className="min-w-0 leading-tight">
