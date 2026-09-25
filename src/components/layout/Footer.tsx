@@ -289,6 +289,8 @@ interface FooterColumnProps {
   hideTitleOnDesktop?: boolean;
   /** Preserve the compact category-chip treatment in the navigation column. */
   linkVariant?: "default" | "category";
+  /** Align a link list relative to the leading brand symbol. */
+  linkAlignment?: "left" | "symbol";
 }
 
 function FooterColumn({
@@ -301,6 +303,7 @@ function FooterColumn({
   afterTitle,
   hideTitleOnDesktop = false,
   linkVariant = "default",
+  linkAlignment = "left",
 }: FooterColumnProps) {
   const panelId = `footer-panel-${id}`;
 
@@ -358,11 +361,15 @@ function FooterColumn({
               linkVariant === "category"
                 ? "flex flex-wrap items-center gap-1.5 pb-2.5 pt-1 md:pb-0 md:pt-0.5"
                 : "space-y-0.5 pb-2.5 pt-0.5 md:pb-0 md:pt-0",
+              linkAlignment === "symbol" && "w-16 sm:w-20 lg:w-24",
               hideTitleOnDesktop && "md:mt-2"
             )}
           >
             {links.map((link) => (
-              <li key={link.label} className="min-w-0">
+              <li
+                key={link.label}
+                className={cn("min-w-0", linkAlignment === "symbol" && "flex justify-center")}
+              >
                 <FooterLinkItem link={link} linkVariant={linkVariant} />
               </li>
             ))}
@@ -447,6 +454,7 @@ const Footer = memo(function Footer() {
             links={COMPANY_LINKS}
             isOpen={openGroup === "about"}
             onToggle={toggleGroup}
+            linkAlignment="symbol"
             leading={
               <div>
                 <div className="flex items-center justify-between gap-2">
