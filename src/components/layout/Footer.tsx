@@ -283,7 +283,7 @@ interface FooterColumnProps {
   onToggle: (id: string) => void;
   /** Rendered directly below the heading — used by the brand column */
   leading?: ReactNode;
-  /** Rendered inside the expanded panel directly below the heading. */
+  /** Rendered inside the expanded panel after the existing link list. */
   afterTitle?: ReactNode;
   /** Desktop: skip the visible heading because `leading` already labels the group */
   hideTitleOnDesktop?: boolean;
@@ -353,7 +353,6 @@ function FooterColumn({
         )}
       >
         <div className="min-h-0">
-          {afterTitle}
           <ul
             className={cn(
               linkVariant === "category"
@@ -368,6 +367,7 @@ function FooterColumn({
               </li>
             ))}
           </ul>
+          {afterTitle}
         </div>
       </div>
     </nav>
@@ -498,7 +498,10 @@ const Footer = memo(function Footer() {
             isOpen={openGroup === "healthcare"}
             onToggle={toggleGroup}
             afterTitle={
-              <div className="mb-2" aria-label="Contact information">
+              <div className="mt-3 border-t border-white/10 pt-2.5" aria-label="Contact information">
+                <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-white/45">
+                  CONTACT INFORMATION
+                </div>
                 <ul className="flex flex-col gap-1">
                   <ContactChip icon={Phone} label="Call us" href={`tel:${PHONE_TEL}`}>
                     {PHONE_DISPLAY}
@@ -548,7 +551,7 @@ const Footer = memo(function Footer() {
             isOpen={openGroup === "shop"}
             onToggle={toggleGroup}
             afterTitle={
-              <div className="mb-2" aria-label="Payment methods">
+              <div className="mt-3 border-t border-white/10 pt-2.5" aria-label="Payment methods">
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-white/45">
                   We accept
                 </span>
@@ -577,23 +580,25 @@ const Footer = memo(function Footer() {
             isOpen={openGroup === "support"}
             onToggle={toggleGroup}
             afterTitle={
-              <ul
-                className="mb-2 flex flex-col items-start gap-1.5"
-                aria-label="Trust indicators"
-              >
-                {TRUST_ITEMS.map(({ label, icon: Icon }) => (
-                  <li
-                    key={label}
-                    className="flex min-w-0 items-center gap-1.5 text-[11.5px] font-medium text-white/80"
-                  >
-                    <Icon
-                      className="size-3.5 shrink-0 text-emerald-300/90"
-                      aria-hidden="true"
-                    />
-                    {label}
-                  </li>
-                ))}
-              </ul>
+              <div className="mt-3 border-t border-white/10 pt-2.5" aria-label="Trust indicators">
+                <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-white/45">
+                  TRUST
+                </div>
+                <ul className="flex flex-col items-start gap-1.5">
+                  {TRUST_ITEMS.map(({ label, icon: Icon }) => (
+                    <li
+                      key={label}
+                      className="flex min-w-0 items-center gap-1.5 text-[11.5px] font-medium text-white/80"
+                    >
+                      <Icon
+                        className="size-3.5 shrink-0 text-emerald-300/90"
+                        aria-hidden="true"
+                      />
+                      {label}
+                    </li>
+                  ))}
+                </ul>
+              </div>
             }
           />
 
