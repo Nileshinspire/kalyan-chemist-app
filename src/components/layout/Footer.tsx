@@ -478,7 +478,7 @@ const Footer = memo(function Footer() {
                       alt="Kalyan Chemist"
                     />
                     <span className="w-20 min-w-0 leading-tight">
-                      <span className="block text-[15px] font-bold tracking-tight text-white">
+                      <span className="block text-[16px] font-bold tracking-tight text-white">
                         Kalyan Chemist
                       </span>
                       <span className="block text-[10px] font-medium uppercase tracking-widest text-emerald-200/70">
@@ -495,7 +495,7 @@ const Footer = memo(function Footer() {
                   <span
                     data-footer-visual-slot
                     aria-hidden="true"
-                    className="hidden shrink-0 items-center gap-1 xl:flex"
+                    className="hidden shrink-0 items-center gap-1 xl:ml-[3.125rem] xl:flex"
                   >
                     <span className="flex size-5 items-center justify-center rounded-md bg-white/[0.06] text-emerald-200/70 ring-1 ring-white/10">
                       <ShieldCheck className="size-3" />
