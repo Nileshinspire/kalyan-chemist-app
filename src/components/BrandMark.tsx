@@ -1,14 +1,14 @@
 import type { CSSProperties } from "react";
+import kalyanChemistSymbol from "@/assets/kalyan-chemist-symbol.svg";
 
 /**
  * The single canonical Kalyan Chemist brand symbol — the green hexagonal
- * pharmacy mark with the white medical cross (public/logo.svg).
+ * pharmacy mark with the white medical cross.
  *
- * One source asset is reused everywhere (header, footer, auth, 404, about,
- * canvas scenes, favicon, notifications); only size/spacing adapt per
- * placement, never the artwork itself.
+ * Vite fingerprints this local source asset so it cannot be replaced by a
+ * platform-reserved root URL in preview or production.
  */
-export const BRAND_MARK_SRC = "/logo.svg";
+export const BRAND_MARK_SRC = kalyanChemistSymbol;
 
 interface BrandMarkProps {
   /** Tailwind size classes — e.g. "size-7", "size-8", "size-9". */

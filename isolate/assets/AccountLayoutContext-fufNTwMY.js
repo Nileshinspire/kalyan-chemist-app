@@ -1,0 +1,1 @@
+import{j as e}from"./framer-motion-DAwCdni-.js";import{r as t}from"./react-vendor-DCPmKs5e.js";const o=t.createContext(!1);function s({children:r}){return e.jsx(o.Provider,{value:!0,children:r})}function a(){return t.useContext(o)}export{s as A,a as u};
