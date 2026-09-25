@@ -867,8 +867,15 @@ export default function HowItWorks() {
   const inView = useInView(sectionRef, { margin: "180px 0px 180px 0px" });
 
   const { scrollYProgress } = useScroll({ target: sectionRef, offset: ["start 0.85", "end 0.45"] });
-  /* fast spring: immediate scroll response, still fully interpolated */
-  const p = useSpring(scrollYProgress, { stiffness: 190, damping: 30, mass: 0.32 });
+  /* Calm cinematic follow: the camera catches up gradually instead of
+     tracking each wheel/touch event 1:1. The natural page scroll remains
+     untouched; only this section's derived progress is interpolated. */
+  const p = useSpring(scrollYProgress, {
+    stiffness: 58,
+    damping: 26,
+    mass: 0.95,
+    restDelta: 0.0004,
+  });
 
   useMotionValueEvent(p, "change", (v) => {
     let idx = 0;
