@@ -1,5 +1,6 @@
 import { useNavigate, useLocation } from "react-router";
 import { Bot, Sparkles } from "lucide-react";
+import { preloadRoute } from "@/lib/route-preload";
 
 /**
  * Global floating AI assistant button (customer side).
@@ -35,6 +36,8 @@ export default function AIChatbotFloat() {
       </span>
 
       <button
+        onMouseEnter={() => preloadRoute("/chatbot")}
+        onFocus={() => preloadRoute("/chatbot")}
         onClick={() => navigate("/chatbot")}
         aria-label="Open Kalyan Chemist AI assistant"
         className="relative outline-none"

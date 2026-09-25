@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router";
+import { preloadRoute } from "@/lib/route-preload";
 import { Activity } from "lucide-react";
 
 /* ─── Healthcare Devices ───
@@ -241,6 +242,8 @@ export default function HealthcareDevices() {
               key={c.slug}
               type="button"
               variants={cardVariants}
+              onMouseEnter={() => preloadRoute("/products")}
+              onFocus={() => preloadRoute("/products")}
               onClick={() => navigate(`/products?category=${c.slug}`)}
               className="group flex flex-col items-center rounded-xl border border-border/60 bg-card p-4 sm:p-5 text-center shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/25 hover:shadow-md cursor-pointer"
             >

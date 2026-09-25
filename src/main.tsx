@@ -185,6 +185,7 @@ class RootErrorBoundary extends React.Component<
 
 function RouteSyncer() {
   const location = useLocation();
+
   useEffect(() => {
     window.parent.postMessage(
       { type: "iframe-route-change", path: location.pathname },

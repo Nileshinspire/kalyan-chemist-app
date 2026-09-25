@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useNavigate } from "react-router";
+import { preloadRoute } from "@/lib/route-preload";
 import { useQuery } from "convex/react";
 import { FlaskConical, ChevronLeft, ChevronRight } from "lucide-react";
 import { api } from "@/convex/_generated/api";
@@ -281,6 +282,8 @@ export default function PopularLabTests() {
               <button
                 key={test._id}
                 type="button"
+                onMouseEnter={() => preloadRoute("/lab-tests")}
+                onFocus={() => preloadRoute("/lab-tests")}
                 onClick={() => navigate(`/lab-tests/test/${test._id}`)}
                 className="group flex min-w-[calc(50%-0.5rem)] snap-start flex-col rounded-xl border border-border/60 bg-card p-4 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md cursor-pointer md:min-w-[calc(33.333%-0.667rem)] lg:min-w-[calc(25%-0.75rem)]"
               >

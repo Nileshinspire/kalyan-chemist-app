@@ -22,6 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { useNavigate, useLocation, useSearchParams } from "react-router";
 import { useRef, useState, useMemo } from "react";
 import { openWhatsApp, generateEnquiryMessage } from "@/lib/whatsapp";
+import { preloadRoute } from "@/lib/route-preload";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import WhatsAppFloat from "@/components/WhatsAppFloat";
@@ -319,6 +320,8 @@ export default function Landing() {
             {/* Upload Prescription */}
             <button
               type="button"
+              onMouseEnter={() => preloadRoute("/upload-prescription")}
+              onFocus={() => preloadRoute("/upload-prescription")}
               onClick={() => navigate("/upload-prescription")}
               className="inline-flex items-center gap-2 rounded-lg border border-border/60 bg-card hover:bg-accent/40 px-2.5 py-2 sm:px-3 sm:py-2.5 transition-all duration-300 group cursor-pointer shadow-sm hover:shadow-md"
             >
@@ -338,6 +341,8 @@ export default function Landing() {
             {/* Doctor Appointment */}
             <button
               type="button"
+              onMouseEnter={() => preloadRoute("/doctor-appointment")}
+              onFocus={() => preloadRoute("/doctor-appointment")}
               onClick={() => navigate("/doctor-appointment")}
               className="inline-flex items-center gap-2 rounded-lg border border-border/60 bg-card hover:bg-accent/40 px-2.5 py-2 sm:px-3 sm:py-2.5 transition-all duration-300 group cursor-pointer shadow-sm hover:shadow-md"
             >
@@ -357,6 +362,8 @@ export default function Landing() {
             {/* Lab Tests */}
             <button
               type="button"
+              onMouseEnter={() => preloadRoute("/lab-tests")}
+              onFocus={() => preloadRoute("/lab-tests")}
               onClick={() => navigate("/lab-tests")}
               className="inline-flex items-center gap-2 rounded-lg border border-border/60 bg-card hover:bg-accent/40 px-4 py-2 sm:px-5 sm:py-2.5 transition-all duration-300 group cursor-pointer shadow-sm hover:shadow-md"
             >
@@ -376,6 +383,8 @@ export default function Landing() {
             {/* Medicine Refill */}
             <button
               type="button"
+              onMouseEnter={() => preloadRoute("/refill")}
+              onFocus={() => preloadRoute("/refill")}
               onClick={() => navigate("/refill")}
               className="inline-flex items-center gap-2 rounded-lg border border-border/60 bg-card hover:bg-accent/40 px-2.5 py-2 sm:px-3 sm:py-2.5 transition-all duration-300 group cursor-pointer shadow-sm hover:shadow-md"
             >
@@ -395,6 +404,8 @@ export default function Landing() {
             {/* AI Chatbot */}
             <button
               type="button"
+              onMouseEnter={() => preloadRoute("/chatbot")}
+              onFocus={() => preloadRoute("/chatbot")}
               onClick={() => navigate("/chatbot")}
               className="inline-flex items-center gap-2 rounded-lg border border-border/60 bg-card hover:bg-accent/40 px-2.5 py-2 sm:px-3 sm:py-2.5 transition-all duration-300 group cursor-pointer shadow-sm hover:shadow-md"
             >
@@ -486,6 +497,8 @@ export default function Landing() {
           </div>
           <button
             type="button"
+            onMouseEnter={() => preloadRoute("/categories")}
+            onFocus={() => preloadRoute("/categories")}
             onClick={() => navigate("/categories")}
             className="group inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border/70 bg-card px-4 py-2 text-sm font-semibold text-primary shadow-sm transition-all duration-300 hover:border-primary/30 hover:shadow-glow active:scale-95 cursor-pointer"
           >

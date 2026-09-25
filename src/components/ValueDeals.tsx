@@ -1,5 +1,6 @@
 import { useQuery } from "convex/react";
 import { useNavigate } from "react-router";
+import { preloadRoute } from "@/lib/route-preload";
 import { BadgePercent, ArrowRight } from "lucide-react";
 import { api } from "@/convex/_generated/api";
 import ProductCard from "@/components/ProductCard";
@@ -52,6 +53,8 @@ export default function ValueDeals() {
           </div>
           <button
             type="button"
+            onMouseEnter={() => preloadRoute("/products")}
+            onFocus={() => preloadRoute("/products")}
             onClick={() => navigate("/value-deals")}
             className="group inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border/70 bg-card px-4 py-2 text-sm font-semibold text-primary shadow-sm transition-all duration-300 hover:border-primary/30 hover:shadow-glow active:scale-95 cursor-pointer"
           >

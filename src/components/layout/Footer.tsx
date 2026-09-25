@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import BrandMark from "@/components/BrandMark";
+import { preloadRoute } from "@/lib/route-preload";
 
 /* ═══════════════════════════════════════════════════════════════════════════
    KALYAN CHEMIST — SITE FOOTER
@@ -253,7 +254,12 @@ function FooterLinkItem({
 
   if (link.to) {
     return (
-      <Link to={link.to} className={classes}>
+      <Link
+        to={link.to}
+        onMouseEnter={() => preloadRoute(link.to as string)}
+        onFocus={() => preloadRoute(link.to as string)}
+        className={classes}
+      >
         <span className="min-w-0">{link.label}</span>
       </Link>
     );

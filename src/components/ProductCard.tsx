@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Heart, ShoppingCart, Pill, Zap } from "lucide-react";
 import { formatCurrency } from "@/lib/auth-utils";
-import { useState } from "react";
+import { preloadProductDetail } from "@/lib/route-preload";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 
@@ -38,13 +38,13 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
-  const [isHovered, setIsHovered] = useState(false);
   const addToCart = useMutation(api.cart.addItem);
   const toggleWishlist = useMutation(api.wishlist.toggle);
   const isWishlisted = useQuery(
     api.wishlist.isWishlisted,
-    { productId: product._id as any }
+    user ? { productId: product._id as any } : "skip"
   );
+  const hasDiscount = Boolean(product.discountPrice && product.discountPrice < product.price);
 
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -84,7 +84,6 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
     }
   };
 
-  const hasDiscount = product.discountPrice && product.discountPrice < product.price;
   const discountPct = hasDiscount
     ? Math.round(((product.price - product.discountPrice!) / product.price) * 100)
     : 0;
@@ -95,8 +94,8 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
     <Card
       className="group relative overflow-hidden border-border/60 bg-card cursor-pointer transition-all duration-500 hover:shadow-card-hover hover:border-primary/20 hover:-translate-y-1"
       onClick={() => navigate(`/products/${product.slug}`, { state: { from: location.pathname + location.search } })}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      onMouseEnter={preloadProductDetail}
+      onFocus={preloadProductDetail}
     >
       {/* Wishlist button */}
       <Button
@@ -112,12 +111,10 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
       <div className="relative flex items-center justify-center bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] h-44 border-b border-border/40 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.08] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
         {product.imageUrl && product.imageUrl !== "/placeholder-medicine.svg" ? (
-          <img src={product.imageUrl} alt={product.name} className="size-20 object-contain" />
+          <img src={product.imageUrl} alt={product.name} className="size-20 object-contain" loading="lazy" decoding="async" />
         ) : (
           <Pill
-            className={`size-14 text-primary/20 transition-all duration-500 ${
-              isHovered ? "scale-125 text-primary/35 rotate-6" : ""
-            }`}
+            className="size-14 text-primary/20 transition-all duration-500 group-hover:scale-125 group-hover:text-primary/35 group-hover:rotate-6"
           />
         )}
         {newArrival && (

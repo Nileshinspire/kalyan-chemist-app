@@ -2,8 +2,7 @@ import { useState, useEffect, memo, useCallback } from "react";
 import { useNavigate, useLocation, useSearchParams } from "react-router";
 import SubNav from "@/components/layout/SubNav";
 
-// Preload the Products chunk on category hover so there's no Suspense flash on navigation
-const preloadProducts = () => import("@/pages/Products.tsx");
+import { preloadRoute } from "@/lib/route-preload";
 import { useAuth } from "@/context/AuthContext";
 import BrandMark from "@/components/BrandMark";
 import { Button } from "@/components/ui/button";
@@ -147,6 +146,8 @@ const Navbar = memo(function Navbar() {
             variant={isActive("/products") ? "secondary" : "ghost"}
             size="sm"
             className="text-sm font-medium rounded-xl hover:bg-primary/5"
+            onMouseEnter={() => preloadRoute("/products")}
+            onFocus={() => preloadRoute("/products")}
             onClick={() => navigate("/products")}
           >
             <Package className="mr-1.5 size-3.5" />
@@ -157,6 +158,8 @@ const Navbar = memo(function Navbar() {
             variant="ghost"
             size="icon"
             className="relative rounded-xl hover:bg-primary/5"
+            onMouseEnter={() => preloadRoute("/cart")}
+            onFocus={() => preloadRoute("/cart")}
             onClick={() => navigate("/cart")}
           >
             <ShoppingCart className="size-4" />
@@ -178,6 +181,8 @@ const Navbar = memo(function Navbar() {
                 className="w-52 rounded-xl border-border/60 shadow-lg"
               >
                 <DropdownMenuItem
+                  onMouseEnter={() => preloadRoute("/account")}
+                  onFocus={() => preloadRoute("/account")}
                   onClick={() => navigate("/account")}
                   className="rounded-lg cursor-pointer"
                 >
@@ -185,6 +190,8 @@ const Navbar = memo(function Navbar() {
                   My Account
                 </DropdownMenuItem>
                 <DropdownMenuItem
+                  onMouseEnter={() => preloadRoute("/account/orders")}
+                  onFocus={() => preloadRoute("/account/orders")}
                   onClick={() => navigate("/account/orders")}
                   className="rounded-lg cursor-pointer"
                 >
@@ -192,6 +199,8 @@ const Navbar = memo(function Navbar() {
                   My Orders
                 </DropdownMenuItem>
                 <DropdownMenuItem
+                  onMouseEnter={() => preloadRoute("/cart")}
+                  onFocus={() => preloadRoute("/cart")}
                   onClick={() => navigate("/cart")}
                   className="rounded-lg cursor-pointer"
                 >
@@ -241,6 +250,8 @@ const Navbar = memo(function Navbar() {
             variant="ghost"
             size="icon"
             className="relative rounded-xl"
+            onMouseEnter={() => preloadRoute("/cart")}
+            onFocus={() => preloadRoute("/cart")}
             onClick={() => navigate("/cart")}
           >
             <ShoppingCart className="size-4" />
@@ -294,6 +305,8 @@ const Navbar = memo(function Navbar() {
                     <Button
                       variant="ghost"
                       className="justify-start rounded-xl h-10"
+                      onMouseEnter={() => preloadRoute("/products")}
+                      onFocus={() => preloadRoute("/products")}
                       onClick={() => {
                         navigate("/products");
                         setMobileOpen(false);
@@ -313,6 +326,8 @@ const Navbar = memo(function Navbar() {
                         key={cat.key}
                         variant="ghost"
                         className="justify-start rounded-xl h-9 text-xs"
+                        onMouseEnter={() => preloadRoute("/products")}
+                        onFocus={() => preloadRoute("/products")}
                         onClick={() => {
                           handleCategoryNav(cat.slug, cat.key);
                           setMobileOpen(false);
@@ -327,6 +342,8 @@ const Navbar = memo(function Navbar() {
                         <Button
                           variant="ghost"
                           className="justify-start rounded-xl h-10"
+                          onMouseEnter={() => preloadRoute("/account")}
+                          onFocus={() => preloadRoute("/account")}
                           onClick={() => {
                             navigate("/account");
                             setMobileOpen(false);
@@ -338,6 +355,8 @@ const Navbar = memo(function Navbar() {
                         <Button
                           variant="ghost"
                           className="justify-start rounded-xl h-10"
+                          onMouseEnter={() => preloadRoute("/account/orders")}
+                          onFocus={() => preloadRoute("/account/orders")}
                           onClick={() => {
                             navigate("/account/orders");
                             setMobileOpen(false);
@@ -351,6 +370,8 @@ const Navbar = memo(function Navbar() {
                     <Button
                       variant="ghost"
                       className="justify-start rounded-xl h-10"
+                      onMouseEnter={() => preloadRoute("/cart")}
+                      onFocus={() => preloadRoute("/cart")}
                       onClick={() => {
                         navigate("/cart");
                         setMobileOpen(false);
@@ -434,7 +455,8 @@ const Navbar = memo(function Navbar() {
                 <button
                   type="button"
                   key={cat.key}
-                  onMouseEnter={preloadProducts}
+                  onMouseEnter={() => preloadRoute("/products")}
+                  onFocus={() => preloadRoute("/products")}
                   onClick={() => handleCategoryNav(cat.slug, cat.key)}
                   className="relative px-3 lg:px-4 py-2.5 text-xs lg:text-sm font-medium whitespace-nowrap transition-all duration-200 shrink-0 cursor-pointer"
                   style={{ color: '#FFFFFF' }}

@@ -31,6 +31,9 @@ export default function BrandMark({
     <img
       src={BRAND_MARK_SRC}
       alt={alt}
+      width={512}
+      height={512}
+      decoding="async"
       draggable={false}
       className={`shrink-0 object-contain ${className}`}
       style={style}
