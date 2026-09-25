@@ -82,6 +82,14 @@ const AIChatbot = lazy(() => import("./pages/AIChatbot"));
 const AdminRefills = lazy(() => import("./pages/admin/AdminRefills"));
 const AdminChatbot = lazy(() => import("./pages/admin/AdminChatbot"));
 const AdminCampaigns = lazy(() => import("./pages/admin/AdminCampaigns"));
+// Footer-linked informational pages
+const ContactUs = lazy(() => import("./pages/ContactUs"));
+const Faqs = lazy(() => import("./pages/Faqs"));
+const WhyChooseUs = lazy(() => import("./pages/WhyChooseUs"));
+const Careers = lazy(() => import("./pages/Careers"));
+const SitemapPage = lazy(() => import("./pages/Sitemap"));
+const HotSellers = lazy(() => import("./pages/HotSellers"));
+const PolicyPage = lazy(() => import("./pages/PolicyPage"));
 
 /** Animated loading skeleton for route transitions */
 function RouteLoading() {
@@ -629,6 +637,105 @@ function AnimatedRoutes() {
                   <AdminActivityLog />
                 </Suspense>
               </RequireAuth>
+            
+          }
+        />
+        {/* ── Footer-linked informational pages ── */}
+        <Route
+          path="/contact-us"
+          element={
+            <ContactUs />
+            
+          }
+        />
+        <Route
+          path="/faqs"
+          element={
+            <Faqs />
+            
+          }
+        />
+        <Route
+          path="/why-choose-us"
+          element={
+            <WhyChooseUs />
+            
+          }
+        />
+        <Route
+          path="/careers"
+          element={
+            <Careers />
+            
+          }
+        />
+        <Route
+          path="/sitemap"
+          element={
+            <SitemapPage />
+            
+          }
+        />
+        <Route
+          path="/hot-sellers"
+          element={
+            <HotSellers />
+            
+          }
+        />
+        <Route
+          path="/privacy-policy"
+          element={
+            <PolicyPage policyId="privacy" />
+            
+          }
+        />
+        <Route
+          path="/terms-conditions"
+          element={
+            <PolicyPage policyId="terms" />
+            
+          }
+        />
+        <Route
+          path="/shipping-delivery"
+          element={
+            <PolicyPage policyId="shipping" />
+            
+          }
+        />
+        <Route
+          path="/cancellation-refund"
+          element={
+            <PolicyPage policyId="cancellation" />
+            
+          }
+        />
+        <Route
+          path="/return-policy"
+          element={
+            <PolicyPage policyId="returns" />
+            
+          }
+        />
+        <Route
+          path="/prescription-policy"
+          element={
+            <PolicyPage policyId="prescription" />
+            
+          }
+        />
+        <Route
+          path="/payment-policy"
+          element={
+            <PolicyPage policyId="payment" />
+            
+          }
+        />
+        <Route
+          path="/disclaimer"
+          element={
+            <PolicyPage policyId="disclaimer" />
             
           }
         />
