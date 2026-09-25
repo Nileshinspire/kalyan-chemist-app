@@ -124,6 +124,72 @@ describe("Footer", () => {
     });
   });
 
+  it("shows every destination exactly once (no duplicates)", () => {
+    renderFooter();
+
+    const counts = footerLinks().reduce<Record<string, number>>(
+      (acc, link) => {
+        const href = link.getAttribute("href") ?? "";
+        acc[href] = (acc[href] ?? 0) + 1;
+        return acc;
+      },
+      {}
+    );
+
+    const duplicated = Object.entries(counts)
+      .filter(([, total]) => total > 1)
+      .map(([href, total]) => `${href} ×${total}`);
+
+    expect(duplicated).toEqual([]);
+  });
+
+  it("keeps every required link, category, payment method and contact detail", () => {
+    renderFooter();
+
+    const text = (value: string) =>
+      screen.getAllByText(value).length > 0;
+
+    // Group labels (accordion toggles) — already asserted above, repeated here
+    // so a refactor cannot quietly drop a group.
+    ["About Kalyan Chemist", "Healthcare Services", "Shop / Medicines",
+      "Customer Support", "Policies & Legal"].forEach((group) =>
+      expect(screen.getByRole("button", { name: group })).toBeInTheDocument()
+    );
+
+    // Representative required links across all five groups + bottom bar
+    [
+      "About Us", "Contact Us", "FAQs", "Why Choose Us", "Careers",
+      "Doctor Appointments", "Lab Tests", "Upload Prescription",
+      "Medicine Refill", "AI Health Assistant", "Browse Health Conditions",
+      "Healthcare Devices",
+      "All Medicines", "Medicine Categories", "Healthcare Products",
+      "New Arrivals", "Hot Sellers", "Value Deals Under ₹100", "Wishlist",
+      "My Account", "My Orders", "Track Order", "My Addresses",
+      "My Prescriptions", "Notifications", "Contact Support",
+      "WhatsApp support",
+      "Shipping & Delivery", "Cancellation & Refund Policy", "Return Policy",
+      "Prescription Policy", "Payment Policy", "Disclaimer",
+      "Privacy Policy", "Terms & Conditions", "Sitemap",
+    ].forEach((label) => expect(text(label)).toBe(true));
+
+    // Categories, trust badges, payments, contact channels, copyright
+    ["Baby Care", "Women Care", "Personal Care", "Nutrition & Supplements",
+      "Ayurveda", "Home Essentials"].forEach((label) =>
+      expect(text(label)).toBe(true)
+    );
+    ["100% Genuine Products", "Secure Payments", "Safe & Secure Checkout",
+      "Reliable Delivery", "Cash on Delivery", "UPI", "Credit / Debit Cards",
+      "Net Banking"].forEach((label) => expect(text(label)).toBe(true));
+
+    expect(text("+91 98765 43210")).toBe(true);
+    expect(text("hello@kalyanchemist.in")).toBe(true);
+    expect(text("Mon – Sat, 8 AM – 10 PM")).toBe(true);
+    expect(text("123 Health Street, Mumbai, Maharashtra 400001")).toBe(true);
+    expect(
+      screen.getByText(/Kalyan Chemist\. All rights reserved\./)
+    ).toBeInTheDocument();
+  });
+
   it("exposes an accessible, toggleable accordion per group", () => {
     renderFooter();
 

@@ -110,7 +110,9 @@ const SHOP_LINKS: FooterLink[] = [
 ];
 
 /* "Contact Support" points at the account help centre so "Contact Us" stays
-   unique to the About group; refunds are documented under Policies & Legal. */
+   unique to the About group; refunds are documented under Policies & Legal.
+   The WhatsApp destination lives in the contact row below — it is the one
+   logical place for a contact channel, so it is not repeated here. */
 const SUPPORT_LINKS: FooterLink[] = [
   { label: "My Account", to: "/account" },
   { label: "My Orders", to: "/account/orders" },
@@ -119,7 +121,6 @@ const SUPPORT_LINKS: FooterLink[] = [
   { label: "My Prescriptions", to: "/account/prescriptions" },
   { label: "Notifications", to: "/account/notifications" },
   { label: "Contact Support", to: "/account/help-support" },
-  { label: "WhatsApp Support", href: WHATSAPP_URL },
 ];
 
 /* Privacy Policy, Terms & Conditions and Sitemap intentionally live in the

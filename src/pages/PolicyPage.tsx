@@ -101,10 +101,11 @@ export default function PolicyPage({ policyId }: { policyId: PolicyId }) {
         </aside>
 
         <div className="min-w-0">
-          {/* ── Mobile / tablet: at-a-glance jump cards ── */}
+          {/* ── At-a-glance jump cards: the visual summary of this policy,
+                shown above the detail at every breakpoint ── */}
           <section
             aria-label="At a glance"
-            className="relative overflow-hidden rounded-2xl border border-border/60 bg-card p-3.5 shadow-sm lg:hidden"
+            className="relative overflow-hidden rounded-2xl border border-border/60 bg-card p-3.5 shadow-sm"
           >
             <span
               aria-hidden="true"
@@ -141,7 +142,7 @@ export default function PolicyPage({ policyId }: { policyId: PolicyId }) {
           </section>
 
           {/* ── Sections ── */}
-          <div className="mt-3.5 space-y-3.5 lg:mt-0">
+          <div className="mt-3.5 space-y-3.5">
             {policy.sections.map((section, index) => (
               <section
                 key={section.heading}
