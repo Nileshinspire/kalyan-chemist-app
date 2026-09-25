@@ -293,6 +293,8 @@ interface FooterColumnProps {
   linkAlignment?: "left" | "symbol";
   /** Optional alignment offset applied to the entire column content. */
   contentClassName?: string;
+  /** Keep independently positioned visual content from being clipped by the panel. */
+  allowOverflow?: boolean;
 }
 
 function FooterColumn({
@@ -307,6 +309,7 @@ function FooterColumn({
   linkVariant = "default",
   linkAlignment = "left",
   contentClassName,
+  allowOverflow = false,
 }: FooterColumnProps) {
   const panelId = `footer-panel-${id}`;
 
@@ -356,7 +359,8 @@ function FooterColumn({
       <div
         id={panelId}
         className={cn(
-          "grid overflow-hidden transition-[grid-template-rows,visibility] duration-300 ease-out",
+          "grid transition-[grid-template-rows,visibility] duration-300 ease-out",
+          allowOverflow ? "relative overflow-visible" : "overflow-hidden",
           "md:visible md:grid-rows-[1fr]",
           isOpen ? "visible grid-rows-[1fr]" : "invisible grid-rows-[0fr]"
         )}
@@ -461,8 +465,9 @@ const Footer = memo(function Footer() {
             isOpen={openGroup === "about"}
             onToggle={toggleGroup}
             contentClassName="translate-x-2 lg:translate-x-[5.5rem]"
+            allowOverflow
             afterTitle={
-              <div className="mt-8 lg:-translate-x-[5.5rem] lg:translate-y-12">
+              <div className="mt-8 lg:absolute lg:left-0 lg:top-[9rem] lg:z-10 lg:w-max lg:-translate-x-[5.5rem] lg:translate-y-12">
                 <div className="flex flex-col items-start gap-3">
                   <Link
                     to="/"
