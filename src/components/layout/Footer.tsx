@@ -15,6 +15,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import BrandMark from "@/components/BrandMark";
 
 /* ═══════════════════════════════════════════════════════════════════════════
    KALYAN CHEMIST — SITE FOOTER
@@ -440,9 +441,10 @@ const Footer = memo(function Footer() {
                     to="/"
                     className="inline-flex min-w-0 items-center gap-2.5 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60"
                   >
-                    <span className="flex size-8 shrink-0 items-center justify-center rounded-xl gradient-primary text-[13px] font-bold text-white shadow-glow">
-                      KC
-                    </span>
+                    <BrandMark
+                      className="size-12 sm:size-14 xl:size-16"
+                      alt="Kalyan Chemist"
+                    />
                     <span className="leading-tight">
                       <span className="block text-[15px] font-bold tracking-tight text-white">
                         Kalyan Chemist
