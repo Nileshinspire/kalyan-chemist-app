@@ -5,6 +5,7 @@ import SubNav from "@/components/layout/SubNav";
 // Preload the Products chunk on category hover so there's no Suspense flash on navigation
 const preloadProducts = () => import("@/pages/Products.tsx");
 import { useAuth } from "@/context/AuthContext";
+import BrandMark from "@/components/BrandMark";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -101,9 +102,7 @@ const Navbar = memo(function Navbar() {
           className="flex items-center gap-2.5 cursor-pointer shrink-0 group"
           onClick={() => navigate("/")}
         >
-          <div className="flex size-9 items-center justify-center rounded-xl gradient-primary text-white font-bold text-sm shadow-glow group-hover:shadow-card-hover group-hover:scale-105 transition-all duration-300">
-            KC
-          </div>
+          <BrandMark className="size-9 transition-all duration-300 group-hover:scale-105" />
           <div className="hidden sm:block leading-tight">
             <span className="text-base font-bold tracking-tight text-foreground">
               Kalyan Chemist
@@ -256,9 +255,7 @@ const Navbar = memo(function Navbar() {
               <div className="flex flex-col h-full">
                 <div className="flex items-center justify-between p-4 border-b border-border/40">
                   <div className="flex items-center gap-2">
-                    <div className="flex size-7 items-center justify-center rounded-lg gradient-primary text-white font-bold text-[10px]">
-                      KC
-                    </div>
+                    <BrandMark className="size-7" />
                     <span className="font-bold text-sm">Menu</span>
                   </div>
                   <Button

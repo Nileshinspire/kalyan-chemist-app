@@ -9,6 +9,7 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { Home, LogOut } from "lucide-react";
 import { useNavigate } from "react-router";
+import BrandMark from "@/components/BrandMark";
 
 export function LogoDropdown() {
   const { isAuthenticated, logout } = useAuth();
@@ -31,9 +32,7 @@ export function LogoDropdown() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" className="h-10 w-10">
-          <div className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-xs">
-            KC
-          </div>
+          <BrandMark className="size-8" alt="Kalyan Chemist" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-48">
