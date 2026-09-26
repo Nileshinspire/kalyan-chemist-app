@@ -37,9 +37,11 @@ vi.mock("react-router", async (importOriginal) => {
 
 // Mock AuthContext
 let mockAuthState = {
+  isAuthLoading: false,
   isLoading: false,
   isAuthenticated: false,
   isAdmin: false,
+  user: null as { role?: "admin" | "customer" } | null | undefined,
 };
 
 vi.mock("@/context/AuthContext", () => ({
@@ -56,11 +58,23 @@ function createWrapper(initialEntry: string): ComponentType<{ children: ReactNod
 
 describe("RequireAuth", () => {
   beforeEach(() => {
-    mockAuthState = { isLoading: false, isAuthenticated: false, isAdmin: false };
+    mockAuthState = {
+      isAuthLoading: false,
+      isLoading: false,
+      isAuthenticated: false,
+      isAdmin: false,
+      user: null,
+    };
   });
 
-  it("shows loading spinner when isLoading is true", () => {
-    mockAuthState = { isLoading: true, isAuthenticated: false, isAdmin: false };
+  it("shows loading spinner while the auth handshake is in flight", () => {
+    mockAuthState = {
+      isAuthLoading: true,
+      isLoading: true,
+      isAuthenticated: false,
+      isAdmin: false,
+      user: null,
+    };
     render(
       <RequireAuth>
         <div>Protected Content</div>
@@ -92,7 +106,13 @@ describe("RequireAuth", () => {
   });
 
   it("shows Access Denied when authenticated but not admin (adminOnly)", () => {
-    mockAuthState = { isLoading: false, isAuthenticated: true, isAdmin: false };
+    mockAuthState = {
+      isAuthLoading: false,
+      isLoading: false,
+      isAuthenticated: true,
+      isAdmin: false,
+      user: { role: "customer" },
+    };
     render(
       <RequireAuth adminOnly>
         <div>Admin Content</div>
@@ -104,7 +124,13 @@ describe("RequireAuth", () => {
   });
 
   it("renders children when authenticated (non-admin route)", () => {
-    mockAuthState = { isLoading: false, isAuthenticated: true, isAdmin: false };
+    mockAuthState = {
+      isAuthLoading: false,
+      isLoading: false,
+      isAuthenticated: true,
+      isAdmin: false,
+      user: { role: "customer" },
+    };
     render(
       <RequireAuth>
         <div>Dashboard Content</div>
@@ -115,7 +141,13 @@ describe("RequireAuth", () => {
   });
 
   it("renders children when authenticated as admin (adminOnly route)", () => {
-    mockAuthState = { isLoading: false, isAuthenticated: true, isAdmin: true };
+    mockAuthState = {
+      isAuthLoading: false,
+      isLoading: false,
+      isAuthenticated: true,
+      isAdmin: true,
+      user: { role: "admin" },
+    };
     render(
       <RequireAuth adminOnly>
         <div>Admin Dashboard</div>

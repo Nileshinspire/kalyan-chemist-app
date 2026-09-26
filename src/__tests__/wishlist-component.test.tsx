@@ -51,6 +51,7 @@ describe("Wishlist component", () => {
     vi.clearAllMocks();
     mockUseAuth.mockReturnValue({
       user: null,
+      isAuthLoading: false,
       isLoading: false,
       isAuthenticated: true,
       isAdmin: false,
@@ -68,6 +69,7 @@ describe("Wishlist component", () => {
   it("shows not authenticated state when user is logged out", () => {
     mockUseAuth.mockReturnValue({
       user: null,
+      isAuthLoading: false,
       isLoading: false,
       isAuthenticated: false,
       isAdmin: false,

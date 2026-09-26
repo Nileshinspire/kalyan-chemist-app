@@ -18,6 +18,8 @@ interface User {
 
 interface AuthContextType {
   user: User | null;
+  /** True only while the auth token handshake is in flight. */
+  isAuthLoading: boolean;
   isLoading: boolean;
   isAuthenticated: boolean;
   isAdmin: boolean;
@@ -37,6 +39,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const {
     isLoading: convexLoading,
+    isAuthLoading,
     isAuthenticated,
     user: convexUser,
     signOut,
@@ -77,6 +80,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider
       value={{
         user,
+        isAuthLoading,
         isLoading,
         isAuthenticated,
         isAdmin: user?.role === "admin",

@@ -278,6 +278,7 @@ export function installRoutePrefetch(): void {
   installed = true;
 
   document.addEventListener("pointerover", handleIntent, { passive: true });
+  document.addEventListener("pointerdown", handleIntent, { passive: true });
   document.addEventListener("focusin", handleIntent, { passive: true });
   document.addEventListener("touchstart", handleIntent, { passive: true });
 

@@ -45,8 +45,20 @@ describe("main.tsx provider hierarchy", () => {
     expect(mainTsx).toContain('path="/auth"');
   });
 
-  it("lazy-loads Auth component", () => {
-    expect(mainTsx).toContain('lazy(() => import("./pages/Auth.tsx"))');
+  it("eagerly bundles common customer routes so they never wait on a chunk", () => {
+    expect(mainTsx).toContain('import Auth from "./pages/Auth.tsx"');
+    expect(mainTsx).toContain('import Products from "./pages/Products.tsx"');
+    expect(mainTsx).toContain('import Cart from "./pages/Cart.tsx"');
+  });
+
+  it("keeps heavy admin routes lazy-loaded", () => {
+    expect(mainTsx).toContain(
+      'lazy(() => import("./pages/admin/AdminDashboard"))'
+    );
+  });
+
+  it("does not wrap the whole app in a global Suspense", () => {
+    expect(mainTsx).not.toContain("<Suspense fallback={<RouteLoading />}>\n                <AnimatedRoutes />");
   });
 
   it("includes all required routes", () => {

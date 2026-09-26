@@ -82,7 +82,7 @@ export default function UploadPrescription() {
 
         // 3. Create prescription record (uses sensible defaults for required fields)
         await uploadPrescription({
-          patientName: user.name || "Patient",
+          patientName: user?.name || "Patient",
           doctorName: "Pending",
           prescriptionDate: Date.now(),
           notes: "Uploaded via Upload Prescription page",

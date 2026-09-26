@@ -13,6 +13,7 @@ import ScrollRestorer from "@/components/ScrollRestorer";
 import { installRoutePrefetch } from "@/lib/route-preload";
 import { PageErrorBoundary } from "@/components/PageErrorBoundary";
 import AIChatbotFloat from "@/components/AIChatbotFloat";
+import RouteLoading from "@/components/RouteLoading";
 import "./index.css";
 
 const convex = new ConvexReactClient(
@@ -22,22 +23,33 @@ const convex = new ConvexReactClient(
 // Warm route chunks from link intent + idle time so navigation feels instant.
 installRoutePrefetch();
 
-// Lazy load route components for better code splitting
-const AboutUs = lazy(() => import("./pages/AboutUs.tsx"));
-const Landing = lazy(() => import("./pages/Landing.tsx"));
-const Auth = lazy(() => import("./pages/Auth.tsx"));
-const Login = lazy(() => import("./pages/Login.tsx"));
-const Register = lazy(() => import("./pages/Register.tsx"));
-const AdminLogin = lazy(() => import("./pages/AdminLogin.tsx"));
-const Dashboard = lazy(() => import("./pages/Dashboard.tsx"));
-const Products = lazy(() => import("./pages/Products.tsx"));
-const ProductDetail = lazy(() => import("./pages/ProductDetail.tsx"));
-const ValueDealsPage = lazy(() => import("./pages/ValueDeals.tsx"));
-const Cart = lazy(() => import("./pages/Cart.tsx"));
-const Wishlist = lazy(() => import("./pages/Wishlist.tsx"));
-const Checkout = lazy(() => import("./pages/Checkout.tsx"));
-const Orders = lazy(() => import("./pages/Orders.tsx"));
-const OrderDetail = lazy(() => import("./pages/OrderDetail.tsx"));
+// ── Customer routes are bundled eagerly ──
+// A click must never wait on a route-chunk download. These are the paths real
+// shoppers use constantly, so they are ready the moment the app boots. Only
+// the heavy/rare admin screens below stay lazy-loaded.
+import AboutUs from "./pages/AboutUs.tsx";
+import Landing from "./pages/Landing.tsx";
+import Auth from "./pages/Auth.tsx";
+import Login from "./pages/Login.tsx";
+import Register from "./pages/Register.tsx";
+import Dashboard from "./pages/Dashboard.tsx";
+import Products from "./pages/Products.tsx";
+import ProductDetail from "./pages/ProductDetail.tsx";
+import ValueDealsPage from "./pages/ValueDeals.tsx";
+import Cart from "./pages/Cart.tsx";
+import Wishlist from "./pages/Wishlist.tsx";
+import Checkout from "./pages/Checkout.tsx";
+import Orders from "./pages/Orders.tsx";
+import OrderDetail from "./pages/OrderDetail.tsx";
+
+// /admin/login is a rare entry point — keep it lazy, but with its own boundary
+// so its loader can never take over the whole application.
+const LazyAdminLogin = lazy(() => import("./pages/AdminLogin.tsx"));
+const AdminLogin = () => (
+  <Suspense fallback={<RouteLoading />}>
+    <LazyAdminLogin />
+  </Suspense>
+);
 const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
 const AdminProducts = lazy(() => import("./pages/admin/AdminProducts"));
 const AdminCategories = lazy(() => import("./pages/admin/AdminCategories"));
@@ -55,64 +67,47 @@ const AdminPrescriptions = lazy(() => import("./pages/admin/AdminPrescriptions")
 const AdminExpiringMedicines = lazy(() => import("./pages/admin/AdminExpiringMedicines"));
 const AdminSettings = lazy(() => import("./pages/admin/AdminSettings"));
 const AdminActivityLog = lazy(() => import("./pages/admin/AdminActivityLog"));
-const CategoriesPage = lazy(() => import("./pages/Categories.tsx"));
-const BrandsPage = lazy(() => import("./pages/Brands.tsx"));
-const NotFound = lazy(() => import("./pages/NotFound.tsx"));
-const AccountLayout = lazy(() => import("./components/account/AccountLayout"));
-const AccountOverview = lazy(() => import("./pages/account/AccountOverview"));
-const AccountProfile = lazy(() => import("./pages/account/AccountProfile"));
-const AccountAddresses = lazy(() => import("./pages/account/AccountAddresses"));
-const AccountOrders = lazy(() => import("./pages/account/AccountOrders"));
-const AccountPrescriptions = lazy(() => import("./pages/account/AccountPrescriptions"));
-const AccountWishlist = lazy(() => import("./pages/Wishlist"));
-const AccountNotifications = lazy(() => import("./pages/account/AccountNotifications"));
-const AccountLabReports = lazy(() => import("./pages/account/AccountLabReports"));
-const AccountLabTests = lazy(() => import("./pages/account/AccountLabTests"));
-const AccountDoctorAppointments = lazy(() => import("./pages/account/AccountDoctorAppointments"));
-const UploadPrescription = lazy(() => import("./pages/UploadPrescription"));
-const DoctorAppointment = lazy(() => import("./pages/DoctorAppointment"));
-const DoctorDetails = lazy(() => import("./pages/DoctorDetails"));
+import CategoriesPage from "./pages/Categories.tsx";
+import BrandsPage from "./pages/Brands.tsx";
+import NotFound from "./pages/NotFound.tsx";
+import AccountLayout from "./components/account/AccountLayout";
+import AccountOverview from "./pages/account/AccountOverview";
+import AccountProfile from "./pages/account/AccountProfile";
+import AccountAddresses from "./pages/account/AccountAddresses";
+import AccountOrders from "./pages/account/AccountOrders";
+import AccountPrescriptions from "./pages/account/AccountPrescriptions";
+import AccountNotifications from "./pages/account/AccountNotifications";
+import AccountLabReports from "./pages/account/AccountLabReports";
+import AccountLabTests from "./pages/account/AccountLabTests";
+import AccountDoctorAppointments from "./pages/account/AccountDoctorAppointments";
+
+// /account/wishlist renders the same page as /wishlist.
+const AccountWishlist = Wishlist;
+import UploadPrescription from "./pages/UploadPrescription";
+import DoctorAppointment from "./pages/DoctorAppointment";
+import DoctorDetails from "./pages/DoctorDetails";
 const AdminDoctors = lazy(() => import("./pages/admin/AdminDoctors"));
 const AdminAppointments = lazy(() => import("./pages/admin/AdminAppointments"));
-const AccountAppointments = lazy(() => import("./pages/account/AccountAppointments"));
-const LabTests = lazy(() => import("./pages/LabTests"));
-const AccountTrackOrder = lazy(() => import("./pages/account/AccountTrackOrder"));
-const LabTestCategory = lazy(() => import("./pages/LabTestCategory"));
-const LabTestDetail = lazy(() => import("./pages/LabTestDetail"));
+import AccountAppointments from "./pages/account/AccountAppointments";
+import LabTests from "./pages/LabTests";
+import AccountTrackOrder from "./pages/account/AccountTrackOrder";
+import LabTestCategory from "./pages/LabTestCategory";
+import LabTestDetail from "./pages/LabTestDetail";
 const AdminLabTests = lazy(() => import("./pages/admin/AdminLabTests"));
-const AccountHelpSupport = lazy(() => import("./pages/account/AccountHelpSupport"));
-const MedicineRefill = lazy(() => import("./pages/MedicineRefill"));
-const AIChatbot = lazy(() => import("./pages/AIChatbot"));
+import AccountHelpSupport from "./pages/account/AccountHelpSupport";
+import MedicineRefill from "./pages/MedicineRefill";
+import AIChatbot from "./pages/AIChatbot";
 const AdminRefills = lazy(() => import("./pages/admin/AdminRefills"));
 const AdminChatbot = lazy(() => import("./pages/admin/AdminChatbot"));
 const AdminCampaigns = lazy(() => import("./pages/admin/AdminCampaigns"));
-// Footer-linked informational pages
-const ContactUs = lazy(() => import("./pages/ContactUs"));
-const Faqs = lazy(() => import("./pages/Faqs"));
-const WhyChooseUs = lazy(() => import("./pages/WhyChooseUs"));
-const Careers = lazy(() => import("./pages/Careers"));
-const SitemapPage = lazy(() => import("./pages/Sitemap"));
-const HotSellers = lazy(() => import("./pages/HotSellers"));
-const PolicyPage = lazy(() => import("./pages/PolicyPage"));
-
-/** Animated loading skeleton for route transitions */
-function RouteLoading() {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="flex flex-col items-center gap-4">
-        <div className="relative">
-          <div className="size-12 rounded-xl bg-primary/10 animate-pulse" />
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="size-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
-          </div>
-        </div>
-        <p className="text-sm font-medium text-muted-foreground animate-pulse">
-          Loading…
-        </p>
-      </div>
-    </div>
-  );
-}
+// Footer-linked informational pages — lightweight, always immediately available.
+import ContactUs from "./pages/ContactUs";
+import Faqs from "./pages/Faqs";
+import WhyChooseUs from "./pages/WhyChooseUs";
+import Careers from "./pages/Careers";
+import SitemapPage from "./pages/Sitemap";
+import HotSellers from "./pages/HotSellers";
+import PolicyPage from "./pages/PolicyPage";
 
 /** Silent error boundary — if VlyToolbar crashes it renders nothing */
 class ToolbarErrorBoundary extends React.Component<
@@ -768,9 +763,7 @@ createRoot(document.getElementById("root")!).render(
             <ScrollRestorer />
             <RouteSyncer />
             <PageErrorBoundary>
-              <Suspense fallback={<RouteLoading />}>
-                <AnimatedRoutes />
-              </Suspense>
+              <AnimatedRoutes />
             </PageErrorBoundary>
             {/* Global floating AI assistant — one instance, customer side only */}
             <AIChatbotFloat />

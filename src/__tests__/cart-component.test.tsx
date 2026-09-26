@@ -49,6 +49,7 @@ describe("Cart component", () => {
     vi.clearAllMocks();
     mockUseAuth.mockReturnValue({
       user: null,
+      isAuthLoading: false,
       isLoading: false,
       isAuthenticated: true,
       isAdmin: false,
