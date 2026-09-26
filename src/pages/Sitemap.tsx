@@ -131,10 +131,12 @@ export default function Sitemap() {
       subtitle="Every customer-facing page on Kalyan Chemist, organised by section."
       heroExtra={
         <>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-card/70 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background/70 px-2.5 py-1 text-[10.5px] font-medium text-muted-foreground">
+            <MapIcon className="size-3.5 text-primary/80" aria-hidden="true" />
             {SECTIONS.length} sections
           </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-card/70 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background/70 px-2.5 py-1 text-[10.5px] font-medium text-muted-foreground">
+            <HeartPulse className="size-3.5 text-primary/80" aria-hidden="true" />
             {TOTAL_PAGES} public pages
           </span>
         </>

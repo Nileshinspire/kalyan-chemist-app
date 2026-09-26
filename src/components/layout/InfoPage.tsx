@@ -16,8 +16,10 @@ import { cn } from "@/lib/utils";
      · `compact` banner — a premium, full-width banner that keeps only the
        existing title, subtitle and page icon in a much shorter frame
        (~140/160/180px min-height on mobile/tablet/desktop) so the actual
-       content starts immediately. Used by the footer-dedicated legal and
-       directory pages (policies + sitemap).
+       content starts immediately. Layered with a soft ambient glow, a fine
+       dot texture, a restrained medical-cross motif and a page-specific
+       emblem framed by faint orbit rings. Used by the footer-dedicated
+       legal and directory pages (policies + sitemap).
 
    Content below the title is a readable max-width column of premium
    `InfoSection` cards with a hairline accent, hover lift and a one-shot
@@ -72,87 +74,108 @@ export default function InfoPage({
         />
 
         {compact ? (
-          /* ── Compact full-width banner (footer-dedicated pages) ── */
-          <section className="relative isolate overflow-hidden border-b border-border/40">
-            {/* Soft healthcare ambience — static gradients only */}
+          /* ── Compact full-width premium banner (footer-dedicated pages) ── */
+          <section className="relative isolate overflow-hidden border-b border-border/40 bg-gradient-to-br from-primary/[0.055] via-transparent to-emerald-400/[0.045]">
+            {/* Soft ambient glow — static gradients only */}
             <div
               aria-hidden="true"
-              className="pointer-events-none absolute inset-0 bg-gradient-to-b from-primary/[0.08] via-primary/[0.03] to-transparent"
+              className="pointer-events-none absolute -left-24 -top-24 size-60 rounded-full bg-primary/[0.13] blur-3xl"
             />
             <div
               aria-hidden="true"
-              className="pointer-events-none absolute -left-20 -top-24 size-56 rounded-full bg-primary/[0.10] blur-3xl"
+              className="pointer-events-none absolute -bottom-24 right-[14%] size-56 rounded-full bg-emerald-400/[0.10] blur-3xl"
             />
+            {/* Fine dot texture */}
             <div
               aria-hidden="true"
-              className="pointer-events-none absolute -bottom-24 -right-16 size-52 rounded-full bg-emerald-400/[0.09] blur-3xl"
-            />
-            {/* Very light dot pattern */}
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-0 text-primary/20 opacity-30"
+              className="pointer-events-none absolute inset-0 text-primary/20 opacity-25"
               style={{
                 backgroundImage:
                   "radial-gradient(currentColor 1px, transparent 1px)",
-                backgroundSize: "18px 18px",
+                backgroundSize: "16px 16px",
               }}
             />
-            {/* Faint oversized page icon for depth */}
+            {/* Bottom hairline */}
             <div
               aria-hidden="true"
-              className="pointer-events-none absolute -right-6 top-1/2 hidden -translate-y-1/2 text-primary/[0.05] lg:block"
-            >
-              <HeroIcon className="size-40" strokeWidth={1} />
-            </div>
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-primary/25 to-transparent"
+              className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-primary/30 to-transparent"
             />
 
-            <div className="relative mx-auto flex min-h-[140px] max-w-5xl items-center gap-3.5 px-4 py-4 sm:min-h-[160px] sm:gap-4 sm:px-6 sm:py-6 lg:min-h-[180px] lg:py-7">
-              <motion.div
-                className="min-w-0 flex-1"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-              >
+            <div className="relative mx-auto flex min-h-[140px] max-w-5xl items-center gap-4 px-4 py-3.5 sm:min-h-[160px] sm:gap-5 sm:px-6 sm:py-6 lg:min-h-[180px] lg:py-7">
+              {/* ── Text block: badge → title → subtitle, vertically centred ── */}
+              <div className="relative min-w-0 flex-1">
                 {(badge || heroExtra) && (
-                  <div className="mb-2 hidden flex-wrap items-center gap-2 sm:flex">
+                  <motion.div
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{
+                      duration: 0.35,
+                      delay: 0.05,
+                      ease: [0.22, 1, 0.36, 1],
+                    }}
+                    className="mb-2 hidden flex-wrap items-center gap-2 sm:flex"
+                  >
                     {badge && (
-                      <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/[0.08] px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-primary">
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/25 bg-primary/[0.1] px-2.5 py-1 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-primary shadow-sm">
                         {badgeIcon}
                         {badge}
                       </span>
                     )}
                     {heroExtra}
-                  </div>
+                  </motion.div>
                 )}
-                <h1 className="text-[1.4rem] font-bold leading-[1.16] tracking-[-0.02em] text-foreground sm:text-2xl lg:text-[1.85rem]">
-                  {title}
-                </h1>
-                {subtitle && (
-                  <p className="mt-1.5 max-w-3xl text-[13px] leading-relaxed text-muted-foreground sm:text-sm">
-                    {subtitle}
-                  </p>
-                )}
-              </motion.div>
 
+                <motion.h1
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{
+                    duration: 0.45,
+                    delay: 0.08,
+                    ease: [0.22, 1, 0.36, 1],
+                  }}
+                  className="text-[1.5rem] font-bold leading-[1.12] tracking-[-0.025em] text-foreground sm:text-[1.75rem] lg:text-[2.15rem]"
+                >
+                  {title}
+                </motion.h1>
+
+                {subtitle && (
+                  <motion.p
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{
+                      duration: 0.45,
+                      delay: 0.14,
+                      ease: [0.22, 1, 0.36, 1],
+                    }}
+                    className="mt-2 max-w-2xl text-[13px] leading-relaxed text-muted-foreground sm:text-sm"
+                  >
+                    {subtitle}
+                  </motion.p>
+                )}
+              </div>
+
+              {/* ── Page-specific emblem: soft medical cross, orbit rings and
+                    framed icon — supports the title, never competes ── */}
               <motion.div
                 aria-hidden="true"
                 initial={{ opacity: 0, scale: 0.94 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{
                   duration: 0.45,
-                  delay: 0.06,
+                  delay: 0.07,
                   ease: [0.22, 1, 0.36, 1],
                 }}
-                className="relative flex size-9 shrink-0 items-center justify-center rounded-xl border border-primary/15 bg-gradient-to-br from-primary/[0.14] to-primary/[0.04] text-primary shadow-sm sm:size-12 lg:size-14"
+                className="relative flex size-11 shrink-0 items-center justify-center sm:size-14 lg:size-16"
               >
-                <span
-                  aria-hidden="true"
-                  className="absolute -inset-1.5 rounded-2xl border border-primary/10"
-                />
-                <HeroIcon className="size-4 sm:size-6 lg:size-7" />
+                <span className="pointer-events-none absolute hidden size-40 lg:block">
+                  <span className="absolute left-1/2 top-0 h-full w-9 -translate-x-1/2 rounded-full bg-primary/[0.055]" />
+                  <span className="absolute left-0 top-1/2 h-9 w-full -translate-y-1/2 rounded-full bg-primary/[0.055]" />
+                </span>
+                <span className="absolute -inset-2 rounded-full border border-primary/[0.16]" />
+                <span className="absolute -inset-4 rounded-full border border-dashed border-primary/[0.09]" />
+                <span className="relative flex size-8 items-center justify-center rounded-xl border border-primary/15 bg-gradient-to-br from-primary/[0.13] to-primary/[0.03] text-primary/90 shadow-sm sm:size-10 lg:size-11">
+                  <HeroIcon className="size-4 sm:size-5 lg:size-6" strokeWidth={1.75} />
+                </span>
               </motion.div>
             </div>
           </section>

@@ -3,10 +3,18 @@ import { motion, useScroll } from "framer-motion";
 import {
   CalendarDays,
   ChevronUp,
+  CreditCard,
   FileText,
   HelpCircle,
+  Info,
   LayoutList,
   ListTree,
+  Pill,
+  RotateCcw,
+  ShieldCheck,
+  Truck,
+  Undo2,
+  type LucideIcon,
 } from "lucide-react";
 import InfoPage, { Reveal } from "@/components/layout/InfoPage";
 import { POLICIES, POLICY_LAST_UPDATED, type PolicyId } from "@/data/policies";
@@ -39,10 +47,25 @@ function scrollToSection(heading: string) {
     ?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
+/* Banner-only page identity: each policy gets the icon that matches its
+   subject. Used solely for the compact banner emblem and badge — the legal
+   content below is untouched. */
+const POLICY_ICONS: Record<PolicyId, LucideIcon> = {
+  privacy: ShieldCheck,
+  terms: FileText,
+  shipping: Truck,
+  cancellation: RotateCcw,
+  returns: Undo2,
+  prescription: Pill,
+  payment: CreditCard,
+  disclaimer: Info,
+};
+
 export default function PolicyPage({ policyId }: { policyId: PolicyId }) {
   const policy = POLICIES[policyId];
   const totalSections = policy.sections.length;
   const { scrollYProgress } = useScroll();
+  const PolicyIcon = POLICY_ICONS[policyId];
 
   return (
     <>
@@ -58,18 +81,18 @@ export default function PolicyPage({ policyId }: { policyId: PolicyId }) {
     <InfoPage
       compact
       badge="Policies & Legal"
-      badgeIcon={<FileText className="size-3" aria-hidden="true" />}
-      heroIcon={FileText}
+      badgeIcon={<PolicyIcon className="size-3" aria-hidden="true" />}
+      heroIcon={PolicyIcon}
       title={policy.title}
       subtitle={policy.subtitle}
       heroExtra={
         <>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-card/70 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
-            <CalendarDays className="size-3.5" aria-hidden="true" />
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background/70 px-2.5 py-1 text-[10.5px] font-medium text-muted-foreground">
+            <CalendarDays className="size-3.5 text-primary/80" aria-hidden="true" />
             Last updated: {POLICY_LAST_UPDATED}
           </span>
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-card/70 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
-            <LayoutList className="size-3.5" aria-hidden="true" />
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-background/70 px-2.5 py-1 text-[10.5px] font-medium text-muted-foreground">
+            <LayoutList className="size-3.5 text-primary/80" aria-hidden="true" />
             {totalSections} sections
           </span>
         </>
