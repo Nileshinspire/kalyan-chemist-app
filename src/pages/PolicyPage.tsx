@@ -1,12 +1,14 @@
 import { Link } from "react-router";
+import { motion, useScroll } from "framer-motion";
 import {
   CalendarDays,
+  ChevronUp,
   FileText,
   HelpCircle,
   LayoutList,
   ListTree,
 } from "lucide-react";
-import InfoPage from "@/components/layout/InfoPage";
+import InfoPage, { Reveal } from "@/components/layout/InfoPage";
 import { POLICIES, POLICY_LAST_UPDATED, type PolicyId } from "@/data/policies";
 import { cn } from "@/lib/utils";
 
@@ -40,8 +42,19 @@ function scrollToSection(heading: string) {
 export default function PolicyPage({ policyId }: { policyId: PolicyId }) {
   const policy = POLICIES[policyId];
   const totalSections = policy.sections.length;
+  const { scrollYProgress } = useScroll();
 
   return (
+    <>
+      {/* Reading progress — a 3px line pinned to the very top of the
+          viewport. Transform-only, driven by the page scroll position, so
+          long legal documents always show how far along the reader is. */}
+      <motion.div
+        aria-hidden="true"
+        style={{ scaleX: scrollYProgress }}
+        className="fixed inset-x-0 top-0 z-[55] h-[3px] origin-left bg-gradient-to-r from-primary via-emerald-400 to-primary"
+      />
+
     <InfoPage
       badge="Policies & Legal"
       badgeIcon={<FileText className="size-3" aria-hidden="true" />}
@@ -144,10 +157,10 @@ export default function PolicyPage({ policyId }: { policyId: PolicyId }) {
           {/* ── Sections ── */}
           <div className="mt-3.5 space-y-3.5">
             {policy.sections.map((section, index) => (
+              <Reveal key={section.heading}>
               <section
-                key={section.heading}
                 id={slugify(section.heading)}
-                className="scroll-mt-24 rounded-2xl border border-border/60 bg-card p-4 shadow-sm sm:p-5"
+                className="scroll-mt-28 rounded-2xl border border-border/60 bg-card p-4 shadow-sm sm:p-5"
               >
                 <header className="flex items-start gap-3">
                   <span
@@ -187,7 +200,22 @@ export default function PolicyPage({ policyId }: { policyId: PolicyId }) {
                   </ul>
                 )}
               </section>
+              </Reveal>
             ))}
+          </div>
+
+          {/* ── Back to top ── */}
+          <div className="mt-4 flex justify-center">
+            <button
+              type="button"
+              onClick={() =>
+                window.scrollTo({ top: 0, behavior: "smooth" })
+              }
+              className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-card px-3.5 py-1.5 text-[12px] font-semibold text-muted-foreground transition-colors duration-200 hover:border-primary/30 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+            >
+              <ChevronUp className="size-3.5" aria-hidden="true" />
+              Back to top
+            </button>
           </div>
 
           {/* ── Help ── */}
@@ -230,5 +258,6 @@ export default function PolicyPage({ policyId }: { policyId: PolicyId }) {
         </div>
       </div>
     </InfoPage>
+    </>
   );
 }

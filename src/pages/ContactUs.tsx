@@ -24,8 +24,8 @@ import InfoPage, { InfoBullets, InfoSection } from "@/components/layout/InfoPage
    app). No invented numbers, hours or addresses.
 
    There is intentionally no contact form: the platform has no contact-form
-   backend, so the right-hand column offers the real support actions instead
-   (self-service account tools, preparation tips and the FAQs).
+   backend, so the page offers the real support actions instead (self-service
+   account tools, preparation tips and the FAQs).
    ═══════════════════════════════════════════════════════════════════════════ */
 
 const PHONE_DISPLAY = "+91 98765 43210";
@@ -109,48 +109,78 @@ export default function ContactUs() {
       heroIcon={Headset}
       title="Contact Kalyan Chemist"
       subtitle="Questions about an order, a prescription, a lab test or a delivery? Reach our team through any of the channels below — or use the quick actions to manage it yourself."
+      heroExtra={
+        <>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-card/70 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+            <Clock className="size-3.5 text-primary" aria-hidden="true" />
+            {BUSINESS_HOURS}
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-card/70 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+            <Mail className="size-3.5 text-primary" aria-hidden="true" />
+            We reply within 24 hours
+          </span>
+        </>
+      }
     >
-      <div className="grid items-start gap-3.5 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-5">
-        {/* ── Left: support channels ── */}
-        <div className="space-y-3.5">
-          <InfoSection
-            icon={Headset}
-            title="Reach our team"
-            description="Every channel below connects to the same support team."
-          >
-            <ul className="divide-y divide-border/50">
-              {CHANNELS.map((channel) => (
-                <li key={channel.label} className="min-w-0">
-                  <a
-                    href={channel.href}
-                    target={channel.external ? "_blank" : undefined}
-                    rel={channel.external ? "noopener noreferrer" : undefined}
-                    className="group flex min-w-0 items-start gap-3 rounded-xl px-1 py-2.5 transition-colors duration-200 hover:bg-primary/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-                  >
-                    <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/[0.08] text-primary transition-colors duration-300 group-hover:bg-primary group-hover:text-primary-foreground">
-                      <channel.icon className="size-4" aria-hidden="true" />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-[10.5px] font-semibold uppercase tracking-wider text-muted-foreground">
-                        {channel.label}
-                      </span>
-                      <span className="mt-0.5 block break-words text-[13.5px] font-semibold leading-snug text-foreground">
-                        {channel.value}
-                      </span>
-                      <span className="mt-0.5 block text-[12px] leading-snug text-muted-foreground">
-                        {channel.hint}
-                      </span>
-                    </span>
-                    <ArrowUpRight
-                      aria-hidden="true"
-                      className="mt-1 size-4 shrink-0 text-muted-foreground/40 transition-all duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-primary"
-                    />
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </InfoSection>
+      {/* ── Support channels: one card per way to reach us ── */}
+      <section>
+        <header className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
+          <div className="min-w-0">
+            <p className="text-[10.5px] font-semibold uppercase tracking-[0.18em] text-primary">
+              Support channels
+            </p>
+            <h2 className="mt-1 text-[15px] font-semibold tracking-tight text-foreground sm:text-base">
+              Reach our team
+            </h2>
+            <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
+              Every channel below connects to the same support team.
+            </p>
+          </div>
+          <span className="rounded-full bg-muted/60 px-2.5 py-0.5 text-[10.5px] font-semibold uppercase tracking-wider text-muted-foreground">
+            {CHANNELS.length} channels
+          </span>
+        </header>
 
+        <div className="mt-3.5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {CHANNELS.map((channel) => (
+            <a
+              key={channel.label}
+              href={channel.href}
+              target={channel.external ? "_blank" : undefined}
+              rel={channel.external ? "noopener noreferrer" : undefined}
+              className="group relative flex min-w-0 flex-col gap-3 overflow-hidden rounded-2xl border border-border/60 bg-card p-4 shadow-sm transition-[transform,box-shadow,border-color] duration-300 hover:-translate-y-1 hover:border-primary/25 hover:shadow-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 motion-reduce:transition-none motion-reduce:hover:translate-y-0"
+            >
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/25 to-transparent"
+              />
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/[0.08] text-primary ring-1 ring-primary/10 transition-colors duration-300 group-hover:bg-primary group-hover:text-primary-foreground">
+                <channel.icon className="size-5" aria-hidden="true" />
+              </span>
+              <span className="min-w-0">
+                <span className="block text-[10.5px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  {channel.label}
+                </span>
+                <span className="mt-1 block break-words text-[14px] font-semibold leading-snug text-foreground">
+                  {channel.value}
+                </span>
+                <span className="mt-1 block text-[12px] leading-snug text-muted-foreground">
+                  {channel.hint}
+                </span>
+              </span>
+              <ArrowUpRight
+                aria-hidden="true"
+                className="absolute right-3.5 top-3.5 size-4 shrink-0 text-muted-foreground/40 transition-all duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-primary"
+              />
+            </a>
+          ))}
+        </div>
+      </section>
+
+      {/* ── Hours, store, self-service and tips ── */}
+      <div className="mt-6 grid items-start gap-3.5 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)] lg:gap-5">
+        {/* ── Left: when & where + preparation tips ── */}
+        <div className="space-y-3.5">
           <div className="grid gap-3.5 sm:grid-cols-2">
             <InfoSection icon={Clock} title="Support hours">
               <p className="text-[13px] font-medium text-foreground">
@@ -176,6 +206,16 @@ export default function ContactUs() {
               </a>
             </InfoSection>
           </div>
+
+          <InfoSection icon={Lightbulb} title="To help us resolve it faster">
+            <InfoBullets
+              items={[
+                "Keep your order or invoice number ready (found under My Orders).",
+                "For a return or quality issue, share photos of the product and packaging.",
+                "For prescription queries, mention the medicine and the prescribing doctor's reference.",
+              ]}
+            />
+          </InfoSection>
         </div>
 
         {/* ── Right: support actions ── */}
@@ -211,16 +251,6 @@ export default function ContactUs() {
                 </li>
               ))}
             </ul>
-          </InfoSection>
-
-          <InfoSection icon={Lightbulb} title="To help us resolve it faster">
-            <InfoBullets
-              items={[
-                "Keep your order or invoice number ready (found under My Orders).",
-                "For a return or quality issue, share photos of the product and packaging.",
-                "For prescription queries, mention the medicine and the prescribing doctor's reference.",
-              ]}
-            />
           </InfoSection>
 
           <div className="flex flex-col gap-3 rounded-2xl border border-primary/15 bg-gradient-to-br from-primary/[0.07] to-primary/[0.02] p-4 sm:flex-row sm:items-center sm:justify-between">

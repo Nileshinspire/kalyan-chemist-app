@@ -13,7 +13,7 @@ import {
   Users,
   type LucideIcon,
 } from "lucide-react";
-import InfoPage, { InfoSection } from "@/components/layout/InfoPage";
+import InfoPage, { InfoSection, Reveal } from "@/components/layout/InfoPage";
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Careers — dedicated footer-linked page.
@@ -90,6 +90,18 @@ export default function Careers() {
       heroIcon={Briefcase}
       title="Careers at Kalyan Chemist"
       subtitle="We are a pharmacy first and a technology platform second. If you care about getting healthcare right for people, we would like to hear from you."
+      heroExtra={
+        <>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-card/70 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+            <LayoutGrid className="size-3.5 text-primary" aria-hidden="true" />
+            {AREAS.length} areas of opportunity
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-card/70 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+            <Mail className="size-3.5 text-primary" aria-hidden="true" />
+            Apply by email or WhatsApp
+          </span>
+        </>
+      }
     >
       {/* Why work with us */}
       <section>
@@ -97,10 +109,10 @@ export default function Careers() {
           Why work with us
         </h2>
         <div className="mt-3.5 grid gap-3.5 sm:grid-cols-2">
-          {WHY_JOIN.map((item) => (
+          {WHY_JOIN.map((item, index) => (
+            <Reveal key={item.title} delay={(index % 2) * 0.06} className="h-full">
             <div
-              key={item.title}
-              className="group relative flex min-w-0 items-start gap-3.5 overflow-hidden rounded-2xl border border-border/60 bg-card p-4 shadow-sm transition-shadow duration-300 hover:shadow-card-hover sm:p-5"
+              className="group relative flex h-full min-w-0 items-start gap-3.5 overflow-hidden rounded-2xl border border-border/60 bg-card p-4 shadow-sm transition-all duration-300 hover:border-primary/25 hover:shadow-card-hover sm:p-5"
             >
               <span
                 aria-hidden="true"
@@ -118,6 +130,7 @@ export default function Careers() {
                 </p>
               </div>
             </div>
+            </Reveal>
           ))}
         </div>
       </section>
@@ -130,11 +143,9 @@ export default function Careers() {
         description="These are the teams we hire into. They describe the kind of work we do, not a list of current vacancies."
       >
         <div className="grid gap-3 sm:grid-cols-2">
-          {AREAS.map((area) => (
-            <div
-              key={area.title}
-              className="flex min-w-0 items-start gap-3 rounded-2xl border border-border/60 bg-muted/25 p-4"
-            >
+          {AREAS.map((area, index) => (
+            <Reveal key={area.title} delay={(index % 2) * 0.06} className="h-full">
+            <div className="flex h-full min-w-0 items-start gap-3 rounded-2xl border border-border/60 bg-muted/25 p-4">
               <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-card text-primary ring-1 ring-border/60">
                 <area.icon className="size-4" aria-hidden="true" />
               </span>
@@ -147,6 +158,7 @@ export default function Careers() {
                 </p>
               </div>
             </div>
+            </Reveal>
           ))}
         </div>
       </InfoSection>

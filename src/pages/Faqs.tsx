@@ -247,6 +247,22 @@ export default function Faqs() {
       heroIcon={HelpCircle}
       title="Frequently Asked Questions"
       subtitle="Answers about orders, prescriptions, payments, lab tests, appointments, refills and returns at Kalyan Chemist."
+      heroExtra={
+        <>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-card/70 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+            <HelpCircle className="size-3.5 text-primary" aria-hidden="true" />
+            {FAQ_GROUPS.length} topics
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-card/70 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+            <ShieldCheck className="size-3.5 text-primary" aria-hidden="true" />
+            {TOTAL_ANSWERS} answers
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-card/70 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+            <Search className="size-3.5 text-primary" aria-hidden="true" />
+            Search below
+          </span>
+        </>
+      }
     >
       {/* Search */}
       <div

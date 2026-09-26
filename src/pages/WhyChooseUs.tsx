@@ -13,7 +13,7 @@ import {
   Stethoscope,
   Truck,
 } from "lucide-react";
-import InfoPage, { InfoSection } from "@/components/layout/InfoPage";
+import InfoPage, { InfoSection, Reveal } from "@/components/layout/InfoPage";
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Why Choose Us — dedicated footer-linked page.
@@ -114,6 +114,18 @@ export default function WhyChooseUs() {
       heroIcon={Sparkles}
       title="Healthcare you can rely on, delivered"
       subtitle="Kalyan Chemist brings your neighbourhood pharmacy online — genuine medicines, pharmacist-reviewed prescriptions and essential health services, with the same care you expect at the counter."
+      heroExtra={
+        <>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-card/70 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+            <BadgeCheck className="size-3.5 text-primary" aria-hidden="true" />
+            {REASONS.length} reasons
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-card/70 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+            <Truck className="size-3.5 text-primary" aria-hidden="true" />
+            {STEPS.length}-step order journey
+          </span>
+        </>
+      }
     >
       {/* ── Trust statement ── */}
       <section className="relative isolate overflow-hidden rounded-2xl border border-primary/15 bg-gradient-to-br from-primary/[0.08] via-primary/[0.03] to-transparent p-5 shadow-sm sm:p-7">
@@ -164,10 +176,14 @@ export default function WhyChooseUs() {
         </header>
 
         <div className="mt-3.5 grid gap-3.5 sm:grid-cols-2">
-          {REASONS.map((reason) => (
-            <div
+          {REASONS.map((reason, index) => (
+            <Reveal
               key={reason.title}
-              className="group relative flex min-w-0 items-start gap-3.5 overflow-hidden rounded-2xl border border-border/60 bg-card p-4 shadow-sm transition-all duration-300 hover:border-primary/25 hover:shadow-card-hover sm:p-5"
+              delay={(index % 2) * 0.06}
+              className="h-full"
+            >
+            <div
+              className="group relative flex h-full min-w-0 items-start gap-3.5 overflow-hidden rounded-2xl border border-border/60 bg-card p-4 shadow-sm transition-all duration-300 hover:border-primary/25 hover:shadow-card-hover sm:p-5"
             >
               <span
                 aria-hidden="true"
@@ -185,6 +201,7 @@ export default function WhyChooseUs() {
                 </p>
               </div>
             </div>
+            </Reveal>
           ))}
         </div>
       </section>
@@ -206,10 +223,8 @@ export default function WhyChooseUs() {
           />
           <div className="relative grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {STEPS.map((step, index) => (
-              <div
-                key={step.title}
-                className="min-w-0 rounded-2xl border border-border/60 bg-muted/25 p-4"
-              >
+              <Reveal key={step.title} delay={index * 0.05} className="h-full">
+              <div className="h-full min-w-0 rounded-2xl border border-border/60 bg-muted/25 p-4">
                 <div className="flex items-center gap-2.5">
                   <span className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-primary/10 bg-card text-primary shadow-sm">
                     <step.icon className="size-4" aria-hidden="true" />
@@ -225,6 +240,7 @@ export default function WhyChooseUs() {
                   {step.description}
                 </p>
               </div>
+              </Reveal>
             ))}
           </div>
         </div>

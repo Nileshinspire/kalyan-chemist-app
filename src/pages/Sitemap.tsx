@@ -1,5 +1,6 @@
 import { Link } from "react-router";
 import {
+  Headset,
   HeartPulse,
   Map as MapIcon,
   ShieldCheck,
@@ -8,7 +9,7 @@ import {
   UserRound,
   type LucideIcon,
 } from "lucide-react";
-import InfoPage, { InfoSection } from "@/components/layout/InfoPage";
+import InfoPage, { InfoSection, Reveal } from "@/components/layout/InfoPage";
 import { cn } from "@/lib/utils";
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -37,8 +38,6 @@ const SECTIONS: {
       { label: "Home", to: "/" },
       { label: "About Us", to: "/about-us" },
       { label: "Why Choose Us", to: "/why-choose-us" },
-      { label: "Contact Us", to: "/contact-us" },
-      { label: "FAQs", to: "/faqs" },
       { label: "Careers", to: "/careers" },
       { label: "Sitemap", to: "/sitemap" },
     ],
@@ -88,6 +87,15 @@ const SECTIONS: {
       { label: "Lab Reports", to: "/account/lab-reports" },
       { label: "Medicine Refill", to: "/account/refill" },
       { label: "Notifications", to: "/account/notifications" },
+    ],
+  },
+  {
+    title: "Support",
+    icon: Headset,
+    note: "Call, email or WhatsApp us — Help & Support asks you to sign in first.",
+    links: [
+      { label: "Contact Us", to: "/contact-us" },
+      { label: "FAQs", to: "/faqs" },
       { label: "Help & Support", to: "/account/help-support" },
     ],
   },
@@ -131,7 +139,7 @@ export default function Sitemap() {
         </>
       }
     >
-      <div className="grid items-start gap-3.5 sm:grid-cols-2">
+      <Reveal className="grid items-start gap-3.5 sm:grid-cols-2">
         {SECTIONS.map((section) => (
           <InfoSection
             key={section.title}
@@ -154,20 +162,22 @@ export default function Sitemap() {
                 <li key={link.label} className="min-w-0">
                   <Link
                     to={link.to}
-                    className="inline-flex max-w-full items-center gap-1.5 rounded-sm text-[12.5px] leading-snug text-muted-foreground transition-colors duration-200 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                    className="group inline-flex max-w-full items-center gap-1.5 rounded-sm py-0.5 text-[12.5px] leading-snug text-muted-foreground transition-colors duration-200 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
                   >
                     <span
                       aria-hidden="true"
-                      className="size-1 shrink-0 rounded-full bg-primary/40"
+                      className="size-1 shrink-0 rounded-full bg-primary/40 transition-all duration-300 group-hover:scale-150 group-hover:bg-primary"
                     />
-                    <span className="min-w-0">{link.label}</span>
+                    <span className="min-w-0 transition-transform duration-300 group-hover:translate-x-0.5">
+                      {link.label}
+                    </span>
                   </Link>
                 </li>
               ))}
             </ul>
           </InfoSection>
         ))}
-      </div>
+      </Reveal>
 
       <div className="mt-3.5 flex flex-col gap-3 rounded-2xl border border-primary/15 bg-gradient-to-br from-primary/[0.07] to-primary/[0.02] p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
