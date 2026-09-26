@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useAuth } from "@/context/AuthContext";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
@@ -39,6 +39,7 @@ import { formatCurrency } from "@/lib/auth-utils";
 import { geocodeAddress } from "@/lib/geocode";
 import { toast } from "sonner";
 import { openWhatsApp } from "@/lib/whatsapp";
+import { loadRazorpayScript } from "@/lib/razorpay";
 import { CheckCircle2 as CheckCircle, XCircle } from "lucide-react";
 import type { RazorpayResponse } from "@/types/global";
 
@@ -215,6 +216,12 @@ export default function Checkout() {
     }
   };
 
+  // Warm up the Razorpay widget once checkout opens so paying is instant. It
+  // loads lazily in the background and never blocks rendering or navigation.
+  useEffect(() => {
+    void loadRazorpayScript();
+  }, []);
+
   // ── Open Razorpay checkout widget ──
   const openRazorpayCheckout = useCallback(async (orderId: string, invoiceNumber: string, amount: number) => {
     setPaymentProcessing(true);
@@ -224,6 +231,9 @@ export default function Checkout() {
         amount,
         receipt: invoiceNumber,
       });
+
+      // Load the Razorpay widget on demand (skip demo mode) — see lib/razorpay.
+      if (!rpOrder._demo) await loadRazorpayScript();
 
       // 2. Build Razorpay options
       const razorpayKeyId = rpOrder._demo ? "rzp_test_demo" : await getRazorpayKeyId();

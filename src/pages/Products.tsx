@@ -112,15 +112,27 @@ export default function Products() {
     autocompleteQuery.length >= 2 ? { query: autocompleteQuery } : "skip"
   );
 
+  // Slug filters must be resolved to ids before searching. Wait for those
+  // lookups only when a slug is actually in play, so we never fire a wasted
+  // request with no filter and then re-query once the tables arrive.
+  const filtersReady =
+    (!selectedCategorySlug || allCategories !== undefined) &&
+    (!selectedBrandSlug || allBrands !== undefined);
+
   // Main search query — uses local state which syncs from URL on navigation
-  const products = useQuery(api.publicProducts.search, {
-    query: searchQuery || "",
-    categoryId: selectedCategoryId as any,
-    brandId: selectedBrandId as any,
-    prescriptionRequired: prescriptionFilter === "rx" ? true : prescriptionFilter === "otc" ? false : undefined,
-    inStock: stockFilter === "in_stock" ? true : undefined,
-    sortBy: sortBy as any,
-  });
+  const products = useQuery(
+    api.publicProducts.search,
+    filtersReady
+      ? {
+          query: searchQuery || "",
+          categoryId: selectedCategoryId as any,
+          brandId: selectedBrandId as any,
+          prescriptionRequired: prescriptionFilter === "rx" ? true : prescriptionFilter === "otc" ? false : undefined,
+          inStock: stockFilter === "in_stock" ? true : undefined,
+          sortBy: sortBy as any,
+        }
+      : "skip"
+  );
 
 
 
@@ -168,7 +180,9 @@ export default function Products() {
 
   const hasActiveFilters = searchQuery || selectedCategorySlug || selectedBrandSlug || prescriptionFilter || stockFilter;
 
-  const isLoading = products === undefined || allCategories === undefined;
+  // The grid depends only on the product results — filter metadata (categories
+  // / brands) loads in parallel and no longer blocks the listing.
+  const isLoading = products === undefined;
 
   return (
     <div className="min-h-screen flex flex-col bg-background">

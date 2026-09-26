@@ -13,6 +13,9 @@ export function RequireAuth({ children, adminOnly = false }: RequireAuthProps) {
   const { isLoading, isAuthenticated, isAdmin } = useAuth();
   const location = useLocation();
 
+  // Must run on every render (rules of hooks) — the guard moves inside the hook.
+  useBrowserNotifications(isAuthenticated && !isLoading);
+
   if (isLoading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-background">
@@ -62,9 +65,6 @@ export function RequireAuth({ children, adminOnly = false }: RequireAuthProps) {
       </div>
     );
   }
-
-  // Activate browser push notifications for authenticated users
-  useBrowserNotifications();
 
   return <>{children}</>;
 }

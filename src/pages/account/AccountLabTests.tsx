@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useNavigate } from "react-router";
+import { loadRazorpayScript } from "@/lib/razorpay";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { useSetBreadcrumb } from "@/hooks/useBreadcrumb";
 import {
@@ -284,7 +285,8 @@ function PayNowButton({ booking, amount }: { booking: any; amount: number }) {
     setPaying(true);
 
     try {
-      // Check if Razorpay is loaded
+      // Load the widget on demand, then check whether it is available.
+      await loadRazorpayScript();
       const w = window as any;
       if (!w.Razorpay) {
         // Razorpay not configured — mark as paid directly for demo

@@ -6,13 +6,19 @@ import { api } from "@/convex/_generated/api";
  * Hook that requests browser notification permission and shows
  * desktop notifications when new in-app notifications arrive.
  */
-export function useBrowserNotifications() {
-  const notifications = useQuery(api.notifications.list, { unreadOnly: true });
+export function useBrowserNotifications(enabled = true) {
+  // Guarded with "skip" rather than an early return so the hook order stays
+  // stable for every caller (see RequireAuth, which calls it unconditionally).
+  const notifications = useQuery(
+    api.notifications.list,
+    enabled ? { unreadOnly: true } : "skip"
+  );
   const prevCountRef = useRef<number>(0);
   const permissionRef = useRef<NotificationPermission>("default");
 
   // Request permission on mount
   useEffect(() => {
+    if (!enabled) return;
     if (typeof window === "undefined" || !("Notification" in window)) return;
 
     permissionRef.current = Notification.permission;
@@ -26,10 +32,11 @@ export function useBrowserNotifications() {
       }, 10000); // Ask after 10 seconds
       return () => clearTimeout(timer);
     }
-  }, []);
+  }, [enabled]);
 
   // Show browser notification when new unread notification arrives
   useEffect(() => {
+    if (!enabled) return;
     if (typeof window === "undefined" || !("Notification" in window)) return;
     if (Notification.permission !== "granted") return;
     if (!notifications || notifications.length === 0) return;
@@ -61,5 +68,5 @@ export function useBrowserNotifications() {
     }
 
     prevCountRef.current = currentCount;
-  }, [notifications]);
+  }, [notifications, enabled]);
 }

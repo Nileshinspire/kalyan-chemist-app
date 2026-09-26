@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { motion } from "framer-motion";
+import { loadRazorpayScript } from "@/lib/razorpay";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import {
   Package,
@@ -104,6 +105,9 @@ export default function OrderDetail() {
         amount: resetResult.amount,
         receipt: resetResult.receipt,
       });
+
+      // Load the Razorpay widget on demand (skip demo mode) — see lib/razorpay.
+      if (!rpOrder._demo) await loadRazorpayScript();
 
       const options: any = {
         key: rpOrder._demo ? "rzp_test_demo" : await getRazorpayKeyId(),

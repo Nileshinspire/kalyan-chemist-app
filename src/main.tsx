@@ -10,6 +10,7 @@ import React, { StrictMode, useEffect, lazy, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { HashRouter, Route, Routes, useLocation } from "react-router";
 import ScrollRestorer from "@/components/ScrollRestorer";
+import { installRoutePrefetch } from "@/lib/route-preload";
 import { PageErrorBoundary } from "@/components/PageErrorBoundary";
 import AIChatbotFloat from "@/components/AIChatbotFloat";
 import "./index.css";
@@ -17,6 +18,9 @@ import "./index.css";
 const convex = new ConvexReactClient(
   import.meta.env.VITE_CONVEX_URL as string
 );
+
+// Warm route chunks from link intent + idle time so navigation feels instant.
+installRoutePrefetch();
 
 // Lazy load route components for better code splitting
 const AboutUs = lazy(() => import("./pages/AboutUs.tsx"));
