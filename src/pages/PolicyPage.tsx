@@ -56,6 +56,7 @@ export default function PolicyPage({ policyId }: { policyId: PolicyId }) {
       />
 
     <InfoPage
+      compact
       badge="Policies & Legal"
       badgeIcon={<FileText className="size-3" aria-hidden="true" />}
       heroIcon={FileText}

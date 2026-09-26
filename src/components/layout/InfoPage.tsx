@@ -9,18 +9,24 @@ import { cn } from "@/lib/utils";
 /* ═══════════════════════════════════════════════════════════════════════════
    Shared visual system for every footer-linked informational page.
 
-   One coherent design, reused everywhere:
-     · premium hero — eyebrow badge → large title → supporting line → meta
-       chips, with soft emerald ambience, a very light dot pattern, a
-       layered emblem mark and a faint watermark of the page icon
-     · readable max-width content column
-     · premium `InfoSection` cards with a hairline accent, hover lift and a
-       one-shot scroll reveal
+   Two top-title variants, chosen per page via `compact`:
+     · tall hero (default) — eyebrow badge → large title → supporting line →
+       meta chips, with soft emerald ambience, a dot pattern, a layered
+       emblem mark and a faint watermark of the page icon
+     · `compact` banner — a premium, full-width banner that keeps only the
+       existing title, subtitle and page icon in a much shorter frame
+       (~140/160/180px min-height on mobile/tablet/desktop) so the actual
+       content starts immediately. Used by the footer-dedicated legal and
+       directory pages (policies + sitemap).
 
-   Motion is limited to a single subtle fade-up per hero, one GPU-friendly
-   reveal per section (opacity + transform, fired once) and hover
-   transitions. There are no scroll listeners, canvases, particle systems or
-   continuous animations, so these pages stay fast.
+   Content below the title is a readable max-width column of premium
+   `InfoSection` cards with a hairline accent, hover lift and a one-shot
+   scroll reveal.
+
+   Motion is limited to a single subtle fade-up per title area, one
+   GPU-friendly reveal per section (opacity + transform, fired once) and
+   hover transitions. There are no scroll listeners, canvases, particle
+   systems or continuous animations, so these pages stay fast.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 interface InfoPageProps {
@@ -32,6 +38,9 @@ interface InfoPageProps {
   heroExtra?: ReactNode;
   /** Decorative hero mark shown beside the heading on larger screens */
   heroIcon?: LucideIcon;
+  /** Render the top title area as a compact full-width banner instead of
+   *  the tall hero (footer-dedicated legal / directory pages). */
+  compact?: boolean;
   children: ReactNode;
 }
 
@@ -42,6 +51,7 @@ export default function InfoPage({
   subtitle,
   heroExtra,
   heroIcon: HeroIcon = HeartPulse,
+  compact = false,
   children,
 }: InfoPageProps) {
   return (
@@ -61,6 +71,92 @@ export default function InfoPage({
           }}
         />
 
+        {compact ? (
+          /* ── Compact full-width banner (footer-dedicated pages) ── */
+          <section className="relative isolate overflow-hidden border-b border-border/40">
+            {/* Soft healthcare ambience — static gradients only */}
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 bg-gradient-to-b from-primary/[0.08] via-primary/[0.03] to-transparent"
+            />
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute -left-20 -top-24 size-56 rounded-full bg-primary/[0.10] blur-3xl"
+            />
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute -bottom-24 -right-16 size-52 rounded-full bg-emerald-400/[0.09] blur-3xl"
+            />
+            {/* Very light dot pattern */}
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 text-primary/20 opacity-30"
+              style={{
+                backgroundImage:
+                  "radial-gradient(currentColor 1px, transparent 1px)",
+                backgroundSize: "18px 18px",
+              }}
+            />
+            {/* Faint oversized page icon for depth */}
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute -right-6 top-1/2 hidden -translate-y-1/2 text-primary/[0.05] lg:block"
+            >
+              <HeroIcon className="size-40" strokeWidth={1} />
+            </div>
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-primary/25 to-transparent"
+            />
+
+            <div className="relative mx-auto flex min-h-[140px] max-w-5xl items-center gap-3.5 px-4 py-4 sm:min-h-[160px] sm:gap-4 sm:px-6 sm:py-6 lg:min-h-[180px] lg:py-7">
+              <motion.div
+                className="min-w-0 flex-1"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+              >
+                {(badge || heroExtra) && (
+                  <div className="mb-2 hidden flex-wrap items-center gap-2 sm:flex">
+                    {badge && (
+                      <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/[0.08] px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wider text-primary">
+                        {badgeIcon}
+                        {badge}
+                      </span>
+                    )}
+                    {heroExtra}
+                  </div>
+                )}
+                <h1 className="text-[1.4rem] font-bold leading-[1.16] tracking-[-0.02em] text-foreground sm:text-2xl lg:text-[1.85rem]">
+                  {title}
+                </h1>
+                {subtitle && (
+                  <p className="mt-1.5 max-w-3xl text-[13px] leading-relaxed text-muted-foreground sm:text-sm">
+                    {subtitle}
+                  </p>
+                )}
+              </motion.div>
+
+              <motion.div
+                aria-hidden="true"
+                initial={{ opacity: 0, scale: 0.94 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{
+                  duration: 0.45,
+                  delay: 0.06,
+                  ease: [0.22, 1, 0.36, 1],
+                }}
+                className="relative flex size-9 shrink-0 items-center justify-center rounded-xl border border-primary/15 bg-gradient-to-br from-primary/[0.14] to-primary/[0.04] text-primary shadow-sm sm:size-12 lg:size-14"
+              >
+                <span
+                  aria-hidden="true"
+                  className="absolute -inset-1.5 rounded-2xl border border-primary/10"
+                />
+                <HeroIcon className="size-4 sm:size-6 lg:size-7" />
+              </motion.div>
+            </div>
+          </section>
+        ) : (
         <section className="relative isolate overflow-hidden border-b border-border/40">
           {/* Ambient healthcare light */}
           <div
@@ -152,6 +248,7 @@ export default function InfoPage({
             </div>
           </div>
         </section>
+        )}
 
         <div className="relative mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-10">
           {children}

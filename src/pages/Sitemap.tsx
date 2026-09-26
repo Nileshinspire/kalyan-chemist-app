@@ -123,6 +123,7 @@ const TOTAL_PAGES = SECTIONS.reduce(
 export default function Sitemap() {
   return (
     <InfoPage
+      compact
       badge="Sitemap"
       badgeIcon={<MapIcon className="size-3" aria-hidden="true" />}
       heroIcon={MapIcon}
