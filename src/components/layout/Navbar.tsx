@@ -51,7 +51,7 @@ function CartCountBadge({ count }: { count: number | undefined }) {
   return (
     <span
       aria-hidden="true"
-      className="pointer-events-none absolute -right-1.5 -top-1.5 z-10 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#E53935] px-1 text-[10px] font-bold leading-none text-white shadow-sm ring-2 ring-background"
+      className="pointer-events-none absolute -right-1 -top-1 z-10 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#E53935] p-0 text-[9.5px] font-semibold leading-none text-white shadow-sm ring-[1.5px] ring-background"
     >
       {count > 99 ? "99+" : count}
     </span>

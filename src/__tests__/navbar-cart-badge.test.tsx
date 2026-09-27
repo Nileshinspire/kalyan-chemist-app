@@ -76,7 +76,25 @@ describe("Navbar cart-count badge", () => {
     const badge = badgeNodes()[0];
     expect(badge).toBeDefined();
     expect(badge.className).toContain("absolute");
-    expect(badge.className).toContain("-top-1.5");
-    expect(badge.className).toContain("-right-1.5");
+    expect(badge.className).toContain("-top-1");
+    expect(badge.className).toContain("-right-1");
+  });
+
+  it("renders a compact badge that does not cover the cart icon", () => {
+    mockUseQuery.mockReturnValue(1);
+    renderNavbar();
+    const badge = badgeNodes()[0];
+    expect(badge).toBeDefined();
+    // Compact e-commerce notification sizing: 16px box, 16px min width,
+    // no padding, fully rounded, small semibold text on the #E53935 red.
+    expect(badge.className).toContain("h-4");
+    expect(badge.className).toContain("min-w-4");
+    expect(badge.className).toContain("p-0");
+    expect(badge.className).toContain("rounded-full");
+    expect(badge.className).toContain("text-[9.5px]");
+    expect(badge.className).toContain("font-semibold");
+    expect(badge.className).toContain("leading-none");
+    expect(badge.className).toContain("bg-[#E53935]");
+    expect(badge.className).toContain("text-white");
   });
 });
