@@ -16,7 +16,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { getPaginationRange } from "@/lib/pagination";
+import { getPaginationRange, resolveProductPage } from "@/lib/pagination";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -198,35 +198,50 @@ export default function Products() {
   );
 
   const totalProducts = counts?.total ?? 0;
-  const totalPages = Math.max(1, Math.ceil(totalProducts / pageSize));
-  // Clamp pages that no longer exist (shrunken result set, viewport change,
-  // hand-edited URL). While totals are still unknown we trust the requested
-  // page so a deep link (?page=5) doesn't briefly fetch page 1 instead.
-  const currentPage =
-    counts === undefined ? Math.max(1, page) : Math.min(Math.max(1, page), totalPages);
 
-  // Main products query — only the current page's slice is returned.
+  // Decide the slice to fetch: the full matching set while the total is at
+  // most 25 products (no pagination), otherwise just the current page.
+  const pagePlan = resolveProductPage({
+    total: counts === undefined ? null : totalProducts,
+    pageSize,
+    requestedPage: page,
+  });
+  const { paginationEnabled, currentPage, totalPages, offset, limit } = pagePlan;
+
+  // Main products query — only the current page's slice is returned (or the
+  // whole matching set when it fits under the threshold).
   const results = useQuery(
     api.publicProducts.searchPage,
-    baseArgs === "skip"
-      ? "skip"
-      : {
-          ...baseArgs,
-          offset: Math.max(0, (currentPage - 1) * pageSize),
-          limit: pageSize,
-        }
+    baseArgs === "skip" ? "skip" : { ...baseArgs, offset, limit }
   );
 
   const products = results?.items;
+
+  // Page swaps keep the previous page's cards on screen (dimmed) until the
+  // next slice arrives, so clicking a page replaces content instead of
+  // collapsing the grid into a spinner. The snapshot is only reused while the
+  // filters/search/sort it was taken under are still active.
+  const filterKey = baseArgs === "skip" ? "skip" : JSON.stringify(baseArgs);
+  const [pageSnapshot, setPageSnapshot] = useState<{
+    key: string;
+    items: NonNullable<typeof products>;
+  } | null>(null);
+  const displayedProducts =
+    products ?? (pageSnapshot?.key === filterKey ? pageSnapshot.items : undefined);
+
   // An out-of-range page renders the loader (not "no products found") while
   // the clamped page number refetches.
-  const pageOutOfRange = results !== undefined && counts !== undefined && page !== currentPage;
+  const pageOutOfRange =
+    paginationEnabled && results !== undefined && counts !== undefined && page !== currentPage;
 
   const resultsRef = useRef<HTMLDivElement>(null);
 
   const goToPage = (nextPage: number) => {
     const target = Math.min(Math.max(1, nextPage), totalPages);
     if (target === page) return;
+    // Snapshot the outgoing page so the grid stays populated (dimmed) while
+    // the next slice loads — instant visual feedback on click.
+    if (products) setPageSnapshot({ key: filterKey, items: products });
     // `page` is derived from the URL, so the push below IS the state update.
     const params = new URLSearchParams(searchParams);
     if (target <= 1) params.delete("page");
@@ -290,7 +305,10 @@ export default function Products() {
 
   // The grid depends only on the product results — filter metadata (categories
   // / brands) loads in parallel and no longer blocks the listing.
-  const isLoading = results === undefined;
+  // First load / filter change → spinner; a page change keeps the previous
+  // cards visible (dimmed) until the new slice arrives.
+  const showLoader = displayedProducts === undefined || pageOutOfRange;
+  const isSwappingPages = !showLoader && results === undefined;
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -612,11 +630,11 @@ export default function Products() {
               `}</style>
 
               {/* Products grid */}
-              {isLoading || pageOutOfRange ? (
+              {showLoader ? (
                 <div className="flex items-center justify-center py-20">
                   <Loader2 className="size-6 animate-spin text-muted-foreground" />
                 </div>
-              ) : !products || products.length === 0 ? (
+              ) : !displayedProducts || displayedProducts.length === 0 ? (
                 <motion.div
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
@@ -636,8 +654,12 @@ export default function Products() {
                   </Button>
                 </motion.div>
               ) : (
-                <div className="kc-products-grid grid gap-3 grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
-                  {products.map((product) => (
+                <div
+                  className={`kc-products-grid grid gap-3 grid-cols-2 md:grid-cols-3 xl:grid-cols-4 transition-opacity duration-200${
+                    isSwappingPages ? " opacity-50" : ""
+                  }`}
+                >
+                  {displayedProducts.map((product) => (
                     <ProductCard key={product._id} product={product as any} />
                   ))}
                 </div>
@@ -646,7 +668,7 @@ export default function Products() {
               {/* Numbered pagination — replaces endless scrolling. Clicking a
                   page swaps the slice returned by the query (no full reload),
                   recalculates total pages and scrolls back to the results. */}
-              {!pageOutOfRange && totalPages > 1 && (
+              {paginationEnabled && !pageOutOfRange && (
                 <Pagination className="mt-6">
                   <PaginationContent className="flex-wrap justify-center">
                     <PaginationItem>

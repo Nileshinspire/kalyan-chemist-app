@@ -1,6 +1,59 @@
 export type PaginationItem = number | "ellipsis";
 
 /**
+ * Result sets up to this many matching products are shown in full with NO
+ * pagination; anything larger is split into pages.
+ */
+export const PAGINATION_THRESHOLD = 25;
+
+export type ProductPagePlan = {
+  /** True once the result set exceeds the threshold and must be paged. */
+  paginationEnabled: boolean;
+  /** Effective 1-based page (clamped into range once the total is known). */
+  currentPage: number;
+  totalPages: number;
+  /** Slice to request from the backend. */
+  offset: number;
+  limit: number;
+};
+
+/**
+ * Decide which slice of the product listing to fetch.
+ *
+ * - total <= 25 (or 0): show every matching product, no pagination.
+ * - total > 25: paginate with `pageSize` per page, clamping the requested
+ *   page into the valid range.
+ * - total === null (count still loading): trust the requested page only if a
+ *   page was actually asked for (?page>1 deep link), otherwise optimistically
+ *   fetch the full under-threshold set so small catalogues never flash a
+ *   partially-filled page.
+ */
+export function resolveProductPage(options: {
+  total: number | null;
+  pageSize: number;
+  requestedPage: number;
+  threshold?: number;
+}): ProductPagePlan {
+  const { total, pageSize, requestedPage, threshold = PAGINATION_THRESHOLD } = options;
+  const totalPages = Math.max(1, Math.ceil((total ?? 0) / pageSize));
+  const paginationEnabled = total !== null && total > threshold;
+  const currentPage =
+    total === null
+      ? Math.max(1, requestedPage)
+      : paginationEnabled
+        ? Math.min(Math.max(1, requestedPage), totalPages)
+        : 1;
+  const paginating = paginationEnabled || (total === null && requestedPage > 1);
+  return {
+    paginationEnabled,
+    currentPage,
+    totalPages,
+    offset: paginating ? Math.max(0, (currentPage - 1) * pageSize) : 0,
+    limit: paginating ? pageSize : threshold,
+  };
+}
+
+/**
  * Build the compact numbered range shown by the product-list pagination, e.g.
  * `1 2 3 4 5 … 10`, `1 … 8 9 [10] 11 12 … 20`.
  *
