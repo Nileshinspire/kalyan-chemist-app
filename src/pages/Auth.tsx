@@ -53,8 +53,16 @@ function toTenDigits(value: string): string {
 /**
  * Map a raw Convex/Convex Auth error into short, friendly copy. Anything we do
  * not recognise becomes a generic message so backend details are never shown.
+ *
+ * `method` is used as a last-resort fallback: because Convex may wrap or
+ * truncate a server error, an unrecognised failure during a phone send still
+ * reports the SMS-specific guidance rather than the generic email wording.
  */
-function friendlyError(error: unknown, context: "send" | "verify"): string {
+function friendlyError(
+  error: unknown,
+  context: "send" | "verify",
+  method: Method = "email",
+): string {
   const message = error instanceof Error ? error.message : String(error ?? "");
 
   if (/SMS_PROVIDER_NOT_CONFIGURED|SMS_SEND_FAILED/.test(message)) {
@@ -78,6 +86,9 @@ function friendlyError(error: unknown, context: "send" | "verify"): string {
   if (context === "verify") {
     return "That code is incorrect. Please try again.";
   }
+  if (method === "phone") {
+    return "We couldn't send the code by text right now. Please use email.";
+  }
   return "We couldn't send the code. Please try again.";
 }
 
@@ -100,6 +111,12 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
   const [notice, setNotice] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [resendIn, setResendIn] = useState(0);
+  /**
+   * The E.164 number a code was actually sent to. Kept separate from `phone`
+   * so the editable input can be cleared after a successful request while
+   * verification and resend still target the correct number.
+   */
+  const [verificationPhone, setVerificationPhone] = useState("");
 
   // Guards the auto-submit that fires when the last OTP box is filled, so a
   // single completed code cannot trigger two verification requests.
@@ -125,10 +142,23 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
     return () => clearInterval(timer);
   }, [resendIn]);
 
+  /** Pretty-print a stored E.164 number for the verification screen. */
+  const formatPhone = (value: string) =>
+    `+91 ${value.replace(/^\+91/, "").replace(/(\d{5})(\d{5})/, "$1 $2")}`;
+
   const maskedTarget =
-    method === "phone"
-      ? `+91 ${toTenDigits(phone).replace(/(\d{5})(\d{5})/, "$1 $2")}`
-      : email.trim();
+    method === "phone" ? formatPhone(verificationPhone) : email.trim();
+
+  /**
+   * The number a code should be sent to: while verifying (including resend) we
+   * reuse the number the code was actually issued for, otherwise we validate
+   * whatever the customer just typed.
+   */
+  const resolvePhoneTarget = (): string | null => {
+    if (stage === "verify" && verificationPhone) return verificationPhone;
+    if (!isValidPhone(phone)) return null;
+    return `+91${toTenDigits(phone)}`;
+  };
 
   const resetToIdentifier = useCallback(() => {
     setStage("identifier");
@@ -136,6 +166,8 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
     setError(null);
     setNotice(null);
     setResendIn(0);
+    // Start a fresh number entry; the number never lingers in the input.
+    setVerificationPhone("");
     verifyingRef.current = false;
   }, []);
 
@@ -146,6 +178,8 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
     setError(null);
     setNotice(null);
     setResendIn(0);
+    setPhone("");
+    setVerificationPhone("");
     verifyingRef.current = false;
   };
 
@@ -154,9 +188,9 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
     async (isResend: boolean) => {
       if (isSubmitting) return;
 
-      const target = method === "phone" ? `+91${toTenDigits(phone)}` : email.trim();
+      const phoneTarget = method === "phone" ? resolvePhoneTarget() : null;
 
-      if (method === "phone" && !isValidPhone(phone)) {
+      if (method === "phone" && !phoneTarget) {
         setError("Please enter a valid phone number.");
         return;
       }
@@ -164,6 +198,8 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
         setError("Please enter a valid email address.");
         return;
       }
+
+      const target = method === "phone" ? phoneTarget! : email.trim();
 
       setIsSubmitting(true);
       setError(null);
@@ -175,6 +211,11 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
         else form.set("email", target);
         await signIn(method === "phone" ? "phone-otp" : "email-otp", form);
 
+        if (method === "phone") {
+          // Remember where the code went, then clear the editable input.
+          setVerificationPhone(target);
+          setPhone("");
+        }
         setStage("verify");
         setCode("");
         setResendIn(RESEND_SECONDS);
@@ -185,12 +226,14 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
             : `We sent a 6-digit code to ${target}.`,
         );
       } catch (error) {
-        setError(friendlyError(error, "send"));
+        setError(friendlyError(error, "send", method));
       } finally {
         setIsSubmitting(false);
       }
     },
-    [email, isSubmitting, method, phone, signIn],
+    // resolvePhoneTarget is derived from state captured below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [email, isSubmitting, method, phone, signIn, stage, verificationPhone],
   );
 
   const handleIdentifierSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -207,7 +250,12 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
       setIsSubmitting(true);
       setError(null);
 
-      const target = method === "phone" ? `+91${toTenDigits(phone)}` : email.trim();
+      // Verification always targets the number the code was sent to, never the
+      // (now cleared) editable input.
+      const target =
+        method === "phone"
+          ? verificationPhone || `+91${toTenDigits(phone)}`
+          : email.trim();
 
       try {
         const form = new FormData();
@@ -218,7 +266,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
         // The auth effect performs the redirect once the session is confirmed,
         // which keeps the returnTo destination intact.
       } catch (error) {
-        setError(friendlyError(error, "verify"));
+        setError(friendlyError(error, "verify", method));
         setCode("");
         verifyingRef.current = false;
         // Let the boxes re-render empty after a wrong code.
@@ -232,7 +280,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
         setIsSubmitting(false);
       }
     },
-    [email, isSubmitting, method, phone, signIn],
+    [email, isSubmitting, method, phone, signIn, verificationPhone],
   );
 
   const handleVerifySubmit = (event: React.FormEvent<HTMLFormElement>) => {

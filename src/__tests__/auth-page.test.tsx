@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor, act } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { type ReactNode } from "react";
@@ -75,6 +75,13 @@ describe("AuthPage (OTP sign-in)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSignIn.mockResolvedValue(undefined);
+    // The resend countdown is the only timer in the page, so fake timers let
+    // these tests reach the resend button without waiting 30 real seconds.
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("renders the Kalyan Chemist branding", () => {
@@ -322,6 +329,109 @@ describe("AuthPage (OTP sign-in)", () => {
         "We couldn't send the code by text right now. Please use email.",
       ),
     ).toBeInTheDocument();
+  });
+
+  it("clears the phone input after a successful send", async () => {
+    renderAuth();
+    clickTab(/Phone/);
+    typeInto("Phone Number", "9876543210");
+    submitForm("Send OTP");
+    await screen.findByText("Enter OTP");
+
+    // Returning to the input via "Change Phone Number" must not show the
+    // number that was just used — the input is cleared after a successful send.
+    clickButton("Change Phone Number");
+    expect(screen.getByLabelText("Phone Number")).toHaveValue("");
+  });
+
+  it("shows the saved verification number on the OTP screen", async () => {
+    renderAuth();
+    clickTab(/Phone/);
+    typeInto("Phone Number", "9876543210");
+    submitForm("Send OTP");
+    // The masked number comes from the saved verification target.
+    expect(await screen.findByText("+91 98765 43210")).toBeInTheDocument();
+  });
+
+  it("verifies against the saved number, not the cleared input", async () => {
+    renderAuth();
+    clickTab(/Phone/);
+    typeInto("Phone Number", "9876543210");
+    submitForm("Send OTP");
+    await screen.findByText("Enter OTP");
+
+    mockSignIn.mockClear();
+    await act(async () => {
+      fillOtp("123456");
+    });
+
+    await waitFor(() => expect(mockSignIn).toHaveBeenCalledTimes(1));
+    const [provider, form] = mockSignIn.mock.calls[0] as [string, FormData];
+    expect(provider).toBe("phone-otp");
+    // Still the original number even though the input is empty.
+    expect(form.get("phone")).toBe("+919876543210");
+  });
+
+  it("resends to the saved number without re-entering it", async () => {
+    renderAuth();
+    clickTab(/Phone/);
+    typeInto("Phone Number", "9876543210");
+    submitForm("Send OTP");
+    await screen.findByText("Enter OTP");
+
+    // Skip past the countdown by exhausting it with fake timers.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(31_000);
+    });
+
+    mockSignIn.mockClear();
+    await act(async () => {
+      clickButton(/Resend OTP/);
+    });
+
+    await waitFor(() => expect(mockSignIn).toHaveBeenCalledTimes(1));
+    const [provider, form] = mockSignIn.mock.calls[0] as [string, FormData];
+    expect(provider).toBe("phone-otp");
+    expect(form.get("phone")).toBe("+919876543210");
+  });
+
+  it("restarts the resend countdown after a resend", async () => {
+    renderAuth();
+    clickTab(/Phone/);
+    typeInto("Phone Number", "9876543210");
+    submitForm("Send OTP");
+    await screen.findByText("Enter OTP");
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(31_000);
+    });
+    expect(
+      screen.getByRole("button", { name: /^Resend OTP$/ }),
+    ).toBeEnabled();
+
+    await act(async () => {
+      clickButton(/Resend OTP/);
+    });
+    expect(
+      await screen.findByRole("button", { name: /Resend OTP in 30s/ }),
+    ).toBeDisabled();
+  });
+
+  it("allows a fresh number after Change Phone Number", async () => {
+    renderAuth();
+    clickTab(/Phone/);
+    typeInto("Phone Number", "9876543210");
+    submitForm("Send OTP");
+    await screen.findByText("Enter OTP");
+
+    clickButton("Change Phone Number");
+    expect(screen.getByLabelText("Phone Number")).toHaveValue("");
+
+    typeInto("Phone Number", "9123456789");
+    submitForm("Send OTP");
+    await waitFor(() => expect(mockSignIn).toHaveBeenCalledTimes(2));
+    const [, form] = mockSignIn.mock.calls[1] as [string, FormData];
+    expect(form.get("phone")).toBe("+919123456789");
   });
 
   it("keeps the Phone tab selectable at all times", () => {
