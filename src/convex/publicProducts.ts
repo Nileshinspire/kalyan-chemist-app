@@ -1,25 +1,39 @@
-import { query } from "./_generated/server";
+import { query, QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
+import { Id } from "./_generated/dataModel";
+
+// Shared filter args for the catalogue search — used by both the full
+// `search` query and the paginated `searchPage` query below.
+const searchFilterArgs = {
+  query: v.string(),
+  categoryId: v.optional(v.id("categories")),
+  brandId: v.optional(v.id("brands")),
+  minPrice: v.optional(v.number()),
+  maxPrice: v.optional(v.number()),
+  prescriptionRequired: v.optional(v.boolean()),
+  inStock: v.optional(v.boolean()),
+  sortBy: v.optional(v.union(
+    v.literal("relevance"),
+    v.literal("price_asc"),
+    v.literal("price_desc"),
+    v.literal("discount"),
+    v.literal("newest"),
+  )),
+};
+
+type SearchFilters = {
+  query: string;
+  categoryId?: Id<"categories">;
+  brandId?: Id<"brands">;
+  minPrice?: number;
+  maxPrice?: number;
+  prescriptionRequired?: boolean;
+  inStock?: boolean;
+  sortBy?: "relevance" | "price_asc" | "price_desc" | "discount" | "newest";
+};
 
 // ── Full search across name, composition, manufacturer, brand ──
-export const search = query({
-  args: {
-    query: v.string(),
-    categoryId: v.optional(v.id("categories")),
-    brandId: v.optional(v.id("brands")),
-    minPrice: v.optional(v.number()),
-    maxPrice: v.optional(v.number()),
-    prescriptionRequired: v.optional(v.boolean()),
-    inStock: v.optional(v.boolean()),
-    sortBy: v.optional(v.union(
-      v.literal("relevance"),
-      v.literal("price_asc"),
-      v.literal("price_desc"),
-      v.literal("discount"),
-      v.literal("newest"),
-    )),
-  },
-  handler: async (ctx, args) => {
+async function runProductSearch(ctx: QueryCtx, args: SearchFilters) {
     const searchTerm = args.query.toLowerCase().trim();
 
     let products = await ctx.db
@@ -116,7 +130,29 @@ export const search = query({
       }
     });
 
-    return enriched;
+  return enriched;
+}
+
+export const search = query({
+  args: searchFilterArgs,
+  handler: (ctx, args) => runProductSearch(ctx, args),
+});
+
+// ── Paginated search: returns only the requested page plus the total count
+// so the listing can render numbered pagination without shipping every row ──
+export const searchPage = query({
+  args: {
+    ...searchFilterArgs,
+    offset: v.number(),
+    limit: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const { offset, limit, ...filters } = args;
+    const items = await runProductSearch(ctx, filters);
+    const total = items.length;
+    const safeOffset = Math.max(0, Math.floor(offset));
+    const safeLimit = Math.max(1, Math.floor(limit));
+    return { items: items.slice(safeOffset, safeOffset + safeLimit), total };
   },
 });
 

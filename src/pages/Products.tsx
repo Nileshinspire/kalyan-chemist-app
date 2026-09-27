@@ -7,6 +7,16 @@ import Footer from "@/components/layout/Footer";
 import ProductCard from "@/components/ProductCard";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+import { getPaginationRange } from "@/lib/pagination";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -40,25 +50,54 @@ function useUrlFilterValues() {
   const urlSort = useMemo(() => searchParams.get("sort") || "relevance", [searchParams.get("sort")]);
   const urlRx = useMemo(() => searchParams.get("rx") || "", [searchParams.get("rx")]);
   const urlStock = useMemo(() => searchParams.get("stock") || "", [searchParams.get("stock")]);
+  const urlPage = useMemo(() => {
+    const parsed = parseInt(searchParams.get("page") || "1", 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+  }, [searchParams]);
   const navKey = useMemo(() => searchParams.get("nav") || "", [searchParams.get("nav")]);
-  return { urlSearch, urlCategory, urlBrand, urlSort, urlRx, urlStock, navKey };
+  return { urlSearch, urlCategory, urlBrand, urlSort, urlRx, urlStock, urlPage, navKey };
 }
 
 export default function Products() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [, setSearchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   // Read URL params into stable memoized values (no extra renders)
-  const { urlSearch, urlCategory, urlBrand, urlSort, urlRx, urlStock, navKey } = useUrlFilterValues();
+  const { urlSearch, urlCategory, urlBrand, urlSort, urlRx, urlStock, urlPage, navKey } = useUrlFilterValues();
 
-  // Local state — initialized from URL, updated by user interactions
-  const [searchQuery, setSearchQuery] = useState(urlSearch);
-  const [selectedCategorySlug, setSelectedCategorySlug] = useState(urlCategory);
-  const [selectedBrandSlug, setSelectedBrandSlug] = useState(urlBrand);
-  const [sortBy, setSortBy] = useState(urlSort);
-  const [prescriptionFilter, setPrescriptionFilter] = useState(urlRx);
-  const [stockFilter, setStockFilter] = useState(urlStock);
+  // Local state — initialized from URL, updated by user interactions.
+  // The raw setters below are only used by the URL → state sync effect;
+  // user interactions go through the page-resetting wrappers.
+  const [searchQuery, setSearchQueryState] = useState(urlSearch);
+  const [selectedCategorySlug, setSelectedCategorySlugState] = useState(urlCategory);
+  const [selectedBrandSlug, setSelectedBrandSlugState] = useState(urlBrand);
+  const [sortBy, setSortByState] = useState(urlSort);
+  const [prescriptionFilter, setPrescriptionFilterState] = useState(urlRx);
+  const [stockFilter, setStockFilterState] = useState(urlStock);
+
+  // Current 1-based results page — derived straight from the `page` URL param
+  // so refresh / share / back-forward all restore the same page, and every
+  // URL write (paging, filter helpers, navbar links) stays authoritative.
+  const page = urlPage;
+
+  // Any change to search / category / brand / sorting redefines the result
+  // set, so pagination always restarts at page 1 (total pages are then
+  // recalculated from the paginated query).
+  const resetPage = () => {
+    if (searchParams.has("page")) {
+      const next = new URLSearchParams(searchParams);
+      next.delete("page");
+      setSearchParams(next, { replace: true });
+    }
+  };
+  const setSearchQuery = (value: string) => { setSearchQueryState(value); resetPage(); };
+  const setSelectedCategorySlug = (value: string) => { setSelectedCategorySlugState(value); resetPage(); };
+  const setSelectedBrandSlug = (value: string) => { setSelectedBrandSlugState(value); resetPage(); };
+  const setSortBy = (value: string) => { setSortByState(value); resetPage(); };
+  const setPrescriptionFilter = (value: string) => { setPrescriptionFilterState(value); resetPage(); };
+  const setStockFilter = (value: string) => { setStockFilterState(value); resetPage(); };
+
   const [autocompleteQuery, setAutocompleteQuery] = useState("");
   const [showAutocomplete, setShowAutocomplete] = useState(false);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
@@ -68,12 +107,12 @@ export default function Products() {
   // Sync URL → local state on external navigation (e.g. Navbar category click)
   // Only runs when individual param values actually change — not on every render
   useEffect(() => {
-    setSearchQuery(urlSearch);
-    setSelectedCategorySlug(urlCategory);
-    setSelectedBrandSlug(urlBrand);
-    setSortBy(urlSort);
-    setPrescriptionFilter(urlRx);
-    setStockFilter(urlStock);
+    setSearchQueryState(urlSearch);
+    setSelectedCategorySlugState(urlCategory);
+    setSelectedBrandSlugState(urlBrand);
+    setSortByState(urlSort);
+    setPrescriptionFilterState(urlRx);
+    setStockFilterState(urlStock);
   }, [urlSearch, urlCategory, urlBrand, urlSort, urlRx, urlStock]);
 
   // Look up category/brand IDs from slugs
@@ -119,20 +158,89 @@ export default function Products() {
     (!selectedCategorySlug || allCategories !== undefined) &&
     (!selectedBrandSlug || allBrands !== undefined);
 
-  // Main search query — uses local state which syncs from URL on navigation
-  const products = useQuery(
-    api.publicProducts.search,
-    filtersReady
-      ? {
-          query: searchQuery || "",
-          categoryId: selectedCategoryId as any,
-          brandId: selectedBrandId as any,
-          prescriptionRequired: prescriptionFilter === "rx" ? true : prescriptionFilter === "otc" ? false : undefined,
-          inStock: stockFilter === "in_stock" ? true : undefined,
-          sortBy: sortBy as any,
-        }
-      : "skip"
+  // Responsive page size: 8 products on the mobile 2-column grid, 12 on the
+  // 3/4-column tablet & desktop grids — one dataset, just a smaller slice
+  // per viewport (no separate product data).
+  const [isMobileViewport, setIsMobileViewport] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(max-width: 767px)").matches
   );
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 767px)");
+    const handleViewportChange = (event: MediaQueryListEvent) =>
+      setIsMobileViewport(event.matches);
+    mediaQuery.addEventListener("change", handleViewportChange);
+    return () => mediaQuery.removeEventListener("change", handleViewportChange);
+  }, []);
+  const pageSize = isMobileViewport ? 8 : 12;
+
+  // Shared filter args for the listing. Pagination happens at the data level:
+  // one subscription fetches only the current page of products, and a second
+  // page-independent subscription fetches just the total for page counts — so
+  // the browser never receives (or hides) the whole catalogue, and the page
+  // numbers stay steady while a new page loads.
+  const baseArgs = filtersReady
+    ? {
+        query: searchQuery || "",
+        categoryId: selectedCategoryId as any,
+        brandId: selectedBrandId as any,
+        prescriptionRequired: prescriptionFilter === "rx" ? true : prescriptionFilter === "otc" ? false : undefined,
+        inStock: stockFilter === "in_stock" ? true : undefined,
+        sortBy: sortBy as any,
+      }
+    : "skip";
+
+  const counts = useQuery(
+    api.publicProducts.searchPage,
+    baseArgs === "skip" ? "skip" : { ...baseArgs, offset: 0, limit: 1 }
+  );
+
+  const totalProducts = counts?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalProducts / pageSize));
+  // Clamp pages that no longer exist (shrunken result set, viewport change,
+  // hand-edited URL). While totals are still unknown we trust the requested
+  // page so a deep link (?page=5) doesn't briefly fetch page 1 instead.
+  const currentPage =
+    counts === undefined ? Math.max(1, page) : Math.min(Math.max(1, page), totalPages);
+
+  // Main products query — only the current page's slice is returned.
+  const results = useQuery(
+    api.publicProducts.searchPage,
+    baseArgs === "skip"
+      ? "skip"
+      : {
+          ...baseArgs,
+          offset: Math.max(0, (currentPage - 1) * pageSize),
+          limit: pageSize,
+        }
+  );
+
+  const products = results?.items;
+  // An out-of-range page renders the loader (not "no products found") while
+  // the clamped page number refetches.
+  const pageOutOfRange = results !== undefined && counts !== undefined && page !== currentPage;
+
+  const resultsRef = useRef<HTMLDivElement>(null);
+
+  const goToPage = (nextPage: number) => {
+    const target = Math.min(Math.max(1, nextPage), totalPages);
+    if (target === page) return;
+    // `page` is derived from the URL, so the push below IS the state update.
+    const params = new URLSearchParams(searchParams);
+    if (target <= 1) params.delete("page");
+    else params.set("page", String(target));
+    // Push (not replace) so browser back/forward walks the pages too.
+    setSearchParams(params);
+    // Return smoothly to the top of the results instead of leaving the user
+    // at the bottom of the previous page's cards.
+    const resultsTop = resultsRef.current;
+    if (resultsTop) {
+      const top = resultsTop.getBoundingClientRect().top + window.scrollY - 96;
+      window.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+    }
+  };
 
 
 
@@ -182,7 +290,7 @@ export default function Products() {
 
   // The grid depends only on the product results — filter metadata (categories
   // / brands) loads in parallel and no longer blocks the listing.
-  const isLoading = products === undefined;
+  const isLoading = results === undefined;
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -207,7 +315,7 @@ export default function Products() {
                   : "All Medicines"}
               </h1>
               <p className="mt-1.5 text-sm text-muted-foreground">
-                {products ? `${products.length} product(s) found` : "Browse our catalogue of genuine medicines and healthcare products."}
+                {counts ? `${totalProducts} product(s) found` : "Browse our catalogue of genuine medicines and healthcare products."}
               </p>
             </motion.div>
           </div>
@@ -373,7 +481,7 @@ export default function Products() {
             </aside>
 
             {/* Main content */}
-            <div className="flex-1 min-w-0">
+            <div className="flex-1 min-w-0" ref={resultsRef}>
               {/* Mobile filter bar */}
               <div className="flex items-center gap-3 mb-4 lg:hidden">
                 <div className="relative flex-1">
@@ -489,22 +597,22 @@ export default function Products() {
                   The sidebar, filters and every other product section stay
                   untouched. */}
               <style>{`
-                .kc-products-grid .h-44 { height: 7rem; }
+                .kc-products-grid .h-44 { height: 6.5rem; }
                 .kc-products-grid .size-20 { width: 4.5rem; height: 4.5rem; }
                 .kc-products-grid .size-14 { width: 2.75rem; height: 2.75rem; }
-                .kc-products-grid .p-4 { padding: 0.75rem; }
-                .kc-products-grid .space-y-2\\.5 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.5rem; }
+                .kc-products-grid .p-4 { padding: 0.625rem 0.75rem; }
+                .kc-products-grid .space-y-2\\.5 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.375rem; }
                 .kc-products-grid .text-sm { font-size: 0.8125rem; line-height: 1.25rem; }
                 .kc-products-grid .text-xs { font-size: 0.6875rem; line-height: 1rem; }
                 .kc-products-grid button.text-xs { font-size: 0.75rem; line-height: 1rem; }
                 .kc-products-grid .text-lg { font-size: 1rem; line-height: 1.5rem; }
-                .kc-products-grid .h-9 { height: 2rem; }
+                .kc-products-grid .h-9 { height: 1.875rem; }
                 .kc-products-grid .h-8 { height: 1.75rem; }
                 .kc-products-grid .w-8 { width: 1.75rem; }
               `}</style>
 
               {/* Products grid */}
-              {isLoading ? (
+              {isLoading || pageOutOfRange ? (
                 <div className="flex items-center justify-center py-20">
                   <Loader2 className="size-6 animate-spin text-muted-foreground" />
                 </div>
@@ -533,6 +641,65 @@ export default function Products() {
                     <ProductCard key={product._id} product={product as any} />
                   ))}
                 </div>
+              )}
+
+              {/* Numbered pagination — replaces endless scrolling. Clicking a
+                  page swaps the slice returned by the query (no full reload),
+                  recalculates total pages and scrolls back to the results. */}
+              {!pageOutOfRange && totalPages > 1 && (
+                <Pagination className="mt-6">
+                  <PaginationContent className="flex-wrap justify-center">
+                    <PaginationItem>
+                      <PaginationPrevious
+                        href="#"
+                        aria-disabled={currentPage <= 1}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          if (currentPage > 1) goToPage(currentPage - 1);
+                        }}
+                        className={currentPage <= 1 ? "pointer-events-none opacity-40" : "cursor-pointer"}
+                      />
+                    </PaginationItem>
+
+                    {getPaginationRange(currentPage, totalPages).map((item, index) =>
+                      item === "ellipsis" ? (
+                        <PaginationItem key={`pagination-ellipsis-${index}`}>
+                          <PaginationEllipsis />
+                        </PaginationItem>
+                      ) : (
+                        <PaginationItem key={item}>
+                          <PaginationLink
+                            href="#"
+                            isActive={item === currentPage}
+                            onClick={(event) => {
+                              event.preventDefault();
+                              goToPage(item);
+                            }}
+                            className={
+                              item === currentPage
+                                ? "cursor-pointer border-primary/40 bg-primary/10 font-semibold text-primary shadow-sm"
+                                : "cursor-pointer"
+                            }
+                          >
+                            {item}
+                          </PaginationLink>
+                        </PaginationItem>
+                      )
+                    )}
+
+                    <PaginationItem>
+                      <PaginationNext
+                        href="#"
+                        aria-disabled={currentPage >= totalPages}
+                        onClick={(event) => {
+                          event.preventDefault();
+                          if (currentPage < totalPages) goToPage(currentPage + 1);
+                        }}
+                        className={currentPage >= totalPages ? "pointer-events-none opacity-40" : "cursor-pointer"}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
               )}
             </div>
           </div>
