@@ -539,12 +539,20 @@ const Footer = memo(function Footer() {
             }
           />
 
+          {/* Healthcare Services column. The About column above is shifted
+              right by `lg:translate-x-[5.5rem]`; a CSS translate creates a
+              stacking context that painted above this static sibling, and its
+              transparent overflow was covering the left edge of this column —
+              swallowing clicks on the links. `relative z-10` raises this column
+              above that layer (position:relative + z-index only, no offsets, so
+              nothing visually changes) so clicks land on the links. */}
           <FooterColumn
             id="healthcare"
             title="Healthcare Services"
             links={HEALTHCARE_LINKS}
             isOpen={openGroup === "healthcare"}
             onToggle={toggleGroup}
+            contentClassName="relative z-10"
             afterTitle={
               <div className="mt-3 border-t border-white/10 pt-2.5" aria-label="Contact information">
                 <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-white/45">
