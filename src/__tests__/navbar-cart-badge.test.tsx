@@ -76,8 +76,8 @@ describe("Navbar cart-count badge", () => {
     const badge = badgeNodes()[0];
     expect(badge).toBeDefined();
     expect(badge.className).toContain("absolute");
-    expect(badge.className).toContain("-top-1");
-    expect(badge.className).toContain("-right-1");
+    expect(badge.className).toContain("-top-[6px]");
+    expect(badge.className).toContain("-right-[6px]");
   });
 
   it("renders a compact badge that does not cover the cart icon", () => {
