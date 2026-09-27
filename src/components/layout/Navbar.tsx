@@ -4,6 +4,8 @@ import SubNav from "@/components/layout/SubNav";
 
 import { preloadRoute } from "@/lib/route-preload";
 import { useAuth } from "@/context/AuthContext";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import BrandMark from "@/components/BrandMark";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,7 +20,6 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import {
   Search,
   ShoppingCart,
-  Heart,
   User,
   Menu,
   LogOut,
@@ -42,8 +43,27 @@ const CATEGORY_NAV_ITEMS = [
   { label: "Health Conditions", slug: "health-safety", key: "health-conditions" },
 ] as const;
 
+/* Live cart-count badge for the header cart icon. Reads the existing reactive
+   cart query so it stays in sync on add / remove / quantity change / clear with
+   no refresh, and is completely hidden when the cart is empty (never shows 0). */
+function CartCountBadge({ count }: { count: number | undefined }) {
+  if (count === undefined || count <= 0) return null;
+  return (
+    <span
+      aria-hidden="true"
+      className="pointer-events-none absolute -right-1.5 -top-1.5 z-10 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#E53935] px-1 text-[10px] font-bold leading-none text-white shadow-sm ring-2 ring-background"
+    >
+      {count > 99 ? "99+" : count}
+    </span>
+  );
+}
+
 const Navbar = memo(function Navbar() {
   const { isAuthenticated, isAdmin, user, logout } = useAuth();
+  // Reactive total quantity in the user's cart (0 when signed out · empty).
+  // Coerce to a number so the badge can only ever render a count.
+  const cartCountQuery = useQuery(api.cart.getCount);
+  const cartCount = typeof cartCountQuery === "number" ? cartCountQuery : 0;
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
@@ -158,11 +178,19 @@ const Navbar = memo(function Navbar() {
             variant="ghost"
             size="icon"
             className="relative rounded-xl hover:bg-primary/5"
+            aria-label={
+              cartCount
+                ? `Cart, ${cartCount} item${cartCount === 1 ? "" : "s"}`
+                : "Cart"
+            }
             onMouseEnter={() => preloadRoute("/cart")}
             onFocus={() => preloadRoute("/cart")}
             onClick={() => navigate("/cart")}
           >
-            <ShoppingCart className="size-4" />
+            <span className="relative inline-flex">
+              <ShoppingCart className="size-4" />
+              <CartCountBadge count={cartCount} />
+            </span>
           </Button>
 
           {isAuthenticated ? (
@@ -250,11 +278,19 @@ const Navbar = memo(function Navbar() {
             variant="ghost"
             size="icon"
             className="relative rounded-xl"
+            aria-label={
+              cartCount
+                ? `Cart, ${cartCount} item${cartCount === 1 ? "" : "s"}`
+                : "Cart"
+            }
             onMouseEnter={() => preloadRoute("/cart")}
             onFocus={() => preloadRoute("/cart")}
             onClick={() => navigate("/cart")}
           >
-            <ShoppingCart className="size-4" />
+            <span className="relative inline-flex">
+              <ShoppingCart className="size-4" />
+              <CartCountBadge count={cartCount} />
+            </span>
           </Button>
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
             <SheetTrigger asChild>
