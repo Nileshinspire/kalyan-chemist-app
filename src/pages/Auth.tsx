@@ -15,8 +15,6 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
-import { useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
 
 interface AuthProps {
   redirectAfterAuth?: string;
@@ -93,8 +91,6 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
   );
 
   // Real SMS availability, reported by the server. `undefined` while loading.
-  const smsAvailable = useQuery(api.authCapabilities.phoneOtpAvailable);
-
   const [preferredMethod, setPreferredMethod] = useState<Method>("email");
   const [stage, setStage] = useState<Stage>("identifier");
   const [phone, setPhone] = useState("");
@@ -109,11 +105,10 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
   // single completed code cannot trigger two verification requests.
   const verifyingRef = useRef(false);
 
-  // Derived rather than set from an effect: once we know SMS is unavailable we
-  // fall back to email instead of offering a method that cannot deliver.
-  const phoneAvailable = smsAvailable !== false;
-  const method: Method =
-    preferredMethod === "phone" && !phoneAvailable ? "email" : preferredMethod;
+  // Both methods are always selectable. Whether SMS can actually be delivered is
+  // decided by the backend provider at send time, so a missing SMS
+  // configuration surfaces as a real error rather than a silently hidden tab.
+  const method: Method = preferredMethod;
 
   useEffect(() => {
     if (!authLoading && isAuthenticated) {
@@ -245,7 +240,6 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
     void verifyCode(code);
   };
 
-  const phoneTabDisabled = !phoneAvailable;
   const canResend = resendIn === 0 && !isSubmitting;
 
   return (
@@ -313,11 +307,6 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                   },
                 ]}
               />
-              {phoneTabDisabled && (
-                <p className="mt-2 text-center text-xs text-emerald-200/50">
-                  Text sign-in is being set up. Please use email.
-                </p>
-              )}
             </div>
 
             {notice && !error && (

@@ -17,8 +17,6 @@ vi.mock("lucide-react", () => ({
   Sparkles: () => null,
 }));
 
-const mockPhoneOtpAvailable = vi.fn();
-
 // Mock use-auth hook (Convex auth)
 const mockSignIn = vi.fn();
 vi.mock("@/hooks/use-auth", () => ({
@@ -29,10 +27,6 @@ vi.mock("@/hooks/use-auth", () => ({
     signOut: vi.fn(),
     user: null,
   }),
-}));
-
-vi.mock("convex/react", () => ({
-  useQuery: () => mockPhoneOtpAvailable(),
 }));
 
 import AuthPage from "@/pages/Auth";
@@ -80,7 +74,6 @@ function fillOtp(code: string) {
 describe("AuthPage (OTP sign-in)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockPhoneOtpAvailable.mockReturnValue(true);
     mockSignIn.mockResolvedValue(undefined);
   });
 
@@ -331,12 +324,44 @@ describe("AuthPage (OTP sign-in)", () => {
     ).toBeInTheDocument();
   });
 
-  it("hides the Phone flow when SMS is not configured", () => {
-    mockPhoneOtpAvailable.mockReturnValue(false);
+  it("keeps the Phone tab selectable at all times", () => {
     renderAuth();
+    const phoneTab = screen.getByRole("tab", { name: /Phone/ });
+    // Never disabled or hidden — the backend decides at send time.
+    expect(phoneTab).toBeEnabled();
     expect(
-      screen.getByText(/Text sign-in is being set up/i),
+      screen.queryByText(/Text sign-in is being set up/i),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(phoneTab);
+    expect(phoneTab).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByLabelText("Phone Number")).toBeInTheDocument();
+  });
+
+  it("switches back from Phone to Email without a reload", () => {
+    renderAuth();
+    clickTab(/Phone/);
+    expect(screen.getByLabelText("Phone Number")).toBeInTheDocument();
+
+    clickTab(/Email/);
+    expect(screen.getByLabelText("Email Address")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Phone Number")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Send Code" }),
     ).toBeInTheDocument();
+  });
+
+  it("clears the OTP step when switching away mid-verification", async () => {
+    renderAuth();
+    clickTab(/Phone/);
+    typeInto("Phone Number", "9876543210");
+    submitForm("Send OTP");
+    await screen.findByText("Enter OTP");
+
+    clickTab(/Email/);
+    // Back at the identifier step, with no stale OTP screen.
+    expect(screen.getByLabelText("Email Address")).toBeInTheDocument();
+    expect(screen.queryByText("Enter OTP")).not.toBeInTheDocument();
   });
 
   it("returns to the identifier step to change the identifier", async () => {

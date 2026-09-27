@@ -54,8 +54,17 @@ export const phoneOtp = Phone({
     const from = process.env.TWILIO_PHONE_NUMBER;
 
     if (!accountSid || !authToken || !from) {
-      // Surface as a user-safe message; the client maps this to a generic
-      // "couldn't send the code" copy so internals are never exposed.
+      // Log which vars are missing so the misconfiguration is obvious in the
+      // Convex dashboard, but throw a code the client maps to friendly copy so
+      // nothing about the backend leaks to the customer.
+      const missing = [
+        !accountSid && "TWILIO_ACCOUNT_SID",
+        !authToken && "TWILIO_AUTH_TOKEN",
+        !from && "TWILIO_PHONE_NUMBER",
+      ].filter(Boolean);
+      console.error(
+        `[phoneOtp] SMS is not configured — missing: ${missing.join(", ")}`,
+      );
       throw new Error("SMS_PROVIDER_NOT_CONFIGURED");
     }
 
@@ -91,10 +100,12 @@ export const phoneOtp = Phone({
     }
 
     if (!response.ok) {
-      // Log the real status for operators; the customer only ever sees a
-      // friendly message because we throw a non-specific code.
+      // Log the real status and Twilio's own error code for operators, so a
+      // rejected sender number or unverified account is diagnosable. The
+      // customer only ever sees a friendly message.
+      const detail = await response.text().catch(() => "");
       console.error(
-        `[phoneOtp] Twilio rejected the message for ${to} — status ${response.status}`,
+        `[phoneOtp] Twilio rejected the message for ${to} — status ${response.status}: ${detail.slice(0, 500)}`,
       );
       throw new Error("SMS_SEND_FAILED");
     }
