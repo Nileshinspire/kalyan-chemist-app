@@ -53,20 +53,19 @@ import { cn } from "@/lib/utils";
      while the section is on screen; everything cleans up on unmount.
    ═══════════════════════════════════════════════════════════════════════════ */
 
-/* ── premium healthcare-tech palette: deep navy + electric blue + cyan + subtle violet ──
+/* ── premium warm-healthcare palette: warm ivory + champagne gold + muted sage + subtle terracotta ──
    (colour-only restyle — structure, 3D scene, scroll behaviour and timing untouched) */
-const NAVY = "#0A1230";
-const ELECTRIC = "#2563EB";
-const INDIGO = "#3730C4";
-const CYAN = "#3BD8F0";
-const VIOLET = "#7C6EF2";
-const ICE = "#CBE0FF";
-const ICE_SOFT = "#E9F2FF";
-const INK = "#0F1B3A";
-const INK_SOFT = "#4B5B7A";
-const INK_FAINT = "#93A3C0";
-const FROST = "#E9F0FF";
-const HAIRLINE = "rgba(46,107,255,0.18)";
+const IVORY = "#F7F4EC";
+const GOLD = "#C9A45F";
+const SAGE = "#7C9278";
+const SAGE_DEEP = "#647A63";
+const TERRACOTTA = "#C98268";
+const LINEN = "#E9E0CA";
+const OAT = "#F4EFE1";
+const INK = "#17352C";
+const INK_SOFT = "#4F5E56";
+const INK_FAINT = "#94A096";
+const HAIRLINE = "rgba(201,164,95,0.30)";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 
@@ -123,7 +122,7 @@ const Bounce = memo(function Bounce({ w = 44 }: { w?: number }) {
         bottom: -3,
         width: w,
         height: 7,
-        background: "radial-gradient(ellipse at center, rgba(4,10,38,0.20), rgba(4,10,38,0) 72%)",
+        background: "radial-gradient(ellipse at center, rgba(64,52,30,0.20), rgba(64,52,30,0) 72%)",
       }}
       aria-hidden="true"
     />
@@ -161,18 +160,18 @@ const MedicineProduct = memo(function MedicineProduct() {
       <Bounce w={48} />
       {/* bottle */}
       <div className="absolute right-0 bottom-0" style={{ width: 17 }}>
-        <div className="mx-auto rounded-[2px]" style={{ width: 9, height: 6, background: INDIGO }} />
+        <div className="mx-auto rounded-[2px]" style={{ width: 9, height: 6, background: SAGE_DEEP }} />
         <div
           className="relative rounded-[4px]"
           style={{
             height: 32,
-            background: "linear-gradient(180deg,#FFFFFF,#EEF4FF)",
-            border: `1px solid ${ICE}`,
-            boxShadow: "0 6px 12px -9px rgba(4,10,38,0.45)",
+            background: "linear-gradient(180deg,#FFFFFF,#F7F3E9)",
+            border: `1px solid ${LINEN}`,
+            boxShadow: "0 6px 12px -9px rgba(64,52,30,0.45)",
           }}
         >
-          <span className="absolute inset-x-[3px] top-[8px] h-[10px] rounded-[2px]" style={{ background: ICE_SOFT }} />
-          <span className="absolute inset-x-[3px] top-[22px] h-[2px] rounded-full" style={{ background: ICE }} />
+          <span className="absolute inset-x-[3px] top-[8px] h-[10px] rounded-[2px]" style={{ background: OAT }} />
+          <span className="absolute inset-x-[3px] top-[22px] h-[2px] rounded-full" style={{ background: LINEN }} />
         </div>
       </div>
       {/* box */}
@@ -181,17 +180,17 @@ const MedicineProduct = memo(function MedicineProduct() {
         style={{
           width: 44,
           height: 40,
-          background: "linear-gradient(158deg,#FFFFFF 0%,#F5F9FF 58%,#E6EFFF 100%)",
-          border: `1px solid ${ICE}`,
-          boxShadow: "0 8px 16px -11px rgba(4,10,38,0.5)",
+          background: "linear-gradient(158deg,#FFFFFF 0%,#F5F1E6 58%,#ECE5D4 100%)",
+          border: `1px solid ${LINEN}`,
+          boxShadow: "0 8px 16px -11px rgba(64,52,30,0.5)",
         }}
       >
         <span
           className="absolute inset-x-0 top-0 h-[8px]"
-          style={{ background: "linear-gradient(180deg, rgba(203,224,255,0.9), rgba(203,224,255,0.08))" }}
+          style={{ background: "linear-gradient(180deg, rgba(214,181,111,0.75), rgba(214,181,111,0.06))" }}
         />
         <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-          <Cross size={20} color={ELECTRIC} thickness={6} />
+          <Cross size={20} color={GOLD} thickness={6} />
         </span>
       </div>
     </div>
@@ -203,42 +202,42 @@ const ShelfProp = memo(function ShelfProp() {
   const board = (bottom: number) => (
     <span
       className="absolute rounded-[3px]"
-      style={{ left: 6, bottom, width: 92, height: 6, background: "#FFFFFF", border: `1px solid ${ICE}` }}
+      style={{ left: 6, bottom, width: 92, height: 6, background: "#FFFFFF", border: `1px solid ${LINEN}` }}
     />
   );
   return (
     <div className="relative" style={{ width: 104, height: 92 }}>
       <Bounce w={84} />
       {/* posts */}
-      <span className="absolute bottom-0 left-[10px] h-[86px] w-[5px] rounded-full" style={{ background: ICE }} />
-      <span className="absolute bottom-0 right-[10px] h-[86px] w-[5px] rounded-full" style={{ background: ICE }} />
+      <span className="absolute bottom-0 left-[10px] h-[86px] w-[5px] rounded-full" style={{ background: LINEN }} />
+      <span className="absolute bottom-0 right-[10px] h-[86px] w-[5px] rounded-full" style={{ background: LINEN }} />
       {board(56)}
       {board(24)}
       {/* top-shelf items */}
       <span
         className="absolute rounded-[3px]"
-        style={{ left: 14, bottom: 62, width: 20, height: 16, background: "#FFFFFF", border: `1px solid ${ICE}` }}
+        style={{ left: 14, bottom: 62, width: 20, height: 16, background: "#FFFFFF", border: `1px solid ${LINEN}` }}
       >
         <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-          <Cross size={9} color={ELECTRIC} thickness={3} />
+          <Cross size={9} color={GOLD} thickness={3} />
         </span>
       </span>
       <span
         className="absolute rounded-full"
-        style={{ left: 42, bottom: 62, width: 11, height: 16, background: "#FFFFFF", border: `1px solid ${ICE}` }}
+        style={{ left: 42, bottom: 62, width: 11, height: 16, background: "#FFFFFF", border: `1px solid ${LINEN}` }}
       />
       <span
         className="absolute rounded-[3px]"
-        style={{ left: 60, bottom: 62, width: 24, height: 16, background: ICE_SOFT, border: `1px solid ${ICE}` }}
+        style={{ left: 60, bottom: 62, width: 24, height: 16, background: OAT, border: `1px solid ${LINEN}` }}
       />
       {/* lower-shelf items */}
       <span
         className="absolute rounded-[3px]"
-        style={{ left: 18, bottom: 30, width: 24, height: 14, background: ICE_SOFT, border: `1px solid ${ICE}` }}
+        style={{ left: 18, bottom: 30, width: 24, height: 14, background: OAT, border: `1px solid ${LINEN}` }}
       />
       <span
         className="absolute rounded-[3px]"
-        style={{ left: 50, bottom: 30, width: 20, height: 14, background: "#FFFFFF", border: `1px solid ${ICE}` }}
+        style={{ left: 50, bottom: 30, width: 20, height: 14, background: "#FFFFFF", border: `1px solid ${LINEN}` }}
       />
     </div>
   );
@@ -253,15 +252,15 @@ const CartObject = memo(function CartObject() {
         {/* basket with a near-opaque fill so the medicine lands "inside" it */}
         <path
           d="M6 8h9l9 36h37l11-28H19"
-          stroke={ELECTRIC}
+          stroke={GOLD}
           strokeWidth="3"
           strokeLinecap="round"
           strokeLinejoin="round"
           fill="rgba(255,255,255,0.94)"
         />
-        <path d="M28 16v22M42 16v22M56 16v22" stroke={ICE} strokeWidth="2" strokeLinecap="round" />
+        <path d="M28 16v22M42 16v22M56 16v22" stroke={LINEN} strokeWidth="2" strokeLinecap="round" />
         {/* handle grip */}
-        <rect x="3" y="4" width="12" height="5" rx="2.5" fill={INDIGO} />
+        <rect x="3" y="4" width="12" height="5" rx="2.5" fill={SAGE_DEEP} />
         {/* wheels */}
         <circle cx="31" cy="60" r="5" fill={INK} />
         <circle cx="31" cy="60" r="1.8" fill="#FFFFFF" />
@@ -278,12 +277,12 @@ const CounterProp = memo(function CounterProp() {
     <div className="relative" style={{ width: 118, height: 98 }}>
       <Bounce w={92} />
       {/* sign post */}
-      <span className="absolute bottom-[44px] left-[2px] h-[52px] w-[5px] rounded-full" style={{ background: ICE }} />
+      <span className="absolute bottom-[44px] left-[2px] h-[52px] w-[5px] rounded-full" style={{ background: LINEN }} />
       <div
         className="absolute grid place-items-center rounded-[6px]"
-        style={{ left: -6, bottom: 72, width: 34, height: 26, background: "#FFFFFF", border: `1px solid ${ICE}` }}
+        style={{ left: -6, bottom: 72, width: 34, height: 26, background: "#FFFFFF", border: `1px solid ${LINEN}` }}
       >
-        <Cross size={13} color={ELECTRIC} thickness={4.5} />
+        <Cross size={13} color={GOLD} thickness={4.5} />
       </div>
       {/* awning */}
       <div
@@ -293,7 +292,7 @@ const CounterProp = memo(function CounterProp() {
           bottom: 58,
           width: 102,
           height: 15,
-          background: `repeating-linear-gradient(90deg, ${ELECTRIC} 0 12px, #FFFFFF 12px 24px)`,
+          background: `repeating-linear-gradient(90deg, ${GOLD} 0 12px, #FFFFFF 12px 24px)`,
           border: `1px solid ${HAIRLINE}`,
         }}
       />
@@ -304,16 +303,16 @@ const CounterProp = memo(function CounterProp() {
           left: 18,
           width: 92,
           height: 46,
-          background: "linear-gradient(180deg,#FFFFFF,#EDF3FF)",
-          border: `1px solid ${ICE}`,
-          boxShadow: "0 10px 18px -13px rgba(4,10,38,0.5)",
+          background: "linear-gradient(180deg,#FFFFFF,#F2EDDF)",
+          border: `1px solid ${LINEN}`,
+          boxShadow: "0 10px 18px -13px rgba(64,52,30,0.5)",
         }}
       >
-        <span className="absolute inset-x-0 top-0 h-[6px]" style={{ background: ICE }} />
-        <span className="absolute top-[14px] left-[10px] h-[5px] w-[40px] rounded-full" style={{ background: ICE_SOFT }} />
-        <span className="absolute top-[24px] left-[10px] h-[5px] w-[28px] rounded-full" style={{ background: ICE_SOFT }} />
+        <span className="absolute inset-x-0 top-0 h-[6px]" style={{ background: LINEN }} />
+        <span className="absolute top-[14px] left-[10px] h-[5px] w-[40px] rounded-full" style={{ background: OAT }} />
+        <span className="absolute top-[24px] left-[10px] h-[5px] w-[28px] rounded-full" style={{ background: OAT }} />
         <span className="absolute top-1/2 right-[10px] -translate-y-1/2">
-          <Cross size={14} color={ELECTRIC} thickness={5} />
+          <Cross size={14} color={GOLD} thickness={5} />
         </span>
       </div>
     </div>
@@ -327,11 +326,11 @@ const BenchProp = memo(function BenchProp() {
       <Bounce w={104} />
       <span
         className="absolute top-0 left-0 rounded-[5px]"
-        style={{ width: 124, height: 8, background: "linear-gradient(180deg,#FFFFFF,#EAF2FF)", border: `1px solid ${ICE}` }}
+        style={{ width: 124, height: 8, background: "linear-gradient(180deg,#FFFFFF,#F0EBDC)", border: `1px solid ${LINEN}` }}
       />
-      <span className="absolute bottom-0 left-[10px] h-[30px] w-[7px] rounded-[2px]" style={{ background: ICE }} />
-      <span className="absolute bottom-0 right-[10px] h-[30px] w-[7px] rounded-[2px]" style={{ background: ICE }} />
-      <span className="absolute bottom-[12px] left-1/2 h-[4px] w-[46px] -translate-x-1/2 rounded-full" style={{ background: ICE_SOFT }} />
+      <span className="absolute bottom-0 left-[10px] h-[30px] w-[7px] rounded-[2px]" style={{ background: LINEN }} />
+      <span className="absolute bottom-0 right-[10px] h-[30px] w-[7px] rounded-[2px]" style={{ background: LINEN }} />
+      <span className="absolute bottom-[12px] left-1/2 h-[4px] w-[46px] -translate-x-1/2 rounded-full" style={{ background: OAT }} />
     </div>
   );
 });
@@ -342,26 +341,26 @@ const ParcelObject = memo(function ParcelObject({ lidRotX }: { lidRotX: MotionVa
     <div className="relative" style={{ width: 76, height: 62 }}>
       <Bounce w={58} />
       {/* open interior line */}
-      <span className="absolute left-[4px] rounded-[3px]" style={{ bottom: 34, width: 68, height: 7, background: "#D9E8FF" }} />
+      <span className="absolute left-[4px] rounded-[3px]" style={{ bottom: 34, width: 68, height: 7, background: "#E7DFC9" }} />
       {/* body */}
       <div
         className="absolute bottom-0 left-0 overflow-hidden rounded-[7px]"
         style={{
           width: 76,
           height: 46,
-          background: "linear-gradient(168deg,#FFFFFF,#EEF4FF)",
-          border: `1px solid ${ICE}`,
-          boxShadow: "0 10px 20px -13px rgba(4,10,38,0.55)",
+          background: "linear-gradient(168deg,#FFFFFF,#F7F3E9)",
+          border: `1px solid ${LINEN}`,
+          boxShadow: "0 10px 20px -13px rgba(64,52,30,0.55)",
         }}
       >
         <span
           className="absolute inset-y-0 left-1/2 w-[13px] -translate-x-1/2"
-          style={{ background: `linear-gradient(180deg, ${CYAN}, ${INDIGO})`, opacity: 0.9 }}
+          style={{ background: `linear-gradient(180deg, ${GOLD}, ${SAGE_DEEP})`, opacity: 0.9 }}
         />
         <span className="absolute top-1/2 left-[9px] -translate-y-1/2">
-          <Cross size={17} color={ELECTRIC} thickness={5.5} />
+          <Cross size={17} color={GOLD} thickness={5.5} />
         </span>
-        <span className="absolute right-[10px] top-[10px] h-[4px] w-[18px] rounded-full" style={{ background: ICE }} />
+        <span className="absolute right-[10px] top-[10px] h-[4px] w-[18px] rounded-full" style={{ background: LINEN }} />
       </div>
       {/* lid (own cheap perspective — nothing nested needs preserve-3d) */}
       <motion.div
@@ -374,8 +373,8 @@ const ParcelObject = memo(function ParcelObject({ lidRotX }: { lidRotX: MotionVa
           transformPerspective: 420,
           transformOrigin: "center top",
           borderRadius: "7px 7px 4px 4px",
-          background: "linear-gradient(180deg,#FFFFFF,#E7F0FF)",
-          border: `1px solid ${ICE}`,
+          background: "linear-gradient(180deg,#FFFFFF,#F1ECDE)",
+          border: `1px solid ${LINEN}`,
         }}
       />
     </div>
@@ -391,10 +390,10 @@ const MedicineStrips = memo(function MedicineStrips() {
         left,
         width: 26,
         height: 17,
-        background: "linear-gradient(180deg,#FFFFFF,#EAF4FF)",
-        border: `1px solid ${ICE}`,
+        background: "linear-gradient(180deg,#FFFFFF,#F0EBDD)",
+        border: `1px solid ${LINEN}`,
         backgroundImage:
-          "radial-gradient(circle at 6px 6px, rgba(37,99,235,0.4) 1.6px, transparent 2px), radial-gradient(circle at 14px 6px, rgba(37,99,235,0.4) 1.6px, transparent 2px), radial-gradient(circle at 22px 6px, rgba(37,99,235,0.4) 1.6px, transparent 2px), radial-gradient(circle at 6px 12px, rgba(37,99,235,0.25) 1.6px, transparent 2px), radial-gradient(circle at 14px 12px, rgba(37,99,235,0.25) 1.6px, transparent 2px), radial-gradient(circle at 22px 12px, rgba(37,99,235,0.25) 1.6px, transparent 2px)",
+          "radial-gradient(circle at 6px 6px, rgba(100,122,99,0.45) 1.6px, transparent 2px), radial-gradient(circle at 14px 6px, rgba(100,122,99,0.45) 1.6px, transparent 2px), radial-gradient(circle at 22px 6px, rgba(100,122,99,0.45) 1.6px, transparent 2px), radial-gradient(circle at 6px 12px, rgba(100,122,99,0.28) 1.6px, transparent 2px), radial-gradient(circle at 14px 12px, rgba(100,122,99,0.28) 1.6px, transparent 2px), radial-gradient(circle at 22px 12px, rgba(100,122,99,0.28) 1.6px, transparent 2px)",
       }}
     />
   );
@@ -413,17 +412,17 @@ const DeliveryVan = memo(function DeliveryVan() {
       <Bounce w={142} />
       <svg width="178" height="76" viewBox="0 0 178 76" fill="none" aria-hidden="true">
         {/* cargo body */}
-        <rect x="4" y="10" width="94" height="44" rx="7" fill="#FFFFFF" stroke={ICE} strokeWidth="2" />
+        <rect x="4" y="10" width="94" height="44" rx="7" fill="#FFFFFF" stroke={LINEN} strokeWidth="2" />
         {/* cab */}
-        <path d="M98 26h24l20 14v14H98z" fill="#FFFFFF" stroke={ICE} strokeWidth="2" strokeLinejoin="round" />
-        <path d="M104 30h15l11 9h-26z" fill="#DCEBFF" />
+        <path d="M98 26h24l20 14v14H98z" fill="#FFFFFF" stroke={LINEN} strokeWidth="2" strokeLinejoin="round" />
+        <path d="M104 30h15l11 9h-26z" fill="#E4ECDD" />
         {/* electric-blue brand stripe */}
-        <rect x="8" y="44" width="128" height="8" rx="3" fill={ELECTRIC} opacity="0.92" />
+        <rect x="8" y="44" width="128" height="8" rx="3" fill={GOLD} opacity="0.92" />
         {/* brand mark: white tile + blue cross */}
         <g transform="translate(34 18)">
-          <rect x="0" y="0" width="30" height="24" rx="5" fill="#FFFFFF" stroke={ICE} strokeWidth="1.5" />
-          <rect x="12" y="5" width="6" height="14" rx="2" fill={ELECTRIC} />
-          <rect x="8" y="9" width="14" height="6" rx="2" fill={ELECTRIC} />
+          <rect x="0" y="0" width="30" height="24" rx="5" fill="#FFFFFF" stroke={LINEN} strokeWidth="1.5" />
+          <rect x="12" y="5" width="6" height="14" rx="2" fill={GOLD} />
+          <rect x="8" y="9" width="14" height="6" rx="2" fill={GOLD} />
         </g>
         {/* wheels */}
         {[
@@ -453,30 +452,30 @@ const CustomerHome = memo(function CustomerHome() {
           height: 0,
           borderLeft: "64px solid transparent",
           borderRight: "64px solid transparent",
-          borderBottom: `36px solid ${INDIGO}`,
+          borderBottom: `36px solid ${SAGE_DEEP}`,
         }}
       />
       {/* chimney */}
-      <span className="absolute top-[8px] right-[26px] h-[16px] w-[9px] rounded-[2px]" style={{ background: ELECTRIC }} />
+      <span className="absolute top-[8px] right-[26px] h-[16px] w-[9px] rounded-[2px]" style={{ background: TERRACOTTA }} />
       {/* walls */}
       <div
         className="absolute bottom-0 left-1/2 h-[62px] w-[102px] -translate-x-1/2 overflow-hidden rounded-[5px]"
         style={{
-          background: "linear-gradient(180deg,#FFFFFF,#EEF4FF)",
-          border: `1px solid ${ICE}`,
-          boxShadow: "0 12px 22px -15px rgba(4,10,38,0.5)",
+          background: "linear-gradient(180deg,#FFFFFF,#F7F3E9)",
+          border: `1px solid ${LINEN}`,
+          boxShadow: "0 12px 22px -15px rgba(64,52,30,0.5)",
         }}
       >
-        <span className="absolute top-[9px] left-[10px] h-[19px] w-[26px] rounded-[3px]" style={{ background: ICE_SOFT, border: `1px solid ${ICE}` }} />
-        <span className="absolute top-[34px] left-[14px] h-[3px] w-[18px] rounded-full" style={{ background: ICE }} />
+        <span className="absolute top-[9px] left-[10px] h-[19px] w-[26px] rounded-[3px]" style={{ background: OAT, border: `1px solid ${LINEN}` }} />
+        <span className="absolute top-[34px] left-[14px] h-[3px] w-[18px] rounded-full" style={{ background: LINEN }} />
         <span className="absolute top-[12px] left-[48px]">
-          <Cross size={15} color={ELECTRIC} thickness={4.5} />
+          <Cross size={15} color={GOLD} thickness={4.5} />
         </span>
-        <span className="absolute right-[12px] bottom-0 h-[38px] w-[24px] rounded-t-[4px]" style={{ background: INDIGO, opacity: 0.9 }} />
+        <span className="absolute right-[12px] bottom-0 h-[38px] w-[24px] rounded-t-[4px]" style={{ background: SAGE_DEEP, opacity: 0.9 }} />
         <span className="absolute right-[21px] top-[20px] h-[5px] w-[5px] rounded-full" style={{ background: "#FFFFFF", opacity: 0.85 }} />
       </div>
       {/* doormat */}
-      <span className="absolute right-[10px] bottom-[-3px] h-[6px] w-[34px] rounded-full" style={{ background: ICE }} />
+      <span className="absolute right-[10px] bottom-[-3px] h-[6px] w-[34px] rounded-full" style={{ background: LINEN }} />
       <Bounce w={104} />
     </div>
   );
@@ -488,14 +487,14 @@ const TreeProp = memo(function TreeProp({ tall = false }: { tall?: boolean }) {
   const w = tall ? 84 : 68;
   return (
     <div className="relative" style={{ width: w, height: h }}>
-      <span className="absolute bottom-0 left-1/2 h-[38%] w-[7px] -translate-x-1/2 rounded-full" style={{ background: "#3A50A8" }} />
+      <span className="absolute bottom-0 left-1/2 h-[38%] w-[7px] -translate-x-1/2 rounded-full" style={{ background: "#8F8768" }} />
       <span
         className="absolute rounded-[46%]"
-        style={{ top: 0, left: "8%", width: "84%", height: "66%", background: "#4C68C4" }}
+        style={{ top: 0, left: "8%", width: "84%", height: "66%", background: "#A9B8A0" }}
       />
       <span
         className="absolute rounded-[48%]"
-        style={{ top: "14%", left: 0, width: "58%", height: "48%", background: "#435CAF" }}
+        style={{ top: "14%", left: 0, width: "58%", height: "48%", background: "#93A68C" }}
       />
     </div>
   );
@@ -505,9 +504,9 @@ const TreeProp = memo(function TreeProp({ tall = false }: { tall?: boolean }) {
 const BushProp = memo(function BushProp() {
   return (
     <div className="relative" style={{ width: 88, height: 42 }}>
-      <span className="absolute bottom-0 left-[6px] h-[26px] w-[26px] rounded-full" style={{ background: "#3A50A8" }} />
-      <span className="absolute bottom-0 left-[26px] h-[34px] w-[38px] rounded-full" style={{ background: "#5470CE" }} />
-      <span className="absolute bottom-0 right-[4px] h-[24px] w-[24px] rounded-full" style={{ background: "#435CAF" }} />
+      <span className="absolute bottom-0 left-[6px] h-[26px] w-[26px] rounded-full" style={{ background: "#8F8768" }} />
+      <span className="absolute bottom-0 left-[26px] h-[34px] w-[38px] rounded-full" style={{ background: "#B2BFA6" }} />
+      <span className="absolute bottom-0 right-[4px] h-[24px] w-[24px] rounded-full" style={{ background: "#93A68C" }} />
     </div>
   );
 });
@@ -516,11 +515,11 @@ const BushProp = memo(function BushProp() {
 const HillsStrip = memo(function HillsStrip() {
   return (
     <svg width="4800" height="150" viewBox="0 0 4800 150" fill="none" aria-hidden="true">
-      <ellipse cx="420" cy="156" rx="520" ry="96" fill="#2E4790" />
-      <ellipse cx="1500" cy="164" rx="620" ry="110" fill="#2A4186" />
-      <ellipse cx="2560" cy="158" rx="560" ry="100" fill="#2E4790" />
-      <ellipse cx="3620" cy="166" rx="640" ry="112" fill="#2A4186" />
-      <ellipse cx="4520" cy="160" rx="520" ry="98" fill="#2E4790" />
+      <ellipse cx="420" cy="156" rx="520" ry="96" fill="#E6E0CE" />
+      <ellipse cx="1500" cy="164" rx="620" ry="110" fill="#DFD8C3" />
+      <ellipse cx="2560" cy="158" rx="560" ry="100" fill="#E6E0CE" />
+      <ellipse cx="3620" cy="166" rx="640" ry="112" fill="#DFD8C3" />
+      <ellipse cx="4520" cy="160" rx="520" ry="98" fill="#E6E0CE" />
     </svg>
   );
 });
@@ -606,11 +605,11 @@ const World = memo(function World({ p, reduce }: { p: MotionValue<number>; reduc
         {/* the road: edge lines + moving centre dashes */}
         <div
           className="absolute"
-          style={{ left: -600, bottom: 40, width: 4200, height: 1, background: "rgba(126,166,255,0.30)" }}
+          style={{ left: -600, bottom: 40, width: 4200, height: 1, background: "rgba(138,142,118,0.35)" }}
         />
         <div
           className="absolute"
-          style={{ left: -600, bottom: 24, width: 4200, height: 1, background: "rgba(126,166,255,0.20)" }}
+          style={{ left: -600, bottom: 24, width: 4200, height: 1, background: "rgba(138,142,118,0.22)" }}
         />
         <div
           className="absolute"
@@ -619,7 +618,7 @@ const World = memo(function World({ p, reduce }: { p: MotionValue<number>; reduc
             bottom: 31,
             width: 4200,
             height: 4,
-            background: "repeating-linear-gradient(90deg, rgba(150,186,255,0.5) 0 20px, rgba(150,186,255,0) 20px 48px)",
+            background: "repeating-linear-gradient(90deg, rgba(124,146,120,0.5) 0 20px, rgba(124,146,120,0) 20px 48px)",
           }}
         />
 
@@ -634,7 +633,7 @@ const World = memo(function World({ p, reduce }: { p: MotionValue<number>; reduc
               width: 168,
               height: 15,
               marginLeft: -84,
-              background: "radial-gradient(ellipse at center, rgba(101,144,255,0.85), rgba(101,144,255,0) 70%)",
+              background: "radial-gradient(ellipse at center, rgba(214,181,111,0.5), rgba(214,181,111,0) 70%)",
             }}
           />
         ))}
@@ -677,7 +676,7 @@ const World = memo(function World({ p, reduce }: { p: MotionValue<number>; reduc
           <MedicineProduct />
           <motion.span
             className="absolute -top-7 left-1/2 grid h-6 w-6 -translate-x-1/2 place-items-center rounded-full"
-            style={{ background: ELECTRIC, opacity: selOpacity, scale: selScale, border: "2px solid #FFFFFF" }}
+            style={{ background: GOLD, opacity: selOpacity, scale: selScale, border: "2px solid #FFFFFF" }}
           >
             <Check size={13} strokeWidth={3.6} color="#FFFFFF" />
           </motion.span>
@@ -733,7 +732,7 @@ const World = memo(function World({ p, reduce }: { p: MotionValue<number>; reduc
           <ParcelObject lidRotX={lidRotX} />
           <motion.span
             className="absolute -top-7 left-1/2 grid h-7 w-7 -translate-x-1/2 place-items-center rounded-full"
-            style={{ background: ELECTRIC, opacity: doneOpacity, scale: doneScale, border: "2px solid #FFFFFF" }}
+            style={{ background: GOLD, opacity: doneOpacity, scale: doneScale, border: "2px solid #FFFFFF" }}
           >
             <Check size={15} strokeWidth={3.6} color="#FFFFFF" />
           </motion.span>
@@ -768,18 +767,18 @@ const World = memo(function World({ p, reduce }: { p: MotionValue<number>; reduc
               width: 52,
               height: 60,
               background: "#FFFFFF",
-              border: `1px solid ${ICE}`,
-              boxShadow: "0 12px 20px -13px rgba(4,10,38,0.55)",
+              border: `1px solid ${LINEN}`,
+              boxShadow: "0 12px 20px -13px rgba(64,52,30,0.55)",
             }}
           >
-            <span className="absolute top-[9px] left-[9px] h-[6px] w-[24px] rounded-[2px]" style={{ background: ELECTRIC, opacity: 0.85 }} />
-            <span className="absolute top-[20px] left-[9px] h-[4px] w-[34px] rounded-[2px]" style={{ background: ICE }} />
-            <span className="absolute top-[28px] left-[9px] h-[4px] w-[26px] rounded-[2px]" style={{ background: ICE_SOFT }} />
-            <span className="absolute top-[36px] left-[9px] h-[4px] w-[30px] rounded-[2px]" style={{ background: ICE_SOFT }} />
+            <span className="absolute top-[9px] left-[9px] h-[6px] w-[24px] rounded-[2px]" style={{ background: GOLD, opacity: 0.85 }} />
+            <span className="absolute top-[20px] left-[9px] h-[4px] w-[34px] rounded-[2px]" style={{ background: LINEN }} />
+            <span className="absolute top-[28px] left-[9px] h-[4px] w-[26px] rounded-[2px]" style={{ background: OAT }} />
+            <span className="absolute top-[36px] left-[9px] h-[4px] w-[30px] rounded-[2px]" style={{ background: OAT }} />
           </div>
           <motion.span
             className="absolute -top-6 -right-3 grid h-7 w-7 place-items-center rounded-full"
-            style={{ background: ELECTRIC, opacity: okOpacity, scale: okScale, border: "2px solid #FFFFFF" }}
+            style={{ background: GOLD, opacity: okOpacity, scale: okScale, border: "2px solid #FFFFFF" }}
           >
             <Check size={14} strokeWidth={3.6} color="#FFFFFF" />
           </motion.span>
@@ -811,14 +810,14 @@ const StageHUD = memo(function StageHUD({ active }: { active: number }) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.28, ease: EASE }}
           className="flex items-start gap-2 rounded-[11px] py-1.5 pr-3 pl-1.5"
-          style={{ background: "rgba(255,255,255,0.95)", border: `1px solid ${HAIRLINE}`, boxShadow: "0 10px 22px -18px rgba(4,10,38,0.7)" }}
+          style={{ background: "rgba(255,255,255,0.95)", border: `1px solid ${HAIRLINE}`, boxShadow: "0 10px 22px -18px rgba(64,52,30,0.7)" }}
         >
-          <span className="grid h-6 w-6 shrink-0 place-items-center rounded-[7px] text-[10px] font-black text-white" style={{ background: ELECTRIC }}>
+          <span className="grid h-6 w-6 shrink-0 place-items-center rounded-[7px] text-[10px] font-black text-[#17352C]" style={{ background: GOLD }}>
             {scene.chip}
           </span>
           <span className="flex flex-col leading-none">
             <span className="flex items-center gap-1.5 text-[12.5px] font-black tracking-[0.02em] uppercase" style={{ color: INK }}>
-              <Icon size={13} strokeWidth={2.6} color={ELECTRIC} aria-hidden="true" />
+              <Icon size={13} strokeWidth={2.6} color={SAGE} aria-hidden="true" />
               {scene.label}
             </span>
             <span className="mt-[5px] text-[10px] font-semibold" style={{ color: INK_SOFT }}>
@@ -833,10 +832,10 @@ const StageHUD = memo(function StageHUD({ active }: { active: number }) {
         className="pointer-events-none absolute top-2.5 right-2.5 z-20 hidden items-center gap-1.5 rounded-full py-1 pr-2.5 pl-1.5 sm:flex sm:top-3 sm:right-3"
         style={{ background: "rgba(255,255,255,0.92)", border: `1px solid ${HAIRLINE}` }}
       >
-        <span className="grid h-4 w-4 place-items-center rounded-[5px]" style={{ background: ELECTRIC }}>
+        <span className="grid h-4 w-4 place-items-center rounded-[5px]" style={{ background: GOLD }}>
           <Cross size={8} color="#FFFFFF" thickness={3} />
         </span>
-        <span className="text-[9.5px] font-bold tracking-[0.16em] uppercase" style={{ color: ELECTRIC }}>
+        <span className="text-[9.5px] font-bold tracking-[0.16em] uppercase" style={{ color: INK }}>
           Kalyan Chemist
         </span>
       </div>
@@ -846,7 +845,7 @@ const StageHUD = memo(function StageHUD({ active }: { active: number }) {
         className="pointer-events-none absolute right-2.5 bottom-2.5 z-20 hidden items-center gap-1.5 rounded-full px-2 py-1 sm:right-3 sm:bottom-3 sm:flex"
         style={{ background: "rgba(255,255,255,0.94)", border: `1px solid ${HAIRLINE}` }}
       >
-        <span className="text-[9.5px] font-black tracking-[0.1em]" style={{ color: ELECTRIC }}>
+        <span className="text-[9.5px] font-black tracking-[0.1em]" style={{ color: GOLD }}>
           {scene.chip}
         </span>
         <span className="h-[9px] w-px" style={{ background: HAIRLINE }} />
@@ -915,7 +914,7 @@ export default function HowItWorks() {
       ref={sectionRef}
       aria-label="How it works"
       className={cn("relative isolate overflow-hidden", inView && "hiw-live")}
-      style={{ background: `linear-gradient(180deg, ${NAVY} 0%, #0D1A42 52%, ${NAVY} 100%)` }}
+      style={{ background: `linear-gradient(180deg, ${IVORY} 0%, #FBF9F3 52%, ${IVORY} 100%)` }}
     >
       <style>{`
         @keyframes hiw-roll { to { transform: rotate(360deg); } }
@@ -930,22 +929,22 @@ export default function HowItWorks() {
         /* step chips (states live here so hover beats the base styles) */
         .hiw-chip {
           display: flex; align-items: center; gap: 6px; flex: 0 0 auto;
-          padding: 6px 10px; border-radius: 999px; border: 1px solid rgba(46,107,255,0.24);
+          padding: 6px 10px; border-radius: 999px; border: 1px solid rgba(214,181,111,0.50);
           background: #FFFFFF; color: ${INK_SOFT};
           font-size: 10.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
           transition: background-color .2s, border-color .2s, color .2s, box-shadow .2s;
         }
         .hiw-chip .hiw-chip-num { font-size: 9.5px; font-weight: 900; color: ${INK_FAINT}; }
         .hiw-chip-off:hover {
-          background: #EEF4FF; border-color: #9BBBF7; color: ${ELECTRIC};
-          box-shadow: 0 8px 16px -14px rgba(4,10,38,.6);
+          background: #F6F1E4; border-color: #C9A45F; color: ${INK};
+          box-shadow: 0 8px 16px -14px rgba(64,52,30,.6);
         }
-        .hiw-chip-off:hover .hiw-chip-num { color: ${ELECTRIC}; }
+        .hiw-chip-off:hover .hiw-chip-num { color: ${INK}; }
         .hiw-chip-on, .hiw-chip-on:hover {
-          background: ${ELECTRIC}; border-color: ${ELECTRIC}; color: #FFFFFF;
-          box-shadow: 0 8px 18px -14px rgba(4,10,38,.9);
+          background: ${GOLD}; border-color: ${GOLD}; color: ${INK};
+          box-shadow: 0 8px 18px -14px rgba(64,52,30,.9);
         }
-        .hiw-chip-on .hiw-chip-num { color: rgba(255,255,255,.72); }
+        .hiw-chip-on .hiw-chip-num { color: rgba(23,53,44,.72); }
         @media (prefers-reduced-motion: reduce) {
           .hiw-live .hiw-wheel { animation: none !important; }
         }
@@ -953,8 +952,8 @@ export default function HowItWorks() {
 
       {/* warm ambient wash (static gradients, no blur) */}
       <div className="pointer-events-none absolute inset-0" aria-hidden="true">
-        <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 54% 60% at 86% -8%, rgba(46,107,255,0.26), transparent 70%)" }} />
-        <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 46% 56% at 0% 108%, rgba(124,110,242,0.20), transparent 72%)" }} />
+        <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 54% 60% at 86% -8%, rgba(214,181,111,0.32), transparent 70%)" }} />
+        <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 46% 56% at 0% 108%, rgba(124,146,120,0.24), transparent 72%)" }} />
         <div className="absolute inset-x-0 top-0 h-px" style={{ background: `linear-gradient(90deg,transparent,${HAIRLINE},transparent)` }} />
         <div className="absolute inset-x-0 bottom-0 h-px" style={{ background: `linear-gradient(90deg,transparent,${HAIRLINE},transparent)` }} />
       </div>
@@ -969,14 +968,14 @@ export default function HowItWorks() {
             transition={{ duration: 0.45, ease: EASE }}
             className="flex flex-col"
           >
-            <span className="text-[10px] font-bold tracking-[0.28em] uppercase" style={{ color: CYAN }}>
+            <span className="text-[10px] font-bold tracking-[0.28em] uppercase" style={{ color: SAGE_DEEP }}>
               How it works
             </span>
-            <h2 className="mt-0.5 text-[clamp(1.05rem,2.1vw,1.55rem)] leading-tight font-black tracking-tight" style={{ color: FROST }}>
+            <h2 className="mt-0.5 text-[clamp(1.05rem,2.1vw,1.55rem)] leading-tight font-black tracking-tight" style={{ color: INK }}>
               Your order, from{" "}
               <span
                 style={{
-                  background: `linear-gradient(96deg, ${VIOLET} 0%, ${ELECTRIC} 52%, ${CYAN} 100%)`,
+                  background: `linear-gradient(96deg, ${INK} 0%, ${SAGE_DEEP} 45%, ${GOLD} 100%)`,
                   WebkitBackgroundClip: "text",
                   backgroundClip: "text",
                   color: "transparent",
@@ -1017,29 +1016,29 @@ export default function HowItWorks() {
           transition={{ duration: 0.5, ease: EASE, delay: 0.04 }}
           className="mt-2.5"
         >
-          <div className="rounded-[20px] p-px" style={{ background: "linear-gradient(180deg, rgba(46,107,255,0.45), rgba(124,110,242,0.18))" }}>
+          <div className="rounded-[20px] p-px" style={{ background: "linear-gradient(180deg, rgba(214,181,111,0.65), rgba(124,146,120,0.40))" }}>
             <div
               className="relative h-[238px] w-full overflow-hidden rounded-[19px] sm:h-[276px] md:h-[312px]"
               style={{
                 perspective: 1100,
                 perspectiveOrigin: "50% 32%",
-                background: "linear-gradient(180deg,#0B1034 0%,#101B48 38%,#15275F 72%,#1B3170 100%)",
-                boxShadow: "0 22px 46px -34px rgba(4,10,38,0.55), inset 0 -34px 44px -36px rgba(4,10,38,0.28)",
+                background: "linear-gradient(180deg,#FDFBF5 0%,#F9F6EE 40%,#F4F0E4 74%,#EFEADB 100%)",
+                boxShadow: "0 22px 46px -34px rgba(64,52,30,0.16), inset 0 -34px 44px -36px rgba(64,52,30,0.10)",
               }}
             >
               {/* static sky dressing: sun + two clouds */}
               <div
                 className="pointer-events-none absolute inset-0"
                 aria-hidden="true"
-                style={{ background: "radial-gradient(ellipse 30% 52% at 84% 0%, rgba(166,200,255,0.45), transparent 70%)" }}
+                style={{ background: "radial-gradient(ellipse 30% 52% at 84% 0%, rgba(255,240,205,0.9), transparent 70%)" }}
               />
               <div className="pointer-events-none absolute top-[16%] left-[9%]" aria-hidden="true">
-                <span className="absolute top-[7px] left-[16px] h-[13px] w-[46px] rounded-full bg-white/50" />
-                <span className="absolute top-0 left-[30px] h-[15px] w-[30px] rounded-full bg-white/60" />
+                <span className="absolute top-[7px] left-[16px] h-[13px] w-[46px] rounded-full bg-[#E7E0CC]" />
+                <span className="absolute top-0 left-[30px] h-[15px] w-[30px] rounded-full bg-[#F0EADB]" />
               </div>
               <div className="pointer-events-none absolute top-[9%] right-[24%] hidden sm:block" aria-hidden="true">
-                <span className="absolute top-[5px] left-[12px] h-[10px] w-[34px] rounded-full bg-white/40" />
-                <span className="absolute top-0 left-[22px] h-[12px] w-[22px] rounded-full bg-white/55" />
+                <span className="absolute top-[5px] left-[12px] h-[10px] w-[34px] rounded-full bg-[#EAE3D1]" />
+                <span className="absolute top-0 left-[22px] h-[12px] w-[22px] rounded-full bg-[#F1ECDD]" />
               </div>
 
               {/* the ground the world stands on (featureless, so it never needs to move) */}
@@ -1048,7 +1047,7 @@ export default function HowItWorks() {
                 aria-hidden="true"
                 style={{
                   height: GROUND_H,
-                  background: "linear-gradient(180deg, rgba(58,88,180,0.5), rgba(32,54,124,0.95))",
+                  background: "linear-gradient(180deg, rgba(199,209,187,0.65), rgba(226,214,186,0.95))",
                   borderTop: `1px solid ${HAIRLINE}`,
                 }}
               />
@@ -1068,22 +1067,22 @@ export default function HowItWorks() {
               >
                 <span
                   className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[9.5px] font-bold tracking-[0.14em] whitespace-nowrap uppercase"
-                  style={{ background: "rgba(255,255,255,0.94)", border: `1px solid ${HAIRLINE}`, color: ELECTRIC }}
+                  style={{ background: "rgba(255,255,255,0.94)", border: `1px solid ${HAIRLINE}`, color: SAGE_DEEP }}
                 >
                   Scroll to play
                   <svg width="9" height="9" viewBox="0 0 10 10" fill="none" aria-hidden="true">
-                    <path d="M5 1v8M1.8 5.8 5 9l3.2-3.2" stroke={ELECTRIC} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M5 1v8M1.8 5.8 5 9l3.2-3.2" stroke={GOLD} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 </span>
               </motion.div>
               <motion.div
                 className="pointer-events-none absolute bottom-[9px] left-1/2 z-20 h-[3px] w-24 -translate-x-1/2 overflow-hidden rounded-full"
-                style={{ background: "rgba(59,216,240,0.25)", opacity: progressO }}
+                style={{ background: "rgba(201,164,95,0.35)", opacity: progressO }}
                 aria-hidden="true"
               >
                 <motion.div
                   className="h-full w-full rounded-full"
-                  style={{ background: `linear-gradient(90deg, ${INDIGO}, ${CYAN})`, scaleX: p, originX: 0 }}
+                  style={{ background: `linear-gradient(90deg, ${SAGE_DEEP}, ${GOLD})`, scaleX: p, originX: 0 }}
                 />
               </motion.div>
             </div>
