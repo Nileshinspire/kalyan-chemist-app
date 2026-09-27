@@ -178,6 +178,7 @@ function PwaInstallButton() {
   const [deferredPrompt, setDeferredPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
   const [installed, setInstalled] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
 
   useEffect(() => {
     const onBeforeInstall = (event: Event) => {
@@ -230,9 +231,31 @@ function PwaInstallButton() {
     );
   }
 
+  // No native prompt at the moment — keep the action interactive: reveal the
+  // browser's own supported Add to Home Screen instructions instead of dead text.
   return (
-    <span className="text-[11px] text-white/50">
-      Add to Home Screen from your browser menu
+    <span className="relative inline-flex">
+      <button
+        type="button"
+        onClick={() => setShowHelp((open) => !open)}
+        aria-expanded={showHelp}
+        aria-controls="a2hs-help"
+        className="inline-flex items-center gap-1.5 rounded-sm text-[11.5px] font-medium leading-tight text-white/70 transition-colors duration-200 hover:text-emerald-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300/60"
+      >
+        Add to Home Screen
+      </button>
+      {showHelp && (
+        <span
+          id="a2hs-help"
+          role="tooltip"
+          className="absolute bottom-full left-0 z-30 mb-2 w-56 rounded-lg bg-[#062b20] p-2.5 text-[11.5px] leading-snug text-white/75 ring-1 ring-white/15 shadow-lg"
+        >
+          Open your browser menu (⋮ / Share) and choose{" "}
+          <strong className="font-semibold text-white">
+            Add to Home Screen
+          </strong>
+        </span>
+      )}
     </span>
   );
 }

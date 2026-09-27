@@ -1417,7 +1417,7 @@ export default function ProductDetail() {
             <CardContent className="p-6">
               <div className="flex flex-wrap gap-3">
                 {cat && (
-                  <Button variant="outline" size="sm" className="rounded-xl text-xs" onClick={() => navigate(`/category/${cat.slug}`)}>
+                  <Button variant="outline" size="sm" className="rounded-xl text-xs" onClick={() => navigate(`/products?category=${cat.slug}`)}>
                     Browse {cat.name}
                   </Button>
                 )}
