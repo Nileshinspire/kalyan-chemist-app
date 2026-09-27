@@ -483,6 +483,26 @@ export default function Products() {
                 </Select>
               </div>
 
+              {/* Scoped compact-card styles: shrink ONLY the product cards
+                  rendered inside this listing grid (smaller image band,
+                  tighter padding/spacing/typography, compact action buttons).
+                  The sidebar, filters and every other product section stay
+                  untouched. */}
+              <style>{`
+                .kc-products-grid .h-44 { height: 7rem; }
+                .kc-products-grid .size-20 { width: 4.5rem; height: 4.5rem; }
+                .kc-products-grid .size-14 { width: 2.75rem; height: 2.75rem; }
+                .kc-products-grid .p-4 { padding: 0.75rem; }
+                .kc-products-grid .space-y-2\\.5 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.5rem; }
+                .kc-products-grid .text-sm { font-size: 0.8125rem; line-height: 1.25rem; }
+                .kc-products-grid .text-xs { font-size: 0.6875rem; line-height: 1rem; }
+                .kc-products-grid button.text-xs { font-size: 0.75rem; line-height: 1rem; }
+                .kc-products-grid .text-lg { font-size: 1rem; line-height: 1.5rem; }
+                .kc-products-grid .h-9 { height: 2rem; }
+                .kc-products-grid .h-8 { height: 1.75rem; }
+                .kc-products-grid .w-8 { width: 1.75rem; }
+              `}</style>
+
               {/* Products grid */}
               {isLoading ? (
                 <div className="flex items-center justify-center py-20">
@@ -508,7 +528,7 @@ export default function Products() {
                   </Button>
                 </motion.div>
               ) : (
-                <div className="grid gap-4 grid-cols-2 md:grid-cols-2 xl:grid-cols-3">
+                <div className="kc-products-grid grid gap-3 grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
                   {products.map((product) => (
                     <ProductCard key={product._id} product={product as any} />
                   ))}
