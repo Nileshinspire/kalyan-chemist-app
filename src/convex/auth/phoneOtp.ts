@@ -1,27 +1,38 @@
 import { Phone } from "@convex-dev/auth/providers/Phone";
-import { api } from "../_generated/api";
 import { RandomReader, generateRandomString } from "@oslojs/crypto/random";
+import { normalizeIndianPhone } from "../../lib/phone";
 
 /**
- * Phone OTP provider using Twilio SMS.
+ * Phone OTP provider — real SMS sign-in via Twilio Verify-style REST call.
  *
- * The freebuff auth service (auth.freebuff.app/send_otp) only supports
- * email OTP, so phone OTP is routed through the existing Twilio-based
- * smsService.sendGenericSms action.
+ * Why `fetch` and not the existing `smsService.sendGenericSms` action:
+ * Convex Auth invokes `sendVerificationRequest` from inside the `auth:store`
+ * *mutation*, and a mutation context cannot `runAction`. Routing through a
+ * public HTTP relay would let anyone send arbitrary SMS on our account, so we
+ * call Twilio's REST API directly instead. Twilio's message endpoint is plain
+ * HTTPS + Basic auth, which works fine in the Convex runtime (no Node-only
+ * APIs), so this stays server-side and the SMS credentials never reach the
+ * client.
  *
- * Required environment variables (set in Convex dashboard → Settings → Environment):
+ * The token below is generated per request and stored only as a SHA-256 hash
+ * by Convex Auth, so it is never persisted or returned in plaintext.
+ *
+ * Required environment variables (Convex dashboard → Settings → Environment,
+ * or the project's Keys panel):
  *   TWILIO_ACCOUNT_SID
  *   TWILIO_AUTH_TOKEN
- *   TWILIO_PHONE_NUMBER  (E.164 format, e.g. +1XXXXXXXXXX)
+ *   TWILIO_PHONE_NUMBER   (E.164, the sending number, e.g. +1XXXXXXXXXX)
+ *
+ * When these are absent the send fails loudly with a clean message and the
+ * login page tells the customer to use email. We never fake a successful send.
  */
 export const phoneOtp = Phone({
-  // Normalize phone to E.164 format (+91XXXXXXXXXX)
+  id: "phone-otp",
+  // 15 minutes, matching the email OTP window.
+  maxAge: 60 * 15,
+  // Indian numbers: 9876543210 / 09876543210 / 919876543210 / +919876543210.
   normalizeIdentifier(identifier: string) {
-    const digits = identifier.replace(/\D/g, "");
-    if (digits.length === 10) return `+91${digits}`;
-    if (digits.length === 12 && digits.startsWith("91")) return `+${digits}`;
-    if (identifier.startsWith("+")) return identifier;
-    return `+91${digits}`;
+    return normalizeIndianPhone(identifier) ?? identifier.trim();
   },
   async generateVerificationToken() {
     const random: RandomReader = {
@@ -29,52 +40,63 @@ export const phoneOtp = Phone({
         crypto.getRandomValues(bytes);
       },
     };
-    const alphabet = "0123456789";
-    return generateRandomString(random, alphabet, 6);
+    return generateRandomString(random, "0123456789", 6);
   },
-  async sendVerificationRequest(
-    { identifier: phone, token }: { identifier: string; token: string },
-    ctx?: any,
-  ) {
-    const message =
-      `Your Kalyan Chemist verification code is: ${token}. ` +
-      `Valid for 20 minutes. Do not share this code with anyone.`;
+  async sendVerificationRequest({
+    identifier: phone,
+    token,
+  }: {
+    identifier: string;
+    token: string;
+  }) {
+    const accountSid = process.env.TWILIO_ACCOUNT_SID;
+    const authToken = process.env.TWILIO_AUTH_TOKEN;
+    const from = process.env.TWILIO_PHONE_NUMBER;
 
-    // Route through the existing Twilio-based smsService
-    if (ctx?.runAction) {
-      try {
-        const result = await ctx.runAction(
-          api.smsService.sendGenericSms,
-          { toPhone: phone, message },
-        );
-        if (result?.sent) return;
-        // Twilio not configured — fall through to error below
-        throw new Error(
-          result?.reason === "no_twilio_config"
-            ? "SMS not configured. Please set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_PHONE_NUMBER in your Convex deployment environment."
-            : result?.reason === "invalid_phone"
-              ? "Invalid phone number. Please check and try again."
-              : "SMS delivery failed. Please try again.",
-        );
-      } catch (error: any) {
-        // Re-throw our own meaningful errors
-        if (
-          error?.message?.includes("TWILIO") ||
-          error?.message?.includes("SMS not configured") ||
-          error?.message?.includes("Invalid phone") ||
-          error?.message?.includes("SMS delivery failed")
-        ) {
-          throw error;
-        }
-        throw new Error(
-          `Failed to send SMS verification code. ${error?.message || "Please try again."}`,
-        );
-      }
+    if (!accountSid || !authToken || !from) {
+      // Surface as a user-safe message; the client maps this to a generic
+      // "couldn't send the code" copy so internals are never exposed.
+      throw new Error("SMS_PROVIDER_NOT_CONFIGURED");
     }
 
-    // Fallback: should not reach here in normal operation
-    throw new Error(
-      "SMS service is not available. Please use email to sign in.",
-    );
+    const to = normalizeIndianPhone(phone);
+    if (!to) {
+      throw new Error("SMS_INVALID_PHONE");
+    }
+
+    const body = new URLSearchParams({
+      To: to,
+      From: from,
+      Body:
+        `${token} is your Kalyan Chemist verification code. ` +
+        `It expires in 15 minutes. Do not share it with anyone.`,
+    });
+
+    let response: Response;
+    try {
+      response = await fetch(
+        `https://api.twilio.com/2010-04-01/Accounts/${accountSid}/Messages.json`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Basic ${btoa(`${accountSid}:${authToken}`)}`,
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body,
+        },
+      );
+    } catch {
+      // Network/DNS failure reaching Twilio.
+      throw new Error("SMS_SEND_FAILED");
+    }
+
+    if (!response.ok) {
+      // Log the real status for operators; the customer only ever sees a
+      // friendly message because we throw a non-specific code.
+      console.error(
+        `[phoneOtp] Twilio rejected the message for ${to} — status ${response.status}`,
+      );
+      throw new Error("SMS_SEND_FAILED");
+    }
   },
 });

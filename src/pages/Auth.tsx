@@ -1,34 +1,33 @@
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import {
-  InputOTP,
-  InputOTPGroup,
-  InputOTPSlot,
-} from "@/components/ui/input-otp";
-
+import { OtpInput } from "@/components/auth/OtpInput";
+import { SegmentedToggle } from "@/components/SegmentedToggle";
 import { useAuth } from "@/hooks/use-auth";
 import {
-  ArrowRight,
+  ArrowLeft,
+  CheckCircle2,
   Loader2,
   Lock,
   Mail,
   Phone,
-  UserPlus,
+  ShieldCheck,
+  Sparkles,
 } from "lucide-react";
-import { Suspense, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 
 interface AuthProps {
   redirectAfterAuth?: string;
 }
+
+type Method = "phone" | "email";
+/** `identifier` collects the phone/email, `verify` collects the 6-digit code. */
+type Stage = "identifier" | "verify";
+
+const RESEND_SECONDS = 30;
+const OTP_LENGTH = 6;
 
 function resolveRedirectAfterAuth(
   returnTo: string | null,
@@ -40,26 +39,49 @@ function resolveRedirectAfterAuth(
   return fallback;
 }
 
-/** Detect if input is an email address */
-function isEmail(value: string): boolean {
+/** Indian mobile numbers: 10 digits starting 6-9. */
+function isValidPhone(value: string): boolean {
+  return /^[6-9]\d{9}$/.test(value.replace(/\D/g, ""));
+}
+
+function isValidEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 }
 
-/** Detect if input is a valid Indian phone number */
-function isPhone(value: string): boolean {
-  const cleaned = value.replace(/[\s\-()+]/g, "");
-  return /^[6-9]\d{9}$/.test(cleaned);
+function toTenDigits(value: string): string {
+  return value.replace(/\D/g, "").slice(-10);
 }
 
-/** Normalize phone number to 10 digits */
-function normalizePhone(value: string): string {
-  return value.replace(/[\s\-()+]/g, "").slice(-10);
-}
+/**
+ * Map a raw Convex/Convex Auth error into short, friendly copy. Anything we do
+ * not recognise becomes a generic message so backend details are never shown.
+ */
+function friendlyError(error: unknown, context: "send" | "verify"): string {
+  const message = error instanceof Error ? error.message : String(error ?? "");
 
-type AuthStep =
-  | "signIn"
-  | { method: "email"; identifier: string }
-  | { method: "phone"; phone: string };
+  if (/SMS_PROVIDER_NOT_CONFIGURED|SMS_SEND_FAILED/.test(message)) {
+    return "We couldn't send the code by text right now. Please use email.";
+  }
+  if (/SMS_INVALID_PHONE/.test(message)) {
+    return "Please enter a valid phone number.";
+  }
+  if (/Connection lost|WebSocket|network|Failed to fetch/i.test(message)) {
+    return "Connection issue. Please check your internet and try again.";
+  }
+  // Match the customer-facing rate-limit wording, not any mention of
+  // "rate limit" anywhere in an internal message, so backend phrasing such as
+  // "rate limited at db layer" is not echoed back to the customer.
+  if (/too many (attempts|requests)|rate limit exceeded/i.test(message)) {
+    return "Too many attempts. Please wait a moment and try again.";
+  }
+  if (/expire/i.test(message)) {
+    return "This code has expired. Please request a new one.";
+  }
+  if (context === "verify") {
+    return "That code is incorrect. Please try again.";
+  }
+  return "We couldn't send the code. Please try again.";
+}
 
 function Auth({ redirectAfterAuth }: AuthProps = {}) {
   const { isLoading: authLoading, isAuthenticated, signIn } = useAuth();
@@ -70,12 +92,28 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
     redirectAfterAuth,
   );
 
-  const [step, setStep] = useState<AuthStep>("signIn");
-  const [otp, setOtp] = useState("");
-  const [password, setPassword] = useState("");
-  const [isSignUp, setIsSignUp] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  // Real SMS availability, reported by the server. `undefined` while loading.
+  const smsAvailable = useQuery(api.authCapabilities.phoneOtpAvailable);
+
+  const [preferredMethod, setPreferredMethod] = useState<Method>("email");
+  const [stage, setStage] = useState<Stage>("identifier");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [resendIn, setResendIn] = useState(0);
+
+  // Guards the auto-submit that fires when the last OTP box is filled, so a
+  // single completed code cannot trigger two verification requests.
+  const verifyingRef = useRef(false);
+
+  // Derived rather than set from an effect: once we know SMS is unavailable we
+  // fall back to email instead of offering a method that cannot deliver.
+  const phoneAvailable = smsAvailable !== false;
+  const method: Method =
+    preferredMethod === "phone" && !phoneAvailable ? "email" : preferredMethod;
 
   useEffect(() => {
     if (!authLoading && isAuthenticated) {
@@ -83,400 +121,375 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
     }
   }, [authLoading, isAuthenticated, navigate, redirect]);
 
-  // ── Step 1: Detect email vs phone ──
-  const handleIdentifierSubmit = async (
-    event: React.FormEvent<HTMLFormElement>,
-  ) => {
-    event.preventDefault();
-    setIsLoading(true);
+  // Resend countdown. Runs only while a code is on screen and ticking down.
+  useEffect(() => {
+    if (resendIn <= 0) return;
+    const timer = setInterval(() => {
+      setResendIn((seconds) => Math.max(0, seconds - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [resendIn]);
+
+  const maskedTarget =
+    method === "phone"
+      ? `+91 ${toTenDigits(phone).replace(/(\d{5})(\d{5})/, "$1 $2")}`
+      : email.trim();
+
+  const resetToIdentifier = useCallback(() => {
+    setStage("identifier");
+    setCode("");
     setError(null);
+    setNotice(null);
+    setResendIn(0);
+    verifyingRef.current = false;
+  }, []);
 
-    const formData = new FormData(event.currentTarget);
-    const rawInput = (formData.get("identifier") as string)?.trim() || "";
+  const switchMethod = (next: Method) => {
+    setPreferredMethod(next);
+    setStage("identifier");
+    setCode("");
+    setError(null);
+    setNotice(null);
+    setResendIn(0);
+    verifyingRef.current = false;
+  };
 
-    if (!rawInput) {
-      setError("Please enter your email address or phone number.");
-      setIsLoading(false);
-      return;
-    }
+  /** Request a fresh code for the current method. Shared by Send + Resend. */
+  const sendCode = useCallback(
+    async (isResend: boolean) => {
+      if (isSubmitting) return;
 
-    if (isEmail(rawInput)) {
-      // ── Email OTP flow (unchanged) ──
+      const target = method === "phone" ? `+91${toTenDigits(phone)}` : email.trim();
+
+      if (method === "phone" && !isValidPhone(phone)) {
+        setError("Please enter a valid phone number.");
+        return;
+      }
+      if (method === "email" && !isValidEmail(email)) {
+        setError("Please enter a valid email address.");
+        return;
+      }
+
+      setIsSubmitting(true);
+      setError(null);
+      setNotice(null);
+
       try {
-        const emailFormData = new FormData();
-        emailFormData.set("email", rawInput.trim());
-        await signIn("email-otp", emailFormData);
-        setStep({ method: "email", identifier: rawInput.trim() });
-        setIsLoading(false);
+        const form = new FormData();
+        if (method === "phone") form.set("phone", target);
+        else form.set("email", target);
+        await signIn(method === "phone" ? "phone-otp" : "email-otp", form);
+
+        setStage("verify");
+        setCode("");
+        setResendIn(RESEND_SECONDS);
+        verifyingRef.current = false;
+        setNotice(
+          isResend
+            ? `We sent a new code to ${target}.`
+            : `We sent a 6-digit code to ${target}.`,
+        );
       } catch (error) {
-        console.error("Email sign-in error:", error);
-        const msg = error instanceof Error ? error.message : "";
-        if (msg.includes("Connection lost")) {
-          setError(
-            "Connection issue. Please check your internet and try again.",
-          );
-        } else if (msg.includes("rate limit")) {
-          setError("Too many attempts. Please wait a moment and try again.");
-        } else {
-          setError(
-            msg || "We could not send a verification code. Please try again.",
-          );
-        }
-        setIsLoading(false);
+        setError(friendlyError(error, "send"));
+      } finally {
+        setIsSubmitting(false);
       }
-    } else if (isPhone(rawInput)) {
-      // ── Phone + Password flow ──
-      const phone = normalizePhone(rawInput);
-      setStep({ method: "phone", phone });
-      setIsLoading(false);
-    } else {
-      setError(
-        "Please enter a valid email address (e.g. you@example.com) or 10-digit phone number (e.g. 9876543210).",
-      );
-      setIsLoading(false);
-    }
-  };
+    },
+    [email, isSubmitting, method, phone, signIn],
+  );
 
-  // ── Step 2a: Email OTP verification (unchanged) ──
-  const handleOtpSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+  const handleIdentifierSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setIsLoading(true);
-    setError(null);
-    try {
-      const formData = new FormData(event.currentTarget);
-      await signIn("email-otp", formData);
-      navigate(redirect);
-    } catch (error) {
-      console.error("OTP verification error:", error);
-      const msg = error instanceof Error ? error.message : "";
-      if (msg.includes("Connection lost")) {
-        setError(
-          "Connection issue. Please check your internet and try again.",
-        );
-      } else if (msg.includes("expired")) {
-        setError(
-          "The verification code has expired. Please request a new one.",
-        );
-      } else {
-        setError(
-          "The verification code is incorrect. Please check and try again.",
-        );
-      }
-      setIsLoading(false);
-      setOtp("");
-    }
+    void sendCode(false);
   };
 
-  // ── Step 2b: Phone + Password sign-in / sign-up ──
-  const handlePasswordSubmit = async (
-    event: React.FormEvent<HTMLFormElement>,
-  ) => {
+  const verifyCode = useCallback(
+    async (submitted: string) => {
+      if (isSubmitting || verifyingRef.current) return;
+      if (submitted.length !== OTP_LENGTH) return;
+
+      verifyingRef.current = true;
+      setIsSubmitting(true);
+      setError(null);
+
+      const target = method === "phone" ? `+91${toTenDigits(phone)}` : email.trim();
+
+      try {
+        const form = new FormData();
+        form.set("code", submitted);
+        if (method === "phone") form.set("phone", target);
+        else form.set("email", target);
+        await signIn(method === "phone" ? "phone-otp" : "email-otp", form);
+        // The auth effect performs the redirect once the session is confirmed,
+        // which keeps the returnTo destination intact.
+      } catch (error) {
+        setError(friendlyError(error, "verify"));
+        setCode("");
+        verifyingRef.current = false;
+        // Let the boxes re-render empty after a wrong code.
+        requestAnimationFrame(() => {
+          const first = document.querySelector<HTMLInputElement>(
+            '[data-otp-input="0"]',
+          );
+          first?.focus();
+        });
+      } finally {
+        setIsSubmitting(false);
+      }
+    },
+    [email, isSubmitting, method, phone, signIn],
+  );
+
+  const handleVerifySubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    setIsLoading(true);
-    setError(null);
-
-    if (typeof step !== "object" || step.method !== "phone") return;
-    const phoneStep = step;
-
-    if (!password || password.length < 8) {
-      setError("Password must be at least 8 characters long.");
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      const flow = isSignUp ? "signUp" : "signIn";
-      await signIn("phone-password", {
-        flow,
-        phone: `+91${phoneStep.phone}`,
-        password,
-      });
-      navigate(redirect);
-    } catch (error) {
-      console.error("Phone password auth error:", error);
-      const msg = error instanceof Error ? error.message : "";
-      if (msg.includes("already exists")) {
-        setError(
-          "An account with this phone number already exists. Please sign in instead.",
-        );
-        setIsSignUp(false);
-      } else if (msg.includes("Invalid")) {
-        setError(
-          isSignUp
-            ? "Could not create account. Please try again."
-            : "Invalid phone number or password. Please try again.",
-        );
-      } else if (msg.includes("Connection lost")) {
-        setError(
-          "Connection issue. Please check your internet and try again.",
-        );
-      } else {
-        setError(msg || "Something went wrong. Please try again.");
-      }
-      setIsLoading(false);
-      setPassword("");
-    }
+    void verifyCode(code);
   };
 
-  // ── Render ──
+  const phoneTabDisabled = !phoneAvailable;
+  const canResend = resendIn === 0 && !isSubmitting;
+
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-b from-primary/[0.03] to-background">
-      {/* Header */}
-      <header className="border-b border-border/60 bg-background/80 backdrop-blur-md">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-          <div
-            className="flex items-center gap-2.5 cursor-pointer"
-            onClick={() => navigate("/")}
-          >
-            <div className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-sm tracking-tight">
-              KC
-            </div>
-            <div className="leading-tight">
-              <span className="text-lg font-bold tracking-tight text-foreground">
-                Kalyan Chemist
-              </span>
-              <span className="hidden sm:block text-[11px] font-medium uppercase tracking-widest text-muted-foreground">
-                Trusted Pharmacy
-              </span>
-            </div>
+    <div className="relative flex min-h-screen flex-col overflow-hidden bg-[#04140E] text-emerald-50">
+      {/* Ambient atmosphere — restrained radial glows, no stacked cards. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(70% 55% at 50% 0%, rgba(16,185,129,0.20) 0%, transparent 70%), radial-gradient(50% 45% at 85% 100%, rgba(5,150,105,0.14) 0%, transparent 70%), linear-gradient(180deg, #04140E 0%, #062018 100%)",
+        }}
+      />
+
+      {/* Branding bar */}
+      <header className="relative z-10 px-4 py-5 sm:px-6">
+        <div className="mx-auto flex max-w-6xl items-center gap-3">
+          <div className="flex size-9 items-center justify-center rounded-lg bg-emerald-500 font-bold text-sm tracking-tight text-white shadow-sm">
+            KC
+          </div>
+          <div className="leading-tight">
+            <span className="text-lg font-bold tracking-tight text-emerald-50">
+              Kalyan Chemist
+            </span>
+            <span className="block text-[10px] font-medium uppercase tracking-[0.18em] text-emerald-200/60">
+              Health, Redefined
+            </span>
           </div>
         </div>
       </header>
 
-      {/* Auth Content */}
-      <div className="flex-1 flex items-center justify-center px-4 py-12">
-        <div className="flex items-center justify-center h-full flex-col">
-          <Card className="min-w-[360px] max-w-[400px] border-border/70 shadow-lg">
-            {/* ─── Step: Enter email or phone ─── */}
-            {step === "signIn" && (
-              <>
-                <CardHeader className="text-center">
-                  <CardTitle className="text-xl font-bold">
-                    Welcome to Kalyan Chemist
-                  </CardTitle>
-                  <CardDescription className="text-sm leading-relaxed">
-                    Enter your email or phone number to sign in or create a new
-                    account.
-                  </CardDescription>
-                </CardHeader>
-                <form onSubmit={handleIdentifierSubmit}>
-                  <CardContent>
-                    <div className="relative flex items-center gap-2">
-                      <div className="relative flex-1">
-                        <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          name="identifier"
-                          placeholder="Email or phone number"
-                          type="text"
-                          inputMode="text"
-                          autoComplete="username"
-                          className="pl-9"
-                          disabled={isLoading}
-                          required
-                        />
-                      </div>
-                      <Button
-                        type="submit"
-                        variant="outline"
-                        size="icon"
-                        disabled={isLoading}
-                      >
-                        {isLoading ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <ArrowRight className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </div>
-                    {error && (
-                      <p className="mt-2 text-sm text-destructive">{error}</p>
-                    )}
-                  </CardContent>
-                </form>
-              </>
+      {/* Single centred card */}
+      <main className="relative z-10 flex flex-1 items-center justify-center px-4 pb-12 pt-4">
+        <div className="w-full max-w-[420px]">
+          <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-6 shadow-2xl shadow-black/30 backdrop-blur-xl sm:p-8">
+            <div className="flex flex-col items-center text-center">
+              <div className="mb-4 flex size-14 items-center justify-center rounded-full border border-emerald-400/30 bg-emerald-500/10">
+                <ShieldCheck className="size-6 text-emerald-300" aria-hidden="true" />
+              </div>
+              <h1 className="text-2xl font-bold tracking-tight text-emerald-50 sm:text-[28px]">
+                Welcome back
+              </h1>
+              <p className="mt-1.5 text-sm text-emerald-100/65">
+                Sign in to manage your orders &amp; health
+              </p>
+            </div>
+
+            {/* Method switcher */}
+            <div className="mt-6">
+              <SegmentedToggle
+                label="Sign-in method"
+                value={method}
+                onChange={switchMethod}
+                disabled={isSubmitting}
+                options={[
+                  {
+                    value: "email",
+                    label: "Email",
+                    icon: <Mail className="size-4" aria-hidden="true" />,
+                  },
+                  {
+                    value: "phone",
+                    label: "Phone",
+                    icon: <Phone className="size-4" aria-hidden="true" />,
+                  },
+                ]}
+              />
+              {phoneTabDisabled && (
+                <p className="mt-2 text-center text-xs text-emerald-200/50">
+                  Text sign-in is being set up. Please use email.
+                </p>
+              )}
+            </div>
+
+            {notice && !error && (
+              <p
+                role="status"
+                className="mt-4 flex items-start gap-2 rounded-lg border border-emerald-400/20 bg-emerald-500/10 px-3 py-2.5 text-sm text-emerald-100"
+              >
+                <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-emerald-300" aria-hidden="true" />
+                <span>{notice}</span>
+              </p>
             )}
 
-            {/* ─── Step: Email OTP verification (unchanged) ─── */}
-            {typeof step === "object" && step.method === "email" && (
-              <>
-                <CardHeader className="text-center">
-                  <CardTitle className="text-xl font-bold">
-                    Check Your Inbox
-                  </CardTitle>
-                  <CardDescription className="text-sm leading-relaxed">
-                    We sent a verification code to{" "}
-                    <span className="font-medium text-foreground">
-                      {step.identifier}
-                    </span>
-                  </CardDescription>
-                </CardHeader>
-                <form onSubmit={handleOtpSubmit}>
-                  <CardContent className="space-y-4">
-                    <input type="hidden" name="code" value={otp} />
-                    <input type="hidden" name="email" value={step.identifier} />
-                    <div className="flex justify-center">
-                      <InputOTP
-                        maxLength={6}
-                        value={otp}
-                        onChange={setOtp}
-                        disabled={isLoading}
-                      >
-                        <InputOTPGroup>
-                          <InputOTPSlot index={0} />
-                          <InputOTPSlot index={1} />
-                          <InputOTPSlot index={2} />
-                        </InputOTPGroup>
-                        <InputOTPGroup>
-                          <InputOTPSlot index={3} />
-                          <InputOTPSlot index={4} />
-                          <InputOTPSlot index={5} />
-                        </InputOTPGroup>
-                      </InputOTP>
-                    </div>
-                    {error && (
-                      <p className="text-sm text-destructive text-center">
-                        {error}
-                      </p>
-                    )}
-                  </CardContent>
-                  <CardFooter className="flex flex-col gap-3">
-                    <Button
-                      type="submit"
-                      className="w-full gradient-primary text-white"
-                      disabled={isLoading || otp.length < 6}
-                    >
-                      {isLoading ? (
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      ) : (
-                        <Mail className="h-4 w-4 mr-2" />
-                      )}
-                      Verify Code
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setStep("signIn");
-                        setOtp("");
-                        setError(null);
-                      }}
-                    >
-                      Use a different method
-                    </Button>
-                  </CardFooter>
-                </form>
-              </>
+            {error && (
+              <p
+                role="alert"
+                className="mt-4 rounded-lg border border-red-400/25 bg-red-500/10 px-3 py-2.5 text-sm text-red-100"
+              >
+                {error}
+              </p>
             )}
 
-            {/* ─── Step: Phone + Password ─── */}
-            {typeof step === "object" && step.method === "phone" && (
-              <>
-                <CardHeader className="text-center">
-                  <CardTitle className="text-xl font-bold">
-                    {isSignUp ? "Create Account" : "Welcome Back"}
-                  </CardTitle>
-                  <CardDescription className="text-sm leading-relaxed">
-                    {isSignUp ? (
-                      <>
-                        Create a password for{" "}
-                        <span className="font-medium text-foreground">
-                          +91 {step.phone}
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        Enter your password for{" "}
-                        <span className="font-medium text-foreground">
-                          +91 {step.phone}
-                        </span>
-                      </>
-                    )}
-                  </CardDescription>
-                </CardHeader>
-                <form onSubmit={handlePasswordSubmit}>
-                  <CardContent className="space-y-4">
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        type="password"
-                        placeholder="Password (min. 8 characters)"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        className="pl-9"
-                        autoComplete={
-                          isSignUp ? "new-password" : "current-password"
-                        }
-                        disabled={isLoading}
-                        required
-                        minLength={8}
+            {/* ── Identifier step ── */}
+            {stage === "identifier" && (
+              <form onSubmit={handleIdentifierSubmit} noValidate className="mt-5 space-y-4">
+                {method === "phone" ? (
+                  <div className="space-y-2">
+                    <label
+                      htmlFor="login-phone"
+                      className="block text-xs font-semibold uppercase tracking-wider text-emerald-100/70"
+                    >
+                      Phone Number
+                    </label>
+                    <div className="flex items-stretch overflow-hidden rounded-lg border border-white/12 bg-white/[0.04] transition-colors focus-within:border-emerald-400/60 focus-within:ring-2 focus-within:ring-emerald-400/30">
+                      <span className="flex items-center border-r border-white/10 px-3.5 text-sm font-medium text-emerald-100/70">
+                        +91
+                      </span>
+                      <input
+                        id="login-phone"
+                        type="tel"
+                        inputMode="numeric"
+                        autoComplete="tel-national"
+                        maxLength={10}
+                        pattern="[0-9]*"
+                        disabled={isSubmitting}
+                        value={phone}
+                        onChange={(event) => setPhone(event.target.value.replace(/\D/g, "").slice(0, 10))}
+                        placeholder="98765 43210"
+                        aria-invalid={error ? true : undefined}
+                        className="min-w-0 flex-1 bg-transparent px-3.5 py-3 text-sm text-emerald-50 placeholder:text-emerald-200/35 focus:outline-none disabled:opacity-60"
                       />
                     </div>
-                    {error && (
-                      <p className="text-sm text-destructive text-center">
-                        {error}
-                      </p>
-                    )}
-                  </CardContent>
-                  <CardFooter className="flex flex-col gap-3">
-                    <Button
-                      type="submit"
-                      className="w-full gradient-primary text-white"
-                      disabled={isLoading || password.length < 8}
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <label
+                      htmlFor="login-email"
+                      className="block text-xs font-semibold uppercase tracking-wider text-emerald-100/70"
                     >
-                      {isLoading ? (
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      ) : isSignUp ? (
-                        <UserPlus className="h-4 w-4 mr-2" />
-                      ) : (
-                        <Lock className="h-4 w-4 mr-2" />
-                      )}
-                      {isSignUp ? "Create Account" : "Sign In"}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setIsSignUp((prev) => !prev);
-                        setPassword("");
-                        setError(null);
-                      }}
-                    >
-                      {isSignUp
-                        ? "Already have an account? Sign in"
-                        : "Don't have an account? Create one"}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => {
-                        setStep("signIn");
-                        setPassword("");
-                        setError(null);
-                        setIsSignUp(false);
-                      }}
-                    >
-                      Use a different method
-                    </Button>
-                  </CardFooter>
-                </form>
-              </>
+                      Email Address
+                    </label>
+                    <Input
+                      id="login-email"
+                      type="email"
+                      inputMode="email"
+                      autoComplete="email"
+                      placeholder="you@example.com"
+                      disabled={isSubmitting}
+                      value={email}
+                      onChange={(event) => setEmail(event.target.value)}
+                      aria-invalid={error ? true : undefined}
+                      className="border-white/12 bg-white/[0.04] py-3 text-emerald-50 placeholder:text-emerald-200/35 focus-visible:border-emerald-400/60 focus-visible:ring-emerald-400/30"
+                    />
+                  </div>
+                )}
+
+                <Button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="h-12 w-full rounded-lg bg-emerald-500 font-semibold text-white transition-colors hover:bg-emerald-400 focus-visible:ring-emerald-300 disabled:opacity-70"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" />
+                      Sending…
+                    </>
+                  ) : method === "phone" ? (
+                    "Send OTP"
+                  ) : (
+                    "Send Code"
+                  )}
+                </Button>
+              </form>
             )}
-          </Card>
+
+            {/* ── Code step ── */}
+            {stage === "verify" && (
+              <form onSubmit={handleVerifySubmit} noValidate className="mt-5 space-y-5">
+                <div className="space-y-1.5 text-center">
+                  <p
+                    id="otp-heading"
+                    className="block text-xs font-semibold uppercase tracking-wider text-emerald-100/70"
+                  >
+                    {method === "phone" ? "Enter OTP" : "Enter verification code"}
+                  </p>
+                  <p className="text-sm text-emerald-100/60">
+                    Sent to <span className="font-medium text-emerald-100">{maskedTarget}</span>
+                  </p>
+                </div>
+
+                <OtpInput
+                  value={code}
+                  onChange={setCode}
+                  onComplete={(submitted) => void verifyCode(submitted)}
+                  length={OTP_LENGTH}
+                  disabled={isSubmitting}
+                  invalid={Boolean(error)}
+                  labelledBy="otp-heading"
+                  label={method === "phone" ? "OTP" : "Verification code"}
+                />
+
+                <Button
+                  type="submit"
+                  disabled={isSubmitting || code.length !== OTP_LENGTH}
+                  className="h-12 w-full rounded-lg bg-emerald-500 font-semibold text-white transition-colors hover:bg-emerald-400 focus-visible:ring-emerald-300 disabled:opacity-70"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 size-4 animate-spin" aria-hidden="true" />
+                      Verifying…
+                    </>
+                  ) : (
+                    "Verify & Continue"
+                  )}
+                </Button>
+
+                <div className="flex flex-col items-center gap-1.5 text-sm">
+                  <button
+                    type="button"
+                    onClick={() => void sendCode(true)}
+                    disabled={!canResend}
+                    className="rounded font-medium text-emerald-300 transition-colors hover:text-emerald-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-emerald-950 disabled:cursor-not-allowed disabled:text-emerald-200/40 disabled:hover:text-emerald-200/40"
+                  >
+                    {resendIn > 0
+                      ? `Resend ${method === "phone" ? "OTP" : "code"} in ${resendIn}s`
+                      : `Resend ${method === "phone" ? "OTP" : "code"}`}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={resetToIdentifier}
+                    className="inline-flex items-center gap-1.5 rounded font-medium text-emerald-100/60 transition-colors hover:text-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-emerald-950"
+                  >
+                    <ArrowLeft className="size-3.5" aria-hidden="true" />
+                    {method === "phone" ? "Change Phone Number" : "Change Email"}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+
+          {/* Reassurance strip — outside the card to avoid nesting clutter. */}
+          <p className="mt-5 flex items-center justify-center gap-2 text-center text-xs text-emerald-200/45">
+            <Lock className="size-3.5" aria-hidden="true" />
+            No passwords needed — we verify every sign-in with a one-time code.
+          </p>
+          <p className="mt-2 flex items-center justify-center gap-1.5 text-center text-xs text-emerald-200/35">
+            <Sparkles className="size-3" aria-hidden="true" />
+            New here? A code creates your account automatically.
+          </p>
         </div>
-      </div>
+      </main>
     </div>
   );
 }
 
-function AuthPage() {
-  return (
-    <Suspense>
-      <Auth />
-    </Suspense>
-  );
-}
-
-export default AuthPage;
+export default Auth;
