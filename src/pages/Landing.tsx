@@ -34,6 +34,7 @@ import ValueDeals from "@/components/ValueDeals";
 import HowItWorks from "@/components/HowItWorks";
 import PromotionalCarousel from "@/components/PromotionalCarousel";
 import WhyKalyanChemist from "@/components/WhyKalyanChemist";
+import ShopByBrand from "@/components/ShopByBrand";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { formatCurrency } from "@/lib/auth-utils";
@@ -741,42 +742,11 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ── CTA ── */}
-      <section className="mx-auto max-w-7xl px-6 py-24">
-        <div className="relative overflow-hidden rounded-3xl gradient-hero px-8 py-20 text-center sm:px-16 shadow-glow">
-          <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-16 -left-16 h-56 w-56 rounded-full bg-white/10 blur-3xl" />
-          <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-96 w-96 rounded-full bg-white/5 blur-3xl" />
-          <div className="relative">
-            <h2 className="text-3xl font-bold text-white sm:text-5xl">
-              Ready to Take Charge<br className="hidden sm:block" /> of Your Health?
-            </h2>
-            <p className="mx-auto mt-5 max-w-lg text-sm leading-relaxed text-white/75 text-lg">
-              Create your account in under a minute and start ordering genuine
-              medicines delivered straight to your door.
-            </p>
-            <div className="mt-10 flex flex-wrap justify-center gap-3">
-              <Button
-                size="lg"
-                variant="secondary"
-                className="font-semibold px-10 h-12 bg-white text-primary hover:bg-white/90 shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98] rounded-xl"
-                onClick={() => navigate("/auth")}
-              >
-                Create Free Account
-                <ArrowRight className="ml-1.5 size-4" />
-              </Button>
-              <Button
-                size="lg"
-                variant="ghost"
-                className="font-semibold px-10 h-12 text-white hover:bg-white/10 transition-all rounded-xl"
-                onClick={() => navigate("/products")}
-              >
-                Browse Medicines
-              </Button>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* ── Shop By Brand ── */}
+      {/* Occupies the position previously held by the bottom CTA band, ahead of
+          Why Choose Us / Testimonials. Renders from the existing brands table
+          and returns nothing when no brand is published to the homepage. */}
+      <ShopByBrand />
 
       {/* ── Footer ── */}
       {/* Uses the shared footer system so every route shows the same

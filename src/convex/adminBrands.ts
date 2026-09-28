@@ -55,16 +55,33 @@ export const get = query({
 });
 
 // ── Admin: Create a brand ──
+/**
+ * Logo, description and country are always produced by `brandEnrichment.lookup`
+ * and are mandatory here. A brand can never be stored without them, so the
+ * storefront never has to render invented metadata.
+ */
 export const create = mutation({
   args: {
     name: v.string(),
     slug: v.string(),
-    description: v.optional(v.string()),
-    logoUrl: v.optional(v.string()),
-    country: v.optional(v.string()),
+    description: v.string(),
+    logoUrl: v.string(),
+    country: v.string(),
+    isActive: v.optional(v.boolean()),
+    showOnHomepage: v.optional(v.boolean()),
+    homepageOrder: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
+
+    const missing = (["description", "logoUrl", "country"] as const).filter(
+      (key) => !args[key]?.trim(),
+    );
+    if (missing.length > 0) {
+      throw new Error(
+        "Brand details are incomplete. Verify the brand name to fetch its logo, description and country before saving.",
+      );
+    }
 
     const existing = await ctx.db
       .query("brands")
@@ -75,30 +92,56 @@ export const create = mutation({
     // Get next sort order
     const allBrands = await ctx.db.query("brands").collect();
     const maxSort = allBrands.reduce((max, b) => Math.max(max, b.sortOrder), 0);
+    const maxHomepageOrder = allBrands.reduce(
+      (max, b) => Math.max(max, b.homepageOrder ?? 0),
+      0,
+    );
 
     const id: Id<"brands"> = await ctx.db.insert("brands", {
-      ...args,
-      isActive: true,
+      name: args.name.trim(),
+      slug: args.slug,
+      description: args.description.trim(),
+      logoUrl: args.logoUrl.trim(),
+      country: args.country.trim(),
+      isActive: args.isActive ?? true,
       sortOrder: maxSort + 1,
+      showOnHomepage: args.showOnHomepage ?? false,
+      homepageOrder: args.homepageOrder ?? maxHomepageOrder + 1,
     });
     return id;
   },
 });
 
 // ── Admin: Update a brand ──
+/**
+ * Renaming a brand re-runs enrichment, so the metadata always matches the
+ * name it was resolved from. The admin controls only the visibility fields.
+ */
 export const update = mutation({
   args: {
     brandId: v.id("brands"),
     name: v.string(),
     slug: v.string(),
-    description: v.optional(v.string()),
-    logoUrl: v.optional(v.string()),
-    country: v.optional(v.string()),
+    description: v.string(),
+    logoUrl: v.string(),
+    country: v.string(),
+    isActive: v.optional(v.boolean()),
+    showOnHomepage: v.optional(v.boolean()),
+    homepageOrder: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
 
-    const { brandId, ...updates } = args;
+    const { brandId } = args;
+
+    const missing = (["description", "logoUrl", "country"] as const).filter(
+      (key) => !args[key]?.trim(),
+    );
+    if (missing.length > 0) {
+      throw new Error(
+        "Brand details are incomplete. Verify the brand name to fetch its logo, description and country before saving.",
+      );
+    }
 
     const existing = await ctx.db
       .query("brands")
@@ -108,7 +151,16 @@ export const update = mutation({
       throw new Error("A brand with this slug already exists");
     }
 
-    await ctx.db.patch(brandId, updates);
+    await ctx.db.patch(brandId, {
+      name: args.name.trim(),
+      slug: args.slug,
+      description: args.description.trim(),
+      logoUrl: args.logoUrl.trim(),
+      country: args.country.trim(),
+      isActive: args.isActive ?? true,
+      showOnHomepage: args.showOnHomepage ?? false,
+      homepageOrder: args.homepageOrder ?? 0,
+    });
     return brandId;
   },
 });

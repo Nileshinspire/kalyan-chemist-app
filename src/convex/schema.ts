@@ -102,10 +102,15 @@ const schema = defineSchema(
       country: v.optional(v.string()),
       isActive: v.boolean(),
       sortOrder: v.number(),
+      // Homepage "Shop By Brand" controls. Brands without these set are simply
+      // not shown there, which is the safe default for existing records.
+      showOnHomepage: v.optional(v.boolean()),
+      homepageOrder: v.optional(v.number()),
     })
       .index("by_slug", ["slug"])
       .index("by_isActive", ["isActive"])
-      .index("by_sortOrder", ["sortOrder"]),
+      .index("by_sortOrder", ["sortOrder"])
+      .index("by_homepage", ["isActive", "showOnHomepage"]),
 
     // Medicine categories (e.g. Pain Relief, Diabetes Care)
     categories: defineTable({

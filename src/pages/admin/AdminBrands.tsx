@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
@@ -24,25 +25,49 @@ import {
 } from "@/components/ui/table";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import { Plus, Search, Pencil, Trash2, Building2, Loader2 } from "lucide-react";
+import {
+  Plus,
+  Search,
+  Pencil,
+  Trash2,
+  Building2,
+  Loader2,
+  Sparkles,
+  CheckCircle2,
+  Globe,
+  AlignLeft,
+} from "lucide-react";
 
-function slugify(text: string) {
-  return text.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-}
+/** Metadata resolved server-side by brandEnrichment.lookup. */
+type VerifiedBrand = {
+  name: string;
+  slug: string;
+  description: string;
+  logoUrl: string;
+  country: string;
+};
 
 export default function AdminBrands() {
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
+
+  // The only field the admin actually types.
   const [name, setName] = useState("");
-  const [slug, setSlug] = useState("");
-  const [description, setDescription] = useState("");
-  const [logoUrl, setLogoUrl] = useState("");
-  const [country, setCountry] = useState("");
+  // Logo / description / country — filled by the server, shown read-only.
+  const [verified, setVerified] = useState<VerifiedBrand | null>(null);
+  const [verifying, setVerifying] = useState(false);
+  const [verifyError, setVerifyError] = useState<string | null>(null);
+
+  const [isActive, setIsActive] = useState(true);
+  const [showOnHomepage, setShowOnHomepage] = useState(false);
+  const [homepageOrder, setHomepageOrder] = useState("1");
+
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
 
   const brands = useQuery(api.adminBrands.list, { search: search || undefined });
+  const lookupBrand = useAction(api.brandEnrichment.lookup);
   const createBrand = useMutation(api.adminBrands.create);
   const updateBrand = useMutation(api.adminBrands.update);
   const deleteBrand = useMutation(api.adminBrands.remove);
@@ -51,36 +76,92 @@ export default function AdminBrands() {
   const openCreate = () => {
     setEditing(null);
     setName("");
-    setSlug("");
-    setDescription("");
-    setLogoUrl("");
-    setCountry("");
+    setVerified(null);
+    setVerifyError(null);
+    setIsActive(true);
+    setShowOnHomepage(false);
+    setHomepageOrder(
+      String((brands?.length ?? 0) + 1),
+    );
     setDialogOpen(true);
   };
 
   const openEdit = (brand: any) => {
     setEditing(brand._id);
     setName(brand.name);
-    setSlug(brand.slug);
-    setDescription(brand.description || "");
-    setLogoUrl(brand.logoUrl || "");
-    setCountry(brand.country || "");
+    // Existing brands already carry verified metadata, so editing does not
+    // force a re-verification unless the name actually changes.
+    setVerified({
+      name: brand.name,
+      slug: brand.slug,
+      description: brand.description ?? "",
+      logoUrl: brand.logoUrl ?? "",
+      country: brand.country ?? "",
+    });
+    setVerifyError(null);
+    setIsActive(brand.isActive);
+    setShowOnHomepage(brand.showOnHomepage ?? false);
+    setHomepageOrder(String(brand.homepageOrder ?? 0));
     setDialogOpen(true);
   };
 
+  // Editing the name invalidates the resolved metadata: the details must always
+  // match the brand they were fetched for.
+  const handleNameChange = (value: string) => {
+    setName(value);
+    if (verified && value.trim() !== verified.name) {
+      setVerified(null);
+      setVerifyError(null);
+    }
+  };
+
+  const handleVerify = async () => {
+    const query = name.trim();
+    if (!query) {
+      setVerifyError("Please enter a brand name first.");
+      return;
+    }
+    setVerifying(true);
+    setVerifyError(null);
+    try {
+      const result = await lookupBrand({ name: query });
+      setVerified({
+        name: result.name,
+        slug: result.slug,
+        description: result.description,
+        logoUrl: result.logoUrl,
+        country: result.country,
+      });
+      setName(result.name);
+      toast.success(`Verified ${result.name}`);
+    } catch (error: any) {
+      // Nothing is saved on failure — the admin can correct the name and retry.
+      setVerified(null);
+      setVerifyError(
+        error?.message ||
+          "This brand could not be verified automatically. Check the spelling and try again.",
+      );
+    } finally {
+      setVerifying(false);
+    }
+  };
+
   const handleSave = async () => {
-    if (!name) {
-      toast.error("Brand name is required");
+    if (!verified) {
+      toast.error("Verify the brand to fetch its logo, description and country first.");
       return;
     }
     setSaving(true);
     try {
       const data = {
-        name,
-        slug: slug || slugify(name),
-        description: description || undefined,
-        logoUrl: logoUrl || undefined,
-        country: country || undefined,
+        name: verified.name,
+        slug: verified.slug,
+        description: verified.description,
+        logoUrl: verified.logoUrl,
+        country: verified.country,
+        isActive,
+        showOnHomepage,
+        homepageOrder: Math.max(1, Number(homepageOrder) || 0),
       };
       if (editing) {
         await updateBrand({ brandId: editing as any, ...data });
@@ -145,98 +226,200 @@ export default function AdminBrands() {
                 </p>
               </div>
             ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Brand</TableHead>
-                    <TableHead>Slug</TableHead>
-                    <TableHead>Country</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead className="text-center">Products</TableHead>
-                    <TableHead className="text-center">Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {brands.map((brand) => (
-                    <TableRow key={brand._id}>
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          {brand.logoUrl ? (
-                            <img src={brand.logoUrl} alt={brand.name} className="size-8 rounded-lg object-cover" />
-                          ) : (
-                            <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                              <Building2 className="size-4 text-primary" />
-                            </div>
-                          )}
-                          <span className="font-medium">{brand.name}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-xs font-mono text-muted-foreground">{brand.slug}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{brand.country || "—"}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground max-w-xs truncate">{brand.description || "—"}</TableCell>
-                      <TableCell className="text-center">
-                        <Badge variant="secondary" className="text-xs">{brand.productCount}</Badge>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Badge variant={brand.isActive ? "default" : "secondary"} className={`text-xs ${brand.isActive ? "bg-green-100 text-green-700" : ""}`}>
-                          {brand.isActive ? "Active" : "Inactive"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button variant="ghost" size="icon" className="size-8" onClick={() => openEdit(brand)}>
-                            <Pencil className="size-3.5" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="size-8" onClick={() => toggleActive({ brandId: brand._id, isActive: !brand.isActive })}>
-                            {brand.isActive ? "Deactivate" : "Activate"}
-                          </Button>
-                          <Button variant="ghost" size="icon" className="size-8 text-destructive" onClick={() => setDeleteConfirm({ id: brand._id, name: brand.name })} disabled={brand.productCount > 0}>
-                            <Trash2 className="size-3.5" />
-                          </Button>
-                        </div>
-                      </TableCell>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Brand</TableHead>
+                      <TableHead>Country</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead className="text-center">Products</TableHead>
+                      <TableHead className="text-center">On Homepage</TableHead>
+                      <TableHead className="text-center">Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {brands.map((brand) => (
+                      <TableRow key={brand._id}>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            {brand.logoUrl ? (
+                              <img src={brand.logoUrl} alt={brand.name} className="size-8 rounded-lg object-contain" />
+                            ) : (
+                              <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                                <Building2 className="size-4 text-primary" />
+                              </div>
+                            )}
+                            <span className="font-medium">{brand.name}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">{brand.country || "—"}</TableCell>
+                        <TableCell className="text-sm text-muted-foreground max-w-xs truncate">{brand.description || "—"}</TableCell>
+                        <TableCell className="text-center">
+                          <Badge variant="secondary" className="text-xs">{brand.productCount}</Badge>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {brand.showOnHomepage ? (
+                            <Badge variant="secondary" className="text-xs bg-green-100 text-green-700">
+                              #{brand.homepageOrder ?? 0}
+                            </Badge>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">Hidden</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Badge variant={brand.isActive ? "default" : "secondary"} className={`text-xs ${brand.isActive ? "bg-green-100 text-green-700" : ""}`}>
+                            {brand.isActive ? "Active" : "Inactive"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button variant="ghost" size="icon" className="size-8" onClick={() => openEdit(brand)}>
+                              <Pencil className="size-3.5" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="size-8" onClick={() => toggleActive({ brandId: brand._id, isActive: !brand.isActive })}>
+                              {brand.isActive ? "Deactivate" : "Activate"}
+                            </Button>
+                            <Button variant="ghost" size="icon" className="size-8 text-destructive" onClick={() => setDeleteConfirm({ id: brand._id, name: brand.name })} disabled={brand.productCount > 0}>
+                              <Trash2 className="size-3.5" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             )}
           </CardContent>
         </Card>
 
         <p className="text-xs text-muted-foreground">{brands?.length ?? 0} brand(s) total</p>
 
-        {/* Create/Edit Dialog */}
+        {/* Add / Edit Dialog — brand name is the only typed field. */}
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle>{editing ? "Edit Brand" : "Add Brand"}</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4 py-4">
+
+            <div className="space-y-4 py-2">
               <div className="space-y-2">
-                <Label>Name *</Label>
-                <Input value={name} onChange={(e) => { setName(e.target.value); if (!editing) setSlug(slugify(e.target.value)); }} placeholder="e.g. Sun Pharmaceutical" />
+                <Label>Brand Name *</Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={name}
+                    onChange={(e) => handleNameChange(e.target.value)}
+                    placeholder="e.g. Cipla"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        void handleVerify();
+                      }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleVerify}
+                    disabled={verifying || !name.trim()}
+                    className="shrink-0"
+                  >
+                    {verifying ? (
+                      <Loader2 className="mr-1.5 size-4 animate-spin" />
+                    ) : (
+                      <Sparkles className="mr-1.5 size-4" />
+                    )}
+                    Verify
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  The logo, description and country are fetched automatically from the brand name.
+                </p>
               </div>
-              <div className="space-y-2">
-                <Label>Slug</Label>
-                <Input value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="Auto-generated from name" />
+
+              {verifyError && (
+                <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2.5">
+                  <p className="text-sm text-destructive">{verifyError}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    No brand was created. Correct the name and verify again.
+                  </p>
+                </div>
+              )}
+
+              {verified && (
+                <div className="rounded-xl border border-border/60 bg-muted/40 p-3 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex size-12 shrink-0 items-center justify-center rounded-lg border border-border/60 bg-white p-1.5">
+                      <img
+                        src={verified.logoUrl}
+                        alt={verified.name}
+                        className="max-h-full max-w-full object-contain"
+                      />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="flex items-center gap-1.5 text-sm font-medium">
+                        <CheckCircle2 className="size-4 shrink-0 text-green-600" />
+                        {verified.name}
+                      </p>
+                      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <Globe className="size-3 shrink-0" />
+                        {verified.country}
+                      </p>
+                    </div>
+                  </div>
+                  <p className="flex gap-1.5 text-xs leading-relaxed text-muted-foreground">
+                    <AlignLeft className="mt-0.5 size-3 shrink-0" />
+                    {verified.description}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground/80">
+                    These details are managed automatically and cannot be edited by hand.
+                  </p>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between rounded-lg border border-border/60 px-3 py-2.5">
+                <Label htmlFor="brand-active" className="text-sm font-normal">
+                  Active
+                </Label>
+                <Switch id="brand-active" checked={isActive} onCheckedChange={setIsActive} />
               </div>
-              <div className="space-y-2">
-                <Label>Description</Label>
-                <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Optional description" />
+
+              <div className="flex items-center justify-between rounded-lg border border-border/60 px-3 py-2.5">
+                <div>
+                  <Label htmlFor="brand-homepage" className="text-sm font-normal">
+                    Show on Homepage
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Appears in the Shop By Brand section
+                  </p>
+                </div>
+                <Switch
+                  id="brand-homepage"
+                  checked={showOnHomepage}
+                  onCheckedChange={setShowOnHomepage}
+                />
               </div>
+
               <div className="space-y-2">
-                <Label>Logo URL</Label>
-                <Input value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} placeholder="https://..." />
-              </div>
-              <div className="space-y-2">
-                <Label>Country</Label>
-                <Input value={country} onChange={(e) => setCountry(e.target.value)} placeholder="e.g. India" />
+                <Label htmlFor="brand-order">Homepage Display Order</Label>
+                <Input
+                  id="brand-order"
+                  type="number"
+                  min={1}
+                  value={homepageOrder}
+                  onChange={(e) => setHomepageOrder(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Lower numbers appear first. 1, 2, 3, 4…
+                </p>
               </div>
             </div>
+
             <DialogFooter>
               <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-              <Button onClick={handleSave} disabled={saving} className="gradient-primary text-white">
+              <Button onClick={handleSave} disabled={saving || verifying || !verified} className="gradient-primary text-white">
                 {saving && <Loader2 className="mr-2 size-4 animate-spin" />}
                 {editing ? "Update" : "Create"}
               </Button>
