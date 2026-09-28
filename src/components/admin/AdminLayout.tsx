@@ -4,7 +4,6 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
-import { FixedToViewport } from "@/components/layout/ViewportScale";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { motion } from "framer-motion";
 import {
@@ -159,13 +158,11 @@ const AdminLayout = memo(function AdminLayout({
         <SidebarContent />
       </aside>
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-        <FixedToViewport>
-          <SheetTrigger asChild className="lg:hidden fixed top-3 left-3 z-50">
-            <Button variant="outline" size="icon" className="h-9 w-9 rounded-xl">
-              <Menu className="size-4" />
-            </Button>
-          </SheetTrigger>
-        </FixedToViewport>
+        <SheetTrigger asChild className="lg:hidden fixed top-3 left-3 z-50">
+          <Button variant="outline" size="icon" className="h-9 w-9 rounded-xl">
+            <Menu className="size-4" />
+          </Button>
+        </SheetTrigger>
         <SheetContent side="left" className="w-64 p-0 border-border/30">
           <div className="flex items-center justify-end p-2">
             <Button variant="ghost" size="icon" className="rounded-xl" onClick={() => setSidebarOpen(false)}>

@@ -413,7 +413,7 @@ export default function AccountAddresses() {
             </div>
 
             {/* City + State */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="city">City *</Label>
                 <Input
@@ -439,7 +439,7 @@ export default function AccountAddresses() {
             </div>
 
             {/* Pincode + Landmark */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="pincode">Pincode *</Label>
                 <Input

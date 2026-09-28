@@ -971,7 +971,7 @@ export default function HowItWorks() {
             <span className="text-[10px] font-bold tracking-[0.28em] uppercase" style={{ color: PLUM }}>
               How it works
             </span>
-            <h2 className="mt-0.5 text-[clamp(1.05rem,2.1cqw,1.55rem)] leading-tight font-black tracking-tight" style={{ color: INK }}>
+            <h2 className="mt-0.5 text-[clamp(1.05rem,2.1vw,1.55rem)] leading-tight font-black tracking-tight" style={{ color: INK }}>
               Your order, from{" "}
               <span
                 style={{

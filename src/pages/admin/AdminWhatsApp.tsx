@@ -1,7 +1,6 @@
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import AdminLayout from "@/components/admin/AdminLayout";
-import { FixedToViewport } from "@/components/layout/ViewportScale";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -929,7 +928,6 @@ export default function AdminWhatsApp() {
 
         {/* Notes Dialog */}
         {notesId && (
-          <FixedToViewport>
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
             <Card className="w-full max-w-md mx-4">
               <CardContent className="p-6 space-y-4">
@@ -958,7 +956,6 @@ export default function AdminWhatsApp() {
               </CardContent>
             </Card>
           </div>
-          </FixedToViewport>
         )}
       </div>
     </AdminLayout>

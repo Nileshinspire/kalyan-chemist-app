@@ -498,7 +498,7 @@ export default function Checkout() {
                         <label key={addr._id} className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all ${selectedAddressId === addr._id ? "border-primary bg-primary/[0.03] shadow-sm" : "border-border/60 hover:border-border"}`}>
                           <RadioGroupItem value={addr._id} className="mt-0.5" />
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
+                            <div className="flex flex-wrap items-center gap-2 mb-1">
                               <span className="text-sm font-semibold text-foreground">{addr.fullName}</span>
                               <Badge variant="outline" className="text-[10px] capitalize">{addr.addressType}</Badge>
                               {addr.isDefault && <Badge className="text-[10px] bg-primary/10 text-primary">Default</Badge>}

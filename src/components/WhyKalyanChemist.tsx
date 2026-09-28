@@ -544,7 +544,7 @@ export default function WhyKalyanChemist() {
       <div className="relative z-10 mx-auto max-w-7xl px-5 sm:px-8">
         {/* ── TOP HEADING ── */}
         <motion.div initial="hidden" animate={revealed ? "visible" : "hidden"} variants={headV} className="text-center mb-1 sm:mb-1.5">
-          <h2 className="text-[clamp(1.8rem,5cqw,4rem)] font-black uppercase leading-[0.92] tracking-tight">
+          <h2 className="text-[clamp(1.8rem,5vw,4rem)] font-black uppercase leading-[0.92] tracking-tight">
             <span className="bg-gradient-to-b from-[#F5F3EC] via-[#F5F3EC]/90 to-[#F5F3EC]/40 bg-clip-text text-transparent" style={{ WebkitTextFillColor: "transparent" }}>
               Why Choose Us?
             </span>
@@ -804,7 +804,7 @@ export default function WhyKalyanChemist() {
 
         {/* ── BOTTOM HEADING ── */}
         <motion.div initial="hidden" animate={revealed ? "visible" : "hidden"} variants={footV} className="mt-1.5 sm:mt-2 text-center">
-          <h2 className="text-[clamp(1.5rem,4cqw,3.2rem)] font-black uppercase leading-[1.08] tracking-tight">
+          <h2 className="text-[clamp(1.5rem,4vw,3.2rem)] font-black uppercase leading-[1.08] tracking-tight">
             <span className="bg-gradient-to-r from-[#F0D9A3] via-[#F5F3EC] to-[#16A36A] bg-clip-text text-transparent" style={{ WebkitTextFillColor: "transparent" }}>
               Your Health, Our Priority
             </span>

@@ -1,6 +1,5 @@
 import { Link } from "react-router";
 import { motion, useScroll } from "framer-motion";
-import { FixedToViewport } from "@/components/layout/ViewportScale";
 import {
   CalendarDays,
   ChevronUp,
@@ -73,13 +72,11 @@ export default function PolicyPage({ policyId }: { policyId: PolicyId }) {
       {/* Reading progress — a 3px line pinned to the very top of the
           viewport. Transform-only, driven by the page scroll position, so
           long legal documents always show how far along the reader is. */}
-      <FixedToViewport>
-        <motion.div
-          aria-hidden="true"
-          style={{ scaleX: scrollYProgress }}
-          className="fixed inset-x-0 top-0 z-[55] h-[3px] origin-left bg-gradient-to-r from-primary via-emerald-400 to-primary"
-        />
-      </FixedToViewport>
+      <motion.div
+        aria-hidden="true"
+        style={{ scaleX: scrollYProgress }}
+        className="fixed inset-x-0 top-0 z-[55] h-[3px] origin-left bg-gradient-to-r from-primary via-emerald-400 to-primary"
+      />
 
     <InfoPage
       compact

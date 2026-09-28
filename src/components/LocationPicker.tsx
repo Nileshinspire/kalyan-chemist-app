@@ -152,7 +152,9 @@ export default function LocationPicker({
         {detecting ? "Detecting your location..." : "Use My Current Location"}
       </Button>
 
-      <div className="grid grid-cols-2 gap-2">
+      {/* Two number inputs side by side only fit from `sm` up; below that the
+          same pair stacks so neither is squeezed to an unusable width. */}
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <div className="space-y-1">
           <Label className="text-xs text-muted-foreground">Latitude</Label>
           <Input

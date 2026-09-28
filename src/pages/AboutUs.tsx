@@ -26,7 +26,6 @@ import {
 } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
-import { FixedToViewport } from "@/components/layout/ViewportScale";
 import { useNavigate } from "react-router";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
@@ -37,10 +36,14 @@ const prefersReducedMotion =
 /* ═══════════════════════════════════════════════════════════════════
    KC SHIELD SVG (used in Section 2)
    ═══════════════════════════════════════════════════════════════════ */
-function KCShield({ size = 200, opacity = 1 }: { size?: number; opacity?: number }) {
+/* `size` may be a pixel number (desktop) or any CSS length, so the shield can
+   shrink with the viewport inside the 3D scene instead of overflowing it.
+   height is derived from the 200x230 viewBox, which is exactly size * 1.15 —
+   the same box the previous width/height attributes produced. */
+function KCShield({ size = 200, opacity = 1 }: { size?: number | string; opacity?: number }) {
   return (
-    <svg viewBox="0 0 200 230" fill="none" width={size} height={size * 1.15}
-      style={{ opacity, filter: "drop-shadow(0 0 40px rgba(22,163,106,0.2))" }}>
+    <svg viewBox="0 0 200 230" fill="none"
+      style={{ width: typeof size === "number" ? `${size}px` : size, height: "auto", aspectRatio: "200 / 230", opacity, filter: "drop-shadow(0 0 40px rgba(22,163,106,0.2))" }}>
       <defs>
         <linearGradient id="kc-face" x1="0" y1="0" x2="1" y2="1">
           <stop offset="0" stopColor="#11925E" stopOpacity="0.4" />
@@ -172,14 +175,12 @@ function MusicControl() {
   useEffect(() => () => { audioRef.current?.pause(); }, []);
 
   return (
-    <FixedToViewport>
     <button onClick={() => (playing ? doPause() : doPlay())}
       className="fixed bottom-[max(1.5rem,env(safe-area-inset-bottom))] right-[max(1.5rem,env(safe-area-inset-right))] z-50 flex size-11 items-center justify-center rounded-full border border-white/10 bg-black/60 text-white/60 backdrop-blur-md transition-colors duration-300 hover:border-[#16A36A]/30 hover:text-[#16A36A] cursor-pointer"
       aria-label={playing ? "Mute background music" : "Play background music"}
       title={playing ? "Mute" : ready ? "Play ambient music" : "Loading music…"}>
       {playing ? <Volume2 className="size-4" /> : <VolumeX className="size-4 opacity-60" />}
     </button>
-    </FixedToViewport>
   );
 }
 
@@ -240,7 +241,7 @@ function ScrollParallax() {
   const HC = "linear-gradient(180deg, #F0D9A3 0%, #16A36A 100%)";
 
   return (
-    <section ref={ref} className="relative" style={{ height: "calc(150 * var(--kc-vh, 1vh))" }}>
+    <section ref={ref} className="relative" style={{ height: "150vh" }}>
       <div className="sticky top-0 h-screen overflow-hidden" style={{ background: "#060808" }}>
         <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 80% 60% at 50% 40%, #0a2e1f, #060808 70%)" }} />
 
@@ -250,7 +251,7 @@ function ScrollParallax() {
             <div className="absolute inset-0" style={{ background: "repeating-linear-gradient(90deg, transparent, transparent 64px, rgba(22,163,106,0.035) 64px, rgba(22,163,106,0.035) 65px), repeating-linear-gradient(0deg, transparent, transparent 44px, rgba(22,163,106,0.02) 44px, rgba(22,163,106,0.02) 45px)" }} />
             <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 60% 50% at 50% 50%, rgba(22,163,106,0.22), transparent 68%)" }} />
             <div className="absolute inset-0" style={{ background: "radial-gradient(ellipse 40% 35% at 28% 62%, rgba(216,184,120,0.09), transparent 58%)" }} />
-            <div className="absolute inset-0 flex items-center justify-center"><KCShield size={220} opacity={0.55} /></div>
+            <div className="absolute inset-0 flex items-center justify-center"><KCShield size="min(220px, 55vw)" opacity={0.55} /></div>
             <div className="absolute inset-0" aria-hidden="true">
               {[{ x: "10%", y: "18%", e: "💊", s: 30, o: 0.22 }, { x: "82%", y: "15%", e: "🩺", s: 26, o: 0.18 },
                 { x: "7%", y: "72%", e: "💉", s: 24, o: 0.15 }, { x: "88%", y: "68%", e: "🏥", s: 22, o: 0.16 },
@@ -269,15 +270,15 @@ function ScrollParallax() {
 
         <motion.div className="absolute inset-0 flex items-center justify-center px-6 pointer-events-none" style={{ opacity: kalyanOp, y: kalyanY }}>
           <div className="text-center select-none">
-            <span className="block text-[clamp(2.4rem,7.5cqw,6.5rem)] font-black uppercase tracking-tight leading-[0.92]" style={{ background: K1, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Kalyan</span>
-            <span className="block text-[clamp(2.4rem,7.5cqw,6.5rem)] font-black uppercase tracking-tight leading-[0.92]" style={{ background: K2, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Chemist</span>
+            <span className="block text-[clamp(2.4rem,7.5vw,6.5rem)] font-black uppercase tracking-tight leading-[0.92]" style={{ background: K1, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Kalyan</span>
+            <span className="block text-[clamp(2.4rem,7.5vw,6.5rem)] font-black uppercase tracking-tight leading-[0.92]" style={{ background: K2, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Chemist</span>
           </div>
         </motion.div>
 
         <motion.div className="absolute inset-0 flex items-center justify-center px-6 pointer-events-none" style={{ opacity: healthOp, y: healthY }}>
           <div className="text-center select-none">
-            <span className="block text-[clamp(1.8rem,5cqw,4rem)] font-light uppercase tracking-[0.18em] text-white/60">Healthcare</span>
-            <span className="block text-[clamp(2.8rem,9cqw,8rem)] font-black uppercase tracking-tight leading-[0.88]" style={{ background: HC, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Simplified</span>
+            <span className="block text-[clamp(1.8rem,5vw,4rem)] font-light uppercase tracking-[0.18em] text-white/60">Healthcare</span>
+            <span className="block text-[clamp(2.25rem,9vw,8rem)] font-black uppercase tracking-tight leading-[0.88]" style={{ background: HC, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Simplified</span>
           </div>
         </motion.div>
 

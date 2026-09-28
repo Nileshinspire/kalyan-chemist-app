@@ -1,5 +1,4 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
-import { FixedToViewport } from "@/components/layout/ViewportScale";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -285,7 +284,6 @@ function FilterDrawer({
   if (!open) return null;
 
   return (
-    <FixedToViewport>
     <div className="fixed inset-0 z-50 lg:hidden" onClick={onClose}>
       <div className="absolute inset-0 bg-black/50" />
       <div
@@ -301,7 +299,6 @@ function FilterDrawer({
         {children}
       </div>
     </div>
-    </FixedToViewport>
   );
 }
 
@@ -810,7 +807,6 @@ export default function LabTestCategory() {
 
       {/* Floating cart indicator */}
       {cartItems.size > 0 && (
-        <FixedToViewport>
         <div className="fixed bottom-6 right-6 z-40">
           <button
             onClick={() => navigate("/cart")}
@@ -820,12 +816,10 @@ export default function LabTestCategory() {
             <span>{cartItems.size} item{cartItems.size > 1 ? "s" : ""}</span>
           </button>
         </div>
-        </FixedToViewport>
       )}
 
       {/* Booking Modal */}
       {bookingTest && (
-        <FixedToViewport>
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between rounded-t-2xl z-10">
@@ -899,7 +893,6 @@ export default function LabTestCategory() {
             </div>
           </div>
         </div>
-        </FixedToViewport>
       )}
     </div>
   );

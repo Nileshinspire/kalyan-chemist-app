@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { FixedToViewport } from "@/components/layout/ViewportScale";
 import { useParams, useNavigate } from "react-router";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -801,7 +800,6 @@ export default function LabTestDetail() {
           BOOKING MODAL
           ═══════════════════════════════════════════════ */}
       {bookingOpen && (
-        <FixedToViewport>
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl max-h-[90vh] overflow-y-auto">
             {/* Header */}
@@ -935,7 +933,6 @@ export default function LabTestDetail() {
             )}
           </div>
         </div>
-        </FixedToViewport>
       )}
     </div>
   );

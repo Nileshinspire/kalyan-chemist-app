@@ -43,13 +43,17 @@ const SubNav = memo(function SubNav() {
       {/* ═══ Service Navigation — simple text links, evenly spaced ═══ */}
       <nav className="border-b border-border/40 bg-background">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="grid grid-cols-5">
+          {/* Five nowrap labels need ~460px as equal grid tracks, which forces
+              a phone-width page to scroll sideways. Below `sm` they become a
+              swipeable row instead — the same pattern the category nav below
+              already uses. From `sm` up this is the original 5-column grid. */}
+          <div className="flex items-center overflow-x-auto scrollbar-none sm:grid sm:grid-cols-5 sm:overflow-visible">
             {SERVICE_NAV_ITEMS.map((item) => (
               <button
                 key={item.label}
                 type="button"
                 onClick={() => navigate(item.route)}
-                className="py-2.5 text-xs lg:text-sm font-medium text-foreground/70 hover:text-primary transition-colors duration-200 text-center whitespace-nowrap cursor-pointer"
+                className="shrink-0 py-2.5 text-xs lg:text-sm font-medium text-foreground/70 hover:text-primary transition-colors duration-200 text-center whitespace-nowrap cursor-pointer"
               >
                 {item.label}
               </button>

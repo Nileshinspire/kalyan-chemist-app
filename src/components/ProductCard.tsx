@@ -167,7 +167,7 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
             <h3 className="text-sm font-semibold leading-snug text-foreground line-clamp-2 group-hover:text-primary transition-colors duration-300">
               {product.name}
             </h3>
-            <p className="mt-0.5 text-xs text-muted-foreground">{product.manufacturer}</p>
+            <p className="mt-0.5 text-xs text-muted-foreground break-words">{product.manufacturer}</p>
           </div>
 
           {displayInfo && (
@@ -187,10 +187,14 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
             )}
           </div>
 
-          <div className="flex gap-2">
+          {/* In the 2-column grids a card is only ~140px wide on a small phone,
+              where "Buy Now" + "Cart" no longer fit side by side. The row wraps
+              so the same two buttons stack instead of colliding; from `sm` up
+              there is room, nothing wraps, and the card is unchanged. */}
+          <div className="flex flex-wrap gap-2">
             <Button
               size="sm"
-              className="flex-1 h-9 text-xs font-semibold gap-1 gradient-primary text-white shadow-sm hover:shadow-glow transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+              className="flex-1 h-9 px-2 sm:px-3 text-xs font-semibold gap-1 gradient-primary text-white shadow-sm hover:shadow-glow transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
               onClick={handleBuyNow}
               disabled={product.stockQuantity === 0}
             >
@@ -200,7 +204,7 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
             <Button
               size="sm"
               variant="secondary"
-              className="h-9 text-xs font-semibold gap-1 border border-border/60 hover:border-primary/30 hover:bg-primary/[0.03] transition-all duration-300"
+              className="h-9 px-2 sm:px-3 text-xs font-semibold gap-1 border border-border/60 hover:border-primary/30 hover:bg-primary/[0.03] transition-all duration-300"
               onClick={handleAddToCart}
               disabled={product.stockQuantity === 0}
             >

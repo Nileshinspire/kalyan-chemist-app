@@ -441,7 +441,7 @@ export default function AccountPrescriptions() {
                   )}
 
                   {/* Details */}
-                  <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div className="grid grid-cols-1 gap-3 text-sm min-[380px]:grid-cols-2">
                     <div><span className="text-muted-foreground">Patient:</span> <span className="font-medium">{detailRx.patientName}</span></div>
                     <div><span className="text-muted-foreground">Doctor:</span> <span className="font-medium">Dr. {detailRx.doctorName}</span></div>
                     <div><span className="text-muted-foreground">Date:</span> <span className="font-medium">{new Date(detailRx.prescriptionDate).toLocaleDateString("en-IN")}</span></div>
