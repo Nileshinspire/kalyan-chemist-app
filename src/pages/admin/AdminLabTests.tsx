@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback, useRef } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { FixedToViewport } from "@/components/layout/ViewportScale";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -582,6 +583,7 @@ export default function AdminLabTests() {
 
           {/* ── Mobile Category Drawer ── */}
           {mobileSidebarOpen && (
+            <FixedToViewport>
             <div className="fixed inset-0 z-50 lg:hidden">
               <div className="absolute inset-0 bg-black/50" onClick={() => setMobileSidebarOpen(false)} />
               <div className="absolute left-0 top-0 bottom-0 w-[300px] bg-card shadow-xl overflow-y-auto">
@@ -616,6 +618,7 @@ export default function AdminLabTests() {
                 })}
               </div>
             </div>
+            </FixedToViewport>
           )}
 
           {/* ── RIGHT PANEL: Test Management ── */}

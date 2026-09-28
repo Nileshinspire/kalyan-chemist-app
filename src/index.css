@@ -224,6 +224,42 @@ html {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* ═══════════════════════════════════════════════════════════════════
+   PROPORTIONAL VIEWPORT SCALING (see components/layout/ViewportScale.tsx)
+
+   Below 1280px the whole 1280px desktop composition is rendered into a fixed
+   design canvas and scaled as one unit from the top-left, so phones and
+   tablets display the same page — same columns, same cards, same type, same
+   3D scenes — just smaller. Nothing here applies at 1280px and above, where
+   no transform is used at all.
+   ═══════════════════════════════════════════════════════════════════ */
+.kc-scaler {
+  position: relative;
+  width: 100%;
+  /* `clip` (not `hidden`) trims the intentionally oversized canvas without
+     creating a scroll container, so position:sticky headers keep working. */
+  overflow-x: clip;
+}
+
+.kc-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: top left;
+}
+
+/* Full-height sections are sized in viewport units, which the canvas scale
+   would otherwise shrink by `scale`. --kc-vh is 100vh / scale, so after the
+   canvas transform they land on exactly one real viewport again. */
+.kc-canvas .h-screen { height: var(--kc-vh) !important; }
+.kc-canvas .min-h-screen { min-height: var(--kc-vh) !important; }
+.kc-canvas .h-svh { height: var(--kc-vh) !important; }
+.kc-canvas .min-h-svh { min-height: var(--kc-vh) !important; }
+.kc-canvas .h-dvh { height: var(--kc-vh) !important; }
+.kc-canvas .min-h-dvh { min-height: var(--kc-vh) !important; }
+.kc-canvas .min-h-\[60vh\] { min-height: calc(0.6 * var(--kc-vh)) !important; }
+.kc-canvas .max-h-screen { max-height: var(--kc-vh) !important; }
+
 /* Selection color */
 ::selection {
   background-color: oklch(0.42 0.09 170 / 0.15);

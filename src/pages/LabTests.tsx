@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { FixedToViewport } from "@/components/layout/ViewportScale";
 import { useNavigate } from "react-router";
 import { X, Check } from "lucide-react";
 
@@ -860,6 +861,7 @@ function CategoryModal({
   }, [onClose]);
 
   return (
+    <FixedToViewport>
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       onClick={onClose}
@@ -940,6 +942,7 @@ function CategoryModal({
         </div>
       </div>
     </div>
+    </FixedToViewport>
   );
 }
 

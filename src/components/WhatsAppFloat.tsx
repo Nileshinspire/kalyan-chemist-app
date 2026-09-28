@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
+import { FixedToViewport } from "@/components/layout/ViewportScale";
 
 const PHARMACY_PHONE = "919876543210"; // Default — override via delivery_config
 
@@ -35,6 +36,7 @@ export default function WhatsAppFloat() {
   };
 
   return (
+    <FixedToViewport>
     <div className="fixed bottom-[max(1.5rem,env(safe-area-inset-bottom))] right-[max(1.5rem,env(safe-area-inset-right))] z-50 flex flex-col items-end gap-3">
       {/* Tooltip */}
       <AnimatePresence>
@@ -88,5 +90,6 @@ export default function WhatsAppFloat() {
         </div>
       </motion.button>
     </div>
+    </FixedToViewport>
   );
 }

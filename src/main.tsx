@@ -10,6 +10,7 @@ import React, { StrictMode, useEffect, lazy, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { HashRouter, Route, Routes, useLocation } from "react-router";
 import ScrollRestorer from "@/components/ScrollRestorer";
+import ViewportScale from "@/components/layout/ViewportScale";
 import { installRoutePrefetch } from "@/lib/route-preload";
 import { PageErrorBoundary } from "@/components/PageErrorBoundary";
 import AIChatbotFloat from "@/components/AIChatbotFloat";
@@ -763,7 +764,12 @@ createRoot(document.getElementById("root")!).render(
             <ScrollRestorer />
             <RouteSyncer />
             <PageErrorBoundary>
-              <AnimatedRoutes />
+              {/* Renders the 1280px desktop composition and scales it as one
+                  unit below 1280px viewports, so phones and tablets show the
+                  same page rather than a reflowed one. No-op on desktop. */}
+              <ViewportScale>
+                <AnimatedRoutes />
+              </ViewportScale>
             </PageErrorBoundary>
             {/* Global floating AI assistant — one instance, customer side only */}
             <AIChatbotFloat />
