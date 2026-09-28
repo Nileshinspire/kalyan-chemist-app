@@ -515,13 +515,13 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
           </div>
 
           {/* Reassurance strip — outside the card to avoid nesting clutter. */}
-          <p className="mt-5 flex items-center justify-center gap-2 text-center text-xs text-emerald-200/45">
-            <Lock className="size-3.5" aria-hidden="true" />
-            No passwords needed — we verify every sign-in with a one-time code.
+          <p className="mt-5 flex items-center justify-center gap-2 text-center text-xs font-medium leading-relaxed text-white">
+            <Lock className="size-3.5 shrink-0 text-emerald-300" aria-hidden="true" />
+            <span>No passwords needed — we verify every sign-in with a one-time code.</span>
           </p>
-          <p className="mt-2 flex items-center justify-center gap-1.5 text-center text-xs text-emerald-200/35">
-            <Sparkles className="size-3" aria-hidden="true" />
-            New here? A code creates your account automatically.
+          <p className="mt-2 flex items-center justify-center gap-1.5 text-center text-xs font-normal leading-relaxed text-white/80">
+            <Sparkles className="size-3 shrink-0 text-emerald-300" aria-hidden="true" />
+            <span>New here? A code creates your account automatically.</span>
           </p>
         </div>
       </main>
