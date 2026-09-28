@@ -2,6 +2,8 @@ import { useRef, useState, useEffect, useCallback, useMemo } from "react";
 import {
   motion,
   useScroll,
+  useSpring,
+  useMotionValue,
   useTransform,
   useInView,
   type Variants,
@@ -204,27 +206,56 @@ function RevealOnScroll({ children, className = "", delay = 0 }: {
 
 const INTRO_W = 1280;
 const INTRO_H = 720;
-const INTRO_DUR = 4.2; // seconds
+const INTRO_DUR = 5.6; // seconds
+
+/* ── Story beats, in seconds ──
+   One timeline drives the whole sequence, so it reads as a single continuous
+   story: SMOKE GATHERS → SMOKE OPENS → EXPLORE REVEALS → KALYAN CHEMIST
+   REVEALS → clean hold. */
+const T_GATHER   = 0.95; // smoke drifts in from both edges toward the centre
+const T_OPEN_END = 2.10; // smoke parts toward LEFT and RIGHT, clearing the centre
+const T_EXP_IN   = 1.45; // EXPLORE rises as the smoke opens
+const T_EXP_OUT  = 3.35; // EXPLORE is lifted away, yielding to the brand
+const T_KAL_IN   = 3.70; // KALYAN CHEMIST takes over
+const T_KAL_SET  = 4.70; // brand fully settled, then held to INTRO_DUR
 
 type Cloud = {
-  x: number; y: number;      // start position (0..1 fraction)
-  dx: number; dy: number;    // drift over lifetime (fraction)
-  r: number;                  // radius (fraction of width)
+  side: -1 | 1;            // which half of the frame the cloud belongs to
+  ex: number; ey: number;  // start position at the edge (0..1 fraction)
+  r: number;               // radius (fraction of width)
   c: [number, number, number];
-  a: number;                  // peak alpha
-  d: number;                  // delay (s)
+  a: number;               // peak alpha
+  d: number;               // delay (s)
+  dy: number;              // vertical travel while the cloud moves
 };
 
+/* Coordinated left / right cloud groups — emerald on one side, champagne on
+   the other. Radii and peak alphas stay modest so the centre keeps a clear
+   visual focus and the frame never becomes opaque fog. */
 const CLOUDS: Cloud[] = [
-  { x: 0.25, y: 0.30, dx: -0.38, dy: -0.26, r: 0.80, c: [22, 163, 106],  a: 0.78, d: 0.00 },
-  { x: 0.72, y: 0.46, dx: 0.32, dy: -0.30, r: 0.70, c: [216, 184, 120],  a: 0.55, d: 0.05 },
-  { x: 0.50, y: 0.60, dx: 0.05, dy: 0.34, r: 0.90, c: [245, 243, 236], a: 0.36, d: 0.10 },
-  { x: 0.42, y: 0.42, dx: -0.22, dy: 0.24, r: 0.58, c: [22, 163, 106],  a: 0.52, d: 0.08 },
-  { x: 0.14, y: 0.75, dx: -0.30, dy: -0.16, r: 0.62, c: [22, 163, 106],  a: 0.46, d: 0.12 },
-  { x: 0.86, y: 0.72, dx: 0.26, dy: 0.22, r: 0.60, c: [216, 184, 120],  a: 0.42, d: 0.10 },
-  { x: 0.60, y: 0.18, dx: 0.20, dy: -0.32, r: 0.52, c: [245, 243, 236], a: 0.32, d: 0.15 },
-  { x: 0.35, y: 0.14, dx: -0.16, dy: -0.30, r: 0.48, c: [22, 163, 106],  a: 0.38, d: 0.14 },
-  { x: 0.55, y: 0.85, dx: 0.10, dy: -0.18, r: 0.55, c: [22, 163, 106],  a: 0.30, d: 0.18 },
+  // ── left group ──
+  { side: -1, ex: 0.02, ey: 0.34, r: 0.34, c: [22, 163, 106],  a: 0.30, d: 0.00, dy: -0.06 },
+  { side: -1, ex: 0.04, ey: 0.62, r: 0.30, c: [22, 163, 106],  a: 0.26, d: 0.05, dy: 0.07 },
+  { side: -1, ex: 0.10, ey: 0.20, r: 0.26, c: [245, 243, 236], a: 0.18, d: 0.10, dy: 0.09 },
+  { side: -1, ex: 0.14, ey: 0.80, r: 0.28, c: [22, 163, 106],  a: 0.20, d: 0.14, dy: -0.08 },
+  { side: -1, ex: 0.22, ey: 0.46, r: 0.24, c: [22, 163, 106],  a: 0.16, d: 0.18, dy: 0.05 },
+  { side: -1, ex: 0.24, ey: 0.10, r: 0.22, c: [245, 243, 236], a: 0.13, d: 0.22, dy: 0.06 },
+  // ── right group ──
+  { side: 1, ex: 0.98, ey: 0.38, r: 0.34, c: [216, 184, 120], a: 0.26, d: 0.03, dy: 0.06 },
+  { side: 1, ex: 0.96, ey: 0.66, r: 0.30, c: [216, 184, 120], a: 0.22, d: 0.08, dy: -0.07 },
+  { side: 1, ex: 0.90, ey: 0.22, r: 0.26, c: [245, 243, 236], a: 0.16, d: 0.12, dy: 0.08 },
+  { side: 1, ex: 0.86, ey: 0.78, r: 0.28, c: [22, 163, 106],  a: 0.16, d: 0.16, dy: -0.05 },
+  { side: 1, ex: 0.78, ey: 0.50, r: 0.24, c: [216, 184, 120], a: 0.14, d: 0.20, dy: -0.06 },
+  { side: 1, ex: 0.76, ey: 0.12, r: 0.22, c: [245, 243, 236], a: 0.12, d: 0.24, dy: 0.05 },
+];
+
+/* Residual atmosphere: barely-there edge haze that keeps the frame alive for
+   the whole sequence and never drifts across the centre. */
+const AMBIENT: Cloud[] = [
+  { side: -1, ex: -0.05, ey: 0.52, r: 0.46, c: [22, 163, 106],  a: 0.13, d: 0, dy: -0.05 },
+  { side: 1, ex: 1.05, ey: 0.46, r: 0.46, c: [216, 184, 120], a: 0.10, d: 0, dy: 0.05 },
+  { side: -1, ex: 0.04, ey: 0.14, r: 0.34, c: [245, 243, 236], a: 0.06, d: 0, dy: 0.04 },
+  { side: 1, ex: 0.96, ey: 0.88, r: 0.34, c: [245, 243, 236], a: 0.05, d: 0, dy: -0.04 },
 ];
 
 const clamp01 = (v: number) => (v < 0 ? 0 : v > 1 ? 1 : v);
@@ -280,14 +311,16 @@ function drawShield(ctx: CanvasRenderingContext2D, w: number, h: number, alpha: 
 }
 
 function drawTextExplore(ctx: CanvasRenderingContext2D, w: number, h: number, t: number) {
-  const inP = easeOutCubic(clamp01((t - 0.35) / 0.95));
-  const outP = easeInCubic(clamp01((t - 1.75) / 0.65));
+  /* Rises into the opening the moment the smoke parts, holds long enough to
+     read, then lifts away as the brand takes over. */
+  const inP = easeOutCubic(clamp01((t - T_EXP_IN) / 0.9));
+  const outP = easeInCubic(clamp01((t - T_EXP_OUT) / 0.6));
   const alpha = inP * (1 - outP);
   if (alpha <= 0.004) return;
 
   const size = Math.round(w * 0.155);
-  const scale = 0.93 + 0.07 * inP + 0.05 * outP;
-  const y = h * 0.5 + (1 - inP) * 22 - outP * 26;
+  const scale = 0.92 + 0.08 * inP + 0.07 * outP;
+  const y = h * 0.5 + (1 - inP) * 26 - outP * 34;
 
   ctx.save();
   ctx.globalAlpha = alpha;
@@ -314,15 +347,19 @@ function drawTextExplore(ctx: CanvasRenderingContext2D, w: number, h: number, t:
 }
 
 function drawTextKalyan(ctx: CanvasRenderingContext2D, w: number, h: number, t: number) {
-  const inP = easeOutCubic(clamp01((t - 1.8) / 1.0));
+  /* Final reveal of the smoke sequence: same easing family as EXPLORE, so the
+     hand-off from one word to the brand reads as one continuous movement. */
+  const inP = easeOutCubic(clamp01((t - T_KAL_IN) / (T_KAL_SET - T_KAL_IN)));
   if (inP <= 0.004) return;
 
   const size = Math.round(w * 0.085);
-  const y = h * 0.5 + (1 - inP) * 20;
+  const scale = 0.94 + 0.06 * inP;
+  const y = h * 0.5 + (1 - inP) * 22;
 
   ctx.save();
   ctx.globalAlpha = inP;
   ctx.translate(w / 2, y);
+  ctx.scale(scale, scale);
 
   ctx.font = `900 ${size}px ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif`;
   ctx.textAlign = "center";
@@ -344,34 +381,64 @@ function drawTextKalyan(ctx: CanvasRenderingContext2D, w: number, h: number, t: 
   ctx.restore();
 }
 
+/* Residual edge haze — present from the very first frame so the opening view
+   is atmospheric rather than an empty black screen. */
+function drawAmbient(ctx: CanvasRenderingContext2D, w: number, h: number, t: number) {
+  for (let i = 0; i < AMBIENT.length; i++) {
+    const cl = AMBIENT[i];
+    const x = (cl.ex + 0.04 * Math.sin(t * 0.22 + i * 1.9)) * w;
+    const y = (cl.ey + cl.dy * 0.5 * Math.sin(t * 0.3 + i)) * h;
+    const r = cl.r * w * (1 + 0.06 * Math.sin(t * 0.25 + i));
+    const rgb = `${cl.c[0]},${cl.c[1]},${cl.c[2]}`;
+    const grad = ctx.createRadialGradient(x, y, 0, x, y, r);
+    grad.addColorStop(0, `rgba(${rgb},${cl.a})`);
+    grad.addColorStop(0.55, `rgba(${rgb},${cl.a * 0.4})`);
+    grad.addColorStop(1, `rgba(${rgb},0)`);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, w, h);
+  }
+}
+
+/* ── The story smoke ──
+   Phase 1 (gather): clouds travel from their edge toward the centre line.
+   Phase 2 (open)  : they continue outward past their own edge, parting left
+                     and right like a curtain opening onto the centre.
+   Motion is eased and directional, opacity only tapers off as they leave, so
+   the reveal is unmistakable and no cloud ever drifts across the text. */
 function drawSmoke(ctx: CanvasRenderingContext2D, w: number, h: number, t: number) {
-  // gentle extra density in the very first moments (clouds already present)
-  const opening = 1 + 0.35 * (1 - clamp01(t / 0.45));
+  const openSpan = T_OPEN_END - T_GATHER;
 
   for (let i = 0; i < CLOUDS.length; i++) {
     const cl = CLOUDS[i];
-    const p = easeInOutQuad(clamp01((t - cl.d) / 2.7));
-    if (p >= 1) continue;
-    const fade = 1 - p;
-    const alpha = cl.a * fade * opening;
+    const lt = t - cl.d;
+    if (lt < 0) continue;
+
+    const g = easeInOutQuad(clamp01(lt / T_GATHER));
+    const p = easeInOutQuad(clamp01((lt - T_GATHER) / openSpan));
+
+    const gatherX = cl.ex + (0.5 + cl.side * 0.26 - cl.ex) * g;
+    const openX = 0.5 + cl.side * 1.15;
+    const x = (gatherX + (openX - gatherX) * p) * w;
+    const y = (cl.ey + cl.dy * (g * 0.6 + p)) * h + Math.sin(lt * 0.8 + i * 1.4) * h * 0.012;
+    const r = cl.r * w * (1 + 0.30 * p);
+
+    /* The smoke is already present at t=0 (both edges carry it) and only
+       swells slightly as it gathers, so nothing ever appears from nothing. */
+    const alpha = cl.a * (0.55 + 0.45 * clamp01(lt / 0.35)) * (1 - p * p);
     if (alpha <= 0.004) continue;
 
-    const wob = Math.sin(t * 0.9 + i * 1.7) * 0.012;
-    const x = (cl.x + cl.dx * p + wob) * w;
-    const y = (cl.y + cl.dy * p) * h;
-    const r = cl.r * w * (1 + 0.38 * p);
-
+    const rgb = `${cl.c[0]},${cl.c[1]},${cl.c[2]}`;
     const grad = ctx.createRadialGradient(x, y, 0, x, y, r);
-    grad.addColorStop(0, `rgba(${cl.c[0]},${cl.c[1]},${cl.c[2]},${alpha})`);
-    grad.addColorStop(0.55, `rgba(${cl.c[0]},${cl.c[1]},${cl.c[2]},${alpha * 0.45})`);
-    grad.addColorStop(1, `rgba(${cl.c[0]},${cl.c[1]},${cl.c[2]},0)`);
+    grad.addColorStop(0, `rgba(${rgb},${alpha})`);
+    grad.addColorStop(0.5, `rgba(${rgb},${alpha * 0.45})`);
+    grad.addColorStop(1, `rgba(${rgb},0)`);
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, w, h);
   }
 }
 
 function renderIntroFrame(ctx: CanvasRenderingContext2D, w: number, h: number, t: number) {
-  // 1. Background
+  // 1. Background — deep and cinematic, never a flat black frame
   const bg = ctx.createRadialGradient(w * 0.5, h * 0.4, 0, w * 0.5, h * 0.4, w * 0.75);
   bg.addColorStop(0, "#0a2e1f");
   bg.addColorStop(0.7, "#07110d");
@@ -383,14 +450,31 @@ function renderIntroFrame(ctx: CanvasRenderingContext2D, w: number, h: number, t
   const shieldAlpha = 0.42 + 0.10 * easeInOutQuad(clamp01(t / INTRO_DUR));
   drawShield(ctx, w, h, shieldAlpha);
 
-  // 3. Typography (behind smoke)
+  // 3. Atmospheric edge haze — keeps the frame alive across the whole intro
+  drawAmbient(ctx, w, h, t);
+
+  // 4. The story smoke: gathers toward the centre, then parts left and right
+  drawSmoke(ctx, w, h, t);
+
+  // 5. Light breaking through the opening the smoke makes
+  const open = easeOutCubic(clamp01((t - T_GATHER) / 1.1));
+  const settle = 1 - 0.45 * easeInCubic(clamp01((t - T_KAL_IN) / (T_KAL_SET - T_KAL_IN)));
+  const lightA = 0.22 * open * settle;
+  if (lightA > 0.002) {
+    const light = ctx.createRadialGradient(w * 0.5, h * 0.5, 0, w * 0.5, h * 0.5, w * 0.42);
+    light.addColorStop(0, `rgba(22,163,106,${lightA})`);
+    light.addColorStop(0.55, `rgba(216,184,120,${lightA * 0.35})`);
+    light.addColorStop(1, "rgba(22,163,106,0)");
+    ctx.fillStyle = light;
+    ctx.fillRect(0, 0, w, h);
+  }
+
+  // 6. Typography — drawn AFTER the smoke, so EXPLORE and the brand are never
+  //    hidden behind it; the reveal reads as the smoke uncovering them.
   drawTextExplore(ctx, w, h, t);
   drawTextKalyan(ctx, w, h, t);
 
-  // 4. Smoke ON TOP — drifts apart, revealing the text
-  drawSmoke(ctx, w, h, t);
-
-  // 5. Cinematic vignette
+  // 7. Cinematic vignette
   const vig = ctx.createRadialGradient(w * 0.5, h * 0.45, w * 0.18, w * 0.5, h * 0.45, w * 0.72);
   vig.addColorStop(0, "rgba(4,6,5,0)");
   vig.addColorStop(1, "rgba(4,6,5,0.55)");
@@ -398,76 +482,48 @@ function renderIntroFrame(ctx: CanvasRenderingContext2D, w: number, h: number, t
   ctx.fillRect(0, 0, w, h);
 }
 
-/* ── Session cache for the recorded video blob ── */
-let cachedIntroUrl: string | null = null;
-
 /* ═══════════════════════════════════════════════════════════════════
    SECTION 1 — CINEMATIC INTRO (single self-contained element)
 
-   First visit : canvas plays the sequence live (zero wait) while
-                 MediaRecorder records it to a WebM blob for the session.
-   Revisits    : the real <video> element plays the cached blob instantly.
-   Zero scroll involvement. Normal 100vh section.
+   The first frame is painted synchronously from a ref callback, which React
+   runs during the commit phase — before the browser ever composites a frame.
+   So the very first thing the user sees in this section is the cinematic
+   visual itself: no blank black 100vh screen, no loader, no placeholder, no
+   wait on any recording or cached video, on the first visit or any return
+   visit. Zero scroll involvement. Normal 100vh section.
    ═══════════════════════════════════════════════════════════════════ */
 function IntroSection() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [mode] = useState<"video" | "canvas">(cachedIntroUrl ? "video" : "canvas");
+
+  /* Ref callback — paints frame 0 before the first paint. */
+  const attachCanvas = useCallback((canvas: HTMLCanvasElement | null) => {
+    canvasRef.current = canvas;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d", { alpha: false });
+    if (!ctx) return;
+    renderIntroFrame(ctx, INTRO_W, INTRO_H, 0);
+  }, []);
 
   useEffect(() => {
-    if (mode === "video") return;
-
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d", { alpha: false });
     if (!ctx) return;
 
-    /* Reduced motion → static final frame, no animation, no recording */
+    /* Reduced motion → static final frame, no animation */
     if (prefersReducedMotion) {
       renderIntroFrame(ctx, INTRO_W, INTRO_H, INTRO_DUR);
       return;
     }
 
-    /* Draw frame 0 immediately — poster, never blank */
-    renderIntroFrame(ctx, INTRO_W, INTRO_H, 0);
-
-    /* Set up recording (best-effort; canvas playback works regardless) */
-    let recorder: MediaRecorder | null = null;
-    let chunks: Blob[] = [];
-    const canRecord =
-      typeof MediaRecorder !== "undefined" &&
-      typeof canvas.captureStream === "function" &&
-      !cachedIntroUrl;
-
-    if (canRecord) {
-      const mimes = ["video/webm;codecs=vp9", "video/webm;codecs=vp8", "video/webm", "video/mp4"];
-      const mime = mimes.find((m) => MediaRecorder.isTypeSupported(m));
-      if (mime) {
-        try {
-          const stream = canvas.captureStream(30);
-          recorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 4_500_000 });
-          recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
-          recorder.onstop = () => {
-            if (chunks.length > 0 && !cachedIntroUrl) {
-              const blob = new Blob(chunks, { type: mime });
-              cachedIntroUrl = URL.createObjectURL(blob);
-            }
-            chunks = [];
-            stream.getTracks().forEach((tr) => tr.stop());
-          };
-        } catch { recorder = null; }
-      }
-    }
-
-    /* Animation loop — TIME-driven, zero scroll coupling */
+    /* One time-driven rAF loop — no recording, no extra loop, no scroll coupling */
     let raf = 0;
-    const start = performance.now();
-    if (recorder) { try { recorder.start(120); } catch { recorder = null; } }
-
+    let start = 0;
     const frame = (now: number) => {
+      if (!start) start = now;
       const t = (now - start) / 1000;
       if (t >= INTRO_DUR) {
-        renderIntroFrame(ctx, INTRO_W, INTRO_H, INTRO_DUR); // hold final frame
-        if (recorder && recorder.state !== "inactive") { try { recorder.stop(); } catch { /* */ } }
+        renderIntroFrame(ctx, INTRO_W, INTRO_H, INTRO_DUR); // clean hold on the brand
         return;
       }
       renderIntroFrame(ctx, INTRO_W, INTRO_H, t);
@@ -475,34 +531,13 @@ function IntroSection() {
     };
     raf = requestAnimationFrame(frame);
 
-    return () => {
-      cancelAnimationFrame(raf);
-      if (recorder && recorder.state !== "inactive") {
-        try { recorder.stop(); } catch { /* */ }
-      }
-    };
-  }, [mode]);
-
-  if (mode === "video" && cachedIntroUrl) {
-    return (
-      <section className="relative w-full h-screen overflow-hidden" style={{ background: "#060808" }} aria-label="Kalyan Chemist cinematic intro">
-        <video
-          src={cachedIntroUrl}
-          autoPlay
-          muted
-          playsInline
-          preload="auto"
-          onEnded={(e) => { const v = e.currentTarget; if (v.currentTime < v.duration) v.currentTime = v.duration; }}
-          className="absolute inset-0 h-full w-full object-cover"
-        />
-      </section>
-    );
-  }
+    return () => cancelAnimationFrame(raf);
+  }, []);
 
   return (
     <section className="relative w-full h-screen overflow-hidden" style={{ background: "#060808" }} aria-label="Kalyan Chemist cinematic intro">
       <canvas
-        ref={canvasRef}
+        ref={attachCanvas}
         width={INTRO_W}
         height={INTRO_H}
         className="absolute inset-0 h-full w-full object-cover"
@@ -518,15 +553,32 @@ function ScrollParallax() {
   const ref = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end start"] });
 
-  const heroScale = useTransform(scrollYProgress, [0, 0.85], [1, 1.22]);
-  const smokeOp   = useTransform(scrollYProgress, [0, 0.45], [0.45, 0]);
-  const kalyanOp  = useTransform(scrollYProgress, [0, 0.02, 0.30, 0.42], [1, 1, 1, 0]);
-  const kalyanY   = useTransform(scrollYProgress, [0, 0.42], [0, -55]);
-  const healthOp  = useTransform(scrollYProgress, [0.32, 0.44, 0.62, 0.74], [0, 1, 1, 0]);
-  const healthY   = useTransform(scrollYProgress, [0.32, 0.74], [40, -25]);
-  const shieldOp  = useTransform(scrollYProgress, [0.68, 0.82], [0, 1]);
-  const shieldSc  = useTransform(scrollYProgress, [0.68, 0.88], [0.85, 1]);
-  const hintOp    = useTransform(scrollYProgress, [0, 0.03], [1, 0]);
+  /* Raw scroll progress is jagged frame to frame. Every transform below is
+     derived from a single damped spring instead of the raw value, so hero
+     scale, the brand travel, Healthcare Simplified, the shield reveal and the
+     smoke layer all follow the scroll smoothly — no snapping, no sudden
+     acceleration, no overshoot, no extra lag. One spring, no extra loop. */
+  const p = useSpring(scrollYProgress, { stiffness: 80, damping: 26, mass: 0.45, restDelta: 0.0005 });
+
+  const heroScaleMv = useTransform(p, [0, 0.85], [1, 1.22]);
+  const kalyanYMv   = useTransform(p, [0, 0.42], [0, -55]);
+  const healthYMv   = useTransform(p, [0.32, 0.74], [40, -25]);
+  const shieldScMv  = useTransform(p, [0.68, 0.88], [0.85, 1]);
+
+  const smokeOp  = useTransform(p, [0, 0.45], [0.45, 0]);
+  const kalyanOp = useTransform(p, [0, 0.02, 0.30, 0.42], [1, 1, 1, 0]);
+  const healthOp = useTransform(p, [0.32, 0.44, 0.62, 0.74], [0, 1, 1, 0]);
+  const shieldOp = useTransform(p, [0.68, 0.82], [0, 1]);
+  const hintOp   = useTransform(p, [0, 0.03], [1, 0]);
+
+  /* Reduced motion: keep the scroll-linked cross-fades, drop all travel and
+     scaling so nothing shifts the viewport. */
+  const stillY = useMotionValue(0);
+  const stillOne = useMotionValue(1);
+  const heroScale = prefersReducedMotion ? stillOne : heroScaleMv;
+  const kalyanY   = prefersReducedMotion ? stillY : kalyanYMv;
+  const healthY   = prefersReducedMotion ? stillY : healthYMv;
+  const shieldSc  = prefersReducedMotion ? stillOne : shieldScMv;
 
   const K1 = "linear-gradient(135deg, #16A36A 0%, #F0D9A3 55%, #16A36A 100%)";
   const K2 = "linear-gradient(135deg, #F0D9A3 0%, #16A36A 100%)";
