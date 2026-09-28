@@ -187,10 +187,15 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
             )}
           </div>
 
-          <div className="flex gap-2">
+          {/* The two actions wrap instead of colliding when a card is only
+              ~140px wide (2-column grids on small phones). Same two buttons,
+              same order, same styling — they simply stack rather than being
+              squeezed. From sm up there is room and nothing wraps, so the
+              desktop card is byte-for-byte the same. */}
+          <div className="flex flex-wrap gap-2">
             <Button
               size="sm"
-              className="flex-1 h-9 text-xs font-semibold gap-1 gradient-primary text-white shadow-sm hover:shadow-glow transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+              className="flex-1 h-9 px-2 sm:px-3 text-xs font-semibold gap-1 gradient-primary text-white shadow-sm hover:shadow-glow transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
               onClick={handleBuyNow}
               disabled={product.stockQuantity === 0}
             >
@@ -200,7 +205,7 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
             <Button
               size="sm"
               variant="secondary"
-              className="h-9 text-xs font-semibold gap-1 border border-border/60 hover:border-primary/30 hover:bg-primary/[0.03] transition-all duration-300"
+              className="h-9 px-2 sm:px-3 text-xs font-semibold gap-1 border border-border/60 hover:border-primary/30 hover:bg-primary/[0.03] transition-all duration-300"
               onClick={handleAddToCart}
               disabled={product.stockQuantity === 0}
             >

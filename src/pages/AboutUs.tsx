@@ -172,7 +172,7 @@ function MusicControl() {
 
   return (
     <button onClick={() => (playing ? doPause() : doPlay())}
-      className="fixed bottom-6 right-6 z-50 flex size-11 items-center justify-center rounded-full border border-white/10 bg-black/60 text-white/60 backdrop-blur-md transition-colors duration-300 hover:border-[#16A36A]/30 hover:text-[#16A36A] cursor-pointer"
+      className="fixed bottom-[max(1.5rem,env(safe-area-inset-bottom))] right-[max(1.5rem,env(safe-area-inset-right))] z-50 flex size-11 items-center justify-center rounded-full border border-white/10 bg-black/60 text-white/60 backdrop-blur-md transition-colors duration-300 hover:border-[#16A36A]/30 hover:text-[#16A36A] cursor-pointer"
       aria-label={playing ? "Mute background music" : "Play background music"}
       title={playing ? "Mute" : ready ? "Play ambient music" : "Loading music…"}>
       {playing ? <Volume2 className="size-4" /> : <VolumeX className="size-4 opacity-60" />}
@@ -274,7 +274,7 @@ function ScrollParallax() {
         <motion.div className="absolute inset-0 flex items-center justify-center px-6 pointer-events-none" style={{ opacity: healthOp, y: healthY }}>
           <div className="text-center select-none">
             <span className="block text-[clamp(1.8rem,5vw,4rem)] font-light uppercase tracking-[0.18em] text-white/60">Healthcare</span>
-            <span className="block text-[clamp(2.8rem,9vw,8rem)] font-black uppercase tracking-tight leading-[0.88]" style={{ background: HC, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Simplified</span>
+            <span className="block text-[clamp(2.25rem,9vw,8rem)] font-black uppercase tracking-tight leading-[0.88]" style={{ background: HC, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>Simplified</span>
           </div>
         </motion.div>
 
