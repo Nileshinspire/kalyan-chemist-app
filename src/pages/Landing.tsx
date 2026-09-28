@@ -542,7 +542,11 @@ export default function Landing() {
       {/* ── Hot Sellers (from DB) ── */}
       {hotSellers && hotSellers.length > 0 && (
         <section className="border-y border-border/50 bg-gradient-to-b from-card/50 to-background">
-          <div className="mx-auto max-w-7xl px-6 pt-4 pb-24">
+          {/* Container padding + grid track system mirror the "Browse by Health
+              Conditions" section exactly, so every Hot Sellers card renders at
+              the SAME horizontal width as those tiles. Width only — no vertical
+              class is touched. */}
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 pt-4 pb-24">
             <div className="flex items-end justify-between mb-10">
               <div>
                 <div className="inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary mb-4">
@@ -560,7 +564,7 @@ export default function Landing() {
                 View All <ArrowRight className="ml-1.5 size-3.5" />
               </Button>
             </div>
-            <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5">
               {hotSellers.map((product) => {
                 const hasDiscount = product.discountPrice && product.discountPrice < product.price;
                 const discountPct = hasDiscount ? Math.round(((product.price - product.discountPrice!) / product.price) * 100) : 0;

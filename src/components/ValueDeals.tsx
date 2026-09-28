@@ -63,7 +63,11 @@ export default function ValueDeals() {
           </button>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+        {/* Grid track system mirrors the "Browse by Health Conditions" section
+            exactly (same container padding, same column count, same gaps), so
+            each card renders at the SAME horizontal width as those tiles. Width
+            only — the height rules in the scoped style block above stay as-is. */}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5">
           {deals.map((product) => (
             <div key={product._id} className="kc-value-deal">
               <ProductCard product={product as any} />
