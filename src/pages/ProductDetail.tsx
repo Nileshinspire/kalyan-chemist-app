@@ -460,6 +460,23 @@ export default function ProductDetail() {
     : 0;
   const isInStock = p.stockQuantity > 0;
   const isLowStock = p.stockQuantity > 0 && p.stockQuantity < 10;
+
+  // Product Details table shows a SHORT consume-type label only. p.consumeType
+  // now holds full directions copy, and table cells are `whitespace-nowrap`, so
+  // rendering it here would force the two-column grid far wider than the
+  // viewport. The long copy belongs in "Directions for Use" further down.
+  const formKey = (p.form || "").toLowerCase();
+  const consumeTypeLabel = p.form
+    ? ["tablet", "capsule", "syrup", "suspension", "drops", "inhaler", "powder", "sachet"].includes(formKey)
+      ? "For oral use"
+      : ["cream", "gel", "ointment", "lotion"].includes(formKey)
+        ? "For external use only"
+        : formKey === "injection"
+          ? "For injection use only"
+          : `For ${p.form} use`
+    : p.consumeType && p.consumeType.length <= 40
+      ? p.consumeType
+      : "";
   const totalSold = boughtCount ?? 0;
   const allImages: string[] = [
     ...(p.imageUrl ? [p.imageUrl] : []),
@@ -977,20 +994,10 @@ export default function ProductDetail() {
                           <TableCell>{cat.name}</TableCell>
                         </TableRow>
                       )}
-                      {(p.consumeType || p.form) && (
+                      {consumeTypeLabel && (
                         <TableRow>
                           <TableCell className="font-medium text-muted-foreground">Consume Type</TableCell>
-                          <TableCell>{
-                            p.consumeType || (
-                              ["tablet", "capsule", "syrup", "suspension", "drops", "inhaler", "powder", "sachet"].includes((p.form || "").toLowerCase())
-                                ? "For oral use"
-                                : ["cream", "gel", "ointment", "lotion"].includes((p.form || "").toLowerCase())
-                                ? "For external use only"
-                                : p.form === "injection"
-                                ? "For injection use only"
-                                : `For ${p.form} use`
-                            )
-                          }</TableCell>
+                          <TableCell>{consumeTypeLabel}</TableCell>
                         </TableRow>
                       )}
                     </TableBody>
