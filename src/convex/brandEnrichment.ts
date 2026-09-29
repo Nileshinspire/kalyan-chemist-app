@@ -842,6 +842,36 @@ async function classLabels(
     .filter((label): label is string => typeof label === "string");
 }
 
+// ── Stored logo status (used by the admin Brands list) ──
+
+/**
+ * How a stored logo looks when read straight off the brand's own row, with no
+ * network call:
+ *
+ * - `missing`  — no logo is stored at all.
+ * - `broken`   — the stored value is not a usable http(s) image URL.
+ * - `mismatch` — the image's file name doesn't carry this brand's own word,
+ *                which is how a parent company's or a sister brand's mark (the
+ *                kind an older, looser resolver stored) shows up.
+ * - `ok`       — an image URL that names this brand.
+ *
+ * Delegates to `logoNeedsRepair`, the exact rule the repair pass acts on, so the
+ * admin list and the repair can never disagree. `mismatch` is a prompt to
+ * re-check the brand rather than a verdict: a logo taken from the brand's own
+ * website can legitimately have a file name like `HW-logo.svg`.
+ */
+export type BrandLogoStatus = "ok" | "missing" | "broken" | "mismatch";
+
+export function brandLogoStatus(
+  name: string,
+  logoUrl: string | null | undefined,
+): BrandLogoStatus {
+  const value = (logoUrl ?? "").trim();
+  if (!value) return "missing";
+  if (!/^https?:\/\//i.test(value)) return "broken";
+  return logoNeedsRepair(value, name) ? "mismatch" : "ok";
+}
+
 // ── Identity helpers ──
 
 /**

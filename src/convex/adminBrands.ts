@@ -2,6 +2,9 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
+// The stored-logo rule lives with the enrich/repair pipeline, so the admin list
+// and the repair pass can never disagree about what needs attention.
+import { brandLogoStatus } from "./brandEnrichment";
 
 async function requireAdmin(ctx: { db: any; auth: any }) {
   const userId = await getAuthUserId(ctx);
@@ -38,7 +41,11 @@ export const list = query({
           .query("products")
           .withIndex("by_brand", (q) => q.eq("brandId", b._id))
           .collect();
-        return { ...b, productCount: products.length };
+        return {
+          ...b,
+          logoStatus: brandLogoStatus(b.name, b.logoUrl),
+          productCount: products.length,
+        };
       })
     );
 

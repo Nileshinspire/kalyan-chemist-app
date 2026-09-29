@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import type { Doc } from "@/convex/_generated/dataModel";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +37,7 @@ import {
   CheckCircle2,
   Globe,
   AlignLeft,
+  RefreshCw,
 } from "lucide-react";
 
 /** Metadata resolved server-side by brandEnrichment.lookup. */
@@ -46,6 +48,50 @@ type VerifiedBrand = {
   logoUrl: string;
   country: string;
 };
+
+/** Server-computed state of a stored logo (see brandEnrichment.brandLogoStatus). */
+type LogoStatus = "ok" | "missing" | "broken" | "mismatch";
+
+/** A row from adminBrands.list: the stored brand plus its computed extras. */
+type AdminBrandRow = Doc<"brands"> & {
+  logoStatus: LogoStatus;
+  productCount: number;
+};
+
+const LOGO_STATUS_META: Record<
+  LogoStatus,
+  { label: string; hint: string; className: string }
+> = {
+  ok: {
+    label: "Logo OK",
+    hint: "A stored image URL that carries this brand's own name.",
+    className: "bg-green-100 text-green-700",
+  },
+  missing: {
+    label: "No logo",
+    hint: "No logo is stored, so Shop By Brand shows the generic icon. Re-check to fetch one.",
+    className: "bg-destructive/10 text-destructive",
+  },
+  broken: {
+    label: "Broken URL",
+    hint: "The stored logo value is not a usable http(s) image URL. Re-check to replace it.",
+    className: "bg-destructive/10 text-destructive",
+  },
+  mismatch: {
+    label: "Check logo",
+    hint: "The image's file name doesn't mention this brand, so it may be a parent or sister brand's mark. Re-check to confirm or replace it.",
+    className: "bg-amber-100 text-amber-700",
+  },
+};
+
+function LogoStatusBadge({ status }: { status: string }) {
+  const meta = LOGO_STATUS_META[status as LogoStatus] ?? LOGO_STATUS_META.mismatch;
+  return (
+    <Badge variant="secondary" className={`text-xs ${meta.className}`} title={meta.hint}>
+      {meta.label}
+    </Badge>
+  );
+}
 
 export default function AdminBrands() {
   const [search, setSearch] = useState("");
@@ -65,6 +111,8 @@ export default function AdminBrands() {
 
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
+  // Brand id whose logo is currently being re-verified ("Check logo").
+  const [rechecking, setRechecking] = useState<string | null>(null);
 
   const brands = useQuery(api.adminBrands.list, { search: search || undefined });
   const lookupBrand = useAction(api.brandEnrichment.lookup);
@@ -178,6 +226,45 @@ export default function AdminBrands() {
     }
   };
 
+  /**
+   * Re-run the logo pipeline for one stored brand. The freshly verified logo
+   * replaces the stored one when it differs; if no source can prove a logo for
+   * this brand, nothing is written and the reason is shown instead. Stored
+   * name, description, country and product links are left untouched.
+   */
+  const handleRecheck = async (brand: AdminBrandRow) => {
+    setRechecking(brand._id);
+    try {
+      const result = await lookupBrand({ name: brand.name });
+      if (result.logoUrl === brand.logoUrl) {
+        toast.success(`${brand.name}: logo verified`);
+        return;
+      }
+      await updateBrand({
+        brandId: brand._id,
+        name: brand.name,
+        slug: brand.slug,
+        description: (brand.description ?? "").trim() || result.description,
+        country: (brand.country ?? "").trim() || result.country,
+        logoUrl: result.logoUrl,
+        isActive: brand.isActive,
+        showOnHomepage: brand.showOnHomepage ?? false,
+        homepageOrder: brand.homepageOrder ?? 0,
+      });
+      toast.success(`${brand.name}: logo updated`);
+    } catch (error) {
+      toast.error(
+        `${brand.name}: ${
+          error instanceof Error && error.message
+            ? error.message
+            : "logo could not be verified"
+        }`,
+      );
+    } finally {
+      setRechecking(null);
+    }
+  };
+
   const handleDelete = async () => {
     if (!deleteConfirm) return;
     try {
@@ -188,6 +275,10 @@ export default function AdminBrands() {
       toast.error(error.message || "Failed to delete brand");
     }
   };
+
+  // Rows whose stored logo needs a look: missing, unusable, or not naming the
+  // brand. Everything here is decided server-side from the stored row alone.
+  const logoIssues = (brands ?? []).filter((brand) => brand.logoStatus !== "ok");
 
   const isLoading = brands === undefined;
 
@@ -231,6 +322,7 @@ export default function AdminBrands() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Brand</TableHead>
+                      <TableHead className="text-center">Logo</TableHead>
                       <TableHead>Country</TableHead>
                       <TableHead>Description</TableHead>
                       <TableHead className="text-center">Products</TableHead>
@@ -254,6 +346,9 @@ export default function AdminBrands() {
                             <span className="font-medium">{brand.name}</span>
                           </div>
                         </TableCell>
+                        <TableCell className="text-center">
+                          <LogoStatusBadge status={brand.logoStatus} />
+                        </TableCell>
                         <TableCell className="text-sm text-muted-foreground">{brand.country || "—"}</TableCell>
                         <TableCell className="text-sm text-muted-foreground max-w-xs truncate">{brand.description || "—"}</TableCell>
                         <TableCell className="text-center">
@@ -275,6 +370,22 @@ export default function AdminBrands() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1">
+                            {brand.logoStatus !== "ok" && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="size-8 text-amber-600"
+                                title="Re-check logo"
+                                onClick={() => handleRecheck(brand)}
+                                disabled={rechecking === brand._id}
+                              >
+                                {rechecking === brand._id ? (
+                                  <Loader2 className="size-3.5 animate-spin" />
+                                ) : (
+                                  <RefreshCw className="size-3.5" />
+                                )}
+                              </Button>
+                            )}
                             <Button variant="ghost" size="icon" className="size-8" onClick={() => openEdit(brand)}>
                               <Pencil className="size-3.5" />
                             </Button>
@@ -295,7 +406,15 @@ export default function AdminBrands() {
           </CardContent>
         </Card>
 
-        <p className="text-xs text-muted-foreground">{brands?.length ?? 0} brand(s) total</p>
+        <div className="space-y-1">
+          <p className="text-xs text-muted-foreground">{brands?.length ?? 0} brand(s) total</p>
+          {logoIssues.length > 0 && (
+            <p className="text-xs text-amber-600">
+              Needs a logo check: {logoIssues.map((brand) => brand.name).join(", ")} — use
+              the refresh action on the row (or Edit → Verify) to re-run the logo lookup.
+            </p>
+          )}
+        </div>
 
         {/* Add / Edit Dialog — brand name is the only typed field. */}
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
