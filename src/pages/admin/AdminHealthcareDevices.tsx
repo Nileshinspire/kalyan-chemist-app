@@ -256,6 +256,9 @@ export default function AdminHealthcareDevices() {
   const deleteProduct = useMutation(api.adminProducts.remove);
   const toggleActive = useMutation(api.adminProducts.toggleActive);
   const enrichProductAction = useAction(api.productBackfill.enrichProduct);
+  // Images come from the verified product-image pipeline: the metadata action
+  // can return a generated placeholder, which is never stored on a product.
+  const resolveProductImageAction = useAction(api.productImageResolver.resolveProductImage);
 
   // Keep the selection valid once categories load (defaults to BP Monitors)
   useEffect(() => {
@@ -382,10 +385,25 @@ export default function AdminHealthcareDevices() {
 
       const newForm = { ...form };
       const filled: string[] = [];
+      // A placeholder left over from an earlier auto-fill is never kept.
+      if (/^data:/i.test(newForm.imageUrl ?? "")) newForm.imageUrl = undefined;
 
-      if (result.imageUrl) {
-        newForm.imageUrl = result.imageUrl;
-        filled.push("Image");
+      // Resolve the real device packshot through the verified pipeline.
+      try {
+        const image = await resolveProductImageAction({
+          productName: newForm.name,
+          brand: brand || undefined,
+          manufacturer: newForm.manufacturer || undefined,
+          form: newForm.form || undefined,
+          packSize: newForm.packSize || undefined,
+        });
+        if (image.ok) {
+          newForm.imageUrl = image.imageUrl;
+          filled.push("Image");
+        }
+      } catch {
+        // The image is optional in this flow: without one the device keeps the
+        // image the admin pasted, and no placeholder is ever written.
       }
       if (result.description) {
         newForm.description = result.description;

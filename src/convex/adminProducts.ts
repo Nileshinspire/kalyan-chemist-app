@@ -1,5 +1,5 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { query, mutation } from "./_generated/server";
+import { query, mutation, internalQuery, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 
@@ -11,6 +11,89 @@ async function requireAdmin(ctx: { db: any; auth: any }) {
   if (user?.role !== "admin") throw new Error("Not authorized");
   return userId;
 }
+
+/**
+ * A generated placeholder is never a product image. Auto-enrichment writes the
+ * verified packshot instead (see productImageResolver); anything starting with
+ * `data:` is a generated graphic from the old flow and is refused outright.
+ */
+function assertRealImageUrl(imageUrl: string | undefined, required: boolean) {
+  const value = (imageUrl ?? "").trim();
+  if (!value) {
+    if (required) {
+      throw new Error(
+        "A verified product image is required. Use Auto-fetch to resolve the exact product image, then save.",
+      );
+    }
+    return;
+  }
+  if (/^data:/i.test(value)) {
+    throw new Error(
+      "Generated placeholder images are not allowed. Use Auto-fetch to resolve the real product image.",
+    );
+  }
+}
+
+/** Admin check usable from actions (which cannot read the database directly). */
+export const isAdminUser = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return false;
+    const user = await ctx.db.get(userId);
+    return user?.role === "admin";
+  },
+});
+
+/** Every product with the identity fields the image pipeline needs. */
+export const productsForImageAudit = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const products = await ctx.db.query("products").collect();
+    return products.map((product) => ({
+      id: product._id,
+      name: product.name,
+      imageUrl: (product.imageUrl ?? "").trim(),
+      manufacturer: product.manufacturer ?? "",
+      composition: product.composition ?? "",
+      form: product.form ?? "",
+      strength: product.strength ?? "",
+      packSize: product.packSize ?? "",
+    }));
+  },
+});
+
+/** The same identity fields for one product, used by the per-row repair. */
+export const productImageRow = internalQuery({
+  args: { productId: v.id("products") },
+  handler: async (ctx, args) => {
+    const product = await ctx.db.get(args.productId);
+    if (!product) return null;
+    return {
+      id: product._id,
+      name: product.name,
+      imageUrl: (product.imageUrl ?? "").trim(),
+      manufacturer: product.manufacturer ?? "",
+      composition: product.composition ?? "",
+      form: product.form ?? "",
+      strength: product.strength ?? "",
+      packSize: product.packSize ?? "",
+    };
+  },
+});
+
+/**
+ * Write a resolved image. Only `imageUrl` is touched, so a repair can never
+ * change a product's name, price, stock, category or any other field.
+ */
+export const setProductImage = internalMutation({
+  args: { productId: v.id("products"), imageUrl: v.string() },
+  handler: async (ctx, args) => {
+    const imageUrl = args.imageUrl.trim();
+    assertRealImageUrl(imageUrl, true);
+    await ctx.db.patch(args.productId, { imageUrl, updatedAt: Date.now() });
+  },
+});
 
 // ── Admin: List all products (including inactive) ──
 export const list = query({
@@ -135,6 +218,7 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
+    assertRealImageUrl(args.imageUrl, false);
 
     // Check for duplicate slug
     const existing = await ctx.db
@@ -191,6 +275,7 @@ export const update = mutation({
   },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
+    assertRealImageUrl(args.imageUrl, false);
 
     const { productId, ...updates } = args;
 

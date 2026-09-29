@@ -38,6 +38,7 @@ import { toast } from "sonner";
 import { motion } from "framer-motion";
 import {
   Plus,
+  RefreshCw,
   Search,
   Pencil,
   Trash2,
@@ -115,6 +116,13 @@ const EMPTY_FORM: ProductForm = {
 
 const FORM_OPTIONS = ["tablet", "capsule", "syrup", "injection", "cream", "gel", "ointment", "lotion", "drops", "nasal drops", "spray", "inhaler", "powder", "sachet", "balm", "strip", "other"];
 
+/** Result of the strict product-image lookup shown next to the image field. */
+type ImageStatus =
+  | { state: "idle" }
+  | { state: "loading" }
+  | { state: "verified"; matchedName: string }
+  | { state: "unverified"; message: string };
+
 export default function AdminProducts() {
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState<string>("all");
@@ -129,6 +137,11 @@ export default function AdminProducts() {
   const [autoFilling, setAutoFilling] = useState(false);
 
   const enrichProductAction = useAction(api.productBackfill.enrichProduct);
+  // Product images come from their own verified pipeline, never from the
+  // metadata action (which can return a generated placeholder or a diagram).
+  const resolveProductImageAction = useAction(api.productImageResolver.resolveProductImage);
+  const repairProductImageAction = useAction(api.productImageRepair.repairProductImage);
+  const [imageStatus, setImageStatus] = useState<ImageStatus>({ state: "idle" });
   const enrichSingleProduct = useMutation(api.productBackfill.enrichSingleProduct);
   const backfillProducts = useMutation(api.productBackfill.backfillProducts);
   const [backfilling, setBackfilling] = useState(false);
@@ -190,6 +203,18 @@ export default function AdminProducts() {
       toast.error("Please fill in all required fields");
       return;
     }
+    if (form.imageUrl && /^data:/i.test(form.imageUrl)) {
+      toast.error(
+        "A generated placeholder cannot be used as a product image. Use Fetch image to resolve the real packshot.",
+      );
+      return;
+    }
+    if (!form.imageUrl && !editingProduct) {
+      toast.error(
+        "A verified product image is required. Use Fetch image to resolve the exact product packshot.",
+      );
+      return;
+    }
     setSaving(true);
     try {
       const slug = form.slug || slugify(form.name);
@@ -245,6 +270,56 @@ export default function AdminProducts() {
     }
   };
 
+  /**
+   * Resolve the exact product image through the verified pipeline. It never
+   * returns a placeholder: on failure the form keeps no image and the reason is
+   * surfaced, so the admin can correct the name or retry.
+   */
+  const fetchVerifiedImage = async (source: ProductForm): Promise<string | null> => {
+    setImageStatus({ state: "loading" });
+    try {
+      const brand = brands?.find((b) => b._id === source.brandId)?.name;
+      const result = await resolveProductImageAction({
+        productName: source.name,
+        brand: brand || undefined,
+        manufacturer: source.manufacturer || undefined,
+        composition: source.composition || undefined,
+        form: source.form || undefined,
+        strength: source.strength || undefined,
+        packSize: source.packSize || undefined,
+      });
+      if (result.ok) {
+        setImageStatus({ state: "verified", matchedName: result.matchedName });
+        return result.imageUrl;
+      }
+      setImageStatus({ state: "unverified", message: result.message });
+      return null;
+    } catch (error) {
+      setImageStatus({
+        state: "unverified",
+        message:
+          error instanceof Error && error.message
+            ? error.message
+            : "Product image lookup failed.",
+      });
+      return null;
+    }
+  };
+
+  const handleImageRetry = async () => {
+    if (!form.name.trim()) {
+      toast.error("Enter the product name first.");
+      return;
+    }
+    const imageUrl = await fetchVerifiedImage(form);
+    if (imageUrl) {
+      setForm({ ...form, imageUrl });
+      toast.success("Product image verified");
+    } else {
+      toast.error("Exact product image could not be verified.");
+    }
+  };
+
   const handleAutoFillAll = async () => {
     if (!form.name.trim()) {
       toast.error("Please enter a product name first");
@@ -263,12 +338,12 @@ export default function AdminProducts() {
 
       const newForm = { ...form };
       const filled: string[] = [];
+      // A placeholder left over from an earlier auto-fill is never kept.
+      if (/^data:/i.test(newForm.imageUrl ?? "")) newForm.imageUrl = undefined;
 
-      // Image
-      if (result.imageUrl) {
-        newForm.imageUrl = result.imageUrl;
-        filled.push("Image");
-      }
+      // The image is resolved further down, through its own pipeline: the
+      // metadata action's `imageUrl` can be a generated placeholder or a
+      // Wikipedia diagram, so it is deliberately not used here.
       // Description — always overwrite with product-specific description
       if (result.description) {
         newForm.description = result.description;
@@ -346,6 +421,13 @@ export default function AdminProducts() {
         }
       }
 
+      // Image last, so the pipeline can use every field that was just filled.
+      const verifiedImage = await fetchVerifiedImage(newForm);
+      if (verifiedImage) {
+        newForm.imageUrl = verifiedImage;
+        filled.push("Image");
+      }
+
       setForm(newForm);
 
       if (filled.length > 0) {
@@ -383,6 +465,17 @@ export default function AdminProducts() {
         toast.success(`Enriched: ${result.updated.join(", ")}`);
       } else {
         toast.info(result.message || "Product already complete");
+      }
+      // The metadata pass never writes images, so re-resolve the image here as
+      // well — a legacy placeholder or a foreign diagram is repaired or left
+      // untouched, never replaced with something invented.
+      const image = await repairProductImageAction({
+        productId: productId as any,
+      });
+      if (image.ok) {
+        toast.success(`Product image set from "${image.matchedName}"`);
+      } else {
+        toast.error(`Product image not replaced: ${image.message}`);
       }
     } catch (err: any) {
       toast.error(err.message || "Enrichment failed");
@@ -760,7 +853,33 @@ export default function AdminProducts() {
               </div>
               <div className="sm:col-span-2 space-y-2">
                 <Label>Product Image</Label>
-                <Input value={form.imageUrl || ""} onChange={(e) => setForm({ ...form, imageUrl: e.target.value || undefined })} placeholder="https://... or click Auto-fetch" />
+                <div className="flex items-center gap-2">
+                  <Input value={form.imageUrl || ""} onChange={(e) => setForm({ ...form, imageUrl: e.target.value || undefined })} placeholder="https://... or click Fetch image" />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0"
+                    onClick={handleImageRetry}
+                    disabled={imageStatus.state === "loading" || !form.name.trim()}
+                  >
+                    {imageStatus.state === "loading" ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
+                    <span className="ml-1.5">{form.imageUrl ? "Re-fetch" : "Fetch image"}</span>
+                  </Button>
+                </div>
+                {imageStatus.state === "loading" && (
+                  <p className="text-xs text-muted-foreground">Finding the exact product image…</p>
+                )}
+                {imageStatus.state === "verified" && (
+                  <p className="text-xs text-green-600">
+                    Verified packshot: {imageStatus.matchedName}
+                  </p>
+                )}
+                {imageStatus.state === "unverified" && (
+                  <p className="text-xs text-destructive">
+                    {imageStatus.message} Check the name, strength and form, then retry — a placeholder is never saved.
+                  </p>
+                )}
                 {form.imageUrl && (
                   <div className="mt-2 flex items-center gap-3">
                     <div className="size-16 rounded-lg border border-border/60 bg-muted/30 flex items-center justify-center overflow-hidden">
