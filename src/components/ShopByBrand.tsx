@@ -14,7 +14,7 @@ function BrandLogo({ src, name }: { src: string | null; name: string }) {
   const [failed, setFailed] = useState(false);
 
   if (!src || failed) {
-    return <Store className="size-5 text-muted-foreground/50" />;
+    return <Store className="size-8 text-muted-foreground/50" />;
   }
 
   return (
@@ -37,9 +37,12 @@ function BrandLogo({ src, name }: { src: string | null; name: string }) {
  * Clicking a tile reuses the existing brand-filtered listing
  * (`/products?brand=<slug>`) — no duplicate product data or filtering logic.
  *
- * Layout follows the same track pattern as the New Arrivals carousel: a
- * scroll-snap rail that overflows into a carousel when there are more brands
- * than fit, with desktop arrows and native touch swipe on phones.
+ * Layout: ONE horizontal scroll-snap rail that never wraps into a second row.
+ * On desktop the tile width is set so exactly 6 brands fit the max-w-7xl
+ * content box; any remaining brands continue in that same track and are reached
+ * with the arrows, which page the rail one full group of tiles at a time.
+ * Phones/tablets keep the same single row with viewport-sized tiles, native
+ * touch swipe, and no vertical grid.
  */
 export default function ShopByBrand() {
   const navigate = useNavigate();
@@ -76,12 +79,18 @@ export default function ShopByBrand() {
     setCanNext(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
   };
 
-  /** Advance by exactly one tile so the row always lands on whole cards. */
-  const scrollByTile = (direction: 1 | -1) => {
+  /**
+   * Page the rail by one full group of tiles (the visible width) so each click
+   * lands on whole tiles and never jumps to an arbitrary offset.
+   */
+  const scrollByGroup = (direction: 1 | -1) => {
     const el = trackRef.current;
     if (!el) return;
     const tile = el.querySelector<HTMLElement>("[data-brand-tile]");
-    const step = tile ? tile.offsetWidth + 16 : el.clientWidth * 0.8;
+    const gap = 16;
+    const step = tile
+      ? (tile.offsetWidth + gap) * Math.max(1, Math.round(el.clientWidth / (tile.offsetWidth + gap)))
+      : el.clientWidth;
     el.scrollBy({ left: direction * step, behavior: "smooth" });
   };
 
@@ -113,7 +122,7 @@ export default function ShopByBrand() {
               aria-label="Previous brands"
               className={arrowClass}
               disabled={!canPrev}
-              onClick={() => scrollByTile(-1)}
+              onClick={() => scrollByGroup(-1)}
             >
               <ChevronLeft className="size-4" />
             </button>
@@ -122,7 +131,7 @@ export default function ShopByBrand() {
               aria-label="Next brands"
               className={arrowClass}
               disabled={!canNext}
-              onClick={() => scrollByTile(1)}
+              onClick={() => scrollByGroup(1)}
             >
               <ChevronRight className="size-4" />
             </button>
@@ -132,7 +141,7 @@ export default function ShopByBrand() {
         <div
           ref={trackRef}
           onScroll={updateArrows}
-          className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="flex flex-nowrap snap-x snap-mandatory gap-4 overflow-x-auto overscroll-x-contain pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           {brands.map((brand) => (
             <button
@@ -141,12 +150,12 @@ export default function ShopByBrand() {
               data-brand-tile
               onClick={() => openBrand(brand.slug)}
               title={brand.description ?? brand.name}
-              className="group flex w-[124px] shrink-0 snap-start flex-col items-center gap-2 rounded-2xl border border-border/70 bg-card px-3 py-4 transition-all duration-300 hover:border-primary/30 hover:shadow-glow active:scale-[0.97] sm:w-[136px] lg:w-[144px]"
+              className="group flex w-[46vw] max-w-[200px] shrink-0 grow-0 snap-start flex-col items-center gap-2.5 rounded-2xl border border-border/70 bg-card px-3 py-5 transition-all duration-300 hover:border-primary/30 hover:shadow-glow active:scale-[0.97] sm:w-[150px] sm:max-w-none md:w-[168px] lg:w-[190px]"
             >
-              <span className="flex h-12 w-full items-center justify-center rounded-xl border border-border/50 bg-white p-2">
+              <span className="flex h-20 w-full items-center justify-center rounded-xl border border-border/50 bg-white p-2.5 sm:h-24">
                 <BrandLogo src={brand.logoUrl} name={brand.name} />
               </span>
-              <span className="line-clamp-2 text-center text-xs font-medium leading-snug text-foreground">
+              <span className="line-clamp-2 text-center text-[13px] font-medium leading-snug text-foreground">
                 {brand.name}
               </span>
             </button>
