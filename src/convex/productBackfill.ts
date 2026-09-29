@@ -1,6 +1,12 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { action, query, mutation, internalMutation } from "./_generated/server";
+import { action, query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import {
+  MEDICINES_DB,
+  getStorageInfo,
+  findVerifiedReference,
+  type MedicineInfo,
+} from "./productReference";
 import {
   classifyProduct,
   productDirections,
@@ -10,85 +16,20 @@ import {
   isMedicineForm,
   formForKind,
   looksLikeMedicineTemplate,
+  type ProductIdentity,
 } from "./productInfo";
+import { buildProductContent } from "./productContent";
 
 // ════════════════════════════════════════════════════════════════
-// COMPREHENSIVE INDIAN MEDICINES DATABASE
+// VERIFIED PRODUCT REFERENCE DATA
 // ════════════════════════════════════════════════════════════════
 
-interface MedicineInfo {
-  manufacturer: string;
-  composition: string;
-  benefits: string;
-  description: string;
-  form: string;
-  expiryDate?: string;   // e.g. "2027-06-30" — actual batch expiry from manufacturer data
-  storageInformation?: string;
-}
-
-const MEDICINES_DB: Record<string, MedicineInfo> = {
-  "dolo": { manufacturer: "Micro Labs Ltd", composition: "Paracetamol 650mg", benefits: "Provides effective relief from mild to moderate pain and reduces fever. Safe and well-tolerated when used as directed.", description: "Dolo 650 is a trusted antipyretic and analgesic containing Paracetamol 650mg. One of the most widely prescribed medicines in India for fever and pain relief. Manufactured by Micro Labs Ltd.", form: "tablet" },
-  "crocin": { manufacturer: "GlaxoSmithKline Pharmaceuticals Ltd", composition: "Paracetamol 500mg / 650mg", benefits: "Effective pain reliever and fever reducer. Fast-acting formula suitable for headaches, body aches, and cold-related fever.", description: "Crocin is a trusted paracetamol brand from GSK. It provides fast and effective relief from pain and fever with a proven safety profile.", form: "tablet" },
-  "combiflam": { manufacturer: "Sanofi India Ltd", composition: "Ibuprofen 400mg + Paracetamol 325mg", benefits: "Dual-action formula combining anti-inflammatory and pain-relieving properties. Effective for headaches, dental pain, menstrual cramps.", description: "Combiflam combines Ibuprofen and Paracetamol for dual action pain relief. The anti-inflammatory component addresses the source of pain while paracetamol reduces fever.", form: "tablet" },
-  "azee": { manufacturer: "Cipla Ltd", composition: "Azithromycin 250mg / 500mg", benefits: "Effective macrolide antibiotic for respiratory infections, skin infections. Short course therapy with once-daily dosing.", description: "Azee contains Azithromycin, a macrolide antibiotic from Cipla Ltd. Effective against a wide range of bacterial infections with short-course therapy.", form: "tablet" },
-  "pan": { manufacturer: "Alkem Laboratories Ltd", composition: "Pantoprazole 40mg", benefits: "Proton pump inhibitor for long-lasting relief from GERD, stomach ulcers, and acid-related disorders.", description: "Pan contains Pantoprazole 40mg, a proton pump inhibitor from Alkem. Reduces stomach acid production for sustained relief from acid reflux.", form: "tablet" },
-  "omez": { manufacturer: "Dr. Reddy's Laboratories Ltd", composition: "Omeprazole 20mg", benefits: "Proton pump inhibitor that reduces stomach acid production. Relief from acid reflux, heartburn, and stomach ulcers.", description: "Omez contains Omeprazole 20mg from Dr. Reddy's. Effectively reduces gastric acid secretion for GERD, peptic ulcers, and H. pylori eradication.", form: "capsule" },
-  "shelcal": { manufacturer: "Torrent Pharmaceuticals Ltd", composition: "Calcium Carbonate 500mg + Vitamin D3 250 IU", benefits: "Essential mineral for strong bones and teeth. Helps prevent osteoporosis and supports muscle and nerve function.", description: "Shelcal from Torrent Pharma provides essential calcium with Vitamin D3 for enhanced absorption. Recommended for bone health and osteoporosis prevention.", form: "tablet" },
-  "becosules": { manufacturer: "Pfizer Ltd", composition: "Vitamin B Complex + Vitamin C", benefits: "Complete Vitamin B complex supplement that supports energy metabolism, nerve function, and helps manage B-complex deficiency.", description: "Becosules from Pfizer contains all essential B vitamins plus Vitamin C. Supports energy metabolism and nervous system health.", form: "capsule" },
-  "glycomet": { manufacturer: "USV Pvt Ltd", composition: "Metformin 500mg / 850mg", benefits: "First-line treatment for type 2 diabetes. Helps control blood sugar levels by improving insulin sensitivity.", description: "Glycomet contains Metformin from USV. Reduces hepatic glucose production and improves insulin sensitivity for type 2 diabetes management.", form: "tablet" },
-  "atorva": { manufacturer: "Sun Pharmaceutical Industries Ltd", composition: "Atorvastatin 10mg / 20mg / 40mg", benefits: "Statins help lower cholesterol levels and reduce the risk of heart attacks and strokes.", description: "Atorva from Sun Pharma contains Atorvastatin. Lowers LDL cholesterol and reduces cardiovascular risk significantly.", form: "tablet" },
-  "stamlo": { manufacturer: "Dr. Reddy's Laboratories Ltd", composition: "Amlodipine 5mg / 10mg", benefits: "Calcium channel blocker that relaxes blood vessels to lower blood pressure and reduce chest pain.", description: "Stamlo from Dr. Reddy's contains Amlodipine. Provides 24-hour blood pressure control with once-daily dosing.", form: "tablet" },
-  "cetirizine": { manufacturer: "Cipla Ltd", composition: "Cetirizine 10mg", benefits: "Non-drowsy antihistamine that provides 24-hour relief from allergic rhinitis, urticaria, and other allergy symptoms.", description: "Cetirizine from Cipla is a second-generation antihistamine providing effective 24-hour relief from allergic conditions.", form: "tablet" },
-  "montair": { manufacturer: "Cipla Ltd", composition: "Montelukast 10mg", benefits: "Leukotriene receptor blocker that prevents asthma attacks and relieves seasonal allergy symptoms.", description: "Montair from Cipla contains Montelukast. Blocks leukotriene receptors to prevent airway inflammation.", form: "tablet" },
-  "sinarest": { manufacturer: "Micro Labs Ltd", composition: "Paracetamol + Phenylephrine + Chlorpheniramine", benefits: "Multi-symptom cold and flu relief. Addresses headache, fever, nasal congestion, and runny nose.", description: "Sinarest from Micro Labs provides comprehensive relief from cold and flu symptoms with a triple-action formula.", form: "tablet" },
-  "asthalin": { manufacturer: "Cipla Ltd", composition: "Salbutamol 2mg / 4mg", benefits: "Fast-acting bronchodilator that relieves acute asthma attacks and breathing difficulties.", description: "Asthalin from Cipla contains Salbutamol, a fast-acting bronchodilator for quick relief from asthma symptoms.", form: "tablet" },
-  "rabecee": { manufacturer: "Dr. Reddy's Laboratories Ltd", composition: "Rabeprazole 20mg", benefits: "Fast-acting proton pump inhibitor for acid reflux, peptic ulcers, and H. pylori eradication therapy.", description: "Rabecee from Dr. Reddy's contains Rabeprazole. Potent PPI for GERD, peptic ulcers, and H. pylori eradication.", form: "tablet" },
-  "telma": { manufacturer: "Glenmark Pharmaceuticals Ltd", composition: "Telmisartan 40mg / 80mg", benefits: "Long-acting ARB for blood pressure control with additional cardiovascular protective benefits.", description: "Telma from Glenmark contains Telmisartan. Long-acting ARB providing 24-hour BP control with cardioprotective properties.", form: "tablet" },
-  "losar": { manufacturer: "Torrent Pharmaceuticals Ltd", composition: "Losartan 50mg / 100mg", benefits: "ARB that lowers blood pressure and protects the kidneys in diabetic patients.", description: "Losar from Torrent Pharma contains Losartan. Effectively lowers BP with kidney-protective benefits.", form: "tablet" },
-  "supradyn": { manufacturer: "Bayer Zydus Pharma", composition: "Multivitamin + Multimineral", benefits: "Complete daily nutrition support with essential vitamins and minerals for overall health and wellness.", description: "Supradyn is a comprehensive multivitamin providing all essential nutrients for daily health and immunity.", form: "tablet" },
-  "neurobion": { manufacturer: "Merck Ltd", composition: "Vitamin B1 + B6 + B12", benefits: "Essential for nerve function, red blood cell formation, and DNA synthesis. Supports energy levels and brain health.", description: "Neurobion from Merck contains B vitamins for nerve health and energy metabolism.", form: "tablet" },
-  "revital": { manufacturer: "Sun Pharmaceutical Industries Ltd", composition: "Multivitamin + Ginseng + Minerals", benefits: "Daily multivitamin with Ginseng for energy, immunity, and overall well-being.", description: "Revital from Sun Pharma combines vitamins, minerals, and Ginseng for energy and vitality.", form: "capsule" },
-  "duphaston": { manufacturer: "Abbott India Ltd", composition: "Dydrogesterone 10mg", benefits: "Progesterone hormone supplement for menstrual disorders, threatened miscarriage, and hormone replacement therapy.", description: "Duphaston from Abbott contains Dydrogesterone. Bio-identical progesterone for gynecological conditions.", form: "tablet" },
-  "meftal": { manufacturer: "Blue Cross Laboratories Ltd", composition: "Mefenamic Acid 500mg", benefits: "NSAID effective for menstrual pain, mild to moderate pain, and inflammatory conditions.", description: "Meftal from Blue Cross contains Mefenamic Acid. Particularly effective for menstrual pain relief.", form: "tablet" },
-  "enterogermina": { manufacturer: "Sanofi India Ltd", composition: "Bacillus clausii 2 Billion Spores", benefits: "Probiotic that restores healthy gut bacteria. Effective for diarrhea and antibiotic-associated gut issues.", description: "Enterogermina from Sanofi contains probiotic spores that restore healthy intestinal flora.", form: "sachet" },
-  "benadryl": { manufacturer: "Johnson & Johnson Ltd", composition: "Diphenhydramine 12.5mg", benefits: "Antihistamine for allergic symptoms including runny nose, sneezing, itchy eyes, and dry cough.", description: "Benadryl from J&J is a trusted antihistamine for allergy symptoms and dry cough.", form: "syrup" },
-  "vicks": { manufacturer: "Procter & Gamble Health Ltd", composition: "Dextromethorphan + Menthol + Camphor", benefits: "Effective cough suppressant and throat relief for dry and productive coughs.", description: "Vicks from P&G Health provides cough and cold relief with Dextromethorphan and soothing Menthol.", form: "syrup" },
-  "nasivion": { manufacturer: "Meda Pharmaceuticals India", composition: "Oxymetazoline 0.025% / 0.05%", benefits: "Nasal decongestant spray for rapid relief from nasal congestion due to cold and allergies.", description: "Nasivion from Meda provides quick nasal decongestion via oxymetazoline nasal spray.", form: "nasal drops" },
-  "zifi": { manufacturer: "FDC Ltd", composition: "Cefixime 200mg", benefits: "Third-generation cephalosporin antibiotic for respiratory, urinary, and ENT infections.", description: "Zifi from FDC contains Cefixime. Effective oral treatment for respiratory and UTIs.", form: "tablet" },
-  "taxim": { manufacturer: "Alkem Laboratories Ltd", composition: "Cefixime 200mg", benefits: "Oral cephalosporin antibiotic for respiratory infections, UTI, and typhoid fever.", description: "Taxim from Alkem contains Cefixime with excellent bioavailability for bacterial infections.", form: "tablet" },
-  // ── Topical / Creams / Gels / Ointments ──
-  "iodex": { manufacturer: "GlaxoSmithKline Pharmaceuticals Ltd", composition: "Methyl Salicylate + Eucalyptus Oil + Turpentine Oil", benefits: "Fast-acting topical pain reliever that provides warming relief from muscular aches, back pain, joint pain, and stiffness. Penetrates deep into muscles for effective local pain relief.", description: "Iodex Extra Power from GSK is a trusted topical analgesic balm containing Methyl Salicylate, Eucalyptus Oil, and Turpentine Oil. It provides fast warming pain relief for muscular and joint discomfort.", form: "cream" },
-  "volini": { manufacturer: "Sun Pharmaceutical Industries Ltd", composition: "Diclofenac Diethylamine + Methyl Salicylate + Menthol + Linseed Oil", benefits: "Topical anti-inflammatory gel that provides targeted relief from muscle pain, joint pain, sprains, and sports injuries. Reduces pain and inflammation at the site of application.", description: "Volini from Sun Pharma is a topical analgesic gel combining Diclofenac, Methyl Salicylate, and Menthol for fast, targeted pain relief from muscular and joint conditions.", form: "gel" },
-  "moov": { manufacturer: "Reckitt Benckiser (India) Ltd", composition: "Menthol + Methyl Salicylate + Eucalyptus Oil", benefits: "Fast-acting topical pain relief cream that provides warming sensation and effective relief from backache, muscle pain, and joint stiffness.", description: "Moov from Reckitt Benckiser is a trusted topical pain reliever cream providing fast relief from backache, muscle pain, and joint stiffness through a warming action.", form: "cream" },
-  "tiger balm": { manufacturer: "Haw Par Corporation", composition: "Menthol + Camphor + Clove Oil + Eucalyptus Oil + Cinnamon Oil", benefits: "Traditional herbal pain reliever providing warming relief from headaches, muscle aches, and nasal congestion. Natural ingredients offer gentle yet effective relief.", description: "Tiger Balm is a world-famous topical analgesic combining natural ingredients like Menthol, Camphor, and essential oils for fast relief from pain and congestion.", form: "ointment" },
-  "zandu balm": { manufacturer: "Emami Ltd", composition: "Menthol + Eucalyptus Oil + Turpentine Oil + Cedar Oil + Gaultheria Oil", benefits: "Fast-acting Ayurvedic pain relief balm providing warming comfort for headaches, body ache, cold, and nasal congestion. Trusted herbal formula with natural ingredients for effective pain relief.", description: "Zandu Balm from Emami is a trusted Ayurvedic pain relief balm combining natural ingredients like Menthol, Eucalyptus Oil, and Turpentine Oil for fast relief from headaches, body ache, and cold symptoms.", form: "ointment" },
-  "zandu": { manufacturer: "Emami Ltd", composition: "Menthol + Eucalyptus Oil + Turpentine Oil + Cedar Oil + Gaultheria Oil", benefits: "Fast-acting Ayurvedic pain relief balm providing warming comfort for headaches, body ache, cold, and nasal congestion. Trusted herbal formula with natural ingredients for effective pain relief.", description: "Zandu Balm from Emami is a trusted Ayurvedic pain relief balm combining natural ingredients like Menthol, Eucalyptus Oil, and Turpentine Oil for fast relief from headaches, body ache, and cold symptoms.", form: "ointment" },
-  "zeet": { manufacturer: "Cipla Ltd", composition: "Diclofenac Diethylamine + Linseed Oil + Methyl Salicylate + Menthol", benefits: "Topical anti-inflammatory gel for effective relief from muscular and joint pain. Provides targeted treatment with minimal systemic side effects.", description: "Zeet from Cipla is a topical pain relief gel combining Diclofenac with natural oils for fast and effective muscular pain relief.", form: "gel" },
-  "intex": { manufacturer: "Intas Pharmaceuticals Ltd", composition: "Diclofenac Diethylamine + Menthol + Methyl Salicylate", benefits: "Topical gel providing targeted anti-inflammatory and analgesic relief from muscle sprains, strains, and joint pain.", description: "Intex gel from Intas Pharmaceuticals provides topical pain relief with Diclofenac and cooling Menthol for muscle and joint conditions.", form: "gel" },
-  // ── Sprays ──
-  "volini spray": { manufacturer: "Sun Pharmaceutical Industries Ltd", composition: "Diclofenac Diethylamine + Menthol + Methyl Salicylate", benefits: "Convenient spray format for hands-free topical pain relief. Provides targeted anti-inflammatory action for muscle and joint pain without messy application.", description: "Volini Spray from Sun Pharma delivers Diclofenac-based pain relief in a convenient spray format for targeted muscle and joint pain treatment.", form: "spray" },
-  "deepspray": { manufacturer: "Cipla Ltd", composition: "Diclofenac Diethylamine + Menthol + Methyl Salicylate", benefits: "Fast-acting pain relief spray for muscles and joints. Easy-to-use spray format provides targeted cooling and anti-inflammatory relief.", description: "Deep Spray from Cipla provides convenient topical pain relief in spray form with Diclofenac for muscle and joint conditions.", form: "spray" },
-  "moov spray": { manufacturer: "Reckitt Benckiser (India) Ltd", composition: "Methyl Salicylate + Menthol + Eucalyptus Oil", benefits: "Quick-relief pain spray that provides fast warming action for backache, muscle pain, and sprains. Convenient no-touch application.", description: "Moov Spray from Reckitt Benckiser provides fast-acting pain relief in a convenient spray format for muscular and joint pain.", form: "spray" },
-  // ── Drops ──
-  "toba eye drops": { manufacturer: "Alcon Laboratories (India) Pvt Ltd", composition: "Tobramycin 0.3%", benefits: "Antibiotic eye drops effective against bacterial eye infections including conjunctivitis and blepharitis. Provides targeted ocular infection treatment.", description: "Toba Eye Drops from Alcon contains Tobramycin, an aminoglycoside antibiotic for treating bacterial eye infections.", form: "drops" },
-  "ozidex": { manufacturer: "Micro Labs Ltd", composition: "Ofloxacin 0.3%", benefits: "Fluoroquinolone antibiotic eye drops for bacterial conjunctivitis and other ocular infections. Effective broad-spectrum coverage.", description: "Ozidex from Micro Labs contains Ofloxacin for treating bacterial eye infections with broad-spectrum antibiotic action.", form: "drops" },
-  "cipladine": { manufacturer: "Cipla Ltd", composition: "Povidone Iodine 5% / 10%", benefits: "Antiseptic solution for wound cleaning and skin preparation. Effective against bacteria, fungi, and viruses. Essential first-aid antiseptic.", description: "Cipladine from Cipla contains Povidone Iodine, a broad-spectrum antiseptic for wound care and skin disinfection.", form: "drops" },
-  // ── Syrups (additional) ──
-  "digene": { manufacturer: "Abbott India Ltd", composition: "Magaldrate + Simethicone", benefits: "Dual-action antacid that neutralizes stomach acid and relieves gas bloating. Provides fast relief from acidity, heartburn, and indigestion.", description: "Digene from Abbott is a trusted antacid combining Magaldrate and Simethicone for complete relief from acidity and gas.", form: "syrup" },
-  "ENO": { manufacturer: "GlaxoSmithKline Pharmaceuticals Ltd", composition: "Sodium Bicarbonate + Citric Acid + Sodium Carbonate", benefits: "Fast-acting effervescent antacid that neutralizes excess stomach acid in seconds. Provides quick relief from acidity, heartburn, and acid reflux.", description: "ENO from GSK is a popular fast-acting antacid powder that provides instant relief from acidity and heartburn.", form: "powder" },
-  // ── Powders ──
-  "gelusil": { manufacturer: "Pfizer Ltd", composition: "Aluminum Hydroxide + Magnesium Hydroxide + Simethicone", benefits: "Complete antacid providing acid neutralization plus gas relief. Effective for heartburn, acid reflux, and stomach discomfort.", description: "Gelusil from Pfizer is a complete antacid combining acid-neutralizing agents with Simethicone for gas and bloating relief.", form: "powder" },
-  // ── Additional common medicines ──
-  "Augmentin": { manufacturer: "GlaxoSmithKline Pharmaceuticals Ltd", composition: "Amoxicillin 1000mg + Clavulanic Acid 125mg", benefits: "Broad-spectrum antibiotic combining Amoxicillin with Clavulanic Acid to overcome bacterial resistance. Effective for respiratory, urinary, and skin infections.", description: "Augmentin from GSK combines Amoxicillin with Clavulanic Acid for enhanced broad-spectrum antibiotic activity against resistant bacteria.", form: "tablet" },
-  "Panadol": { manufacturer: "GlaxoSmithKline Pharmaceuticals Ltd", composition: "Paracetamol 500mg", benefits: "Trusted paracetamol brand providing effective relief from mild to moderate pain and fever. Gentle on the stomach with a proven safety profile.", description: "Panadol from GSK is a widely trusted paracetamol brand providing safe and effective pain and fever relief.", form: "tablet" },
-  "Calpol": { manufacturer: "GlaxoSmithKline Pharmaceuticals Ltd", composition: "Paracetamol 120mg / 250mg / 500mg", benefits: "Gentle and effective fever and pain reliever suitable for children and adults. Available in delicious strawberry flavor for easy administration.", description: "Calpol from GSK is a trusted pediatric paracetamol brand providing safe fever and pain relief for children.", form: "syrup" },
-  "Naprosyn": { manufacturer: "Alembic Pharmaceuticals Ltd", composition: "Naproxen 250mg / 500mg", benefits: "Long-lasting NSAID providing up to 12 hours of pain and inflammation relief. Effective for arthritis, gout, menstrual cramps, and musculoskeletal pain.", description: "Naprosyn from Alembic contains Naproxen for sustained pain and inflammation relief with once or twice daily dosing.", form: "tablet" },
-  "Amlogard": { manufacturer: "Pfizer Ltd", composition: "Amlodipine 5mg / 10mg", benefits: "Calcium channel blocker providing smooth, gradual blood pressure reduction with 24-hour control. Also effective for angina relief.", description: "Amlogard from Pfizer contains Amlodipine for effective once-daily blood pressure control and angina management.", form: "tablet" },
-  "Gudcef": { manufacturer: "Cipla Ltd", composition: "Cefpodoxime Proxetil 200mg", benefits: "Third-generation oral cephalosporin antibiotic effective for respiratory tract infections, urinary tract infections, and ENT infections. Convenient once-daily dosing.", description: "Gudcef from Cipla contains Cefpodoxime for effective treatment of bacterial infections with convenient dosing.", form: "tablet" },
-  "Mox": { manufacturer: "Cipla Ltd", composition: "Amoxicillin 500mg / 250mg", benefits: "Broad-spectrum penicillin antibiotic for common bacterial infections of the respiratory tract, urinary tract, ear, and throat. Well-tolerated and effective.", description: "Mox from Cipla contains Amoxicillin for effective treatment of common bacterial infections.", form: "capsule" },
-  "Tuspel": { manufacturer: "Cipla Ltd", composition: "Ambroxol 30mg + Terbutaline 1.25mg + Guaifenesin 50mg", benefits: "Triple-action cough syrup that thins mucus, opens airways, and provides effective relief from productive and dry cough.", description: "Tuspel from Cipla is a combination cough syrup with Ambroxol, Terbutaline, and Guaifenesin for comprehensive cough relief.", form: "syrup" },
-  "Ascoril": { manufacturer: "GlaxoSmithKline Pharmaceuticals Ltd", composition: "Salbutamol + Bromhexine + Guaifenesin + Menthol", benefits: "Bronchodilator cough syrup that opens airways and thins mucus for effective relief from cough associated with asthma, bronchitis, and COPD.", description: "Ascoril from GSK combines Salbutamol with mucolytics for effective cough relief in respiratory conditions.", form: "syrup" },
-};
+// The curated per-product reference records and the exact-variant match guard
+// live in ./productReference, so the page, the enrichment action and the repair
+// pipeline all resolve the same record for the same product. Nothing here may
+// re-derive a reference record locally.
+export { MEDICINES_DB, getStorageInfo, findVerifiedReference } from "./productReference";
+export type { MedicineInfo, VerifiedReference } from "./productReference";
 
 // Known manufacturers fallback
 const KNOWN_MANUFACTURERS: Record<string, string> = {
@@ -103,64 +44,12 @@ const KNOWN_MANUFACTURERS: Record<string, string> = {
   "vicks": "Procter & Gamble Health Ltd", "nasivion": "Meda Pharmaceuticals India",
 };
 
+// Storage guidance for a composition and dosage form now lives in
+// ./productReference, next to the reference records it is derived from, so the
+// page and the enrichment pipeline cannot drift apart on storage copy.
 
-// Storage information database — composition/form-based storage guidance
-const STORAGE_DB: Record<string, string> = {
-  "paracetamol": "Store below 25°C in a dry place. Keep away from moisture and direct sunlight.",
-  "ibuprofen": "Store in a cool, dry place below 30°C. Protect from moisture.",
-  "metformin": "Store below 30°C in a dry place. Keep away from moisture.",
-  "amlodipine": "Store below 25°C in a dry place. Protect from light and moisture.",
-  "atorvastatin": "Store at room temperature (15–25°C) in a dry place. Keep away from direct sunlight.",
-  "pantoprazole": "Store below 25°C in a dry place. Protect from moisture and light.",
-  "omeprazole": "Store below 25°C in a dry place. Protect from moisture and light.",
-  "cetirizine": "Store below 25°C in a dry place. Keep away from moisture.",
-  "azithromycin": "Store below 25°C in a dry place. Protect from moisture.",
-  "calcium": "Store below 30°C in a dry place. Keep away from moisture and direct sunlight.",
-  "vitamin d": "Store below 30°C in a dry place. Protect from light and moisture.",
-  "levothyroxine": "Store at room temperature (15–25°C) in a dry place. Protect from light.",
-  "losartan": "Store below 30°C in a dry place. Keep away from moisture.",
-  "telmisartan": "Store below 25°C in a dry place. Protect from moisture.",
-  "montelukast": "Store below 25°C in a dry place. Protect from moisture.",
-  "salbutamol": "Store below 30°C in a dry place. Keep inhaler away from open flame.",
-  "ciprofloxacin": "Store below 25°C in a dark place. Protect from light and moisture.",
-  "doxycycline": "Store below 25°C in a dark, dry place. Protect from light.",
-  "rosuvastatin": "Store below 25°C in a dry place. Protect from moisture.",
-  "cefuroxime": "Store below 25°C in a dry place. Keep away from moisture.",
-  "cefixime": "Store below 25°C in a dry place. Protect from moisture.",
-  "metronidazole": "Store below 25°C in a dry place. Protect from moisture.",
-  "cream": "Store below 30°C. Do not freeze. Keep away from direct sunlight.",
-  "gel": "Store below 30°C. Do not freeze. Keep away from direct sunlight.",
-  "ointment": "Store below 30°C. Do not freeze.",
-  "syrup": "Store below 30°C. Keep away from direct sunlight. Do not freeze. Once opened, use within 30 days.",
-  "suspension": "Store below 30°C. Keep away from direct sunlight. Do not freeze. Shake well before use.",
-  "drops": "Store below 25°C. Protect from light. Do not freeze.",
-  "injection": "Store below 25°C. Protect from light. Do not freeze. Keep out of reach of children.",
-  "inhaler": "Store below 30°C away from open flame. Do not puncture or incinerate.",
-  "sachet": "Store below 30°C in a dry place. Keep away from moisture.",
-};
 
-function getStorageInfo(composition: string, form: string): string | null {
-  const lowerComp = composition.toLowerCase();
-  // Try composition-based match first
-  for (const [key, info] of Object.entries(STORAGE_DB)) {
-    if (lowerComp.includes(key)) return info;
-  }
-  // Fallback to form-based storage
-  const f = form.toLowerCase();
-  for (const [key, info] of Object.entries(STORAGE_DB)) {
-    if (f === key) return info;
-  }
-  // Final fallback — generic for the form
-  if (f === "tablet" || f === "capsule") return "Store below 30°C in a dry place. Keep away from moisture and direct sunlight.";
-  if (f === "syrup" || f === "suspension") return "Store below 30°C. Keep away from direct sunlight. Do not freeze.";
-  if (f === "cream" || f === "gel" || f === "ointment") return "Store below 30°C. Do not freeze. Keep away from direct sunlight.";
-  if (f === "drops") return "Store below 25°C. Protect from light. Do not freeze.";
-  if (f === "injection") return "Store below 25°C. Protect from light. Do not freeze. Keep out of reach of children.";
-  if (f === "inhaler") return "Store below 30°C away from open flame. Do not puncture or incinerate.";
-  if (f === "sachet" || f === "powder") return "Store below 30°C in a dry place. Keep away from moisture.";
-  if (f === "nasal drops" || f === "nasal") return "Store below 25°C. Protect from light. Do not freeze.";
-  return "Store in a cool, dry place away from moisture and direct sunlight.";
-}
+
 
 // Known benefits fallback
 const BENEFITS_DB: Record<string, string> = {
@@ -252,49 +141,25 @@ function getDescriptionForComposition(composition: string): string | null {
   return null;
 }
 
-/**
- * Infer consume type from product form
- *
- * @deprecated Directions now come from productInfo.productDirections(), which
- * classifies the product first. A form field alone cannot be trusted: a
- * condom, a test strip or a monitor stored with `form: "tablet"` used to be
- * told "Tablet — taken orally with water." Kept only for callers that have not
- * been migrated yet; it must not be used for new copy.
- */
-function inferConsumeType(form: string): string | null {
-  const f = form.toLowerCase();
-  if (["tablet", "capsule", "lozenge"].includes(f))
-    return `${f.charAt(0).toUpperCase() + f.slice(1)} — taken orally with water.`;
-  if (["syrup", "suspension"].includes(f))
-    return `${f.charAt(0).toUpperCase() + f.slice(1)} — taken orally using the provided measuring device.`;
-  if (f === "drops") return "Oral drops — taken orally or as directed by the physician.";
-  if (f === "inhaler") return "Inhaler — used by inhaling the medication through the mouth.";
-  if (["powder", "sachet"].includes(f)) return "Powder/Sachet — dissolved in water and taken orally.";
-  if (["cream", "gel", "ointment", "lotion"].includes(f))
-    return `${f.charAt(0).toUpperCase() + f.slice(1)} — applied externally to the affected area.`;
-  if (f === "injection") return "Injection — administered by a healthcare professional.";
-  if (f === "nasal drops" || f === "nasal") return "Nasal drops — administered through the nose as directed.";
-  if (f) return `${f.charAt(0).toUpperCase() + f.slice(1)} — use as directed by your physician.`;
-  return null;
-}
+// Directions are never inferred from the `form` field. A form field alone
+// cannot be trusted — a condom, a test strip or a monitor stored with
+// `form: "tablet"` used to be told "Tablet — taken orally with water." All
+// usage copy now comes from productInfo.productDirections(), which classifies
+// the product from strong identity signals first.
 
 /**
- * Match product name against the medicines database.
+ * The verified reference record for a product, or null.
+ *
+ * Delegates to the shared lookup in ./productReference so the variant guard
+ * (strength and dosage form must match) applies here too. A product that only
+ * shares a brand with a catalog entry gets nothing, which is correct: its
+ * composition and benefits are not the same product's.
  */
-function matchMedicine(productName: string): MedicineInfo | null {
-  const lower = productName.toLowerCase().trim();
-  if (MEDICINES_DB[lower]) return MEDICINES_DB[lower];
-  const stripped = lower.replace(/\s*\d+\s*(mg|ml|g|mcg|iu|%)?$/i, "").trim();
-  if (MEDICINES_DB[stripped]) return MEDICINES_DB[stripped];
-  let bestMatch: MedicineInfo | null = null;
-  let bestLen = 0;
-  for (const [key, info] of Object.entries(MEDICINES_DB)) {
-    if (lower.includes(key.toLowerCase()) && key.length > bestLen) {
-      bestMatch = info;
-      bestLen = key.length;
-    }
-  }
-  return bestMatch;
+function matchMedicine(
+  productName: string,
+  identity: Partial<ProductIdentity> = {}
+): MedicineInfo | null {
+  return findVerifiedReference({ ...identity, name: productName }).reference;
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -418,6 +283,39 @@ export const enrichSingleProduct = mutation({
       updates.safetyNote = "Consult your doctor or pharmacist before use.";
     }
 
+    // Regenerate the structured Product Detail content from this product's own
+    // fields, so all seven sections below the product card are rebuilt from
+    // one verified source and cannot disagree with each other.
+    const reference = findVerifiedReference({
+      name: product.name,
+      form: product.form ?? null,
+      packSize: product.packSize ?? null,
+      categoryName: null,
+      composition: product.composition ?? null,
+      manufacturer: product.manufacturer ?? null,
+      strength: product.strength ?? null,
+    }).reference;
+    updates.productContent = {
+      ...buildProductContent({
+        name: product.name,
+        form: product.form ?? null,
+        packSize: product.packSize ?? null,
+        categoryName: null,
+        composition: product.composition ?? null,
+        manufacturer: product.manufacturer ?? null,
+        strength: product.strength ?? null,
+        reference,
+        brand: null,
+        prescriptionRequired: product.prescriptionRequired,
+        storageInformation: product.storageInformation ?? null,
+        safetyNote: product.safetyNote ?? null,
+        benefits: product.benefits ?? null,
+        benefitsSource: product.benefitsSource ?? null,
+        expiryDate: product.expiryDate ?? null,
+      }),
+      verifiedAt: Date.now(),
+    };
+
     if (Object.keys(updates).length > 0) {
       await ctx.db.patch(args.productId, {
         ...updates,
@@ -524,22 +422,18 @@ export const enrichProduct = action({
     categoryName: v.optional(v.string()),
   },
   handler: async (_ctx, args) => {
-    // Try local database first (no API needed)
-    const lower = args.productName.toLowerCase().trim();
-    const stripped = lower.replace(/\s*\d+\s*(mg|ml|g|mcg|iu|%)?$/i, "").trim();
-
-    let matched: MedicineInfo | null = null;
-    if (MEDICINES_DB[lower]) matched = MEDICINES_DB[lower];
-    else if (MEDICINES_DB[stripped]) matched = MEDICINES_DB[stripped];
-    else {
-      let bestLen = 0;
-      for (const [key, info] of Object.entries(MEDICINES_DB)) {
-        if (lower.includes(key.toLowerCase()) && key.length > bestLen) {
-          matched = info;
-          bestLen = key.length;
-        }
-      }
-    }
+    // Try the verified reference catalogue first (no API needed). The lookup
+    // only returns a record that describes this exact variant, so "Dolo 500"
+    // never borrows the 650 mg tablet's composition.
+    const matched: MedicineInfo | null = findVerifiedReference({
+      name: args.productName,
+      form: args.form ?? null,
+      packSize: args.packSize ?? null,
+      categoryName: args.categoryName ?? null,
+      composition: args.composition ?? null,
+      manufacturer: args.manufacturer ?? null,
+      strength: args.strength ?? null,
+    }).reference;
 
     const result: {
       imageUrl: string | null;
@@ -845,28 +739,36 @@ export const findProductCandidates = action({
 });
 
 /**
- * Repairs information on EXISTING products.
+ * Repairs the product information on EXISTING products.
  *
  * Existing rows were written by the old form-driven generator, so a condom
- * filed as `form: "tablet"` carries "Tablet — taken orally with water" and a
- * device can be described as "a medication". This walks every product,
- * classifies what it actually is, and rewrites the derived copy:
+ * filed as `form: "tablet"` carries "Tablet — taken orally with water", a gel
+ * is described with a tablet dose, and a test strip is given medicine safety
+ * copy. This walks every product and rewrites the derived fields from what is
+ * actually known about that exact product:
  *
- * - confident product type  -> product-appropriate directions and safety
- * - unknown product type    -> cleared, so the UI shows "not available"
- *                            rather than a confident wrong answer
+ * - a verified reference record for this exact variant supplies composition,
+ *   benefits, manufacturer and form;
+ * - otherwise a confident product type supplies handling instructions only,
+ *   and every clinical claim is cleared rather than invented;
+ * - the structured `productContent` snapshot the Product Detail page reads is
+ *   regenerated, so all seven sections below the product card are rebuilt
+ *   together and cannot disagree with each other.
  *
- * A non-medicine filed with a medicine `form` is also re-filed, since that
- * value is what caused the wrong copy in the first place. Clinical fields
- * (benefits, composition) are never rewritten here: they come from the curated
- * reference data, and inventing replacements is exactly what we are avoiding.
+ * Nothing else is touched: price, stock, images, category, cart and order data
+ * are never written here.
  */
-export const repairProductInformation = internalMutation({
+export const repairProductInformation = mutation({
   args: {
     dryRun: v.optional(v.boolean()),
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+    const user = await ctx.db.get(userId);
+    if (user?.role !== "admin") throw new Error("Not authorized");
+
     const dryRun = args.dryRun ?? false;
     const limit = args.limit ?? 500;
     const products = await ctx.db.query("products").take(limit);
@@ -892,7 +794,14 @@ export const repairProductInformation = internalMutation({
         manufacturer: product.manufacturer ?? null,
         strength: product.strength ?? null,
       };
-      const classification = classifyProduct(identity);
+      // Only a record that describes THIS variant is applied. A brand-level
+      // substring hit is not enough — see the variant guard in ./productReference.
+      const reference = findVerifiedReference(identity).reference;
+      const classification = classifyProduct({
+        ...identity,
+        form: reference?.form ?? identity.form,
+        composition: reference?.composition ?? identity.composition,
+      });
       const patch: Record<string, unknown> = {};
       const changed: string[] = [];
 
@@ -912,6 +821,20 @@ export const repairProductInformation = internalMutation({
       if ((product.safetyNote ?? null) !== safety) {
         patch.safetyNote = safety ?? undefined;
         changed.push("safetyNote");
+      }
+
+      // Benefits are a clinical claim. They are kept only when a verified
+      // record backs them; anything the old generator produced is cleared so
+      // the section falls back to its honest "not available" message.
+      const verifiedBenefits = reference?.benefits ?? null;
+      if ((product.benefits ?? null) !== verifiedBenefits) {
+        patch.benefits = verifiedBenefits ?? undefined;
+        changed.push("benefits");
+      }
+      const source = reference ? "reference" : undefined;
+      if ((product.benefitsSource ?? null) !== source) {
+        patch.benefitsSource = source;
+        changed.push("benefitsSource");
       }
 
       // A non-medicine must not keep a medicine form, and must not keep a
@@ -940,6 +863,44 @@ export const repairProductInformation = internalMutation({
         patch.description = undefined;
         changed.push("description");
       }
+
+      // A condom or a test strip has no active ingredients. Rows written by the
+      // old generator left real drug compositions on them (a condom listed as
+      // "Paracetamol 500mg / 650mg"), which then produced a false ingredient
+      // list and false storage guidance. Cleared rather than corrected: there
+      // is no right answer to guess, only the pack.
+      if (
+        (classification.kind === "condom" || classification.kind === "device") &&
+        product.composition
+      ) {
+        patch.composition = undefined;
+        changed.push("composition");
+      }
+      if (
+        (classification.kind === "condom" || classification.kind === "device") &&
+        product.storageInformation
+      ) {
+        // A drug storage temperature on a condom or a test strip came from the
+        // same mistaken composition, so it goes with it.
+        patch.storageInformation = undefined;
+        changed.push("storageInformation");
+      }
+
+      // Structured content for the Product Detail sections, built from this
+      // product's own fields and the verified record.
+      const content = buildProductContent({
+        ...identity,
+        reference,
+        brand: null,
+        prescriptionRequired: product.prescriptionRequired,
+        storageInformation: product.storageInformation ?? null,
+        safetyNote: product.safetyNote ?? null,
+        benefits: product.benefits ?? null,
+        benefitsSource: product.benefitsSource ?? null,
+        expiryDate: product.expiryDate ?? null,
+      });
+      patch.productContent = { ...content, verifiedAt: Date.now() };
+      changed.push("productContent");
 
       if (changed.length) {
         changes.push({ id: product._id, name: product.name, kind: classification.kind, changes: changed });

@@ -88,6 +88,11 @@ function classifyByIdentity(input: ProductIdentity): Classification | null {
   ) {
     return { kind: "device", confident: true, reason: "name identifies a device" };
   }
+  // "Accu-Chek Active Strips" states the form, and a strip is a consumable
+  // that is used with a device — never a solid oral dose to be swallowed.
+  if (/\bstrips?\b/i.test(name)) {
+    return { kind: "device", confident: true, reason: "name identifies test strips" };
+  }
   // Diapers and nappies are unambiguously personal care, not medicines.
   if (has(name, "diaper", "diaper", "nappy", "nappies")) {
     return { kind: "personal_care", confident: true, reason: "name identifies an absorbent hygiene product" };
@@ -230,7 +235,7 @@ const NAME_FORM_WORDS: Array<[RegExp, ProductKind]> = [
   [/\binhaler\b|\brespules?\b/i, "inhaler"],
   [/\binjection\b|\binjectable\b/i, "injection"],
   [/\b(eye|ear|nasal)\b/i, "topical"],
-  [/\b(cream|ointment|gel|lotion|balm|liniment|topical|scrub|wax|oil)\b/i, "topical"],
+  [/\b(cream|ointment|gel|lotion|balm|liniment|topical|scrub|wax|oil|spray)\b/i, "topical"],
   [/\b(syrup|suspension|oral\s*solution|elixir)\b/i, "oral_syrup"],
   [/\b(sachets?|powder|effervescent)\b/i, "oral_powder"],
   [/\b(capsules?)\b/i, "oral_capsule"],
