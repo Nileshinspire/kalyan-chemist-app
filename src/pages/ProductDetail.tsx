@@ -566,7 +566,7 @@ export default function ProductDetail() {
           </DialogContent>
         </Dialog>
 
-        <div className="grid gap-8 lg:grid-cols-[1fr_1.2fr]">
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
           {/* Product Image Gallery */}
           <motion.div
             initial={{ opacity: 0, x: -16 }}
