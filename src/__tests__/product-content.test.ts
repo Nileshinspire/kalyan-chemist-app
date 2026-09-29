@@ -471,6 +471,16 @@ describe("FAQs are generated from the exact product", () => {
     expect(identity.answer).toMatch(/tablet/);
   });
 
+  it("does not leave a hole where a fact is missing", () => {
+    // A product with no recorded strength must not read "is supplied at in a
+    // pack of ...".
+    const faqs = build({ name: "Volini Gel", form: "gel", packSize: "30g tube" }).faqs;
+    const sizing = faqs.find((f) => f.question.startsWith("What is the strength"))!;
+    expect(sizing.answer).toBe("The pack contains 30g tube.");
+    const rx = faqs.find((f) => f.question.startsWith("Is Volini"))!;
+    expect(rx.answer).toMatch(/Over the counter \(OTC\)/);
+  });
+
   it("answers honestly where a fact is not verified", () => {
     const faqs = build({ name: "Glucon-D Powder", form: "powder" }).faqs;
     const composition = faqs.find((f) => f.question.startsWith("What is the composition"))!;

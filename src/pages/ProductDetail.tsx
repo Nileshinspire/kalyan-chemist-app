@@ -1285,7 +1285,6 @@ export default function ProductDetail() {
               </p>
               <div className="grid sm:grid-cols-2 gap-3">
                 {[
-                  { label: "How to Use", value: content.directions },
                   { label: "Dose and timing", value: content.timing },
                   { label: "How long to use it", value: content.duration },
                   { label: "Important", value: content.important },

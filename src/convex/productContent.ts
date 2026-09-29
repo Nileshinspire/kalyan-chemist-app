@@ -792,7 +792,7 @@ function buildFaqs(input: FaqInput): ProductFaq[] {
     },
     {
       question: `Is ${name} a prescription-only medicine?`,
-      answer: `${name} is classified as ${input.rx.toLowerCase()} on our records.${
+      answer: `${name} is recorded as ${input.rx} on our records.${
         input.rx.startsWith("Prescription")
           ? " You will need to upload a valid prescription at checkout, and our pharmacist will verify it before the order is dispatched."
           : " No prescription is needed to order it, though a pharmacist can advise you on whether it is suitable for you."
@@ -804,10 +804,13 @@ function buildFaqs(input: FaqInput): ProductFaq[] {
     },
     {
       question: `What is the strength and pack size of ${name}?`,
-      answer:
-        input.strength || input.packSize
-          ? `${name} is supplied at ${input.strength ?? "a strength not stated on the record"} in a pack of ${input.packSize ?? "a pack size not stated on the record"}.`
-          : `The strength and pack size for ${name} are not recorded. Please check the pack, or ask a pharmacist before ordering.`,
+      answer: [
+        input.strength ? `It is supplied at ${input.strength}.` : null,
+        input.packSize ? `The pack contains ${input.packSize}.` : null,
+      ]
+        .filter(Boolean)
+        .join(" ") ||
+        `The strength and pack size for ${name} are not recorded. Please check the pack, or ask a pharmacist before ordering.`,
     },
   ];
 }
