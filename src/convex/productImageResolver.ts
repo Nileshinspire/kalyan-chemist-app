@@ -61,7 +61,7 @@ const MAX_IMAGE_BYTES = 4_000_000;
 /** Queries per source before moving on to the next one. */
 const MAX_QUERIES_PER_SOURCE = 4;
 /** Product pages opened on a brand's own site before giving up on it. */
-const MAX_OFFICIAL_PAGES = 2;
+const MAX_OFFICIAL_PAGES = 3;
 /** Total candidate images downloaded across every source. */
 const MAX_CANDIDATE_FETCHES = 8;
 
@@ -81,14 +81,6 @@ function normalize(value: string): string {
 
 function words(value: string): string[] {
   return normalize(value).split(" ").filter(Boolean);
-}
-
-/** Whole-word test, so "Dolo" never matches "Dolopar" and "600" never "6000". */
-function hasWord(haystack: string, word: string): boolean {
-  if (!word) return false;
-  return new RegExp(`(?<![a-z0-9])${escapeRegExp(word)}(?![a-z0-9])`).test(
-    haystack,
-  );
 }
 
 /**
@@ -628,8 +620,11 @@ function bestImage(
   candidate: Candidate,
   identityWords: Set<string>,
 ): string | null {
+  // A word that is part of the product's own name is identity, not noise: the
+  // packshot of "Benadryl Cough Formula" is in a file called …-cough-formula-…
+  const allowed = new Set([...identityWords, ...wordSet(candidate.name)]);
   const ranked = candidate.images
-    .filter((image) => isUsableImageUrl(image.url, identityWords))
+    .filter((image) => isUsableImageUrl(image.url, allowed))
     .map((image) => ({ url: normalizeImageUrl(image.url), image }))
     .filter(
       (entry): entry is { url: string; image: CandidateImage } => !!entry.url,
@@ -782,6 +777,22 @@ export function matchesProductIdentity(
       rules,
     ) !== null
   );
+}
+
+/**
+ * Exported for tests: could this image file ever be a packshot for this
+ * product? A product whose own name contains a noise word (Benadryl Cough
+ * *Formula*) keeps its real packshot, while a logo, diagram or placeholder is
+ * always rejected.
+ */
+export function isPackshotImageCandidate(
+  url: string,
+  identity: ProductIdentity,
+  candidateName?: string,
+): boolean {
+  const allowed = buildRules(identity).identityWords;
+  if (candidateName) for (const word of wordSet(candidateName)) allowed.add(word);
+  return isUsableImageUrl(url, allowed);
 }
 
 // ── Network ──
@@ -1002,19 +1013,60 @@ const SITE_SEARCH_PATTERNS = [
   "/search?q={q}",
 ];
 
-/** Product-page links on a brand site's search results. */
-function productLinks(html: string, origin: string): string[] {
+/**
+ * A product page is a content path ending in a slug, e.g.
+ * "/products/himalaya-baby-lotion" or "/item/12345". Asset paths such as
+ * "/cdn/shop/files/logo.png" are never product pages, so anything with a file
+ * extension or a /cdn/ or /assets/ segment is skipped.
+ */
+const PRODUCT_PAGE_PATH =
+  /\/(?:products?|shop|catalog|item|items|dp|item-detail|product-detail|p)\/[a-z0-9][a-z0-9-]*(?:\/[a-z0-9-]+)?\/?$/i;
+const ASSET_SEGMENTS = /(^|\/)(cdn|assets|static|media|images|img|files|dist|build)(\/|$)/i;
+const FILE_EXTENSION = /\.(?:css|js|mjs|png|jpe?g|gif|webp|svg|ico|woff2?|ttf|eot|json|xml|pdf|zip|mp4|webm|txt|css.map)(\?|$)/i;
+
+/**
+ * Product-page links on a brand site's search results, most relevant first: a
+ * link whose slug mentions the product's own words is a far better bet than
+ * whatever happened to be first in the results grid.
+ */
+function productLinks(
+  html: string,
+  origin: string,
+  identityWords: Set<string>,
+): string[] {
   const links: string[] = [];
   const pattern = /href=["']([^"']+)["']/gi;
   let match: RegExpExecArray | null;
   while ((match = pattern.exec(html))) {
     const absolute = absoluteUrl(match[1], origin);
     if (!absolute) continue;
-    if (!/\/(product|products|shop|p)\//i.test(new URL(absolute).pathname)) continue;
-    if (!links.includes(absolute)) links.push(absolute);
-    if (links.length >= 12) break;
+    let pathname: string;
+    try {
+      pathname = new URL(absolute).pathname;
+    } catch {
+      continue;
+    }
+    if (ASSET_SEGMENTS.test(pathname)) continue;
+    if (FILE_EXTENSION.test(absolute)) continue;
+    if (!PRODUCT_PAGE_PATH.test(pathname)) continue;
+    const clean = absolute.split("?")[0];
+    if (!links.includes(clean)) links.push(clean);
+    if (links.length >= 24) break;
   }
-  return links;
+  const distinctive = [...identityWords].filter((word) => word.length > 3);
+  const hits = (url: string) => {
+    const slug = new URL(url).pathname.toLowerCase();
+    return distinctive.filter((word) => slug.includes(word)).length;
+  };
+  const ordered = links.sort(
+    (a, b) =>
+      hits(b) * 10 - new URL(b).pathname.length / 100 -
+      (hits(a) * 10 - new URL(a).pathname.length / 100),
+  );
+  // When any result mentions the product's own words, the pages that do not
+  // are other products from the same site and are not worth opening.
+  const relevant = ordered.filter((url) => hits(url) > 0);
+  return relevant.length > 0 ? relevant : ordered;
 }
 
 function attrOf(html: string, pattern: RegExp): string | null {
@@ -1061,47 +1113,64 @@ async function officialSiteCandidates(
   const origin = await officialSite(brand);
   if (!origin) return [];
 
-  const query = [identity.productName, identity.strength]
-    .filter(Boolean)
-    .join(" ")
-    .trim();
+  // The site already *is* the brand, so its own catalogue is searched with the
+  // product name, the name without the brand, and the name's leading words —
+  // a brand site's product titles rarely repeat the full admin-entered string.
+  const name = identity.productName.trim();
+  const brandWords = words(brand);
+  const nameWords = words(name).filter((word) => !brandWords.includes(word));
+  const queries = unique(
+    [
+      [name, identity.strength].filter(Boolean).join(" "),
+      name,
+      nameWords.join(" "),
+      nameWords.slice(0, 2).join(" "),
+    ].filter((value) => value.trim().length > 1),
+  );
 
   const results: ScoredCandidate[] = [];
   const visited = new Set<string>();
 
   for (const pattern of SITE_SEARCH_PATTERNS) {
-    if (visited.size >= MAX_OFFICIAL_PAGES) break;
-    const searchUrl = `${origin}${pattern.replace("{q}", encodeURIComponent(query))}`;
-    const html = await getText(searchUrl, "text/html", SITE_TIMEOUT_MS);
-    if (!html) continue;
-
-    for (const link of productLinks(html, origin)) {
-      if (visited.size >= MAX_OFFICIAL_PAGES) break;
-      if (visited.has(link)) continue;
-      visited.add(link);
-
-      const page = await getText(link, "text/html", SITE_TIMEOUT_MS);
-      if (!page) continue;
-      const title = pageTitle(page);
-      const image = metaImage(page, link);
-      if (!title || !image) continue;
-
-      const scored = scoreCandidate(
-        {
-          name: title,
-          slug: link,
-          manufacturer: identity.manufacturer,
-          packText: identity.packSize,
-          pageUrl: link,
-          source: "official-site",
-          images: [{ url: image, face: "front" }],
-        },
-        rules,
-      );
-      if (scored) results.push(scored);
-    }
-
     if (results.length > 0) break;
+    for (const query of queries) {
+      if (results.length > 0) break;
+      const html = await getText(
+        `${origin}${pattern.replace("{q}", encodeURIComponent(query))}`,
+        "text/html",
+        SITE_TIMEOUT_MS,
+      );
+      if (!html) continue;
+      const links = productLinks(html, origin, rules.identityWords);
+      if (links.length === 0) continue;
+
+      for (const link of links) {
+        if (visited.size >= MAX_OFFICIAL_PAGES) break;
+        if (visited.has(link)) continue;
+        visited.add(link);
+
+        const page = await getText(link, "text/html", SITE_TIMEOUT_MS);
+        if (!page) continue;
+        const title = pageTitle(page);
+        const image = metaImage(page, link);
+        if (!title || !image) continue;
+
+        const scored = scoreCandidate(
+          {
+            name: title,
+            manufacturer: identity.manufacturer,
+            packText: identity.packSize,
+            pageUrl: link,
+            source: "official-site",
+            images: [{ url: image, face: "front" }],
+          },
+          rules,
+        );
+        if (scored) results.push(scored);
+      }
+      // Results were found for this search path; do not keep re-querying.
+      if (results.length > 0 || visited.size > 0) break;
+    }
   }
 
   return results;

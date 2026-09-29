@@ -381,6 +381,10 @@ export default function AdminHealthcareDevices() {
         brand: brand || undefined,
         composition: form.composition || undefined,
         form: form.form || undefined,
+        strength: form.strength || undefined,
+        dosage: form.dosage || undefined,
+        packSize: form.packSize || undefined,
+        sku: form.sku || undefined,
       });
 
       const newForm = { ...form };
@@ -388,23 +392,9 @@ export default function AdminHealthcareDevices() {
       // A placeholder left over from an earlier auto-fill is never kept.
       if (/^data:/i.test(newForm.imageUrl ?? "")) newForm.imageUrl = undefined;
 
-      // Resolve the real device packshot through the verified pipeline.
-      try {
-        const image = await resolveProductImageAction({
-          productName: newForm.name,
-          brand: brand || undefined,
-          manufacturer: newForm.manufacturer || undefined,
-          form: newForm.form || undefined,
-          packSize: newForm.packSize || undefined,
-        });
-        if (image.ok) {
-          newForm.imageUrl = image.imageUrl;
-          filled.push("Image");
-        }
-      } catch {
-        // The image is optional in this flow: without one the device keeps the
-        // image the admin pasted, and no placeholder is ever written.
-      }
+      // The image is resolved at the end of this handler, once every identity
+      // field below has been filled, so the search uses the complete product
+      // identity rather than just the name.
       if (result.description) {
         newForm.description = result.description;
         filled.push("Description");
@@ -442,7 +432,35 @@ export default function AdminHealthcareDevices() {
         filled.push("Storage Information");
       }
 
+      // Resolve the real device packshot through the verified pipeline, using
+      // the complete identity. On failure the form keeps whatever image the
+      // admin supplied and says plainly that none could be verified — a
+      // placeholder is never written.
+      let imageMessage: string | null = null;
+      try {
+        const image = await resolveProductImageAction({
+          productName: newForm.name,
+          brand: brand || undefined,
+          manufacturer: newForm.manufacturer || undefined,
+          composition: newForm.composition || undefined,
+          form: newForm.form || undefined,
+          strength: newForm.strength || undefined,
+          dosage: newForm.dosage || undefined,
+          packSize: newForm.packSize || undefined,
+          sku: newForm.sku || undefined,
+        });
+        if (image.ok) {
+          newForm.imageUrl = image.imageUrl;
+          filled.push("Image");
+        } else {
+          imageMessage = image.message;
+        }
+      } catch {
+        imageMessage = "Exact product image could not be verified.";
+      }
+
       setForm(newForm);
+      if (imageMessage) toast.error(imageMessage);
 
       if (filled.length > 0) {
         toast.success(`Auto-filled: ${filled.join(", ")} for "${form.name}"`);

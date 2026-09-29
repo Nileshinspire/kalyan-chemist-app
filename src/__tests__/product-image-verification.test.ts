@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  isPackshotImageCandidate,
   isVerifiedProductImage,
   matchesProductIdentity,
   needsProductImageRepair,
@@ -7,7 +8,8 @@ import {
 
 /**
  * These are the rules that stop "Dolo 650" from being given an image of Dolo
- * 500, Dolo Cold, Dolopar or a generic paracetamol pack.
+ * 500, Dolo Cold, Dolopar or a generic paracetamol pack, while still allowing
+ * the same product when a source words its name or its dosage form differently.
  */
 describe("product image exact-match verification", () => {
   it("accepts the same product under a differently worded catalogue title", () => {
@@ -56,6 +58,13 @@ describe("product image exact-match verification", () => {
         productName: "Azee 500",
       }),
     ).toBe(false);
+    // A strength entered in its own field is part of the identity too.
+    expect(
+      matchesProductIdentity("Thyronorm 75Bottle Of 120Tablets", {
+        productName: "Thyronorm 75",
+        strength: "75mcg",
+      }),
+    ).toBe(true);
   });
 
   it("rejects a different product that merely starts with the brand", () => {
@@ -73,15 +82,6 @@ describe("product image exact-match verification", () => {
       matchesProductIdentity("Paracetamol / Acetaminophen(650.0 Mg)", {
         productName: "Dolo 650",
         brand: "Dolo",
-      }),
-    ).toBe(false);
-  });
-
-  it("rejects a different dosage form stated in the name", () => {
-    expect(
-      matchesProductIdentity("Volini Pain Relief | Spray | 55 G", {
-        productName: "Volini Pain Relief Gel",
-        brand: "Volini",
       }),
     ).toBe(false);
   });
@@ -106,6 +106,113 @@ describe("product image exact-match verification", () => {
       ),
     ).toBe(true);
   });
+
+  it("matches a singular/plural difference in the same product", () => {
+    expect(
+      matchesProductIdentity("Mamaearth Gentle Cleansing Shampoo For Babies - 200Ml", {
+        productName: "Mamaearth Baby Shampoo",
+        brand: "Mamaearth",
+        form: "shampoo",
+      }),
+    ).toBe(true);
+  });
+});
+
+describe("dosage form verification", () => {
+  it("accepts a source's synonym for the same dosage form", () => {
+    // A syrup is routinely listed by a catalogue as an "expectorant".
+    expect(
+      matchesProductIdentity("Ascoril Ls Bottle Of 100Ml Expectorant", {
+        productName: "Ascoril LS Syrup",
+        brand: "Ascoril",
+        form: "syrup",
+      }),
+    ).toBe(true);
+  });
+
+  it("rejects a different dosage form, including a close relative", () => {
+    // A lotion is never a cream, even for the same brand.
+    expect(
+      matchesProductIdentity("Himalaya Gentle Baby Cream 200 Ml", {
+        productName: "Himalaya Baby Lotion",
+        brand: "Himalaya",
+        form: "lotion",
+      }),
+    ).toBe(false);
+    // A body wash is not a shampoo.
+    expect(
+      matchesProductIdentity("Mamaearth Gentle Cleansing Shampoo For Babies", {
+        productName: "Mamaearth Baby Wash",
+        brand: "Mamaearth",
+        form: "wash",
+      }),
+    ).toBe(false);
+    // The form stated in the admin form field counts as identity as well.
+    expect(
+      matchesProductIdentity("Dolo 650Mg Strip Of 15 Tablets", {
+        productName: "Dolo 650",
+        form: "syrup",
+      }),
+    ).toBe(false);
+  });
+
+  it("reads the dosage field as a form hint when the name has none", () => {
+    expect(
+      matchesProductIdentity("Benadryl Cough Formula Bottle Of 150Ml Syrup", {
+        productName: "Benadryl",
+        brand: "Benadryl",
+        dosage: "2.5 ml syrup twice a day",
+      }),
+    ).toBe(true);
+    expect(
+      matchesProductIdentity("Benadryl DrMenthol Strip Of 10 Tablets", {
+        productName: "Benadryl",
+        brand: "Benadryl",
+        dosage: "2.5 ml syrup twice a day",
+      }),
+    ).toBe(false);
+  });
+});
+
+describe("packshot image filtering", () => {
+  it("keeps a real packshot whose own product name contains a noise word", () => {
+    // "Formula" is part of this product's name, not a chemical diagram.
+    expect(
+      isPackshotImageCandidate(
+        "https://cdn01.pharmeasy.in/dam/productsnowatermark/022615/benadryl-cough-formula-bottle-of-150ml-syrup-side-6.1-1785588733-non-watermark.jpg",
+        { productName: "Benadryl Cough Syrup", brand: "Benadryl" },
+        "Benadryl Cough Formula Bottle Of 150Ml Syrup",
+      ),
+    ).toBe(true);
+  });
+
+  it("rejects logos, diagrams, placeholders and non-image files", () => {
+    const identity = { productName: "Dolo 650", brand: "Dolo" };
+    expect(
+      isPackshotImageCandidate(
+        "https://cdn01.pharmeasy.in/dam/productsnowatermark/022615/paracetamol-molecule-diagram.jpg",
+        identity,
+      ),
+    ).toBe(false);
+    expect(
+      isPackshotImageCandidate(
+        "https://cdn01.pharmeasy.in/dam/brand/micro-labs-logo.png",
+        identity,
+      ),
+    ).toBe(false);
+    expect(
+      isPackshotImageCandidate(
+        "https://cdn01.pharmeasy.in/dam/products/placeholder-product-image.jpg",
+        identity,
+      ),
+    ).toBe(false);
+    expect(
+      isPackshotImageCandidate(
+        "https://example.com/assets/dolo-650mg-strip-front-2.jpg",
+        identity,
+      ),
+    ).toBe(true);
+  });
 });
 
 describe("stored product image audit", () => {
@@ -115,9 +222,11 @@ describe("stored product image audit", () => {
         "https://dutiful-fox-804.convex.cloud/api/storage/12384adb-98cb-45ce-a547-cc07ec363b7d",
       ),
     ).toBe(true);
-    expect(needsProductImageRepair(
-      "https://dutiful-fox-804.convex.cloud/api/storage/12384adb-98cb-45ce-a547-cc07ec363b7d",
-    )).toBe(false);
+    expect(
+      needsProductImageRepair(
+        "https://dutiful-fox-804.convex.cloud/api/storage/12384adb-98cb-45ce-a547-cc07ec363b7d",
+      ),
+    ).toBe(false);
   });
 
   it("flags placeholders, missing values and third-party images", () => {
