@@ -1,5 +1,42 @@
-import { action } from "./_generated/server";
+import {
+  action,
+  internalAction,
+  internalMutation,
+  internalQuery,
+} from "./_generated/server";
 import { v } from "convex/values";
+import { internal as generatedInternal } from "./_generated/api";
+import type { FunctionReference } from "convex/server";
+
+/**
+ * Convex function references used by the logo repair pass.
+ *
+ * The generated `internal` tree contains this very module, so referring to it
+ * directly would make the repair action's inferred type depend on itself. These
+ * two references are declared explicitly instead, which keeps every call typed
+ * without the circularity.
+ */
+type BrandLogoFunctionRefs = {
+  brandEnrichment: {
+    brandsForLogoRepair: FunctionReference<
+      "query",
+      "internal",
+      EmptyArgs,
+      { id: Id<"brands">; name: string; logoUrl: string }[]
+    >;
+    setBrandLogo: FunctionReference<
+      "mutation",
+      "internal",
+      { brandId: Id<"brands">; logoUrl: string },
+      null
+    >;
+  };
+};
+
+type EmptyArgs = Record<string, never>;
+
+const internal = generatedInternal as unknown as BrandLogoFunctionRefs;
+import type { Id } from "./_generated/dataModel";
 
 /**
  * Server-side brand enrichment.
@@ -566,6 +603,41 @@ function looksLikeBrandLogo(
   if (options.requireMarker && !LOGO_MARKER.test(text)) return false;
   if (tokens.length === 0) return options.requireMarker;
   return tokens.some((token) => text.includes(token));
+}
+
+/**
+ * Split text into lowercase word segments, handling underscores, dashes and
+ * CamelCase, so "Always_Discreet_logo" and "VoliniAndVoliniMaxxlogo" are
+ * compared word by word rather than by raw substring.
+ */
+function nameSegments(value: string): string[] {
+  return value
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .split(/[^A-Za-z0-9]+/)
+    .map((segment) => segment.toLowerCase())
+    .filter(Boolean);
+}
+
+/**
+ * Does the text contain one of the brand's words as a whole word? Used for
+ * site markup, where a glued token usually means a *different* product
+ * ("alwaysdiscreet" is not the Always brand).
+ */
+function hasBrandSegment(value: string, tokens: string[]): boolean {
+  if (tokens.length === 0) return false;
+  const segments = new Set(nameSegments(value));
+  return tokens.some((token) => segments.has(token));
+}
+
+/** The decoded file name in a URL, used to verify a stored logo. */
+function fileNameOf(url: string): string {
+  const path = url.split(/[?#]/)[0];
+  const last = path.split("/").filter(Boolean).pop() ?? "";
+  try {
+    return decodeURIComponent(last);
+  } catch {
+    return last;
+  }
 }
 
 /** Read an attribute value out of a raw HTML tag. */
@@ -1309,8 +1381,7 @@ async function articleLogoFile(
       looksLikeBrandLogo(fileName, tokens, { requireMarker: true }),
     );
   if (!match) return null;
-  const url = await wikipediaImageUrl(match);
-  return url && (await isReachableImage(url)) ? url : null;
+  return verifiedImageUrl(await wikipediaImageUrl(match));
 }
 
 /** How long a request to a brand's own website may take. */
@@ -1362,6 +1433,20 @@ async function isReachableImage(url: string): Promise<boolean> {
 }
 
 /**
+ * Return the URL only if it really serves an image, preferring HTTPS so the
+ * saved logo is stable. An HTML error page, a 404, or a redirect that lands on
+ * non-image content yields null, and the caller tries the next source.
+ */
+async function verifiedImageUrl(url: string | null): Promise<string | null> {
+  if (!url) return null;
+  const trimmed = url.trim();
+  if (!trimmed) return null;
+  const https = trimmed.replace(/^http:\/\//i, "https://");
+  if (https !== trimmed && (await isReachableImage(https))) return https;
+  return (await isReachableImage(trimmed)) ? trimmed : null;
+}
+
+/**
  * Read a brand's home page once and hand the markup to the logo readers.
  * Blocked, slow or unreachable sites simply yield nothing.
  */
@@ -1407,28 +1492,29 @@ async function officialSiteLogo(
 
     if (!LOGO_MARKER.test(compact(whole))) continue;
 
+    // A footer, white or dark asset is a variant rather than the brand's own
+    // mark, and footers are exactly where brands park other companies' logos
+    // (sister brands, the parent group). Neither may be used as this logo.
+    if (/(white|light|revers|invert|footer|mono|dark|black)/i.test(whole)) {
+      continue;
+    }
+
     // The brand's word has to appear in the image itself (file name, alt text
     // or class). A lookup in the URL alone is weaker, because a brand's own
     // domain also hosts logos for other companies.
-    const named = looksLikeBrandLogo(`${fileName} ${identity}`, tokens, {
-      requireMarker: false,
-    });
-    if (!named && !looksLikeBrandLogo(src, tokens, { requireMarker: false })) {
-      continue;
-    }
+    const named = hasBrandSegment(`${fileName} ${identity}`, tokens);
+    if (!named && !hasBrandSegment(src, tokens)) continue;
 
     let score = named ? 6 : 2;
     if (/\.(svg|png|webp)(\?|$)/i.test(src)) score += 1;
     if (/(header|nav|brand|main|primary|site)[-_ ]?logo/i.test(identity)) score += 1;
-    if (/(white|light|revers|invert|footer|mono|dark|black)/i.test(whole)) {
-      score -= 5;
-    }
     candidates.push({ url, score });
   }
 
   candidates.sort((a, b) => b.score - a.score);
   for (const candidate of candidates.slice(0, 3)) {
-    if (await isReachableImage(candidate.url)) return candidate.url;
+    const verified = await verifiedImageUrl(candidate.url);
+    if (verified) return verified;
   }
   return null;
 }
@@ -1461,7 +1547,8 @@ async function officialSiteIcon(site: string): Promise<string | null> {
   for (const link of ordered) {
     if (tried.has(link.url)) continue;
     tried.add(link.url);
-    if (await isReachableImage(link.url)) return link.url;
+    const verified = await verifiedImageUrl(link.url);
+    if (verified) return verified;
   }
   return null;
 }
@@ -1499,8 +1586,8 @@ async function searchCommonsLogo(
       if (!looksLikeBrandLogo(fileName, tokens, { requireMarker: true })) {
         continue;
       }
-      const url = commonsFilePath(fileName);
-      if (await isReachableImage(url)) return url;
+      const verified = await verifiedImageUrl(commonsFilePath(fileName));
+      if (verified) return verified;
     }
   }
   return null;
@@ -1560,8 +1647,8 @@ async function resolveLogo(
   }
 
   // 2. The logo file declared on Wikidata.
-  const declared = declaredLogoFile(entity, tokens);
-  if (declared && (await isReachableImage(declared))) return declared;
+  const declared = await verifiedImageUrl(declaredLogoFile(entity, tokens));
+  if (declared) return declared;
 
   // 3. A Wikipedia or Commons logo file filed under the brand's own name.
   if (title) {
@@ -1611,55 +1698,59 @@ export function slugifyBrand(value: string): string {
     .replace(/(^-|-$)/g, "");
 }
 
-/**
- * Look up a brand by name.
- *
- * Returns the resolved metadata plus the canonical name, so the admin form can
- * show exactly what will be saved before they commit. Throws only when the
- * name cannot be tied to a real company/brand — a metadata field that is
- * missing from one source is looked up in the next one instead.
- */
-export const lookup = action({
-  args: { name: v.string() },
-  handler: async (_ctx, args) => {
-    const entered = args.name.trim();
-    if (entered.length < 2) {
-      throw new Error("Please enter a brand name of at least 2 characters.");
-    }
+/** Metadata resolved for a brand, ready to be previewed and saved. */
+type BrandMetadata = {
+  name: string;
+  slug: string;
+  description: string;
+  logoUrl: string;
+  country: string;
+  source: Candidate["source"];
+  wikidataId: string;
+};
 
-    const ctx: ResolutionContext = {
-      entities: new Map(),
-      labels: new Map(),
+type BrandLookupResult =
+  | { ok: true; brand: BrandMetadata }
+  | {
+      ok: false;
+      reason: "not-a-brand" | "no-logo" | "incomplete";
+      name: string;
+      missing: string[];
     };
 
-    let candidates: Candidate[];
-    try {
-      candidates = await gatherCandidates(entered, ctx);
-    } catch (error) {
-      // Log the underlying cause so a blocked/failed upstream is diagnosable
-      // from the Convex logs. No user data or secrets are involved.
-      console.error("[brandEnrichment] brand search failed:", error);
-      throw new Error(
-        "Could not reach the brand database. Please try again in a moment.",
-      );
-    }
+/**
+ * Resolve a brand name to its metadata, working through every fallback source.
+ *
+ * Returning a result instead of throwing lets the logo repair pass reuse the
+ * exact same resolution the admin preview uses, so a repaired brand can never
+ * differ from a freshly verified one.
+ */
+async function resolveBrand(entered: string): Promise<BrandLookupResult> {
+  const ctx: ResolutionContext = {
+    entities: new Map(),
+    labels: new Map(),
+  };
 
-    const match = await pickCandidate(entered, candidates, ctx);
-    if (!match) {
-      throw new Error(
-        `"${entered}" could not be verified as a real brand or company. Check the spelling — it has to match the brand's commonly used name.`,
-      );
-    }
+  let candidates: Candidate[];
+  try {
+    candidates = await gatherCandidates(entered, ctx);
+  } catch (error) {
+    // Log the underlying cause so a blocked/failed upstream is diagnosable
+    // from the Convex logs. No user data or secrets are involved.
+    console.error("[brandEnrichment] brand search failed:", error);
+    throw new Error(
+      "Could not reach the brand database. Please try again in a moment.",
+    );
+  }
 
-    const candidateId = match.id;
-    const entity = await entityById(ctx, candidateId);
-    if (!entity) {
-      throw new Error(
-        `"${entered}" could not be verified as a real brand or company.`,
-      );
-    }
+  const match = await pickCandidate(entered, candidates, ctx);
+  const entity = match ? await entityById(ctx, match.id) : null;
+  if (!match || !entity) {
+    return { ok: false, reason: "not-a-brand", name: entered, missing: [] };
+  }
 
-    const title = englishArticleTitle(entity);
+  const candidateId = match.id;
+  const title = englishArticleTitle(entity);
     const extract = title ? await articleExtract(title) : null;
 
     // ── country: structured claims first, then the words around the brand ──
@@ -1678,48 +1769,215 @@ export const lookup = action({
       wikidataDescription ||
       composeDescription(name, country, await commercialClassLabel(ctx, entity));
 
+    // A brand is never saved with a stand-in image. If no source can prove an
+    // image is this brand's own logo, the lookup reports that instead — it
+    // never falls back to a placeholder image.
     const logoUrl = await resolveLogo(entity, entered);
 
-    // A brand is never saved with a stand-in image. If no source could prove an
-    // image is this brand's own logo, the admin is told instead.
+    const missing: string[] = [];
+    if (!logoUrl) missing.push("logo");
+    if (!finalDescription) missing.push("description");
+    if (!country) missing.push("country");
+
     if (!logoUrl) {
       console.error(
         "[brandEnrichment] could not verify a logo for",
         candidateId,
       );
-      throw new Error(
-        `We could not verify the official logo for "${name}". Please try again.`,
-      );
+      return { ok: false, reason: "no-logo", name, missing };
     }
 
     if (!finalDescription || !country) {
-      // The brand itself is verified; only a descriptive field has no source.
-      // Report precisely what is missing, so a missing source is never
-      // confused with an invalid brand, and no placeholder is ever saved.
-      const missing: string[] = [];
-      if (!finalDescription) missing.push("description");
-      if (!country) missing.push("country");
       console.error(
         "[brandEnrichment] verified",
         candidateId,
         "but missing:",
         missing.join(", "),
       );
-      throw new Error(
-        `Found "${name}" but no reliable source has its ${missing.join(
-          " or ",
-        )} yet. The brand was not created — try again in a moment.`,
-      );
+      return { ok: false, reason: "incomplete", name, missing };
     }
 
     return {
-      name,
-      slug: slugifyBrand(name),
-      description: finalDescription,
-      logoUrl,
-      country,
-      source: match.source,
-      wikidataId: candidateId,
+      ok: true,
+      brand: {
+        name,
+        slug: slugifyBrand(name),
+        description: finalDescription,
+        logoUrl,
+        country,
+        source: match.source,
+        wikidataId: candidateId,
+      },
+    };
+}
+
+/**
+ * Look up a brand by name.
+ *
+ * Returns the resolved metadata plus the canonical name, so the admin form can
+ * show exactly what will be saved before they commit. Throws only when the name
+ * cannot be tied to a real company/brand, or when no source can prove an image
+ * is that brand's own logo — a metadata field missing from one source is looked
+ * up in the next one instead.
+ */
+export const lookup = action({
+  args: { name: v.string() },
+  handler: async (_ctx, args) => {
+    const entered = args.name.trim();
+    if (entered.length < 2) {
+      throw new Error("Please enter a brand name of at least 2 characters.");
+    }
+
+    const result = await resolveBrand(entered);
+    if (result.ok) return result.brand;
+
+    if (result.reason === "not-a-brand") {
+      throw new Error(
+        `"${entered}" could not be verified as a real brand or company. Check the spelling — it has to match the brand's commonly used name.`,
+      );
+    }
+
+    if (result.reason === "no-logo") {
+      throw new Error(
+        "Official brand logo could not be verified. The brand was not saved.",
+      );
+    }
+
+    throw new Error(
+      `Found "${result.name}" but no reliable source has its ${result.missing.join(
+        " or ",
+      )} yet. The brand was not created — try again in a moment.`,
+    );
+  },
+});
+
+// ── Existing-brand logo repair ──
+
+/**
+ * Brands that may need their logo re-resolving. A brand created before the logo
+ * chain was tightened can hold a missing, broken or wrong-brand image.
+ */
+export const brandsForLogoRepair = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const brands = await ctx.db.query("brands").collect();
+    return brands.map((brand) => ({
+      id: brand._id,
+      name: brand.name,
+      logoUrl: (brand.logoUrl ?? "").trim(),
+    }));
+  },
+});
+
+/**
+ * Store a repaired logo. Only `logoUrl` is touched, so the brand's name, slug
+ * and product relationships stay exactly as they are, and an empty value is
+ * refused outright — a repair may improve a logo, never blank one.
+ */
+export const setBrandLogo = internalMutation({
+  args: { brandId: v.id("brands"), logoUrl: v.string() },
+  handler: async (ctx, args) => {
+    const logoUrl = args.logoUrl.trim();
+    if (!logoUrl) throw new Error("Refusing to clear a brand logo.");
+    await ctx.db.patch(args.brandId, { logoUrl });
+  },
+});
+
+/**
+ * Does a stored logo look missing, broken, or like another brand's image? The
+ * same rule used for fresh lookups: the file name has to carry the brand's own
+ * word, so a parent company's or a sister brand's mark is caught.
+ */
+function logoNeedsRepair(logoUrl: string, name: string): boolean {
+  const url = logoUrl.trim();
+  if (!url) return true;
+  if (!/^https?:\/\//i.test(url)) return true;
+  const tokens = distinctiveTokens([name]);
+  if (tokens.length === 0) return false;
+  return !looksLikeBrandLogo(fileNameOf(url), tokens, {
+    requireMarker: false,
+  });
+}
+
+/**
+ * Re-resolve the logo of every brand that needs one and patch it in place.
+ *
+ * Safe by construction: a brand is only updated when the resolver returns a
+ * verified logo, so a working logo is never replaced with nothing, brands are
+ * never duplicated and product links are never touched. `force` re-resolves
+ * every brand (useful when a stored logo is another brand's mark), and
+ * `dryRun` reports what would change without writing.
+ */
+export const repairLogos = internalAction({
+  args: {
+    force: v.optional(v.boolean()),
+    dryRun: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const brands = await ctx.runQuery(
+      internal.brandEnrichment.brandsForLogoRepair,
+      {},
+    );
+
+    const repaired: { name: string; from: string; to: string }[] = [];
+    const unresolved: { name: string; current: string; reason: string }[] = [];
+    const unchanged: string[] = [];
+
+    for (const brand of brands) {
+      const needsRepair =
+        args.force === true || logoNeedsRepair(brand.logoUrl, brand.name);
+      if (!needsRepair) {
+        unchanged.push(brand.name);
+        continue;
+      }
+
+      let result: BrandLookupResult;
+      try {
+        result = await resolveBrand(brand.name);
+      } catch (error) {
+        console.error("[brandEnrichment] repair failed for", brand.name, error);
+        unresolved.push({
+          name: brand.name,
+          current: brand.logoUrl,
+          reason: "lookup-failed",
+        });
+        continue;
+      }
+
+      if (!result.ok) {
+        unresolved.push({
+          name: brand.name,
+          current: brand.logoUrl,
+          reason: result.reason,
+        });
+        continue;
+      }
+
+      if (result.brand.logoUrl === brand.logoUrl) {
+        unchanged.push(brand.name);
+        continue;
+      }
+
+      repaired.push({
+        name: brand.name,
+        from: brand.logoUrl,
+        to: result.brand.logoUrl,
+      });
+
+      if (args.dryRun !== true) {
+        await ctx.runMutation(internal.brandEnrichment.setBrandLogo, {
+          brandId: brand.id,
+          logoUrl: result.brand.logoUrl,
+        });
+      }
+    }
+
+    return {
+      checked: brands.length,
+      applied: args.dryRun !== true,
+      repaired,
+      unresolved,
+      unchanged,
     };
   },
 });

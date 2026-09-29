@@ -5,6 +5,30 @@ import { preloadRoute } from "@/lib/route-preload";
 import { api } from "@/convex/_generated/api";
 import { ChevronLeft, ChevronRight, Store } from "lucide-react";
 
+/**
+ * A brand's real logo, with the generic Store icon as the only fallback — used
+ * when no logo was stored, or if a stored URL ever stops resolving. The tile
+ * markup, sizing and the brand name below it are untouched either way.
+ */
+function BrandLogo({ src, name }: { src: string | null; name: string }) {
+  const [failed, setFailed] = useState(false);
+
+  if (!src || failed) {
+    return <Store className="size-5 text-muted-foreground/50" />;
+  }
+
+  return (
+    <img
+      src={src}
+      alt={name}
+      loading="lazy"
+      draggable={false}
+      onError={() => setFailed(true)}
+      className="max-h-full max-w-full object-contain transition-transform duration-300 group-hover:scale-105"
+    />
+  );
+}
+
 /* ─── Shop By Brand ───
  * Horizontal logo carousel built from the EXISTING brands table. A brand
  * appears here only when the admin has made it Active and switched on
@@ -120,17 +144,7 @@ export default function ShopByBrand() {
               className="group flex w-[124px] shrink-0 snap-start flex-col items-center gap-2 rounded-2xl border border-border/70 bg-card px-3 py-4 transition-all duration-300 hover:border-primary/30 hover:shadow-glow active:scale-[0.97] sm:w-[136px] lg:w-[144px]"
             >
               <span className="flex h-12 w-full items-center justify-center rounded-xl border border-border/50 bg-white p-2">
-                {brand.logoUrl ? (
-                  <img
-                    src={brand.logoUrl}
-                    alt={brand.name}
-                    loading="lazy"
-                    draggable={false}
-                    className="max-h-full max-w-full object-contain transition-transform duration-300 group-hover:scale-105"
-                  />
-                ) : (
-                  <Store className="size-5 text-muted-foreground/50" />
-                )}
+                <BrandLogo src={brand.logoUrl} name={brand.name} />
               </span>
               <span className="line-clamp-2 text-center text-xs font-medium leading-snug text-foreground">
                 {brand.name}
