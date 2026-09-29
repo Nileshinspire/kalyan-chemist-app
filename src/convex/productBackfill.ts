@@ -1,6 +1,16 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { action, query, mutation } from "./_generated/server";
+import { action, query, mutation, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
+import {
+  classifyProduct,
+  productDirections,
+  productSafety,
+  neutralDescription,
+  isMedicine,
+  isMedicineForm,
+  formForKind,
+  looksLikeMedicineTemplate,
+} from "./productInfo";
 
 // ════════════════════════════════════════════════════════════════
 // COMPREHENSIVE INDIAN MEDICINES DATABASE
@@ -244,6 +254,12 @@ function getDescriptionForComposition(composition: string): string | null {
 
 /**
  * Infer consume type from product form
+ *
+ * @deprecated Directions now come from productInfo.productDirections(), which
+ * classifies the product first. A form field alone cannot be trusted: a
+ * condom, a test strip or a monitor stored with `form: "tablet"` used to be
+ * told "Tablet — taken orally with water." Kept only for callers that have not
+ * been migrated yet; it must not be used for new copy.
  */
 function inferConsumeType(form: string): string | null {
   const f = form.toLowerCase();
@@ -504,6 +520,8 @@ export const enrichProduct = action({
     dosage: v.optional(v.string()),
     packSize: v.optional(v.string()),
     sku: v.optional(v.string()),
+    /** Admin's chosen category; a strong signal for product type. */
+    categoryName: v.optional(v.string()),
   },
   handler: async (_ctx, args) => {
     // Try local database first (no API needed)
@@ -536,7 +554,19 @@ export const enrichProduct = action({
       expiryDate: string | null;
       category: any;
       subcategory: string | null;
-    } = { imageUrl: null, manufacturer: null, benefits: null, description: null, consumeType: null, safetyNote: null, form: null, storageInformation: null, composition: null, expiryDate: null, category: null, subcategory: null };
+      /** How the product is actually used; drives all generated copy. */
+      productKind: string;
+      /** False when the product type could not be established with confidence. */
+      kindConfident: boolean;
+      kindReason: string;
+      /** False when no verified reference record backs the clinical fields. */
+      matchFound: boolean;
+    } = {
+      imageUrl: null, manufacturer: null, benefits: null, description: null,
+      consumeType: null, safetyNote: null, form: null, storageInformation: null,
+      composition: null, expiryDate: null, category: null, subcategory: null,
+      productKind: "unknown", kindConfident: false, kindReason: "", matchFound: false,
+    };
 
     // Category inference based on product form, composition, and name.
     // Returns { category, subcategory } matching the actual DB category hierarchy.
@@ -679,14 +709,32 @@ export const enrichProduct = action({
       return null;
     }
 
+    // Classify what this product actually IS before writing any copy. The
+    // product name outranks the `form` field, so a condom stored as
+    // `form: "tablet"` is still treated as a condom and never gets oral
+    // medicine instructions.
+    const identity = {
+      name: args.productName,
+      form: matched?.form || args.form || null,
+      packSize: args.packSize || null,
+      categoryName: args.categoryName ?? null,
+      composition: matched?.composition || args.composition || null,
+      manufacturer: matched?.manufacturer || args.manufacturer || null,
+      strength: args.strength ?? null,
+    };
+    const classification = classifyProduct(identity);
+    result.productKind = classification.kind;
+    result.kindConfident = classification.confident;
+    result.kindReason = classification.reason;
+
     if (matched) {
+      result.matchFound = true;
       result.manufacturer = matched.manufacturer;
       result.benefits = matched.benefits;
       result.description = matched.description;
-      // Generate consumeType from form
-      result.consumeType = inferConsumeType(matched.form || args.form || "tablet");
-      // Safety note
-      result.safetyNote = "Consult your doctor or pharmacist before use.";
+      // Directions and safety follow the classified product type.
+      result.consumeType = productDirections(identity, classification.kind);
+      result.safetyNote = productSafety(identity, classification.kind);
       // Form — return for auto-select in admin form
       result.form = matched.form || args.form || null;
       // Composition — return matched composition
@@ -698,31 +746,24 @@ export const enrichProduct = action({
       // Category inference
       result.category = inferCategory(matched.form || args.form || "", matched.composition || "", args.productName);
     } else {
-      // Fallback to known DBs
-      for (const [key, mfr] of Object.entries(KNOWN_MANUFACTURERS)) {
-        if (lower.includes(key)) { result.manufacturer = mfr; break; }
-      }
-      if (!result.manufacturer && args.manufacturer) result.manufacturer = args.manufacturer;
+      // No verified reference record. Only the manufacturer the admin supplied
+      // is carried over; benefits and clinical copy are NOT invented.
+      result.matchFound = false;
+      if (args.manufacturer) result.manufacturer = args.manufacturer;
 
-      const composition = args.composition || args.productName;
+      const composition = args.composition || "";
       for (const [key, benefits] of Object.entries(BENEFITS_DB)) {
         if (composition.toLowerCase().includes(key)) { result.benefits = benefits; break; }
       }
 
-      // Generate description
-      const parts: string[] = [];
-      parts.push(`${args.productName} is a medication${result.manufacturer ? ` manufactured by ${result.manufacturer}` : ""}.`);
-      if (args.composition) parts.push(`It contains ${args.composition}.`);
-      if (args.form) parts.push(`Available as ${args.form}.`);
-      parts.push("Consult your healthcare provider for proper dosage and usage instructions.");
-      result.description = parts.join(" ");
-      // Generate consumeType from form
-      result.consumeType = inferConsumeType(args.form || "");
-      // Safety note
-      result.safetyNote = "Consult your doctor or pharmacist before use.";
-      // Form — return for auto-select in admin form
+      // A neutral description that never claims the product is a medication and
+      // never asserts an ingredient we were not given.
+      result.description = classification.confident
+        ? neutralDescription(identity, classification.kind)
+        : null;
+      result.consumeType = productDirections(identity, classification.kind);
+      result.safetyNote = productSafety(identity, classification.kind);
       result.form = args.form || null;
-      // Composition — use args if provided
       result.composition = args.composition || null;
       // Expiry Date — leave null for unknown medicines
       result.expiryDate = null;
@@ -740,5 +781,177 @@ export const enrichProduct = action({
     result.imageUrl = null;
 
     return result;
+  },
+});
+
+/**
+ * Returns reference candidates for a name the admin typed, so similarly named
+ * variants ("Manforce Condom" vs "Manforce 100mg") are never silently merged.
+ *
+ * The admin picks the exact product and the enrichment is re-run for it. This
+ * only ever returns options — it never applies anything on its own.
+ */
+export const findProductCandidates = action({
+  args: {
+    productName: v.string(),
+    limit: v.optional(v.number()),
+  },
+  handler: async (_ctx, args) => {
+    const limit = args.limit ?? 8;
+    const query = args.productName.toLowerCase().trim();
+    if (!query) return [];
+
+    const words = query.split(/\s+/).filter((w) => w.length > 1);
+    const scored: Array<{
+      name: string;
+      manufacturer: string;
+      composition: string;
+      form: string | null;
+      score: number;
+    }> = [];
+
+    for (const [key, info] of Object.entries(MEDICINES_DB)) {
+      const k = key.toLowerCase();
+      let score = 0;
+      if (k === query) score = 100;
+      else if (query.includes(k)) score = 70 + k.length;
+      else if (k.includes(query)) score = 60 + query.length;
+      else {
+        // Partial word overlap, e.g. "Manforce 100mg" for "Manforce".
+        const shared = words.filter((w) => k.includes(w)).length;
+        if (shared > 0) score = 30 + shared * 10;
+      }
+      if (score > 0) {
+        scored.push({
+          name: key,
+          manufacturer: info.manufacturer,
+          composition: info.composition,
+          form: info.form ?? null,
+          score,
+        });
+      }
+    }
+
+    scored.sort((a, b) => b.score - a.score);
+    // Collapse duplicates that resolve to the same product record.
+    const seen = new Set<string>();
+    return scored.filter((c) => {
+      const key = `${c.manufacturer}|${c.composition}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).slice(0, limit);
+  },
+});
+
+/**
+ * Repairs information on EXISTING products.
+ *
+ * Existing rows were written by the old form-driven generator, so a condom
+ * filed as `form: "tablet"` carries "Tablet — taken orally with water" and a
+ * device can be described as "a medication". This walks every product,
+ * classifies what it actually is, and rewrites the derived copy:
+ *
+ * - confident product type  -> product-appropriate directions and safety
+ * - unknown product type    -> cleared, so the UI shows "not available"
+ *                            rather than a confident wrong answer
+ *
+ * A non-medicine filed with a medicine `form` is also re-filed, since that
+ * value is what caused the wrong copy in the first place. Clinical fields
+ * (benefits, composition) are never rewritten here: they come from the curated
+ * reference data, and inventing replacements is exactly what we are avoiding.
+ */
+export const repairProductInformation = internalMutation({
+  args: {
+    dryRun: v.optional(v.boolean()),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const dryRun = args.dryRun ?? false;
+    const limit = args.limit ?? 500;
+    const products = await ctx.db.query("products").take(limit);
+
+    const changes: Array<{
+      id: string;
+      name: string;
+      kind: string;
+      changes: string[];
+    }> = [];
+
+    for (const product of products) {
+      const category = product.categoryId
+        ? await ctx.db.get(product.categoryId)
+        : null;
+
+      const identity = {
+        name: product.name,
+        form: product.form ?? null,
+        packSize: product.packSize ?? null,
+        categoryName: category?.name ?? null,
+        composition: product.composition ?? null,
+        manufacturer: product.manufacturer ?? null,
+        strength: product.strength ?? null,
+      };
+      const classification = classifyProduct(identity);
+      const patch: Record<string, unknown> = {};
+      const changed: string[] = [];
+
+      // Directions and safety: regenerated for a known product type, cleared
+      // when we cannot establish one.
+      const directions = classification.confident
+        ? productDirections(identity, classification.kind)
+        : null;
+      const safety = classification.confident
+        ? productSafety(identity, classification.kind)
+        : null;
+
+      if ((product.consumeType ?? null) !== directions) {
+        patch.consumeType = directions ?? undefined;
+        changed.push("consumeType");
+      }
+      if ((product.safetyNote ?? null) !== safety) {
+        patch.safetyNote = safety ?? undefined;
+        changed.push("safetyNote");
+      }
+
+      // A non-medicine must not keep a medicine form, and must not keep a
+      // description that calls it a medication.
+      if (
+        classification.confident &&
+        !isMedicine(classification.kind) &&
+        isMedicineForm(product.form)
+      ) {
+        const corrected = formForKind(classification.kind);
+        if (corrected) {
+          patch.form = corrected;
+          changed.push("form");
+        }
+      }
+      if (
+        classification.confident &&
+        !isMedicine(classification.kind) &&
+        looksLikeMedicineTemplate(product.description)
+      ) {
+        patch.description = neutralDescription(identity, classification.kind);
+        changed.push("description");
+      }
+      if (!classification.confident && looksLikeMedicineTemplate(product.description)) {
+        // Cannot say what it is, so do not assert it is a medication.
+        patch.description = undefined;
+        changed.push("description");
+      }
+
+      if (changed.length) {
+        changes.push({ id: product._id, name: product.name, kind: classification.kind, changes: changed });
+        if (!dryRun) await ctx.db.patch(product._id, patch);
+      }
+    }
+
+    return {
+      scanned: products.length,
+      updated: changes.length,
+      dryRun,
+      changes,
+    };
   },
 });

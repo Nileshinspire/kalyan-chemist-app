@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { NO_CONFIDENT_MATCH_MESSAGE } from "@/convex/productInfo";
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import AdminLayout from "@/components/admin/AdminLayout";
@@ -137,6 +138,7 @@ export default function AdminProducts() {
   const [autoFilling, setAutoFilling] = useState(false);
 
   const enrichProductAction = useAction(api.productBackfill.enrichProduct);
+  const findProductCandidatesAction = useAction(api.productBackfill.findProductCandidates);
   // Product images come from their own verified pipeline, never from the
   // metadata action (which can return a generated placeholder or a diagram).
   const resolveProductImageAction = useAction(api.productImageResolver.resolveProductImage);
@@ -146,6 +148,18 @@ export default function AdminProducts() {
   const backfillProducts = useMutation(api.productBackfill.backfillProducts);
   const [backfilling, setBackfilling] = useState(false);
   const hierarchicalCategories = useQuery(api.adminCategories.listHierarchical);
+  // What the last Auto Fill identified, so the admin can review it before
+  // publishing rather than trusting a silent overwrite.
+  const [matchInfo, setMatchInfo] = useState<{
+    productKind: string;
+    kindConfident: boolean;
+    kindReason: string;
+    matchFound: boolean;
+  } | null>(null);
+  const [candidates, setCandidates] = useState<
+    Array<{ name: string; manufacturer: string; composition: string; form: string | null }> | null
+  >(null);
+  const [findingCandidates, setFindingCandidates] = useState(false);
   const brands = useQuery(api.adminBrands.list, { isActive: true });
   const products = useQuery(api.adminProducts.list, {
     search: search || undefined,
@@ -330,6 +344,9 @@ export default function AdminProducts() {
     setAutoFilling(true);
     try {
       const brand = brands?.find((b) => b._id === form.brandId)?.name;
+      const categoryName = hierarchicalCategories
+        ?.flatMap((parent: any) => [parent, ...(parent.children ?? [])])
+        .find((c: any) => c._id === form.categoryId)?.name;
       const result = await enrichProductAction({
         productName: form.name,
         manufacturer: form.manufacturer || undefined,
@@ -340,6 +357,7 @@ export default function AdminProducts() {
         dosage: form.dosage || undefined,
         packSize: form.packSize || undefined,
         sku: form.sku || undefined,
+        categoryName: categoryName || undefined,
       });
 
       const newForm = { ...form };
@@ -436,10 +454,24 @@ export default function AdminProducts() {
 
       setForm(newForm);
 
-      if (filled.length > 0) {
+      // Surface what kind of product was identified, and be explicit when the
+      // exact product could not be matched so the admin knows the clinical
+      // fields were NOT filled from a verified record.
+      setMatchInfo({
+        productKind: (result as any).productKind ?? "unknown",
+        kindConfident: (result as any).kindConfident ?? false,
+        kindReason: (result as any).kindReason ?? "",
+        matchFound: (result as any).matchFound ?? false,
+      });
+
+      if (!(result as any).matchFound) {
+        // No verified reference record: clinical fields were deliberately left
+        // alone rather than guessed.
+        toast.warning(NO_CONFIDENT_MATCH_MESSAGE, { duration: 8000 });
+      } else if (filled.length > 0) {
         toast.success(`Auto-filled: ${filled.join(", ")} for "${form.name}"`);
       } else {
-        toast.info(`Could not find reliable information for "${form.name}". Please fill in manually.`);
+        toast.info(`No new details to fill for "${form.name}". Please review the existing information.`);
       }
     } catch (err: any) {
       toast.error(err.message || "Failed to auto-fill product information");
@@ -727,7 +759,90 @@ export default function AdminProducts() {
                   </Button>
                 </div>
                 <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value, slug: slugify(e.target.value) })} placeholder="e.g. Crocin Advance 500mg" />
-                <p className="text-[11px] text-muted-foreground">Enter medicine name, then click Auto Fill to auto-populate all product information.</p>
+                <p className="text-[11px] text-muted-foreground">Enter the exact product name, then click Auto Fill to auto-populate the details for that product.</p>
+
+                {/* Review panel: the admin confirms WHAT was matched before
+                    publishing, rather than trusting a silent overwrite. */}
+                {matchInfo && (
+                  <div
+                    className={`rounded-lg border p-2.5 text-[11px] space-y-1.5 ${
+                      matchInfo.matchFound
+                        ? "bg-emerald-50/60 border-emerald-200"
+                        : "bg-amber-50/60 border-amber-200"
+                    }`}
+                  >
+                    <p className="font-semibold text-foreground">
+                      Identified as: {matchInfo.productKind.replace(/_/g, " ")}
+                    </p>
+                    {matchInfo.kindReason && (
+                      <p className="text-muted-foreground">Why: {matchInfo.kindReason}</p>
+                    )}
+                    {!matchInfo.matchFound && (
+                      <p className="text-amber-800 font-medium leading-relaxed">
+                        {NO_CONFIDENT_MATCH_MESSAGE}
+                      </p>
+                    )}
+                    <p className="text-muted-foreground">
+                      Directions and safety text are written for this product type. Please
+                      review every field before saving.
+                    </p>
+                  </div>
+                )}
+
+                {/* Ambiguous names: offer the exact variants to pick from. */}
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-[11px] h-6 px-2"
+                    onClick={async () => {
+                      if (!form.name.trim()) return;
+                      setFindingCandidates(true);
+                      try {
+                        const found = await findProductCandidatesAction({
+                          productName: form.name,
+                        });
+                        setCandidates(found.length ? found : null);
+                        if (!found.length) {
+                          toast.info(`No reference product matched "${form.name}".`);
+                        }
+                      } catch (err: any) {
+                        toast.error(err.message || "Lookup failed");
+                      } finally {
+                        setFindingCandidates(false);
+                      }
+                    }}
+                    disabled={findingCandidates || !form.name.trim()}
+                  >
+                    {findingCandidates ? <Loader2 className="size-3 animate-spin" /> : <Search className="size-3" />}
+                    Find matching products
+                  </Button>
+                </div>
+
+                {candidates && candidates.length > 0 && (
+                  <div className="rounded-lg border border-border bg-muted/30 p-2 space-y-1.5">
+                    <p className="text-[11px] font-semibold">Select the exact product:</p>
+                    {candidates.map((c) => (
+                      <button
+                        key={`${c.name}-${c.composition}`}
+                        type="button"
+                        className="w-full text-left rounded-md border border-border/60 bg-card px-2 py-1.5 text-[11px] hover:border-primary/40 transition-colors"
+                        onClick={() => {
+                          setForm((prev) => ({ ...prev, name: c.name }));
+                          setCandidates(null);
+                          toast.info(`Set name to "${c.name}". Click Auto Fill to apply it.`);
+                        }}
+                      >
+                        <span className="font-medium text-foreground">{c.name}</span>
+                        <span className="text-muted-foreground">
+                          {" "}— {c.manufacturer}, {c.composition}
+                          {c.form ? ` (${c.form})` : ""}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="space-y-2">
                 <Label>Slug</Label>

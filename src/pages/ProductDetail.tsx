@@ -1,6 +1,7 @@
 import { useParams, useNavigate, useLocation } from "react-router";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { classifyProduct, isMedicine } from "@/convex/productInfo";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
@@ -440,6 +441,19 @@ export default function ProductDetail() {
 
   const p = product;
   const cat = product.category;
+  // What kind of product this actually is. Dosing and drug-interaction
+  // guidance is only shown for real medicines, so a condom or a device is
+  // never handed medicine instructions.
+  const productKind = classifyProduct({
+    name: p.name,
+    form: p.form ?? null,
+    packSize: p.packSize ?? null,
+    categoryName: cat?.name ?? null,
+    composition: p.composition ?? null,
+    manufacturer: p.manufacturer ?? null,
+    strength: p.strength ?? null,
+  }).kind;
+  const medicineKind = isMedicine(productKind);
   const hasDiscount = p.discountPrice && p.discountPrice < p.price;
   const discountPct = hasDiscount
     ? Math.round(((p.price - p.discountPrice!) / p.price) * 100)
@@ -1246,28 +1260,44 @@ export default function ProductDetail() {
           </div>
           <Card className="border-border/60 transition-all duration-300 hover:shadow-md hover:border-primary/15">
             <CardContent className="p-6 space-y-4">
-              <p className="text-sm leading-relaxed text-muted-foreground">
-                {p.consumeType || (p.form ? `${p.name} is a ${p.form} formulation designed for therapeutic use.` : `${p.name} is a therapeutic product.`)}
-                {' '}Follow the dosage schedule recommended by your physician or as indicated on the product label.
-              </p>
-              <div className="grid sm:grid-cols-2 gap-3">
-                <div className="p-3 rounded-xl bg-blue-50/50 border border-blue-100/60 transition-all duration-300 hover:bg-blue-50 hover:shadow-sm">
-                  <p className="text-xs font-semibold text-blue-700 mb-1">How to Take</p>
-                  <p className="text-sm text-blue-900/80">{p.form === "syrup" || p.form === "suspension" ? `Measure the dose using the provided measuring cup or syringe. Do not use a household spoon.` : p.form === "cream" || p.form === "gel" || p.form === "ointment" ? `Apply a thin, even layer to the affected area. Gently massage until absorbed. Wash hands before and after application.` : p.form === "drops" ? `Instill the recommended number of drops into the affected area as directed.` : `Swallow the ${p.form || "tablet"} with a glass of water. Take after a meal or as directed by your physician.`}</p>
-                </div>
-                <div className="p-3 rounded-xl bg-blue-50/50 border border-blue-100/60 transition-all duration-300 hover:bg-blue-50 hover:shadow-sm">
-                  <p className="text-xs font-semibold text-blue-700 mb-1">Timing</p>
-                  <p className="text-sm text-blue-900/80">Take at regular intervals as prescribed. If you miss a dose, take it as soon as you remember unless it is almost time for the next dose. Do not double the dose to make up for a missed one.</p>
-                </div>
-                <div className="p-3 rounded-xl bg-blue-50/50 border border-blue-100/60 transition-all duration-300 hover:bg-blue-50 hover:shadow-sm">
-                  <p className="text-xs font-semibold text-blue-700 mb-1">Duration</p>
-                  <p className="text-sm text-blue-900/80">Complete the full course of treatment as advised by your physician, even if symptoms improve early. Stopping a prescription medication prematurely may reduce its effectiveness.</p>
-                </div>
-                <div className="p-3 rounded-xl bg-blue-50/50 border border-blue-100/60 transition-all duration-300 hover:bg-blue-50 hover:shadow-sm">
-                  <p className="text-xs font-semibold text-blue-700 mb-1">Important</p>
-                  <p className="text-sm text-blue-900/80">{p.prescriptionRequired ? `Do not self-medicate. This product requires a valid prescription and should only be used under medical supervision.` : `While this product is available without a prescription, it is recommended to consult your healthcare provider before starting any new medication.`}</p>
-                </div>
-              </div>
+              {p.consumeType ? (
+                <>
+                  <p className="text-sm leading-relaxed text-muted-foreground">
+                    {p.consumeType}
+                    {medicineKind && ' '} 
+                    {medicineKind && "Follow the dosage schedule recommended by your physician or as indicated on the product label."}
+                  </p>
+                  {/* Dosing, timing and course length only make sense for a
+                      medicine. A condom or a device has no dose and no
+                      course, so these cards are hidden rather than filled
+                      with text that does not apply. */}
+                  {medicineKind && (
+                    <div className="grid sm:grid-cols-2 gap-3">
+                      <div className="p-3 rounded-xl bg-blue-50/50 border border-blue-100/60 transition-all duration-300 hover:bg-blue-50 hover:shadow-sm">
+                        <p className="text-xs font-semibold text-blue-700 mb-1">How to Take</p>
+                        <p className="text-sm text-blue-900/80">{p.form === "syrup" || p.form === "suspension" ? `Measure the dose using the provided measuring cup or syringe. Do not use a household spoon.` : p.form === "cream" || p.form === "gel" || p.form === "ointment" ? `Apply a thin, even layer to the affected area. Gently massage until absorbed. Wash hands before and after application.` : p.form === "drops" ? `Instill the recommended number of drops into the affected area as directed.` : `Swallow the ${p.form || "tablet"} with a glass of water, as directed on the pack.`}</p>
+                      </div>
+                      <div className="p-3 rounded-xl bg-blue-50/50 border border-blue-100/60 transition-all duration-300 hover:bg-blue-50 hover:shadow-sm">
+                        <p className="text-xs font-semibold text-blue-700 mb-1">Timing</p>
+                        <p className="text-sm text-blue-900/80">Take at regular intervals as prescribed. If you miss a dose, take it as soon as you remember unless it is almost time for the next dose. Do not double the dose to make up for a missed one.</p>
+                      </div>
+                      <div className="p-3 rounded-xl bg-blue-50/50 border border-blue-100/60 transition-all duration-300 hover:bg-blue-50 hover:shadow-sm">
+                        <p className="text-xs font-semibold text-blue-700 mb-1">Duration</p>
+                        <p className="text-sm text-blue-900/80">Complete the full course of treatment as advised by your physician, even if symptoms improve early. Stopping a prescription medication prematurely may reduce its effectiveness.</p>
+                      </div>
+                      <div className="p-3 rounded-xl bg-blue-50/50 border border-blue-100/60 transition-all duration-300 hover:bg-blue-50 hover:shadow-sm">
+                        <p className="text-xs font-semibold text-blue-700 mb-1">Important</p>
+                        <p className="text-sm text-blue-900/80">{p.prescriptionRequired ? `Do not self-medicate. This product requires a valid prescription and should only be used under medical supervision.` : `While this product is available without a prescription, it is recommended to consult your healthcare provider before starting any new medication.`}</p>
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p className="text-sm italic text-muted-foreground">
+                  Directions for use are not available for this product. Please refer to the
+                  pack or leaflet supplied with it, or ask a pharmacist.
+                </p>
+              )}
               <p className="text-xs text-muted-foreground italic">These directions are general guidelines. Always follow the specific instructions provided by your physician or on the product label.</p>
             </CardContent>
           </Card>
@@ -1281,11 +1311,16 @@ export default function ProductDetail() {
           </div>
           <Card className="border-border/60 transition-all duration-300 hover:shadow-md hover:border-primary/15">
             <CardContent className="p-6 space-y-4">
-              {p.safetyNote && (
+              {p.safetyNote ? (
                 <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 transition-all duration-300 hover:bg-amber-100/50 hover:shadow-sm">
                   <p className="text-xs font-semibold text-amber-700 mb-1">Manufacturer Safety Note</p>
                   <p className="text-sm text-amber-900/80 leading-relaxed">{p.safetyNote}</p>
                 </div>
+              ) : (
+                <p className="text-sm italic text-muted-foreground">
+                  Safety information for this product is not available. Please refer to the
+                  pack or leaflet supplied with it, or ask a pharmacist.
+                </p>
               )}
               <div className="grid sm:grid-cols-2 gap-3">
                 <div className="p-3 rounded-xl bg-red-50/50 border border-red-100/60 transition-all duration-300 hover:bg-red-50 hover:shadow-sm">
@@ -1294,15 +1329,19 @@ export default function ProductDetail() {
                 </div>
                 <div className="p-3 rounded-xl bg-red-50/50 border border-red-100/60 transition-all duration-300 hover:bg-red-50 hover:shadow-sm">
                   <p className="text-xs font-semibold text-red-700 mb-1">Expiry Warning</p>
-                  <p className="text-sm text-red-900/80">Do not use after the expiry date printed on the packaging. Expired medications may lose their effectiveness and can pose health risks. Discard safely.</p>
+                  <p className="text-sm text-red-900/80">Do not use after the expiry date printed on the packaging. {medicineKind ? "Expired medications may lose their effectiveness and can pose health risks." : "Expired products may lose their effectiveness and can pose health risks."} Discard safely.</p>
                 </div>
-                <div className="p-3 rounded-xl bg-red-50/50 border border-red-100/60 transition-all duration-300 hover:bg-red-50 hover:shadow-sm">
-                  <p className="text-xs font-semibold text-red-700 mb-1">Allergic Reactions</p>
-                  <p className="text-sm text-red-900/80">Before taking {p.name}, check the ingredient list for any known allergies. If you develop rashes, swelling, difficulty breathing, or any unusual symptoms, stop using immediately and seek emergency medical help.</p>
-                </div>
+                {/* Allergy and drug-interaction advice is only meaningful for
+                    a product that has ingredients and is taken into the body. */}
+                {medicineKind && (
+                  <div className="p-3 rounded-xl bg-red-50/50 border border-red-100/60 transition-all duration-300 hover:bg-red-50 hover:shadow-sm">
+                    <p className="text-xs font-semibold text-red-700 mb-1">Allergic Reactions</p>
+                    <p className="text-sm text-red-900/80">Before taking {p.name}, check the ingredient list for any known allergies. If you develop rashes, swelling, difficulty breathing, or any unusual symptoms, stop using immediately and seek emergency medical help.</p>
+                  </div>
+                )}
                 <div className="p-3 rounded-xl bg-red-50/50 border border-red-100/60 transition-all duration-300 hover:bg-red-50 hover:shadow-sm">
                   <p className="text-xs font-semibold text-red-700 mb-1">Special Precautions</p>
-                  <p className="text-sm text-red-900/80">{p.prescriptionRequired ? `This is a prescription medication. Do not share it with others or use it without medical supervision. Inform your physician of all medications you are currently taking to avoid potential interactions.` : `While this is an over-the-counter product, it is not a substitute for professional medical advice. Consult your doctor if symptoms persist beyond the recommended duration.`}</p>
+                  <p className="text-sm text-red-900/80">{medicineKind ? (p.prescriptionRequired ? `This is a prescription medication. Do not share it with others or use it without medical supervision. Inform your physician of all medications you are currently taking to avoid potential interactions.` : `While this is an over-the-counter product, it is not a substitute for professional medical advice. Consult your doctor if symptoms persist beyond the recommended duration.`) : `Read the pack or leaflet before use, and follow the manufacturer's instructions and warnings exactly.`}</p>
                 </div>
               </div>
               <p className="text-xs text-muted-foreground italic">Always read the product leaflet/packaging for comprehensive safety information specific to your batch. Report any adverse events to your healthcare provider.</p>
