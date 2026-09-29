@@ -286,7 +286,9 @@ export default function AdminProducts() {
         composition: source.composition || undefined,
         form: source.form || undefined,
         strength: source.strength || undefined,
+        dosage: source.dosage || undefined,
         packSize: source.packSize || undefined,
+        sku: source.sku || undefined,
       });
       if (result.ok) {
         setImageStatus({ state: "verified", matchedName: result.matchedName });
@@ -334,6 +336,10 @@ export default function AdminProducts() {
         brand: brand || undefined,
         composition: form.composition || undefined,
         form: form.form || undefined,
+        strength: form.strength || undefined,
+        dosage: form.dosage || undefined,
+        packSize: form.packSize || undefined,
+        sku: form.sku || undefined,
       });
 
       const newForm = { ...form };

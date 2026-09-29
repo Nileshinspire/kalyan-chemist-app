@@ -58,7 +58,9 @@ export const productsForImageAudit = internalQuery({
       composition: product.composition ?? "",
       form: product.form ?? "",
       strength: product.strength ?? "",
+      dosage: product.dosage ?? "",
       packSize: product.packSize ?? "",
+      sku: product.sku ?? "",
     }));
   },
 });
@@ -77,7 +79,9 @@ export const productImageRow = internalQuery({
       composition: product.composition ?? "",
       form: product.form ?? "",
       strength: product.strength ?? "",
+      dosage: product.dosage ?? "",
       packSize: product.packSize ?? "",
+      sku: product.sku ?? "",
     };
   },
 });

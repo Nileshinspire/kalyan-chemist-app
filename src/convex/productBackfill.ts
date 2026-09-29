@@ -500,6 +500,10 @@ export const enrichProduct = action({
     brand: v.optional(v.string()),
     composition: v.optional(v.string()),
     form: v.optional(v.string()),
+    strength: v.optional(v.string()),
+    dosage: v.optional(v.string()),
+    packSize: v.optional(v.string()),
+    sku: v.optional(v.string()),
   },
   handler: async (_ctx, args) => {
     // Try local database first (no API needed)
@@ -728,43 +732,12 @@ export const enrichProduct = action({
       result.category = inferCategory(args.form || "", args.composition || "", args.productName);
     }
 
-    // Image: try Wikimedia Commons (free, no API key)
-    try {
-      const searchQuery = encodeURIComponent(`${args.productName} medicine`);
-      const url = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${searchQuery}&gsrnamespace=6&gsrlimit=5&prop=imageinfo&iiprop=url&iiurlwidth=400&format=json&origin=*`;
-      const response = await fetch(url);
-      if (response.ok) {
-        const data = await response.json();
-        const pages = data?.query?.pages;
-        if (pages) {
-          for (const page of Object.values(pages) as any[]) {
-            const title = page?.title || "";
-            const lower = title.toLowerCase();
-            // Skip SVG/chemical structure images
-            const badPatterns = ["skeletal", "structure", "chemistry", ".svg", "logo", "icon", "symbol"];
-            if (badPatterns.some(p => lower.includes(p))) continue;
-            if (!lower.match(/\.(jpg|jpeg|png|gif|webp)/)) continue;
-            const ii = page?.imageinfo;
-            if (ii && ii[0]?.thumburl) {
-              const imgUrl = ii[0].thumburl;
-              if (!imgUrl.toLowerCase().endsWith(".svg") && !imgUrl.includes("skeletal")) {
-                result.imageUrl = imgUrl;
-                break;
-              }
-            }
-          }
-        }
-      }
-    } catch {
-      // Continue without image
-    }
-
-    // Placeholder if no image found
-    if (!result.imageUrl) {
-      const initials = args.productName.split(/\s+/).slice(0, 2).map((w) => w.charAt(0).toUpperCase()).join("");
-      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200"><rect width="200" height="200" rx="16" fill="%23f0f7ff"/><text x="100" y="85" font-family="system-ui,sans-serif" font-size="42" font-weight="700" fill="%233b82f6" text-anchor="middle">${initials}</text><text x="100" y="120" font-family="system-ui,sans-serif" font-size="12" fill="%2364748b" text-anchor="middle">${encodeURIComponent(args.productName.slice(0, 20))}</text></svg>`;
-      result.imageUrl = `data:image/svg+xml,${svg}`;
-    }
+    // No image is produced here on purpose. A chemical structure from
+    // Wikimedia Commons, or a generated initials graphic, is not a product
+    // packshot. Images come exclusively from the verified resolver
+    // (productImageResolver), which proves the image belongs to this exact
+    // product and stores it in Convex storage.
+    result.imageUrl = null;
 
     return result;
   },

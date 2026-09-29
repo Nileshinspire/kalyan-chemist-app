@@ -28,7 +28,9 @@ type AuditRow = {
   composition: string;
   form: string;
   strength: string;
+  dosage: string;
   packSize: string;
+  sku: string;
 };
 
 /**
@@ -75,7 +77,9 @@ function identityOf(row: AuditRow): ProductIdentity {
     composition: row.composition || undefined,
     form: row.form || undefined,
     strength: row.strength || undefined,
+    dosage: row.dosage || undefined,
     packSize: row.packSize || undefined,
+    sku: row.sku || undefined,
   };
 }
 
