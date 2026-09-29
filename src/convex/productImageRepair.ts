@@ -9,12 +9,13 @@
  * be verified the stored value is left exactly as it was, so a repair can
  * improve an image but never blank one.
  */
-import { action, internalAction } from "./_generated/server";
+import { action, internalAction, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import { internal as generatedInternal } from "./_generated/api";
 import type { FunctionReference } from "convex/server";
 import type { Id } from "./_generated/dataModel";
 import {
+  isVerifiedProductImage,
   needsProductImageRepair,
   resolveAndStore,
   type ProductIdentity,
@@ -84,11 +85,45 @@ function identityOf(row: AuditRow): ProductIdentity {
 }
 
 /**
+ * Remove a stale placeholder reference so no product points at a legacy
+ * placeholder asset. The product card already renders its own neutral fallback
+ * when there is no image, so clearing one is a tidy-up, never a downgrade.
+ *
+ * A verified packshot stored by the pipeline is refused outright: this can only
+ * ever remove a placeholder, never a real product image.
+ */
+export const clearPlaceholderImage = internalMutation({
+  args: { productId: v.id("products") },
+  handler: async (ctx, args) => {
+    const product = await ctx.db.get(args.productId);
+    if (!product) throw new Error("Product not found");
+
+    const current = (product.imageUrl ?? "").trim();
+    if (!current) return { cleared: false as const, reason: "no-image" };
+    if (isVerifiedProductImage(current)) {
+      throw new Error(
+        "Refusing to clear a verified product image. Re-resolve it instead.",
+      );
+    }
+
+    await ctx.db.patch(args.productId, {
+      imageUrl: undefined,
+      updatedAt: Date.now(),
+    });
+    return { cleared: true as const, previous: current };
+  },
+});
+
+/**
  * Re-resolve the image of one product. Returns the new image URL when a real
  * packshot was verified, otherwise the reason it could not be.
+ *
+ * `force` re-resolves even a product whose stored image is already a verified
+ * Convex-storage packshot — used when a review shows the existing image is
+ * unusable (a sliver, a zoomed detail crop, a washed-out shot).
  */
 export const repairProductImage = action({
-  args: { productId: v.id("products") },
+  args: { productId: v.id("products"), force: v.optional(v.boolean()) },
   handler: async (ctx, args) => {
     const isAdmin = await ctx.runQuery(internal.adminProducts.isAdminUser, {});
     if (!isAdmin) throw new Error("Not authorized");
@@ -115,6 +150,7 @@ export const repairProductImage = action({
       ok: true as const,
       imageUrl: outcome.imageUrl,
       matchedName: outcome.matchedName,
+      replaced: outcome.imageUrl !== row.imageUrl,
     };
   },
 });
@@ -128,6 +164,10 @@ export const repairProductImages = internalAction({
   args: {
     limit: v.optional(v.number()),
     dryRun: v.optional(v.boolean()),
+    /** Re-resolve these products only, however their image looks. */
+    productIds: v.optional(v.array(v.id("products"))),
+    /** Re-resolve every product, including ones with a stored packshot. */
+    force: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     const rows: AuditRow[] = await ctx.runQuery(
@@ -135,9 +175,14 @@ export const repairProductImages = internalAction({
       {},
     );
 
-    const needsRepair = rows.filter((row) =>
-      needsProductImageRepair(row.imageUrl),
-    );
+    let candidates = rows;
+    if (args.productIds) {
+      const wanted = new Set(args.productIds as string[]);
+      candidates = rows.filter((row) => wanted.has(row.id as string));
+    } else if (!args.force) {
+      candidates = rows.filter((row) => needsProductImageRepair(row.imageUrl));
+    }
+    const needsRepair = candidates;
     const batch = args.limit ? needsRepair.slice(0, args.limit) : needsRepair;
 
     const repaired: { name: string; from: string; to: string }[] = [];

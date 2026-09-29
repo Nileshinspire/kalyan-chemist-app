@@ -595,45 +595,89 @@ function isUsableImageUrl(url: string, identityWords: Set<string>): boolean {
   return true;
 }
 
+/** True when the file name carries `term` as a whole dash/underscore segment. */
+function fileHasSegment(file: string, term: string): boolean {
+  return file.split(/[^a-z0-9]+/).includes(term);
+}
+
+/** File-name markers of a cut-out packshot shot on a clean background. */
+const WHITE_BACKGROUND_MARKERS = [
+  "whitebg",
+  "bgwhite",
+  "whitebackground",
+  "cutout",
+  "isolated",
+  "studio",
+  "packshot",
+  "transparent",
+];
+
+/** File-name markers of a detail, crop or non-packshot view. */
+const DETAIL_MARKERS = ["zoomed", "zoom", "crop", "detail", "macro", "closeup", "texture"];
+
+/**
+ * Rank a candidate's images the way a product grid should look: a front-facing
+ * packshot on a clean background first, then other usable shots, with back
+ * panels, side views and zoomed detail crops ranked last.
+ */
 function imageScore(image: CandidateImage, name: string): number {
   const lower = image.url.toLowerCase();
+  const file = (lower.split("?")[0].split("/").pop() ?? "").replace(
+    /non-watermark(ed)?/g,
+    "",
+  );
   let score = 0;
   const face = (image.face ?? "").toLowerCase();
-  if (face === "front" || face === "box-front" || lower.includes("-front"))
-    score += 3;
-  else if (face === "back" || face === "side") score -= 1;
+
+  // The catalogue's "front" face is the product photograph that fills the
+  // frame; "box-front" is often a small, washed-out box shot, so it ranks just
+  // below it. Back panels, sides and zoomed details rank last.
+  if (face === "front") score += 5;
+  else if (face === "box-front") score += 4;
+  else if (["box-back", "back", "side", "rear", "top", "bottom"].includes(face))
+    score -= 4;
+  else if (fileHasSegment(file, "front")) score += 2;
+  if (["back", "side", "rear", "top", "bottom"].some((t) => fileHasSegment(file, t)))
+    score -= 3;
+
+  if (WHITE_BACKGROUND_MARKERS.some((t) => fileHasSegment(file, t))) score += 3;
+  if (DETAIL_MARKERS.some((t) => fileHasSegment(file, t))) score -= 3;
+
   if (lower.includes("productsnowatermark")) score += 2;
   else if (lower.includes("-non-watermark")) score += 2;
   if (lower.includes("/dam/products/")) score += 1;
-  if (lower.includes("zoomed")) score -= 1;
+
   // The image whose file name mirrors the product name is usually the packshot.
-  const file = lower.split("?")[0].split("/").pop() ?? "";
   const nameWords = words(name).slice(0, 3);
-  if (nameWords.length > 0 && nameWords.every((w) => file.includes(w)))
-    score += 2;
+  if (nameWords.length > 0 && nameWords.every((w) => file.includes(w))) score += 2;
+
   score -= Math.min(name.length / 20, 5) * 0.1;
   return score;
 }
 
 /** The best image for a candidate, normalised to a card-sized CDN render. */
-function bestImage(
+type RankedImage = { url: string; meta: number };
+
+function rankImages(
   candidate: Candidate,
   identityWords: Set<string>,
-): string | null {
+): RankedImage[] {
   // A word that is part of the product's own name is identity, not noise: the
   // packshot of "Benadryl Cough Formula" is in a file called …-cough-formula-…
   const allowed = new Set([...identityWords, ...wordSet(candidate.name)]);
-  const ranked = candidate.images
+  const seen = new Set<string>();
+  const ranked: RankedImage[] = [];
+  const images = candidate.images
     .filter((image) => isUsableImageUrl(image.url, allowed))
-    .map((image) => ({ url: normalizeImageUrl(image.url), image }))
-    .filter(
-      (entry): entry is { url: string; image: CandidateImage } => !!entry.url,
-    )
-    .sort(
-      (a, b) =>
-        imageScore(b.image, candidate.name) - imageScore(a.image, candidate.name),
-    );
-  return ranked[0]?.url ?? null;
+    .map((image) => ({ image, meta: imageScore(image, candidate.name) }))
+    .sort((a, b) => b.meta - a.meta);
+  for (const { image, meta } of images) {
+    const url = normalizeImageUrl(image.url);
+    if (!url || seen.has(url)) continue;
+    seen.add(url);
+    ranked.push({ url, meta });
+  }
+  return ranked;
 }
 
 /** Card-sized render of a source image. */
@@ -1330,10 +1374,78 @@ function looksLikeImage(bytes: Uint8Array, contentType: string): boolean {
   return jpeg || png || gif || webp;
 }
 
+/** Pixel dimensions read from the file header (no decoding). */
+function imageDimensions(bytes: Uint8Array): { width: number; height: number } | null {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  // PNG: 8-byte signature then an IHDR chunk.
+  if (bytes.length > 24 && bytes[0] === 0x89 && bytes[1] === 0x50) {
+    return { width: view.getUint32(16), height: view.getUint32(20) };
+  }
+  // JPEG: walk the segments to the frame header.
+  if (bytes.length > 4 && bytes[0] === 0xff && bytes[1] === 0xd8) {
+    let offset = 2;
+    while (offset + 9 < bytes.length) {
+      if (bytes[offset] !== 0xff) {
+        offset += 1;
+        continue;
+      }
+      const marker = bytes[offset + 1];
+      if (
+        (marker >= 0xc0 && marker <= 0xcf) &&
+        marker !== 0xc4 &&
+        marker !== 0xc8 &&
+        marker !== 0xcc
+      ) {
+        return {
+          height: view.getUint16(offset + 5),
+          width: view.getUint16(offset + 7),
+        };
+      }
+      offset += 2 + view.getUint16(offset + 2);
+    }
+    return null;
+  }
+  // WebP
+  if (bytes.length > 30 && bytes[0] === 0x52 && bytes[8] === 0x57) {
+    const chunk = String.fromCharCode(...Array.from(bytes.subarray(12, 16)));
+    if (chunk === "VP8X") {
+      return {
+        width: 1 + (bytes[24] | (bytes[25] << 8) | (bytes[26] << 16)),
+        height: 1 + (bytes[27] | (bytes[28] << 8) | (bytes[29] << 16)),
+      };
+    }
+    if (chunk === "VP8 ") {
+      return {
+        width: view.getUint16(26) & 0x3fff,
+        height: view.getUint16(28) & 0x3fff,
+      };
+    }
+    if (chunk === "VP8L") {
+      const bits = view.getUint32(21);
+      return { width: (bits & 0x3fff) + 1, height: ((bits >> 14) & 0x3fff) + 1 };
+    }
+  }
+  return null;
+}
+
+/** A product photo on a card: big enough, and not a sliver or a wide banner. */
+const MIN_IMAGE_EDGE = 200;
+const MIN_ASPECT_RATIO = 0.34;
+
+function isUsableShape(dimensions: { width: number; height: number } | null): boolean {
+  if (!dimensions) return true; // unknown size: the bytes already passed validation
+  const long = Math.max(dimensions.width, dimensions.height);
+  const short = Math.min(dimensions.width, dimensions.height);
+  if (long < MIN_IMAGE_EDGE) return false;
+  return short / long >= MIN_ASPECT_RATIO;
+}
+
 type DownloadedImage = {
   bytes: Uint8Array;
   contentType: string;
   sourceUrl: string;
+  /** False for a sliver or thumbnail: usable, but only as a last resort. */
+  shapeOk: boolean;
 };
 
 async function downloadImage(
@@ -1365,6 +1477,9 @@ async function downloadImage(
       bytes,
       contentType: contentType.startsWith("image/") ? contentType : "image/jpeg",
       sourceUrl: target,
+      // A 174x600 sliver or a 200px thumbnail still identifies the product, so
+      // it is kept as a fallback rather than rejected outright.
+      shapeOk: isUsableShape(imageDimensions(bytes)),
     };
   };
 
@@ -1373,6 +1488,14 @@ async function downloadImage(
   // Fall back to the untouched asset when the resized path is not served.
   if (originalUrl !== url) return await attempt(originalUrl);
   return null;
+}
+
+/** Write verified bytes to permanent storage and return the public URL. */
+async function store(ctx: ActionCtx, image: DownloadedImage): Promise<string | null> {
+  const storageId = await ctx.storage.store(
+    new Blob([image.bytes.buffer as ArrayBuffer], { type: image.contentType }),
+  );
+  return (await ctx.storage.getUrl(storageId)) ?? null;
 }
 
 // ── Core ──
@@ -1412,38 +1535,58 @@ export async function resolveAndStore(
     scored: ScoredCandidate[],
   ): Promise<ProductImageOutcome | null> => {
     scored.sort((a, b) => b.score - a.score);
+    // The first image that verified but has an unusable shape is kept as a
+    // fallback: a real packshot in an odd shape still beats no image at all.
+    let fallback: { image: DownloadedImage; entry: ScoredCandidate } | null = null;
+
     for (const entry of scored) {
-      if (fetches >= MAX_CANDIDATE_FETCHES) return null;
-      const candidateUrl = bestImage(entry.candidate, rules.identityWords);
-      if (!candidateUrl) continue;
+      if (fetches >= MAX_CANDIDATE_FETCHES) break;
+      const images = rankImages(entry.candidate, rules.identityWords);
+      if (images.length === 0) continue;
       fetches += 1;
       if (!considered.includes(entry.candidate.name)) {
         considered.push(entry.candidate.name);
       }
 
+      // The best-ranked image for this product record: the front-facing
+      // packshot, or a white-background cut-out when the source labels one.
+      const chosen = images[0];
+
       const downloaded = await downloadImage(
-        candidateUrl,
-        (entry.candidate.images[0]?.url ?? candidateUrl).split("?")[0],
+        chosen.url,
+        (entry.candidate.images[0]?.url ?? chosen.url).split("?")[0],
       );
       if (!downloaded) continue;
+      if (!downloaded.shapeOk) {
+        if (!fallback) fallback = { image: downloaded, entry };
+        continue;
+      }
 
-      const storageId = await ctx.storage.store(
-        new Blob([downloaded.bytes.buffer as ArrayBuffer], {
-          type: downloaded.contentType,
-        }),
-      );
-      const publicUrl = await ctx.storage.getUrl(storageId);
-      if (!publicUrl) continue;
-
+      const stored = await store(ctx, downloaded);
+      if (!stored) continue;
       return {
         ok: true,
-        imageUrl: publicUrl,
+        imageUrl: stored,
         matchedName: entry.candidate.name,
         source: entry.candidate.source,
-        sourceUrl:
-          entry.candidate.pageUrl ?? downloaded.sourceUrl,
+        sourceUrl: entry.candidate.pageUrl ?? downloaded.sourceUrl,
         notes: entry.reasons,
       };
+    }
+
+    if (fallback) {
+      const stored = await store(ctx, fallback.image);
+      if (stored) {
+        return {
+          ok: true,
+          imageUrl: stored,
+          matchedName: fallback.entry.candidate.name,
+          source: fallback.entry.candidate.source,
+          sourceUrl:
+            fallback.entry.candidate.pageUrl ?? fallback.image.sourceUrl,
+          notes: [...fallback.entry.reasons, "unusual-aspect-ratio"],
+        };
+      }
     }
     return null;
   };
