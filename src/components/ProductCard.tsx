@@ -74,42 +74,42 @@ const cropCache = new Map<string, ContentCrop | null>();
 /** Longest edge of the scratch canvas used for measuring. */
 const MEASURE_EDGE = 220;
 /**
- * How far from the border's median brightness a pixel may sit and still count
- * as backdrop. Tuned for real catalogue photography, where the "white"
- * background is often light grey, slightly warm, or washed out by JPEG
- * compression — a fixed brightness cut-off misses those entirely.
+ * How far below the backdrop level a pixel may sit and still count as
+ * backdrop. Catalogue packshots sit on a near-white sweep, often a little
+ * grey or warm from JPEG compression, so the level is taken from the image
+ * itself rather than assumed to be pure white.
  */
-const BACKGROUND_TOLERANCE = 18;
-/** Share of border pixels that must match the backdrop median to trust it. */
-const MIN_BACKGROUND_UNIFORMITY = 0.6;
-/** Share of the border that must be transparent to treat alpha as the mask. */
-const MIN_TRANSPARENT_BORDER = 0.5;
+const BACKGROUND_TOLERANCE = 20;
+/** Percentile used as the backdrop level: high, but not hostage to one specular pixel. */
+const BACKGROUND_PERCENTILE = 0.99;
 /** Ignore fully transparent pixels. */
 const MIN_ALPHA = 12;
+/**
+ * Share of transparent pixels that means the image is a cut-out, where alpha
+ * is an exact product mask and no brightness test is needed.
+ */
+const MIN_TRANSPARENT_SHARE = 0.15;
 /** Below this share of foreground pixels the image is treated as unusable. */
 const MIN_CONTENT_DENSITY = 0.02;
-/** If the product already fills this much of both axes, cropping is pointless. */
-const ALREADY_TIGHT = 0.92;
 /** Reject degenerate slivers rather than zooming into a stray dark pixel. */
 const MIN_CROP_AXIS = 0.06;
 /** Breathing room added around the detected box so edges are never shaved. */
 const CROP_PADDING = 0.02;
 /** Never upscale a tiny source beyond this, so small crops cannot turn blurry. */
 const MAX_UPSCALE = 2;
+/** A crop must beat the uncropped render by this much to be worth applying. */
+const MIN_IMPROVEMENT = 1.02;
 
 /**
  * Find the bounding box of the product inside a decoded image.
  *
- * The surrounding border is what identifies the backdrop: a product never
- * covers all four edges at once, so the border's median brightness is a far
- * more reliable background estimate than any global statistic (a histogram
- * peak is often the product itself, not the backdrop). Backdrops that are
- * light grey, off-white or washed out are therefore handled, and a genuinely
- * transparent cut-out is detected from alpha directly.
+ * The backdrop is the bright sweep the product sits on, so the backdrop level
+ * is taken as a high percentile of the image's luminance: that survives a
+ * product touching a corner, a shadow, and JPEG noise, all of which broke
+ * earlier corner/median based estimates. Fully transparent pixels are treated
+ * as backdrop, so cut-out PNGs work too.
  *
- * Returns null whenever the backdrop cannot be identified confidently, the
- * product is a degenerate sliver, or it already fills the canvas — the caller
- * then falls back to a plain `object-contain` image.
+ * Returns null when there is nothing meaningful to trim.
  */
 function measureContentCrop(img: HTMLImageElement): ContentCrop | null {
   const naturalWidth = img.naturalWidth;
@@ -139,44 +139,30 @@ function measureContentCrop(img: HTMLImageElement): ContentCrop | null {
   const total = width * height;
   const luma = new Float32Array(total);
   const alpha = new Uint8ClampedArray(total);
+  const opaque: number[] = [];
   for (let p = 0; p < total; p += 1) {
     const i = p * 4;
     alpha[p] = data[i + 3];
-    luma[p] = 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
-  }
-
-  // Sample the frame of the image, which is what surrounds the product.
-  const ring = Math.max(1, Math.round(Math.min(width, height) * 0.02));
-  const border: number[] = [];
-  let transparentBorder = 0;
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      if (x >= ring && x < width - ring && y >= ring && y < height - ring) continue;
-      const p = y * width + x;
-      if (alpha[p] < MIN_ALPHA) {
-        transparentBorder += 1;
-        continue;
-      }
-      border.push(luma[p]);
+    if (alpha[p] < MIN_ALPHA) {
+      luma[p] = -1;
+      continue;
     }
+    const value = 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
+    luma[p] = value;
+    opaque.push(value);
   }
-  const borderSize = (width * height) - Math.max(0, width - ring * 2) * Math.max(0, height - ring * 2);
-  const transparentShare = borderSize > 0 ? transparentBorder / borderSize : 0;
+  if (!opaque.length) return null;
 
-  // A cut-out on transparency: alpha alone is an exact mask.
-  const useAlpha = transparentShare >= MIN_TRANSPARENT_BORDER;
+  // A cut-out on transparency: alpha alone is an exact product mask. Deriving a
+  // brightness threshold here would sample the product itself, since it is
+  // often the only opaque thing in the image.
+  const useAlpha = (total - opaque.length) / total >= MIN_TRANSPARENT_SHARE;
 
   let threshold = 0;
   if (!useAlpha) {
-    if (border.length === 0) return null;
-    const sorted = [...border].sort((a, b) => a - b);
-    const median = sorted[Math.floor((sorted.length - 1) / 2)];
-    const uniform = border.filter(
-      (v) => Math.abs(v - median) <= BACKGROUND_TOLERANCE
-    ).length / border.length;
-    // A busy or inconsistent edge means we cannot trust the backdrop.
-    if (uniform < MIN_BACKGROUND_UNIFORMITY) return null;
-    threshold = median - BACKGROUND_TOLERANCE;
+    opaque.sort((a, b) => a - b);
+    const backdrop = opaque[Math.floor((opaque.length - 1) * BACKGROUND_PERCENTILE)];
+    threshold = backdrop - BACKGROUND_TOLERANCE;
   }
 
   let minX = width;
@@ -188,10 +174,8 @@ function measureContentCrop(img: HTMLImageElement): ContentCrop | null {
   for (let y = 0; y < height; y += 1) {
     for (let x = 0; x < width; x += 1) {
       const p = y * width + x;
-      const isBackground = useAlpha
-        ? alpha[p] < MIN_ALPHA
-        : luma[p] >= threshold;
-      if (isBackground) continue;
+      // Transparent, or backdrop-coloured: not part of the product.
+      if (useAlpha ? alpha[p] < MIN_ALPHA : luma[p] >= threshold) continue;
       if (x < minX) minX = x;
       if (x > maxX) maxX = x;
       if (y < minY) minY = y;
@@ -205,8 +189,8 @@ function measureContentCrop(img: HTMLImageElement): ContentCrop | null {
 
   const contentW = (maxX - minX + 1) / width;
   const contentH = (maxY - minY + 1) / height;
-  // Nothing meaningful to reclaim, or too thin to crop safely.
-  if (contentW >= ALREADY_TIGHT && contentH >= ALREADY_TIGHT) return null;
+  // Too thin to crop safely. Whether a crop is worth applying at all is
+  // decided by the caller, which can compare it against the plain render.
   if (contentW < MIN_CROP_AXIS || contentH < MIN_CROP_AXIS) return null;
 
   const padX = contentW * CROP_PADDING;
@@ -327,12 +311,17 @@ const FILL_FACTOR = 0.86;
  * Renders the product image so the product — not the image's baked-in white
  * padding — fills the area.
  *
- * With a measured crop the image is laid out at explicit pixel dimensions and
+ * A crop is applied ONLY when it makes the product genuinely larger. Many
+ * catalogue images are already cropped tight to the product, so trimming them
+ * would shrink the product instead of growing it; those keep the plain
+ * `object-contain` render, which is already as large as their aspect ratio
+ * allows.
+ *
+ * When a crop does help, the image is laid out at explicit pixel dimensions and
  * offset so the product's bounding box is centred and fitted with `contain`
- * proportions. The full image is still displayed (never cropped) and its
- * aspect ratio is preserved exactly, because the offset is derived from the
- * same scale used for the width and height. Without a crop it degrades to a
- * plain centred `object-contain` image.
+ * proportions. The full image is still displayed (the product is never cut
+ * off) and its aspect ratio is preserved exactly, because the offset is
+ * derived from the same scale used for the width and height.
  */
 function ProductImage({
   src,
@@ -345,41 +334,44 @@ function ProductImage({
   crop: ContentCrop | null | undefined;
   box: { width: number; height: number };
 }) {
-  const canCrop = Boolean(crop) && box.width > 0 && box.height > 0;
+  const plain = (
+    <img
+      src={src}
+      alt={alt}
+      className="h-auto w-auto max-h-full max-w-full object-contain"
+      loading="lazy"
+      decoding="async"
+    />
+  );
 
-  if (!canCrop || !crop) {
-    return (
-      <img
-        src={src}
-        alt={alt}
-        className="h-auto w-auto max-h-full max-w-full object-contain"
-        loading="lazy"
-        decoding="async"
-      />
-    );
-  }
+  if (!crop || box.width <= 0 || box.height <= 0) return plain;
 
   const contentWidth = crop.w * crop.naturalWidth;
   const contentHeight = crop.h * crop.naturalHeight;
-  if (contentWidth <= 0 || contentHeight <= 0) {
-    return (
-      <img
-        src={src}
-        alt={alt}
-        className="h-auto w-auto max-h-full max-w-full object-contain"
-        loading="lazy"
-        decoding="async"
-      />
-    );
-  }
+  if (contentWidth <= 0 || contentHeight <= 0) return plain;
+
+  // How much of the image area the product occupies as-is.
+  const plainScale = Math.min(box.width / crop.naturalWidth, box.height / crop.naturalHeight);
+  const plainFill = Math.max(
+    (contentWidth * plainScale) / box.width,
+    (contentHeight * plainScale) / box.height
+  );
 
   // "contain" fit of the product box inside the image area, never upscaling a
   // small source beyond MAX_UPSCALE so the result cannot look blurry.
   const fit = Math.min(
     (box.width * FILL_FACTOR) / contentWidth,
-    (box.height * FILL_FACTOR) / contentHeight,
+    (box.height * FILL_FACTOR) / contentHeight
   );
   const scale = Math.min(fit, MAX_UPSCALE);
+  const cropFill = Math.max(
+    (contentWidth * scale) / box.width,
+    (contentHeight * scale) / box.height
+  );
+
+  // Trimming only helps when there is real padding to reclaim. Otherwise the
+  // untouched image already fills the area as well as it can.
+  if (cropFill < plainFill * MIN_IMPROVEMENT) return plain;
 
   const width = crop.naturalWidth * scale;
   const height = crop.naturalHeight * scale;
