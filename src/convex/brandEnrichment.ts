@@ -135,16 +135,87 @@ const BRAND_CLASSES = ["Q431289", "Q167270"];
  * Deliberately excludes vague class words ("group", "population") that match
  * non-commercial concepts sharing a name with a brand.
  */
-const COMMERCIAL_CLASS_HINT =
-  /(company|business|enterprise|corporation|corporate|brand|organisation|organization|manufacturer|subsidiary|conglomerate|holding company|retailer|retail chain|chain store|pharmaceutical|pharma|biotech|biotechnology|cosmetics|food|beverage|publisher|studio|bank|insurance|franchise|cooperative|\bfirm\b|startup|supermarket|brewer|winery|restaurant|privately held|public company|limited|joint venture|trademark|\blabel\b|\bdrug\b|medicine|medical|health|nutrition|supplement|personal care|household|consumer)/i;
+const COMMERCIAL_CLASS_WORDS = [
+  "company",
+  "business",
+  "enterprise",
+  "corporation",
+  "corporate",
+  "brand",
+  "organisation",
+  "organization",
+  "manufacturer",
+  "subsidiary",
+  "conglomerate",
+  "holding company",
+  "retailer",
+  "retail chain",
+  "chain store",
+  "pharmaceutical",
+  "pharma",
+  "biotech",
+  "biotechnology",
+  "cosmetic",
+  "cosmetics",
+  "food",
+  "beverage",
+  "publisher",
+  "studio",
+  "bank",
+  "banking",
+  "brewery",
+  "distillery",
+  "insurance",
+  "franchise",
+  "cooperative",
+  "firm",
+  "startup",
+  "supermarket",
+  "brewer",
+  "winery",
+  "restaurant",
+  "privately held",
+  "public company",
+  "limited",
+  "joint venture",
+  "trademark",
+  "label",
+  "drug",
+  "medicine",
+  "medical",
+  "health",
+  "nutrition",
+  "supplement",
+  "personal care",
+  "household",
+  "consumer",
+];
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Every entry is matched as a WHOLE WORD (with an optional plural "s"/"es"),
+ * never as a bare substring. This matters: without the boundaries the class
+ * label "unincorporated community" matched because it contains "corporate",
+ * which made a town look like a company and let a non-brand through.
+ */
+const COMMERCIAL_CLASS_HINT = new RegExp(
+  `\\b(?:${COMMERCIAL_CLASS_WORDS.map(escapeRegExp).join(
+    "|",
+  )})(?:es|s)?\\b`,
+  "i",
+);
 
 /**
  * Wikidata/Wikipedia descriptions that mean "this is a commercial entity".
  * Kept deliberately free of words that describe non-commercial things which
- * happen to share a name with a brand, so a homonym is never accepted.
+ * happen to share a name with a brand, so a homonym is never accepted. Each
+ * alternative is anchored to a word start for the same reason as above.
  */
 const COMMERCIAL_DESCRIPTION_HINT =
-  /(\bcompan|\bcorporation|\bmanufactur|pharmaceut|\bpharma|\bdrug|\bbrand|enterprise|conglomerate|limited|\bholdings|industries|laborator|\blabs?\b|biotech|biolog|therapeut|\bhealth|consumer|\bfoods?\b|beverage|\bretail|\bsupplier|\bgroup\b|\binc\b|\bcorp\b|\bllc\b|\bplc\b|\bgmbh\b|\bco\.,|\bag\b|cosmetic|skincare|skin care|personal care|toiletri|hygiene|nutraceutical|ayurved|supplement|nutrition|product line|\btrademark|subsidiary|joint venture|franchise|herbal|medicine)/i;
+  /(\bcompan|\bcorporation|\bmanufactur|\bpharmaceut|\bpharma|\bdrug|\bbrand|\benterprise|\bconglomerate|\blimited\b|\bholdings|\bindustries|\blaborator|\blabs?\b|\bbiotech|\bbiolog|\btherapeut|\bhealth|\bconsumer|\bfoods?\b|\bbeverage|\bretail|\bsupplier|\bgroup\b|\binc\b|\bcorp\b|\bllc\b|\bplc\b|\bgmbh\b|\bco\.,|\bag\b|\bcosmetic|\bskincare|\bskin care|\bpersonal care|\btoiletri|\bhygiene|\bnutraceutical|\bayurved|\bsupplement|\bnutrition|\bproduct line|\btrademark|\bsubsidiary|\bjoint venture|\bfranchise|\bherbal|\bmedicine)/i;
 
 /**
  * Country names and adjectives. Used only as a *fallback* when no structured
