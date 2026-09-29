@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useEffect, useRef, useState, type RefObject } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -34,10 +34,321 @@ interface ProductCardProps {
   newArrival?: boolean;
 }
 
+/* ─── Product image presentation ───
+ * The stored packshots are full-bleed source images: a 600px-wide canvas that
+ * usually carries a lot of baked-in white/transparent padding around a product
+ * sitting in the middle. `object-fit: contain` fits the WHOLE canvas, so the
+ * actual medicine stays small no matter how large the image area is — which is
+ * why simply enlarging the <img> left the product looking tiny.
+ *
+ * So the padding is measured and removed before display: the image is decoded
+ * once into a small offscreen canvas, the bounding box of its non-background
+ * pixels is found, and the <img> is then laid out so that box fills the image
+ * area with `contain` proportions. The product therefore appears large while
+ * the image itself is still fully visible — never cropped, stretched, squeezed
+ * or blurred by a CSS transform (the box is expressed in layout pixels, so the
+ * browser downsamples the source smoothly instead of scaling a raster layer).
+ *
+ * Everything here is progressive enhancement: if the image cannot be measured
+ * (no canvas, blocked CORS, non-browser environment) the component falls back
+ * to a plain centred `object-contain` image, which is the previous behaviour.
+ */
+
+/** Content box of a product image, in fractions of the natural image. */
+type ContentCrop = {
+  /** Left edge of the product, 0–1 of natural width. */
+  x: number;
+  /** Top edge of the product, 0–1 of natural height. */
+  y: number;
+  /** Width of the product, 0–1 of natural width. */
+  w: number;
+  /** Height of the product, 0–1 of natural height. */
+  h: number;
+  naturalWidth: number;
+  naturalHeight: number;
+};
+
+/** Measured crops are cached per URL — each image is decoded at most once. */
+const cropCache = new Map<string, ContentCrop | null>();
+
+/** Longest edge of the scratch canvas used for measuring. */
+const MEASURE_EDGE = 220;
+/** A pixel counts as background when every channel is at least this bright. */
+const BACKGROUND_LEVEL = 240;
+/** Ignore fully transparent pixels. */
+const MIN_ALPHA = 12;
+/** Below this share of foreground pixels the image is treated as unusable. */
+const MIN_CONTENT_DENSITY = 0.02;
+/** If the product already fills this much of both axes, cropping is pointless. */
+const ALREADY_TIGHT = 0.92;
+/** Reject degenerate slivers rather than zooming into a stray dark pixel. */
+const MIN_CROP_AXIS = 0.06;
+/** Breathing room added around the detected box so edges are never shaved. */
+const CROP_PADDING = 0.03;
+/** Never upscale a tiny source beyond this, so small crops cannot turn blurry. */
+const MAX_UPSCALE = 2;
+
+/**
+ * Find the bounding box of the product inside a decoded image by treating
+ * near-white and transparent pixels as background. Returns null when the image
+ * cannot be measured, is effectively blank, or already fills its canvas.
+ */
+function measureContentCrop(img: HTMLImageElement): ContentCrop | null {
+  const naturalWidth = img.naturalWidth;
+  const naturalHeight = img.naturalHeight;
+  if (!naturalWidth || !naturalHeight) return null;
+
+  const scale = Math.min(1, MEASURE_EDGE / Math.max(naturalWidth, naturalHeight));
+  const width = Math.max(1, Math.round(naturalWidth * scale));
+  const height = Math.max(1, Math.round(naturalHeight * scale));
+
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  if (!ctx) return null;
+  ctx.drawImage(img, 0, 0, width, height);
+
+  let data: Uint8ClampedArray;
+  try {
+    // Throws on a CORS-tainted canvas, which is the expected failure mode for
+    // third-party image hosts — callers fall back to the plain image.
+    data = ctx.getImageData(0, 0, width, height).data;
+  } catch {
+    return null;
+  }
+
+  let minX = width;
+  let minY = height;
+  let maxX = -1;
+  let maxY = -1;
+  let foreground = 0;
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const i = (y * width + x) * 4;
+      if (data[i + 3] < MIN_ALPHA) continue;
+      if (
+        data[i] >= BACKGROUND_LEVEL &&
+        data[i + 1] >= BACKGROUND_LEVEL &&
+        data[i + 2] >= BACKGROUND_LEVEL
+      ) {
+        continue;
+      }
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+      foreground += 1;
+    }
+  }
+
+  if (maxX < minX || maxY < minY) return null;
+  if (foreground / (width * height) < MIN_CONTENT_DENSITY) return null;
+
+  const contentW = (maxX - minX + 1) / width;
+  const contentH = (maxY - minY + 1) / height;
+  // Nothing meaningful to reclaim, or too thin to crop safely.
+  if (contentW >= ALREADY_TIGHT && contentH >= ALREADY_TIGHT) return null;
+  if (contentW < MIN_CROP_AXIS || contentH < MIN_CROP_AXIS) return null;
+
+  const padX = contentW * CROP_PADDING;
+  const padY = contentH * CROP_PADDING;
+  return {
+    x: Math.max(0, minX / width - padX),
+    y: Math.max(0, minY / height - padY),
+    w: Math.min(1, contentW + padX * 2),
+    h: Math.min(1, contentH + padY * 2),
+    naturalWidth,
+    naturalHeight,
+  };
+}
+
+/**
+ * Measure an image's content box off-screen. `undefined` means "still
+ * measuring", `null` means "use the plain image" — the caller keeps rendering
+ * a correctly sized image in both cases, so there is no layout shift.
+ */
+function useContentCrop(src: string | undefined): ContentCrop | null | undefined {
+  const [crop, setCrop] = useState<ContentCrop | null | undefined>(() => {
+    if (!src) return null;
+    return cropCache.get(src);
+  });
+
+  useEffect(() => {
+    if (!src) return;
+
+    let cancelled = false;
+    const measure = () => {
+      if (cancelled) return;
+      const cached = cropCache.get(src);
+      if (cached !== undefined) {
+        setCrop(cached);
+        return;
+      }
+      // A detached probe is used rather than crossOrigin on the visible <img>:
+      // if the host withholds CORS headers only this probe fails, and the real
+      // image still renders.
+      const probe = new Image();
+      probe.crossOrigin = "anonymous";
+      probe.decoding = "async";
+      probe.onload = () => {
+        const result = measureContentCrop(probe);
+        cropCache.set(src, result);
+        if (!cancelled) setCrop(result);
+      };
+      probe.onerror = () => {
+        cropCache.set(src, null);
+        if (!cancelled) setCrop(null);
+      };
+      probe.src = src;
+    };
+
+    const idleWindow = window as Window & {
+      requestIdleCallback?: (cb: () => void) => void;
+    };
+    if (typeof idleWindow.requestIdleCallback === "function") {
+      idleWindow.requestIdleCallback(measure);
+    } else {
+      window.setTimeout(measure, 120);
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [src]);
+
+  return crop;
+}
+
+/** Live pixel size of the image area, so the crop stays correct on resize. */
+function useBoxSize(ref: RefObject<HTMLElement | null>): { width: number; height: number } {
+  const [size, setSize] = useState({ width: 0, height: 0 });
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    let frame = 0;
+    // Bail out when the size is unchanged, so measuring never triggers a
+    // pointless re-render (which matters for consumers that read render order).
+    const update = () =>
+      setSize((prev) => {
+        const width = el.clientWidth;
+        const height = el.clientHeight;
+        return prev.width === width && prev.height === height
+          ? prev
+          : { width, height };
+      });
+    const schedule = () => {
+      if (frame) window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(update);
+    };
+
+    schedule();
+    // Environments without ResizeObserver (e.g. jsdom) still get the initial
+    // measurement from the scheduled frame above.
+    const observer =
+      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(schedule);
+    observer?.observe(el);
+
+    return () => {
+      if (frame) window.cancelAnimationFrame(frame);
+      observer?.disconnect();
+    };
+  }, [ref]);
+  return size;
+}
+
+/** Share of the image area the cropped product may fill, leaving a small margin. */
+const FILL_FACTOR = 0.96;
+
+/**
+ * Renders the product image so the product — not the image's baked-in white
+ * padding — fills the area.
+ *
+ * With a measured crop the image is laid out at explicit pixel dimensions and
+ * offset so the product's bounding box is centred and fitted with `contain`
+ * proportions. The full image is still displayed (never cropped) and its
+ * aspect ratio is preserved exactly, because the offset is derived from the
+ * same scale used for the width and height. Without a crop it degrades to a
+ * plain centred `object-contain` image.
+ */
+function ProductImage({
+  src,
+  alt,
+  crop,
+  box,
+}: {
+  src: string;
+  alt: string;
+  crop: ContentCrop | null | undefined;
+  box: { width: number; height: number };
+}) {
+  const canCrop = Boolean(crop) && box.width > 0 && box.height > 0;
+
+  if (!canCrop || !crop) {
+    return (
+      <img
+        src={src}
+        alt={alt}
+        className="h-auto w-auto max-h-full max-w-full object-contain"
+        loading="lazy"
+        decoding="async"
+      />
+    );
+  }
+
+  const contentWidth = crop.w * crop.naturalWidth;
+  const contentHeight = crop.h * crop.naturalHeight;
+  if (contentWidth <= 0 || contentHeight <= 0) {
+    return (
+      <img
+        src={src}
+        alt={alt}
+        className="h-auto w-auto max-h-full max-w-full object-contain"
+        loading="lazy"
+        decoding="async"
+      />
+    );
+  }
+
+  // "contain" fit of the product box inside the image area, never upscaling a
+  // small source beyond MAX_UPSCALE so the result cannot look blurry.
+  const fit = Math.min(
+    (box.width * FILL_FACTOR) / contentWidth,
+    (box.height * FILL_FACTOR) / contentHeight,
+  );
+  const scale = Math.min(fit, MAX_UPSCALE);
+
+  const width = crop.naturalWidth * scale;
+  const height = crop.naturalHeight * scale;
+  // Centre the product box, then shift back by the padding that sits to the
+  // left of / above it, so the visible product lands dead centre.
+  const left = (box.width - contentWidth * scale) / 2 - crop.x * crop.naturalWidth * scale;
+  const top = (box.height - contentHeight * scale) / 2 - crop.y * crop.naturalHeight * scale;
+
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className="absolute object-contain"
+      style={{ width, height, left, top }}
+      loading="lazy"
+      decoding="async"
+    />
+  );
+}
+
 const ProductCard = memo(function ProductCard({ product, newArrival = false }: ProductCardProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
+  const imageAreaRef = useRef<HTMLDivElement>(null);
+  const imageBox = useBoxSize(imageAreaRef);
+  const realImage =
+    product.imageUrl && product.imageUrl !== "/placeholder-medicine.svg"
+      ? product.imageUrl
+      : undefined;
+  const crop = useContentCrop(realImage);
   const addToCart = useMutation(api.cart.addItem);
   const toggleWishlist = useMutation(api.wishlist.toggle);
   const isWishlisted = useQuery(
@@ -108,15 +419,17 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
       </Button>
 
       {/* Product image placeholder */}
-      <div className="relative flex items-center justify-center bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] h-44 border-b border-border/40 overflow-hidden">
+      <div
+        ref={imageAreaRef}
+        className="relative flex items-center justify-center bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] h-44 border-b border-border/40 overflow-hidden"
+      >
         <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.08] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-        {product.imageUrl && product.imageUrl !== "/placeholder-medicine.svg" ? (
-          <img
-            src={product.imageUrl}
+        {realImage ? (
+          <ProductImage
+            src={realImage}
             alt={product.name}
-            className="h-auto w-auto max-h-[85%] max-w-[88%] object-contain"
-            loading="lazy"
-            decoding="async"
+            crop={crop}
+            box={imageBox}
           />
         ) : (
           <Pill
