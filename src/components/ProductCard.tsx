@@ -1,6 +1,6 @@
-import { memo, useEffect, useRef, useState, type RefObject } from "react";
+import { memo, useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import { useNavigate, useLocation } from "react-router";
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useMutation, useConvex } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -396,6 +396,7 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
+  const convexClient = useConvex();
   const imageAreaRef = useRef<HTMLDivElement>(null);
   const imageBox = useBoxSize(imageAreaRef);
   const realImage =
@@ -455,12 +456,23 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
 
   const displayInfo = product.dosage || product.strength || product.form || "";
 
+  // Warm the destination before the click happens. Loading the route chunk
+  // alone is not enough: the Product Detail page renders a bare loading state
+  // until its `products.getBySlug` query resolves, and that short state makes
+  // the footer fill the screen for a moment. Subscribing to the query ahead of
+  // time means the page has its data on the very first render.
+  const warmProductDetail = useCallback(() => {
+    preloadProductDetail();
+    convexClient.prewarmQuery({ query: api.products.getBySlug, args: { slug: product.slug } });
+  }, [convexClient, product.slug]);
+
   return (
     <Card
       className="group relative overflow-hidden border-border/60 bg-card cursor-pointer transition-all duration-500 hover:shadow-card-hover hover:border-primary/20 hover:-translate-y-1"
       onClick={() => navigate(`/products/${product.slug}`, { state: { from: location.pathname + location.search } })}
-      onMouseEnter={preloadProductDetail}
-      onFocus={preloadProductDetail}
+      onMouseEnter={warmProductDetail}
+      onFocus={warmProductDetail}
+      onPointerDown={warmProductDetail}
     >
       {/* Wishlist button */}
       <Button
