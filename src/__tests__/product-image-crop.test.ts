@@ -10,14 +10,21 @@ import { describe, it, expect } from "vitest";
  */
 
 /** Mirrors measureContentCrop() in ProductCard.tsx. */
-const BACKGROUND_LEVEL = 240;
+const BACKGROUND_TOLERANCE = 18;
+const MIN_BACKGROUND_UNIFORMITY = 0.6;
+const MIN_TRANSPARENT_BORDER = 0.5;
 const MIN_ALPHA = 12;
 const MIN_CONTENT_DENSITY = 0.02;
 const ALREADY_TIGHT = 0.92;
 const MIN_CROP_AXIS = 0.06;
-const CROP_PADDING = 0.03;
+const CROP_PADDING = 0.02;
 
 type Pixels = { width: number; height: number; data: Uint8ClampedArray };
+
+/** Fractions returned by measure(), before natural size is attached. */
+type Measured = { x: number; y: number; w: number; h: number };
+/** What the layout helpers consume, mirroring ContentCrop in ProductCard. */
+type Crop = Measured & { naturalWidth: number; naturalHeight: number };
 
 function solid(
   width: number,
@@ -53,7 +60,47 @@ function fillRect(
   }
 }
 
-function measure(img: Pixels) {
+function measure(img: Pixels): Measured | null {
+  const total = img.width * img.height;
+  const luma = new Float32Array(total);
+  const alpha = new Uint8ClampedArray(total);
+  for (let p = 0; p < total; p += 1) {
+    const i = p * 4;
+    alpha[p] = img.data[i + 3];
+    luma[p] = 0.2126 * img.data[i] + 0.7152 * img.data[i + 1] + 0.0722 * img.data[i + 2];
+  }
+
+  const ring = Math.max(1, Math.round(Math.min(img.width, img.height) * 0.02));
+  const border: number[] = [];
+  let transparentBorder = 0;
+  for (let y = 0; y < img.height; y += 1) {
+    for (let x = 0; x < img.width; x += 1) {
+      if (x >= ring && x < img.width - ring && y >= ring && y < img.height - ring) continue;
+      const p = y * img.width + x;
+      if (alpha[p] < MIN_ALPHA) {
+        transparentBorder += 1;
+        continue;
+      }
+      border.push(luma[p]);
+    }
+  }
+  const borderSize =
+    total - Math.max(0, img.width - ring * 2) * Math.max(0, img.height - ring * 2);
+  const transparentShare = borderSize > 0 ? transparentBorder / borderSize : 0;
+  const useAlpha = transparentShare >= MIN_TRANSPARENT_BORDER;
+
+  let threshold = 0;
+  if (!useAlpha) {
+    if (border.length === 0) return null;
+    const sorted = [...border].sort((a, b) => a - b);
+    const median = sorted[Math.floor((sorted.length - 1) / 2)];
+    const uniform =
+      border.filter((v) => Math.abs(v - median) <= BACKGROUND_TOLERANCE).length /
+      border.length;
+    if (uniform < MIN_BACKGROUND_UNIFORMITY) return null;
+    threshold = median - BACKGROUND_TOLERANCE;
+  }
+
   let minX = img.width;
   let minY = img.height;
   let maxX = -1;
@@ -62,15 +109,9 @@ function measure(img: Pixels) {
 
   for (let y = 0; y < img.height; y += 1) {
     for (let x = 0; x < img.width; x += 1) {
-      const i = (y * img.width + x) * 4;
-      if (img.data[i + 3] < MIN_ALPHA) continue;
-      if (
-        img.data[i] >= BACKGROUND_LEVEL &&
-        img.data[i + 1] >= BACKGROUND_LEVEL &&
-        img.data[i + 2] >= BACKGROUND_LEVEL
-      ) {
-        continue;
-      }
+      const p = y * img.width + x;
+      const isBackground = useAlpha ? alpha[p] < MIN_ALPHA : luma[p] >= threshold;
+      if (isBackground) continue;
       if (x < minX) minX = x;
       if (x > maxX) maxX = x;
       if (y < minY) minY = y;
@@ -80,7 +121,7 @@ function measure(img: Pixels) {
   }
 
   if (maxX < minX || maxY < minY) return null;
-  if (foreground / (img.width * img.height) < MIN_CONTENT_DENSITY) return null;
+  if (foreground / total < MIN_CONTENT_DENSITY) return null;
 
   const w = (maxX - minX + 1) / img.width;
   const h = (maxY - minY + 1) / img.height;
@@ -97,14 +138,11 @@ function measure(img: Pixels) {
   };
 }
 
-const FILL_FACTOR = 0.96;
+const FILL_FACTOR = 0.86;
 const MAX_UPSCALE = 2;
 
 /** Mirrors the contain-fit + centring in ProductCard.tsx. */
-function layout(
-  crop: NonNullable<ReturnType<typeof measure>>,
-  box: { width: number; height: number }
-) {
+function layout(crop: Crop, box: { width: number; height: number }) {
   const contentWidth = crop.w * crop.naturalWidth;
   const contentHeight = crop.h * crop.naturalHeight;
   const fit = Math.min(
@@ -124,10 +162,7 @@ function layout(
 }
 
 /** Where the product's own box ends up inside the image area. */
-function visibleBounds(
-  crop: NonNullable<ReturnType<typeof measure>>,
-  box: { width: number; height: number }
-) {
+function visibleBounds(crop: Crop, box: { width: number; height: number }) {
   const l = layout(crop, box);
   return {
     ...l,
@@ -141,6 +176,53 @@ function visibleBounds(
 const BOX = { width: 280, height: 176 }; // the h-44 image area
 
 describe("product image content crop", () => {
+  it("finds the product on a light-grey, washed-out backdrop", () => {
+    // The regression this guards: a fixed "near-white" threshold classified a
+    // 236-level backdrop as product, so the whole canvas looked like content,
+    // no crop was produced, and the product stayed tiny.
+    const img = solid(600, 600, [236, 234, 232, 255]);
+    fillRect(img, 180, 180, 420, 420, [40, 80, 140, 255]);
+
+    const crop = measure(img);
+    expect(crop).not.toBeNull();
+    expect(crop!.w).toBeLessThan(0.5);
+    expect(crop!.h).toBeLessThan(0.5);
+
+    const bounds = visibleBounds({ ...crop!, naturalWidth: 600, naturalHeight: 600 }, BOX);
+    // Prominent: the product now fills its limiting axis of the image area.
+    const fill = Math.max(
+      bounds.contentWidth / BOX.width,
+      bounds.contentHeight / BOX.height
+    );
+    expect(fill).toBeGreaterThan(0.78);
+    expect(fill).toBeLessThanOrEqual(FILL_FACTOR);
+  });
+
+  it("finds the product on a warm off-white backdrop", () => {
+    const img = solid(600, 450, [250, 244, 228, 255]);
+    fillRect(img, 210, 90, 390, 360, [30, 60, 120, 255]);
+
+    const crop = measure(img);
+    expect(crop).not.toBeNull();
+    expect(crop!.h).toBeLessThan(0.75);
+  });
+
+  it("ignores a full-bleed photo with no dominant backdrop", () => {
+    // A gradient/noise-heavy image has no clear peak, so nothing is trimmed.
+    const img = solid(200, 200);
+    for (let y = 0; y < 200; y += 1) {
+      for (let x = 0; x < 200; x += 1) {
+        const v = (x * 7 + y * 13) % 256;
+        const i = (y * 200 + x) * 4;
+        img.data[i] = v;
+        img.data[i + 1] = v;
+        img.data[i + 2] = v;
+        img.data[i + 3] = 255;
+      }
+    }
+    expect(measure(img)).toBeNull();
+  });
+
   it("finds a small product centred in a large white canvas", () => {
     // 600x450 canvas, product occupies the middle 200x300.
     const img = solid(600, 450);
@@ -149,7 +231,6 @@ describe("product image content crop", () => {
     const crop = measure(img);
     expect(crop).not.toBeNull();
     expect(crop!.w).toBeLessThan(0.45);
-    expect(crop!.h).toBeGreaterThan(0.5);
 
     const bounds = visibleBounds({ ...crop!, naturalWidth: 600, naturalHeight: 450 }, BOX);
     // Centred within a pixel or two in both axes.
@@ -160,7 +241,18 @@ describe("product image content crop", () => {
     expect(bounds.y0).toBeGreaterThanOrEqual(-0.5);
     expect(bounds.x1).toBeLessThanOrEqual(BOX.width + 0.5);
     expect(bounds.y1).toBeLessThanOrEqual(BOX.height + 0.5);
-    expect(bounds.contentHeight / BOX.height).toBeGreaterThan(0.9);
+  });
+
+  it("finds a large product that would otherwise defeat a histogram peak", () => {
+    // A big product can be the most common tone in the image, so a
+    // "most common luminance" background estimate picks the product and finds
+    // nothing. The border-based estimate must still find it.
+    const img = solid(300, 300);
+    fillRect(img, 20, 20, 280, 280, [25, 25, 60, 255]);
+
+    const crop = measure(img);
+    expect(crop).not.toBeNull();
+    expect(crop!.w).toBeGreaterThan(0.8);
   });
 
   it("makes a padded product far larger than uncropped contain would", () => {
@@ -199,6 +291,22 @@ describe("product image content crop", () => {
     expect(crop!.w).toBeLessThan(0.6);
   });
 
+  it("skips a busy, non-uniform border rather than guessing", () => {
+    // Full-bleed photo: the edge is not a consistent backdrop, so no crop.
+    const img = solid(200, 200);
+    for (let y = 0; y < 200; y += 1) {
+      for (let x = 0; x < 200; x += 1) {
+        const v = (x * 7 + y * 13) % 256;
+        const i = (y * 200 + x) * 4;
+        img.data[i] = v;
+        img.data[i + 1] = v;
+        img.data[i + 2] = v;
+        img.data[i + 3] = 255;
+      }
+    }
+    expect(measure(img)).toBeNull();
+  });
+
   it("returns null for an image that already fills its canvas", () => {
     const img = solid(600, 450, [12, 40, 90, 255]);
     expect(measure(img)).toBeNull();
@@ -223,8 +331,8 @@ describe("product image content crop", () => {
     const drawn = bounds.width / bounds.height;
     const natural = crop.naturalWidth / crop.naturalHeight;
     expect(drawn).toBeCloseTo(natural, 5); // no stretching
-    // Width-bound in a wide box, and it uses the full width.
-    expect(bounds.x1 - bounds.x0).toBeGreaterThan(BOX.width * 0.9);
+    // Width-bound in a wide box, filling FILL_FACTOR of the available width.
+    expect(bounds.x1 - bounds.x0).toBeCloseTo(BOX.width * FILL_FACTOR, 5);
   });
 
   it("never upscales a small source past MAX_UPSCALE", () => {

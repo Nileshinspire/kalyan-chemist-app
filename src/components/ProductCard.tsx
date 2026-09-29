@@ -73,8 +73,17 @@ const cropCache = new Map<string, ContentCrop | null>();
 
 /** Longest edge of the scratch canvas used for measuring. */
 const MEASURE_EDGE = 220;
-/** A pixel counts as background when every channel is at least this bright. */
-const BACKGROUND_LEVEL = 240;
+/**
+ * How far from the border's median brightness a pixel may sit and still count
+ * as backdrop. Tuned for real catalogue photography, where the "white"
+ * background is often light grey, slightly warm, or washed out by JPEG
+ * compression — a fixed brightness cut-off misses those entirely.
+ */
+const BACKGROUND_TOLERANCE = 18;
+/** Share of border pixels that must match the backdrop median to trust it. */
+const MIN_BACKGROUND_UNIFORMITY = 0.6;
+/** Share of the border that must be transparent to treat alpha as the mask. */
+const MIN_TRANSPARENT_BORDER = 0.5;
 /** Ignore fully transparent pixels. */
 const MIN_ALPHA = 12;
 /** Below this share of foreground pixels the image is treated as unusable. */
@@ -84,14 +93,23 @@ const ALREADY_TIGHT = 0.92;
 /** Reject degenerate slivers rather than zooming into a stray dark pixel. */
 const MIN_CROP_AXIS = 0.06;
 /** Breathing room added around the detected box so edges are never shaved. */
-const CROP_PADDING = 0.03;
+const CROP_PADDING = 0.02;
 /** Never upscale a tiny source beyond this, so small crops cannot turn blurry. */
 const MAX_UPSCALE = 2;
 
 /**
- * Find the bounding box of the product inside a decoded image by treating
- * near-white and transparent pixels as background. Returns null when the image
- * cannot be measured, is effectively blank, or already fills its canvas.
+ * Find the bounding box of the product inside a decoded image.
+ *
+ * The surrounding border is what identifies the backdrop: a product never
+ * covers all four edges at once, so the border's median brightness is a far
+ * more reliable background estimate than any global statistic (a histogram
+ * peak is often the product itself, not the backdrop). Backdrops that are
+ * light grey, off-white or washed out are therefore handled, and a genuinely
+ * transparent cut-out is detected from alpha directly.
+ *
+ * Returns null whenever the backdrop cannot be identified confidently, the
+ * product is a degenerate sliver, or it already fills the canvas — the caller
+ * then falls back to a plain `object-contain` image.
  */
 function measureContentCrop(img: HTMLImageElement): ContentCrop | null {
   const naturalWidth = img.naturalWidth;
@@ -118,6 +136,49 @@ function measureContentCrop(img: HTMLImageElement): ContentCrop | null {
     return null;
   }
 
+  const total = width * height;
+  const luma = new Float32Array(total);
+  const alpha = new Uint8ClampedArray(total);
+  for (let p = 0; p < total; p += 1) {
+    const i = p * 4;
+    alpha[p] = data[i + 3];
+    luma[p] = 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
+  }
+
+  // Sample the frame of the image, which is what surrounds the product.
+  const ring = Math.max(1, Math.round(Math.min(width, height) * 0.02));
+  const border: number[] = [];
+  let transparentBorder = 0;
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      if (x >= ring && x < width - ring && y >= ring && y < height - ring) continue;
+      const p = y * width + x;
+      if (alpha[p] < MIN_ALPHA) {
+        transparentBorder += 1;
+        continue;
+      }
+      border.push(luma[p]);
+    }
+  }
+  const borderSize = (width * height) - Math.max(0, width - ring * 2) * Math.max(0, height - ring * 2);
+  const transparentShare = borderSize > 0 ? transparentBorder / borderSize : 0;
+
+  // A cut-out on transparency: alpha alone is an exact mask.
+  const useAlpha = transparentShare >= MIN_TRANSPARENT_BORDER;
+
+  let threshold = 0;
+  if (!useAlpha) {
+    if (border.length === 0) return null;
+    const sorted = [...border].sort((a, b) => a - b);
+    const median = sorted[Math.floor((sorted.length - 1) / 2)];
+    const uniform = border.filter(
+      (v) => Math.abs(v - median) <= BACKGROUND_TOLERANCE
+    ).length / border.length;
+    // A busy or inconsistent edge means we cannot trust the backdrop.
+    if (uniform < MIN_BACKGROUND_UNIFORMITY) return null;
+    threshold = median - BACKGROUND_TOLERANCE;
+  }
+
   let minX = width;
   let minY = height;
   let maxX = -1;
@@ -126,15 +187,11 @@ function measureContentCrop(img: HTMLImageElement): ContentCrop | null {
 
   for (let y = 0; y < height; y += 1) {
     for (let x = 0; x < width; x += 1) {
-      const i = (y * width + x) * 4;
-      if (data[i + 3] < MIN_ALPHA) continue;
-      if (
-        data[i] >= BACKGROUND_LEVEL &&
-        data[i + 1] >= BACKGROUND_LEVEL &&
-        data[i + 2] >= BACKGROUND_LEVEL
-      ) {
-        continue;
-      }
+      const p = y * width + x;
+      const isBackground = useAlpha
+        ? alpha[p] < MIN_ALPHA
+        : luma[p] >= threshold;
+      if (isBackground) continue;
       if (x < minX) minX = x;
       if (x > maxX) maxX = x;
       if (y < minY) minY = y;
@@ -144,7 +201,7 @@ function measureContentCrop(img: HTMLImageElement): ContentCrop | null {
   }
 
   if (maxX < minX || maxY < minY) return null;
-  if (foreground / (width * height) < MIN_CONTENT_DENSITY) return null;
+  if (foreground / total < MIN_CONTENT_DENSITY) return null;
 
   const contentW = (maxX - minX + 1) / width;
   const contentH = (maxY - minY + 1) / height;
@@ -258,8 +315,13 @@ function useBoxSize(ref: RefObject<HTMLElement | null>): { width: number; height
   return size;
 }
 
-/** Share of the image area the cropped product may fill, leaving a small margin. */
-const FILL_FACTOR = 0.96;
+/**
+ * Share of the image area the cropped product may fill on its limiting axis.
+ * With CROP_PADDING the visible product lands at roughly 83% of the area,
+ * matching the reference storefronts, while keeping a clean margin so the
+ * product never touches the card edge or a corner badge.
+ */
+const FILL_FACTOR = 0.86;
 
 /**
  * Renders the product image so the product — not the image's baked-in white
