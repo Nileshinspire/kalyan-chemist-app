@@ -163,12 +163,14 @@ describe("helpers", () => {
     expect(isMedicine("device")).toBe(false);
   });
 
-  it("states that both the reference catalogue and the online sources were checked", () => {
-    // The message is shown only after the curated catalogue AND the online
-    // product lookup have both failed, so it must name both — and must never
-    // blame a local list for a real product that simply is not in it.
+  it("states that every configured source was checked, and names them", () => {
+    // The message is shown only after the whole cascade has failed, so it must
+    // name the sources that were searched — and must never blame a local list
+    // for a real product that simply is not in it.
     expect(NO_CONFIDENT_MATCH_MESSAGE).toMatch(/reference catalogue/i);
-    expect(NO_CONFIDENT_MATCH_MESSAGE).toMatch(/online product source/i);
+    for (const source of ["Apollo Pharmacy", "Tata 1mg", "Netmeds", "PharmEasy"]) {
+      expect(NO_CONFIDENT_MATCH_MESSAGE).toContain(source);
+    }
     expect(NO_CONFIDENT_MATCH_MESSAGE).not.toMatch(/MEDICINES_DB/);
   });
 });

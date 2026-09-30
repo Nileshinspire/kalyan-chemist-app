@@ -481,5 +481,13 @@ export function neutralDescription(input: ProductIdentity, kind: ProductKind): s
  * lookup was attempted and failed to verify this exact product — never that a
  * name was simply "not found" in a local list.
  */
+/**
+ * What the admin is told when nothing could be verified.
+ *
+ * The point of this message is that it is only ever shown AFTER every
+ * configured source has been asked. "No verified record" means the catalogues
+ * and the brand's own site were searched and none of them published this exact
+ * product — it never means "one source was empty".
+ */
 export const NO_CONFIDENT_MATCH_MESSAGE =
-  "This exact product could not be verified in the reference catalogue or in any online product source, so no product details were filled in. Please check the product name, or enter the details manually.";
+  "No verified exact product record was found. Every configured source was searched — Apollo Pharmacy, Tata 1mg, Netmeds, PharmEasy, the manufacturer's own site, the local reference catalogue and the drug-label database — and none of them published this exact product, so no product details were filled in. The sources checked are listed below. Check the product name, or enter the details manually.";

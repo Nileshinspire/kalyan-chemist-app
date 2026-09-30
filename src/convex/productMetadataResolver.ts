@@ -39,6 +39,8 @@ import {
   asString,
   single,
   words,
+  nextData,
+  collectRecords,
   searchVariants,
   getText,
   getJson,
@@ -47,9 +49,9 @@ import {
   identityWordsOf,
   productNameMatchesIdentity,
   makerIsBrandLabel,
-  catalogueSearchRecords,
   imagesOf,
   jsonLdImages,
+  pageImages,
   sameMaker,
   MAX_QUERIES_PER_SOURCE,
   SITE_SEARCH_PATTERNS,
@@ -59,6 +61,12 @@ import {
   type ProductRecordImages,
   type RawRecord,
 } from "./productImageResolver";
+import {
+  CATALOGUE_SOURCES,
+  OFFICIAL_SOURCE,
+  SOURCE_LABELS,
+  probeCatalogueSource,
+} from "./productCatalogSources";
 
 /** Everything the Auto Fill needs, and nothing it was not given. */
 export type ResolvedProductMetadata = {
@@ -89,6 +97,11 @@ export type ResolvedProductMetadata = {
    * resolved — never a second, independent lookup of some other product.
    */
   record: ProductRecordImages | null;
+  /**
+   * Every source the cascade asked and what it answered, so a failure says
+   * which catalogues were checked instead of implying nothing was.
+   */
+  sources: SourceReport[];
   /** Sources consulted and why a candidate was rejected (admin audit trail). */
   notes: string[];
 };
@@ -103,6 +116,8 @@ export type CatalogueProduct = {
   form: string | null;
   packSize: string | null;
   prescriptionRequired: boolean | null;
+  /** Product code / SKU, when the source publishes one. */
+  sku: string | null;
   slug: string | null;
   source: string;
   sourceUrl: string | null;
@@ -156,8 +171,14 @@ const EMPTY: ResolvedProductMetadata = {
   source: null,
   sourceUrl: null,
   record: null,
+  sources: [],
   notes: [],
 };
+
+/** A blank result: nothing resolved, and no source has been asked yet. */
+export function emptyResolvedMetadata(): ResolvedProductMetadata {
+  return { ...EMPTY, notes: [], sources: [] };
+}
 
 /**
  * Join overlapping descriptions into one readable value: a value already
@@ -224,6 +245,19 @@ const DOSAGE_FORMS: Array<[RegExp, string]> = [
   [/\blotions?\b/i, "lotion"],
   [/\bsprays?\b/i, "spray"],
   [/\boils?\b/i, "oil"],
+  // Non-medicine forms a pharmacy catalogue also stocks. Naming them keeps a
+  // cleanser a cleanser and a kit a kit, instead of leaving the form blank and
+  // letting the product be classified from its name alone.
+  [/\bcleansers?\b|\bface\s*wash\b|\bbody\s*wash\b|\bhand\s*wash\b/i, "cleanser"],
+  [/\bsoaps?\b/i, "soap"],
+  [/\bshampoos?\b|\bconditioners?\b/i, "shampoo"],
+  [/\bserums?\b/i, "serum"],
+  [/\bsunscreens?\b|\bsun\s*block\b/i, "sunscreen"],
+  [/\btoothpaste\b/i, "toothpaste"],
+  [/\bwipes?\b|\bbaby\s*wipes\b/i, "wipes"],
+  [/\bdiapers?\b|\bpad(s)?\b/i, "diaper"],
+  [/\btest\s*kits?\b|\bkit\(s\)\b|\bdevice(s)?\b|\bmeters?\b/i, "device"],
+  [/\bbandages?\b|\bband\s*aid/i, "bandage"],
 ];
 
 /** The first dosage form stated anywhere in the given text, if any. */
@@ -350,6 +384,11 @@ export function parseCatalogueProduct(record: RawRecord): CatalogueProduct | nul
     form,
     packSize: clean(packText),
     prescriptionRequired,
+    sku:
+      asString(record.sku) ??
+      asString(record.productCode) ??
+      asString(record.productId) ??
+      null,
     slug: slug ?? null,
     source: "pharmacy-catalogue",
     sourceUrl: slug ? `${PHARMEASY_SEARCH}${encodeURIComponent(productName)}` : null,
@@ -581,6 +620,478 @@ export function labelProductMatchesIdentity(
   );
 }
 
+// ── Product detail pages ──
+
+/** Structured product fields a detail page states, with the value it states. */
+type PageAttributes = {
+  brand?: string;
+  manufacturer?: string;
+  composition?: string;
+  form?: string;
+  strength?: string;
+  packSize?: string;
+  sku?: string;
+};
+
+/**
+ * The label→value reader used on a product page. It only accepts a value that
+ * sits directly next to a label the page itself prints, so a stray sentence
+ * containing the word "composition" can never become this product's
+ * composition.
+ */
+const PAGE_ATTRIBUTE_LABELS: Record<keyof PageAttributes, string[]> = {
+  brand: ["brand", "brand name"],
+  manufacturer: ["manufacturer", "manufactured by", "marketed by", "company"],
+  composition: ["composition", "ingredients", "ingredient", "salt", "molecule"],
+  form: ["dosage form", "form", "product type", "type"],
+  strength: ["strength", "dose"],
+  packSize: ["pack size", "packaging", "package size", "net quantity", "net qty", "contents"],
+  sku: ["sku", "product code", "item code", "mpn"],
+};
+
+function pageAttributes(html: string): PageAttributes {
+  const found: PageAttributes = {};
+  const text = html.replace(/<[^>]+>/g, "\n").replace(/&amp;/g, "&");
+  for (const [key, labels] of Object.entries(PAGE_ATTRIBUTE_LABELS) as Array<
+    [keyof PageAttributes, string[]]
+  >) {
+    for (const label of labels) {
+      // "Label: value" / "Label</span><span>value" / "Label — value"
+      const pattern = new RegExp(
+        `${label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*(?:<[^>]+>\\s*)*[\\s:\\u2014\\-–]{1,4}\\s*([^\\n<>]{2,80})`,
+        "i",
+      );
+      const match = text.match(pattern);
+      const value = match?.[1]?.trim();
+      if (value && !/^(?:n\/?a|not available|-{2,})$/i.test(value)) {
+        found[key] = clean(value) ?? undefined;
+        break;
+      }
+    }
+  }
+  return found;
+}
+
+/**
+ * Open ONE product's detail page and read the record it publishes.
+ *
+ * The search page only says a product exists; the detail page is the source of
+ * truth for that product. Everything taken from here belongs to this page's
+ * product: its JSON-LD, its own gallery, and the attributes it prints.
+ */
+async function openProductPage(
+  url: string,
+): Promise<{
+  url: string;
+  product: OfficialProduct | null;
+  images: ProductRecordImages["images"];
+  attributes: PageAttributes;
+} | null> {
+  const html = await getText(url, "text/html", SITE_TIMEOUT_MS);
+  if (!html) return null;
+  const product = parseJsonLdProduct(html);
+  const images = [...(product?.images ?? []), ...pageImages(html, url)];
+  return {
+    url,
+    product,
+    images: uniqueByUrl(images),
+    attributes: pageAttributes(html),
+  };
+}
+
+function uniqueByUrl(
+  images: ProductRecordImages["images"],
+): ProductRecordImages["images"] {
+  const seen = new Set<string>();
+  const out: ProductRecordImages["images"] = [];
+  for (const image of images) {
+    const key = image.url.split("?")[0];
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(image);
+  }
+  return out;
+}
+
+/** Merge a record's own assets with what its detail page publishes. */
+function imagesWithPage(
+  recordImages: ProductRecordImages["images"],
+  pageImagesList: ProductRecordImages["images"],
+): ProductRecordImages["images"] {
+  // The detail page's own gallery comes first, then the structured/API fields
+  // the search record carried. Both belong to this one product, and ranking
+  // still decides which of them is the front packshot.
+  return uniqueByUrl([...pageImagesList, ...recordImages]);
+}
+
+// ── Multi-source cascade ──
+
+/** What one source did, in words the admin can act on. */
+export type SourceReport = {
+  id: string;
+  label: string;
+  status: "resolved" | "no-exact-match" | "no-images" | "no-data" | "blocked" | "error" | "clinical";
+  detail: string;
+  /** The product this source resolved, when it resolved one. */
+  productName?: string;
+};
+
+/** The accepted product record, and everything the resolver learned on the way. */
+type AcceptedRecord = {
+  metadata: {
+    productName: string;
+    brand: string | null;
+    manufacturer: string | null;
+    composition: string | null;
+    strength: string | null;
+    form: string | null;
+    packSize: string | null;
+    prescriptionRequired: boolean | null;
+    sku: string | null;
+    description: string | null;
+  };
+  record: ProductRecordImages;
+  sourceLabel: string;
+  sourceId: string;
+  sourceUrl: string | null;
+  productPageUrl: string | null;
+  /** Kept so a drug label can only enrich the same substance. */
+  catalogue: CatalogueProduct | null;
+};
+
+/** How a catalogue's HTML becomes product records. */
+function recordsFromHtml(
+  html: string,
+  sourceLabel: string,
+): { products: CatalogueProduct[]; records: Map<string, RawRecord> } {
+  const products: CatalogueProduct[] = [];
+  const records = new Map<string, RawRecord>();
+
+  // 1. Embedded state (PharmEasy's __NEXT_DATA__ and friends).
+  const blob = nextData(html);
+  if (blob) {
+    for (const record of collectRecords(blob)) {
+      const product = parseCatalogueProduct(record);
+      if (product) {
+        products.push(product);
+        records.set(product.productName, record);
+      }
+    }
+  }
+  // 2. Any other embedded JSON payload the site ships.
+  for (const match of html.matchAll(
+    /<script[^>]+application\/json[^>]*>([\s\S]{40,}?)<\/script>/gi,
+  )) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(match[1]);
+    } catch {
+      continue;
+    }
+    for (const record of collectRecords(parsed)) {
+      const product = parseGenericProduct(record, sourceLabel);
+      if (product && !products.some((p) => p.productName === product.productName)) {
+        products.push(product);
+        records.set(product.productName, record);
+      }
+    }
+  }
+  // 3. JSON-LD products published directly by the search page.
+  const jsonLd = parseJsonLdProduct(html);
+  if (jsonLd) {
+    const product = genericFromJsonLd(jsonLd);
+    if (product) products.push(product);
+  }
+  return { products, records };
+}
+
+/**
+ * Read a product record from a site that publishes its products in an embedded
+ * payload with its own field names. Every field is optional and only ever taken
+ * when the record states it.
+ */
+export function parseGenericProduct(
+  record: RawRecord,
+  sourceLabel: string,
+): CatalogueProduct | null {
+  const name = asString(record.name) ?? asString(record.title) ?? asString(record.productName);
+  if (!name) return null;
+  const pick = (...keys: string[]) => {
+    for (const key of keys) {
+      const value = single(record[key]) ?? asString(record[key]);
+      if (value) return value;
+    }
+    return undefined;
+  };
+  const compositionParts = Array.isArray(record.compositions)
+    ? record.compositions
+        .map((entry) =>
+          typeof entry === "object" && entry !== null
+            ? asString((entry as RawRecord).name)
+            : asString(entry),
+        )
+        .filter((value): value is string => !!value)
+    : [];
+  const composition = clean(
+    compositionParts.join(" + ") ||
+      pick("composition", "ingredients", "ingredient", "moleculeName", "genericName", "salt"),
+  );
+  const packSize = clean(
+    mergeDistinct([
+      pick("packSize", "measurementUnit", "subtitleText", "shortSubtitleText", "netQuantity"),
+      asString(record.size),
+    ]),
+  );
+  const form = dosageFormFrom(
+    [name, packSize ?? "", pick("form", "dosageForm", "packform") ?? ""].filter(Boolean).join(" "),
+  );
+  const rx = record.isRxRequired ?? record.prescriptionRequired ?? record.rxRequired;
+  const prescriptionRequired =
+    rx === 1 || rx === "1" || rx === true
+      ? true
+      : rx === 0 || rx === "0" || rx === false
+        ? false
+        : null;
+  return {
+    productName: name,
+    brand: readable(pick("consumerBrandName", "brand", "brandName")),
+    manufacturer: readable(pick("manufacturer", "manufacturedBy", "company", "marketedBy")),
+    composition,
+    strength: strengthFrom(name) ?? (composition ? strengthFrom(composition) : null),
+    form,
+    packSize,
+    prescriptionRequired,
+    sku: pick("sku", "productCode", "itemCode", "productId", "id") ?? null,
+    slug: asString(record.slug) ?? null,
+    source: sourceLabel,
+    sourceUrl: asString(record.url) ?? asString(record.deeplink) ?? null,
+  };
+}
+
+/** The same, for a JSON-LD product the page published. */
+function genericFromJsonLd(product: OfficialProduct): CatalogueProduct | null {
+  return {
+    productName: product.productName,
+    brand: product.brand,
+    manufacturer: product.manufacturer,
+    composition: null,
+    strength: strengthFrom(product.productName),
+    form: dosageFormFrom(product.productName),
+    packSize: null,
+    prescriptionRequired: null,
+    sku: null,
+    slug: null,
+    source: product.source,
+    sourceUrl: product.sourceUrl,
+  };
+}
+
+/**
+ * Walk every configured source until one returns the exact product.
+ *
+ * Rules that hold for the whole cascade:
+ *   - A source that could not answer (blocked, browser-rendered, empty) is
+ *     reported and stepped over. It is never treated as "no such product".
+ *   - A source that answered but offered only near-matches is reported as
+ *     "no exact match", and the next source is asked.
+ *   - The FIRST source that returns the exact record wins, and its metadata and
+ *     its images come from that one record. Later sources are only asked again
+ *     for images of the same product, and only when the accepted record
+ *     published none of its own.
+ */
+async function runCascade(
+  identity: ProductIdentity,
+  notes: string[],
+): Promise<{ accepted: AcceptedRecord | null; sources: SourceReport[] }> {
+  const sources: SourceReport[] = [];
+  const queries = searchVariants(identity).slice(0, MAX_QUERIES_PER_SOURCE);
+  let accepted: AcceptedRecord | null = null;
+
+  // Ask one catalogue. Returns the exact record it found, if any.
+  const askCatalogue = async (
+    source: (typeof CATALOGUE_SOURCES)[number],
+    firstHtml: string | null,
+  ): Promise<{ accepted: AcceptedRecord | null; status: SourceReport["status"]; detail: string }> => {
+    const label = source.label;
+    let sawRecords = 0;
+    const rejected: string[] = [];
+    for (const [index, query] of queries.entries()) {
+      // The first response is the one already fetched for the probe; a second
+      // spelling of the name is only tried when the first had no exact record.
+      const html = index === 0 ? firstHtml : (await probeCatalogueSource(source, query)).html;
+      if (!html) continue;
+      const { products, records } = recordsFromHtml(html, label);
+      if (products.length === 0) continue;
+      sawRecords += products.length;
+
+      for (const product of products) {
+        if (!catalogueProductMatchesIdentity(product, identity)) {
+          if (rejected.length < 3 && !rejected.includes(product.productName)) {
+            rejected.push(product.productName);
+          }
+          continue;
+        }
+        const raw = records.get(product.productName) ?? null;
+        const recordImages = raw ? imagesOf(raw) : [];
+        // The record's own page, when the catalogue publishes one, is the
+        // source of truth for that product: its gallery leads, and whatever
+        // attributes it prints fill the fields the record left empty.
+        const pageUrl = productPageUrl(label, product, raw);
+        let page: Awaited<ReturnType<typeof openProductPage>> = null;
+        if (pageUrl) page = await openProductPage(pageUrl);
+        const images = imagesWithPage(recordImages, page?.images ?? []);
+        return {
+          accepted: {
+            metadata: {
+              productName: product.productName,
+              brand: product.brand,
+              manufacturer:
+                product.manufacturer ?? page?.attributes.manufacturer ?? null,
+              composition: product.composition ?? page?.attributes.composition ?? null,
+              strength: product.strength ?? page?.attributes.strength ?? null,
+              form: product.form ?? page?.attributes.form ?? null,
+              packSize: product.packSize ?? page?.attributes.packSize ?? null,
+              prescriptionRequired: product.prescriptionRequired,
+              sku: product.sku ?? page?.attributes.sku ?? null,
+              description: page?.product?.description ?? null,
+            },
+            record: {
+              name: product.productName,
+              source: label,
+              sourceUrl: product.sourceUrl,
+              pageUrl: pageUrl ?? undefined,
+              manufacturer: product.manufacturer,
+              packText: product.packSize,
+              images,
+            },
+            sourceLabel: label,
+            sourceId: source.id,
+            sourceUrl: product.sourceUrl,
+            productPageUrl: pageUrl,
+            catalogue: product,
+          },
+          status: images.length > 0 ? "resolved" : "no-images",
+          detail:
+            images.length > 0
+              ? "exact product record with its own images"
+              : "exact product record, but it published no images",
+        };
+      }
+    }
+    if (sawRecords === 0) {
+      return {
+        accepted: null,
+        status: "no-data",
+        detail: "the source returned no product records for this name",
+      };
+    }
+    return {
+      accepted: null,
+      status: "no-exact-match",
+      detail: `${sawRecords} product record(s) returned, none of them this exact product (e.g. ${rejected.join(", ") || "other variants"})`,
+    };
+  };
+
+  for (const source of CATALOGUE_SOURCES) {
+    if (accepted) break;
+    const probe = await probeCatalogueSource(source, queries[0] ?? identity.productName);
+    if (probe.status !== "ok") {
+      sources.push({
+        id: source.id,
+        label: source.label,
+        status: probe.status,
+        detail: probe.detail,
+      });
+      continue;
+    }
+    const result = await askCatalogue(source, probe.html);
+    sources.push({
+      id: source.id,
+      label: source.label,
+      status: result.status,
+      detail: result.detail,
+      productName: result.accepted?.metadata.productName,
+    });
+    if (result.accepted) {
+      accepted = result.accepted;
+      if (result.status === "no-images") {
+        notes.push(
+          `${source.label} resolved the exact product but published no images; later sources are asked for this product's own views`,
+        );
+      }
+    }
+  }
+
+  // The brand's own product page: the last structured source, and the one that
+  // publishes a gallery for products no pharmacy lists.
+  if (!accepted) {
+    const official = await resolveFromOfficialSite(identity, notes);
+    if (official) {
+      const images = uniqueByUrl(official.images);
+      accepted = {
+        metadata: {
+          productName: official.productName,
+          brand: official.brand,
+          manufacturer: official.manufacturer,
+          composition: null,
+          strength: strengthFrom(official.productName),
+          form: dosageFormFrom(official.productName),
+          packSize: null,
+          prescriptionRequired: null,
+          sku: null,
+          description: official.description,
+        },
+        record: {
+          name: official.productName,
+          source: official.source,
+          sourceUrl: official.sourceUrl,
+          pageUrl: official.sourceUrl ?? undefined,
+          manufacturer: official.manufacturer,
+          images,
+        },
+        sourceLabel: OFFICIAL_SOURCE.label,
+        sourceId: "official",
+        sourceUrl: official.sourceUrl,
+        productPageUrl: official.sourceUrl,
+        catalogue: null,
+      };
+      sources.push({
+        id: "official",
+        label: OFFICIAL_SOURCE.label,
+        status: images.length > 0 ? "resolved" : "no-images",
+        detail:
+          images.length > 0
+            ? "exact product page with its own gallery"
+            : "exact product page, but it published no images",
+        productName: official.productName,
+      });
+    } else {
+      sources.push({
+        id: "official",
+        label: OFFICIAL_SOURCE.label,
+        status: "no-exact-match",
+        detail: "no product page on the brand's own site matched this name",
+      });
+    }
+  }
+
+  return { accepted, sources };
+}
+
+/** The detail page of a catalogue record, when the catalogue publishes one. */
+function productPageUrl(
+  label: string,
+  product: CatalogueProduct,
+  raw: RawRecord | null,
+): string | null {
+  if (label !== SOURCE_LABELS.pharmeasy) return product.sourceUrl;
+  // PharmEasy detail pages are not served to a server-side request; its search
+  // record's own DAM assets are the product's images instead, and asking for the
+  // page would only cost a request.
+  void raw;
+  return null;
+}
+
 // ── Orchestration ──
 
 /**
@@ -606,62 +1117,35 @@ export async function resolveProductMetadata(
   const name = identity.productName.trim();
   if (!name) return result;
 
-  // ── 1. The brand's own product page ──
-  const official = await resolveFromOfficialSite(identity, notes);
-  if (official) {
-    result.matched = true;
-    result.productName = official.productName;
-    result.brand = official.brand;
-    result.manufacturer = official.manufacturer;
-    result.description = official.description;
-    result.source = official.source;
-    result.sourceUrl = official.sourceUrl;
-    // The matched record and the images that belong to it travel together, so
-    // the Auto Fill never has to look the product up a second time for a photo.
-    result.record = {
-      name: official.productName,
-      source: official.source,
-      sourceUrl: official.sourceUrl,
-      pageUrl: official.sourceUrl ?? undefined,
-      manufacturer: official.manufacturer,
-      images: official.images,
-    };
-    return result;
-  }
+  // ── The cascade: every configured source, in priority order ──
+  const { accepted, sources } = await runCascade(identity, notes);
+  result.sources = sources;
 
-  // ── 2. The licensed pharmacy catalogue ──
-  const found = await resolveFromCatalogue(identity, notes);
-  const catalogue = found?.product ?? null;
-  if (catalogue && found) {
+  if (accepted) {
     result.matched = true;
-    result.productName = catalogue.productName;
-    result.brand = catalogue.brand;
-    result.manufacturer = catalogue.manufacturer;
-    result.composition = catalogue.composition;
-    result.strength = catalogue.strength;
-    result.form = catalogue.form;
-    result.packSize = catalogue.packSize;
-    result.prescriptionRequired = catalogue.prescriptionRequired;
-    result.source = catalogue.source;
-    result.sourceUrl = catalogue.sourceUrl;
-    // The catalogue record IS the product record: its own DAM/image fields are
-    // the assets stored for this product.
-    result.record = {
-      name: catalogue.productName,
-      source: catalogue.source,
-      sourceUrl: catalogue.sourceUrl,
-      pageUrl: catalogue.sourceUrl ?? undefined,
-      manufacturer: catalogue.manufacturer,
-      packText: catalogue.packSize,
-      images: imagesOf(found.record),
-    };
+    result.productName = accepted.metadata.productName;
+    result.brand = accepted.metadata.brand;
+    result.manufacturer = accepted.metadata.manufacturer;
+    result.composition = accepted.metadata.composition;
+    result.strength = accepted.metadata.strength;
+    result.form = accepted.metadata.form;
+    result.packSize = accepted.metadata.packSize;
+    result.prescriptionRequired = accepted.metadata.prescriptionRequired;
+    result.sku = accepted.metadata.sku;
+    result.description = accepted.metadata.description;
+    result.source = accepted.sourceLabel;
+    result.sourceUrl = accepted.productPageUrl ?? accepted.sourceUrl;
+    // The accepted record and the images that belong to it travel together, so
+    // the Auto Fill never looks the product up a second time for a photo.
+    result.record = accepted.record;
 
-    // ── 3. Structured label data, to fill the clinical copy the catalogue
-    //       does not publish. Only for the same substance / strength / form. ──
+    // Structured label data fills the clinical copy the catalogue does not
+    // publish. It only enriches: openFDA is never the identity source for an
+    // Indian product, and a label for another substance is refused.
     const label =
       options?.includeLabels === false
         ? null
-        : await resolveFromLabels(identity, catalogue, notes);
+        : await resolveFromLabels(identity, accepted.catalogue, notes);
     if (label) {
       result.benefits = label.benefits;
       result.directions = label.directions;
@@ -670,12 +1154,22 @@ export async function resolveProductMetadata(
       result.composition = result.composition ?? label.composition;
       result.strength = result.strength ?? label.strength;
       result.form = result.form ?? label.form;
-      result.source = `${catalogue.source} + ${label.source}`;
+      result.source = `${accepted.sourceLabel} + ${label.source}`;
+      result.sources.push({
+        id: "openfda",
+        label: "openFDA drug labels",
+        status: "clinical",
+        detail: "clinical copy (benefits, directions, safety, storage) only",
+        productName: label.productName,
+      });
     }
     return result;
   }
 
-  // ── 3. Structured drug labels as the identity source ──
+  // Every catalogue and the brand's own site were asked and none returned this
+  // exact product. A drug label can still describe it — as clinical copy for an
+  // identity nothing else claimed — but it can never stand in for an Indian
+  // product record, because a foreign label may be a different market pack.
   const labelOnly =
     options?.includeLabels === false
       ? null
@@ -694,10 +1188,19 @@ export async function resolveProductMetadata(
     result.storage = labelOnly.storage;
     result.source = labelOnly.source;
     result.sourceUrl = labelOnly.sourceUrl;
+    result.sources.push({
+      id: "openfda",
+      label: "openFDA drug labels",
+      status: "clinical",
+      detail: "no catalogue record; clinical copy only, no product images",
+      productName: labelOnly.productName,
+    });
     return result;
   }
 
-  notes.push("no source returned a record for this exact product");
+  notes.push(
+    `no source returned an exact record for "${name}" (checked ${sources.map((s) => s.label).join(", ")})`,
+  );
   return result;
 }
 
@@ -726,40 +1229,21 @@ async function resolveFromOfficialSite(
       const product = parseJsonLdProduct(page);
       if (!product) continue;
       product.sourceUrl = link;
+      // The page's own gallery travels with the record: those are the brand's
+      // assets for this exact product, not pictures found by searching.
+      const pageAssets = pageImages(page, link);
+      if (pageAssets.length > 0) {
+        const seen = new Set(product.images.map((image) => image.url.split("?")[0]));
+        for (const asset of pageAssets) {
+          if (seen.has(asset.url.split("?")[0])) continue;
+          seen.add(asset.url.split("?")[0]);
+          product.images.push(asset);
+        }
+      }
       if (officialProductMatchesIdentity(product, identity)) return product;
       notes.push(`rejected own-site page: ${product.productName}`);
     }
   }
-  return null;
-}
-
-async function resolveFromCatalogue(
-  identity: ProductIdentity,
-  notes: string[],
-): Promise<{ product: CatalogueProduct; record: RawRecord } | null> {
-  const queries = searchVariants(identity).slice(0, MAX_QUERIES_PER_SOURCE);
-  let asked = 0;
-  for (const query of queries) {
-    // The catalogue answer is cached per query, so the image pass that follows
-    // reads the same records instead of asking the catalogue all over again.
-    const records = await catalogueSearchRecords(query);
-    if (records.length === 0) continue;
-    asked += 1;
-
-    let rejected = 0;
-    for (const record of records) {
-      const product = parseCatalogueProduct(record);
-      if (product && catalogueProductMatchesIdentity(product, identity)) {
-        return { product, record };
-      }
-      rejected += 1;
-      if (rejected >= 3) break;
-    }
-    if (rejected > 0) {
-      notes.push(`catalogue: rejected ${rejected} near-match record(s) for "${query}"`);
-    }
-  }
-  if (asked === 0) notes.push("catalogue: no results returned");
   return null;
 }
 

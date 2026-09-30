@@ -245,6 +245,39 @@ const schema = defineSchema(
       .index("by_sku", ["sku"])
       .index("by_createdAt", ["createdAt"]),
 
+    // ── Verified catalogue records (the Auto Fill's cache) ──
+    // One row per product the resolver has verified, so the same product is
+    // not rediscovered from the catalogues on every Auto Fill. It holds the
+    // resolved record — including the image assets that belong to it — never
+    // anything that was guessed.
+    productCatalogRecords: defineTable({
+      /** Normalised identity: name + strength + pack, so variants never share. */
+      cacheKey: v.string(),
+      /** Exactly what the admin typed, for the admin's audit trail. */
+      enteredName: v.string(),
+      resolvedName: v.string(),
+      brand: v.optional(v.string()),
+      manufacturer: v.optional(v.string()),
+      composition: v.optional(v.string()),
+      strength: v.optional(v.string()),
+      form: v.optional(v.string()),
+      packSize: v.optional(v.string()),
+      prescriptionRequired: v.optional(v.boolean()),
+      sku: v.optional(v.string()),
+      /** Which source published the record, and where. */
+      source: v.string(),
+      sourceUrl: v.optional(v.string()),
+      productPageUrl: v.optional(v.string()),
+      /** The record's own image assets (remote CDN URLs), front packshot first. */
+      recordImages: v.optional(v.array(v.string())),
+      packText: v.optional(v.string()),
+      recordManufacturer: v.optional(v.string()),
+      checkedAt: v.number(),
+      updatedAt: v.number(),
+    })
+      .index("by_cacheKey", ["cacheKey"])
+      .index("by_updatedAt", ["updatedAt"]),
+
     // ── Inventory adjustment logs ──
     inventory_logs: defineTable({
       productId: v.id("products"),

@@ -21,12 +21,19 @@ import {
 import { buildProductContent } from "./productContent";
 import {
   resolveProductMetadata,
+  emptyResolvedMetadata,
   type ResolvedProductMetadata,
+  type SourceReport,
 } from "./productMetadataResolver";
 import {
   storeRecordImages,
   type ProductIdentity as ResolverIdentity,
 } from "./productImageResolver";
+import {
+  catalogRecordKey,
+  isUsableCachedRecord,
+} from "./productCatalogCache";
+import { internal } from "./_generated/api";
 
 // ════════════════════════════════════════════════════════════════
 // VERIFIED PRODUCT REFERENCE DATA
@@ -54,9 +61,22 @@ export type { MedicineInfo, VerifiedReference } from "./productReference";
  * where a pack count written in a name would be mistaken for a dose.
  */
 export function strengthFromProductName(name: string): string | undefined {
-  const withUnit = name.match(/(\d{2,4}(?:\.\d+)?)\s*(mg|mcg|iu|%)/i);
+  // Separators are normalised first, so "Augmentin-625", "Augmentin 625 Duo" and
+  // "augmentin(625)" all name the same strength. A hyphenated name is the same
+  // product as a spaced one, and must not be resolved as a different variant.
+  const text = name.replace(/[^a-z0-9.]+/gi, " ").trim();
+  const withUnit = text.match(/(\d{2,4}(?:\.\d+)?)\s*(mg|mcg|iu|%)/i);
   if (withUnit) return `${withUnit[1]} ${withUnit[2].toLowerCase()}`;
-  const bare = name.match(/(?:^|[\s(])(\d{2,4})(?=$|[\s)])/);
+  // A bare number is a tablet strength ("Dolo 650") — unless it measures
+  // something else. "Cetaphil Gentle Skin Cleanser 118 ml" is a 118 ml bottle,
+  // not a 118 mg dose, and reading it as a strength would send the resolver
+  // looking for a pack that does not exist. Container measures are removed
+  // before the bare number is read.
+  const withoutMeasures = text.replace(
+    /\b\d{1,4}(?:\.\d+)?\s*(ml|gm|g|kg|l|ltr|litre|litres|oz)\b/g,
+    " ",
+  );
+  const bare = withoutMeasures.match(/(?:^|[\s(])(\d{2,4})(?=$|[\s)])/);
   return bare ? `${bare[1]} mg` : undefined;
 }
 
@@ -464,30 +484,110 @@ export const enrichProduct = action({
       strength: args.strength ?? strengthFromProductName(args.productName) ?? null,
     }).reference;
 
-    // ONE lookup identifies the exact product record and answers for both the
-    // metadata and the images, the way a pharmacy catalogue works:
-    //   product name → exact record → that record's own image assets.
-    // The curated MEDICINES_DB stays a reference (it verifies the clinical copy
-    // for the products it covers) and is never the gate: a product it does not
-    // list is still resolved online, so a real product is never reported as
-    // "unknown" just because it is missing locally.
-    const online = await resolveProductMetadata(
-      {
-        productName: args.productName,
-        brand: args.brand || undefined,
-        manufacturer: args.manufacturer || matched?.manufacturer || undefined,
-        composition: args.composition || matched?.composition || undefined,
-        form: args.form || matched?.form || undefined,
-        strength:
-          args.strength || strengthFromProductName(args.productName) || undefined,
-        dosage: args.dosage || undefined,
-        packSize: args.packSize || undefined,
-        sku: args.sku || undefined,
-      },
-      // The reference record already verified the copy, so the label lookup
-      // (which only fills clinical copy) is skipped in that case.
-      { includeLabels: !matched },
+    // The identity the product is looked up under. The reference record's own
+    // fields are folded in, so the search asks for this exact variant rather
+    // than a name that could match a sibling product.
+    const lookupIdentity: ResolverIdentity = {
+      productName: args.productName,
+      brand: args.brand || undefined,
+      manufacturer: args.manufacturer || matched?.manufacturer || undefined,
+      composition: args.composition || matched?.composition || undefined,
+      form: args.form || matched?.form || undefined,
+      strength:
+        args.strength || strengthFromProductName(args.productName) || undefined,
+      dosage: args.dosage || undefined,
+      packSize: args.packSize || undefined,
+      sku: args.sku || undefined,
+    };
+
+    // The cache key is built from what the ADMIN typed, never from fields the
+    // local reference happened to contribute: the same name must land on the
+    // same row whether or not the reference catalogue covers it.
+    const cacheKey = catalogRecordKey({
+      productName: args.productName,
+      brand: args.brand || undefined,
+      strength:
+        args.strength || strengthFromProductName(args.productName) || undefined,
+      packSize: args.packSize || undefined,
+      form: args.form || undefined,
+    });
+    // A product verified before is not verified again. The cached record is the
+    // answer for this exact identity, complete with the image assets that
+    // belong to it, so no catalogue is asked a second time.
+    const stored = await ctx.runQuery(
+      internal.productCatalogCache.getCatalogRecord,
+      { cacheKey },
     );
+    const cached = isUsableCachedRecord(stored, lookupIdentity) ? stored : null;
+
+    // Otherwise the multi-source cascade runs: every configured pharmacy
+    // catalogue in priority order, then the brand's own product page, and only
+    // the record that is this exact product is accepted. The curated
+    // MEDICINES_DB stays a reference (it verifies clinical copy for the products
+    // it covers) and is never the gate.
+    const online: ResolvedProductMetadata = cached
+      ? {
+          ...emptyResolvedMetadata(),
+          matched: true,
+          productName: cached.resolvedName,
+          brand: cached.brand,
+          manufacturer: cached.manufacturer,
+          composition: cached.composition,
+          strength: cached.strength,
+          form: cached.form,
+          packSize: cached.packSize,
+          prescriptionRequired: cached.prescriptionRequired,
+          sku: cached.sku,
+          source: cached.source,
+          sourceUrl: cached.productPageUrl ?? cached.sourceUrl,
+          record: {
+            name: cached.resolvedName,
+            source: cached.source,
+            sourceUrl: cached.sourceUrl,
+            pageUrl: cached.productPageUrl ?? undefined,
+            manufacturer: cached.recordManufacturer,
+            packText: cached.packText,
+            images: cached.recordImages.map((url) => ({ url })),
+          },
+          sources: [
+            {
+              id: "cache",
+              label: "Verified catalogue record (cached)",
+              status: "resolved",
+              detail: "re-used a record verified for this exact product; no source was re-queried",
+              productName: cached.resolvedName,
+            },
+          ],
+          notes: [],
+        }
+      : await resolveProductMetadata(lookupIdentity, {
+          // The reference record already verified the copy, so the label lookup
+          // (which only fills clinical copy) is skipped in that case.
+          includeLabels: !matched,
+        });
+
+    if (!cached && online.record) {
+      // Remember the verified record and its own image assets for next time.
+      await ctx.runMutation(internal.productCatalogCache.saveCatalogRecord, {
+        cacheKey,
+        enteredName: args.productName,
+        resolvedName: online.record.name,
+        brand: online.brand ?? undefined,
+        manufacturer: online.manufacturer ?? undefined,
+        composition: online.composition ?? undefined,
+        strength: online.strength ?? undefined,
+        form: online.form ?? undefined,
+        packSize: online.packSize ?? undefined,
+        prescriptionRequired: online.prescriptionRequired ?? undefined,
+        sku: online.sku ?? undefined,
+        source: online.record.source,
+        sourceUrl: online.record.sourceUrl ?? undefined,
+        productPageUrl: online.record.pageUrl,
+        recordImages: online.record.images.map((image) => image.url),
+        packText: online.record.packText ?? undefined,
+        recordManufacturer: online.record.manufacturer ?? undefined,
+      });
+    }
     // Metadata is only taken from the online record when there is no verified
     // local record for this exact variant.
     const resolved: ResolvedProductMetadata | null =
@@ -532,6 +632,8 @@ export const enrichProduct = action({
       packSize: string | null;
       brand: string | null;
       prescriptionRequired: boolean | null;
+      /** Every source the resolver asked, and what it answered. */
+      sources: SourceReport[];
     } = {
       imageUrl: null, additionalImages: [], imageSource: null,
       imageUrlSource: null, imageMatchedName: null, imageViews: 0,
@@ -541,7 +643,7 @@ export const enrichProduct = action({
       composition: null, expiryDate: null, category: null, subcategory: null,
       productKind: "unknown", kindConfident: false, kindReason: "", matchFound: false,
       matchSource: null, sourceUrl: null, strength: null, packSize: null,
-      brand: null, prescriptionRequired: null,
+      brand: null, prescriptionRequired: null, sources: [],
     };
 
     // Category inference based on product form, composition, and name.
@@ -826,6 +928,30 @@ export const enrichProduct = action({
         result.imageMessage = image.message;
       }
     }
+
+    // Which sources were asked, in the order they were asked, so a failure can
+    // say "these catalogues were checked" instead of implying nothing was.
+    result.sources = [
+      ...(matched
+        ? [
+            {
+              id: "local-reference",
+              label: "Local reference catalogue",
+              status: "resolved" as const,
+              detail: "verified clinical copy for this exact variant",
+              productName: args.productName,
+            },
+          ]
+        : [
+            {
+              id: "local-reference",
+              label: "Local reference catalogue",
+              status: "no-exact-match" as const,
+              detail: "no record for this exact variant",
+            },
+          ]),
+      ...online.sources,
+    ];
 
     return result;
   },

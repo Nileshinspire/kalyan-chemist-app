@@ -2,6 +2,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { query, mutation, internalQuery, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
+import { isVerifiedProductImage } from "./productImageResolver";
 
 // ── Helper: verify caller is admin ──
 async function requireAdmin(ctx: { db: any; auth: any }) {
@@ -30,6 +31,26 @@ function assertRealImageUrl(imageUrl: string | undefined, required: boolean) {
   if (/^data:/i.test(value)) {
     throw new Error(
       "Generated placeholder images are not allowed. Use Auto-fetch to resolve the real product image.",
+    );
+  }
+}
+
+/**
+ * A NEW product is only saved with a real, verified product photograph.
+ *
+ * "Verified" means this project's own image pipeline downloaded that asset from
+ * the exact product's catalogue record and stored it in Convex storage. A
+ * pasted external URL, a stock photo, a logo or a missing image is refused,
+ * because nothing has checked that it depicts THIS product — and a product page
+ * whose picture belongs to some other product is the one failure an admin
+ * cannot see for themselves.
+ */
+function assertVerifiedImageForNewProduct(imageUrl: string | undefined) {
+  const value = (imageUrl ?? "").trim();
+  assertRealImageUrl(value, true);
+  if (!isVerifiedProductImage(value)) {
+    throw new Error(
+      "A new product must be saved with a verified product packshot. Run Auto Fill (or Fetch image) so the exact product record's own image is stored, then save.",
     );
   }
 }
@@ -267,7 +288,7 @@ export const create = mutation({
   },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
-    assertRealImageUrl(args.imageUrl, false);
+    assertVerifiedImageForNewProduct(args.imageUrl);
 
     // Check for duplicate slug
     const existing = await ctx.db
@@ -328,6 +349,27 @@ export const update = mutation({
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
     assertRealImageUrl(args.imageUrl, false);
+
+    // An edit never downgrades a product that already has a verified packshot:
+    // if the incoming form carries no new verified image, the stored one and its
+    // provenance are kept exactly as they are. A verified replacement does take
+    // over, because that is the point of re-resolving.
+    const current = await ctx.db.get(args.productId);
+    const stored = (current?.imageUrl ?? "").trim();
+    const incoming = (args.imageUrl ?? "").trim();
+    if (
+      current &&
+      isVerifiedProductImage(stored) &&
+      !isVerifiedProductImage(incoming)
+    ) {
+      args = {
+        ...args,
+        imageUrl: stored,
+        additionalImages: current.additionalImages,
+        imageSource: current.imageSource,
+        imageUrlSource: current.imageUrlSource,
+      };
+    }
 
     const { productId, ...updates } = args;
 

@@ -1697,7 +1697,7 @@ export function jsonLdImages(node: unknown, depth = 0): string[] {
  * one leads the gallery, so a lifestyle or banner shot never becomes the
  * packshot while a clean white-background view is available.
  */
-function pageImages(html: string, pageUrl: string): CandidateImage[] {
+export function pageImages(html: string, pageUrl: string): CandidateImage[] {
   const found: CandidateImage[] = [];
   const seen = new Set<string>();
   const push = (raw: string | null | undefined, face?: string) => {

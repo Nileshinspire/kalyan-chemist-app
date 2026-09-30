@@ -217,6 +217,8 @@ export default function AdminProducts() {
     /** Where the verified record came from, so the admin knows what to trust. */
     matchSource: string | null;
     sourceUrl: string | null;
+    /** Every source the resolver asked, and what it answered. */
+    sources: Array<{ id: string; label: string; status: string; detail: string }>;
   } | null>(null);
   const [candidates, setCandidates] = useState<
     Array<{ name: string; manufacturer: string; composition: string; form: string | null }> | null
@@ -654,6 +656,7 @@ export default function AdminProducts() {
         matchFound: (result as any).matchFound ?? false,
         matchSource: (result as any).matchSource ?? null,
         sourceUrl: (result as any).sourceUrl ?? null,
+        sources: (result as any).sources ?? [],
       });
 
       if (!(result as any).matchFound) {
@@ -1124,6 +1127,23 @@ export default function AdminProducts() {
                       <p className="text-amber-800 font-medium leading-relaxed">
                         {NO_CONFIDENT_MATCH_MESSAGE}
                       </p>
+                    )}
+                    {/* Which sources were asked, and what each one answered. A
+                        blocked or empty source is shown as such, so a failure is
+                        never mistaken for "this product does not exist". */}
+                    {matchInfo.sources.length > 0 && (
+                      <div className="text-muted-foreground">
+                        <p className="font-medium text-foreground">
+                          Sources checked:
+                        </p>
+                        <ul className="mt-0.5 space-y-0.5">
+                          {matchInfo.sources.map((source, index) => (
+                            <li key={`${source.id}-${index}`}>
+                              {source.label} — {source.detail}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
                     )}
                     <p className="text-muted-foreground">
                       Directions and safety text are written for this product type. Please

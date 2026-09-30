@@ -60,14 +60,37 @@ describe("online product metadata — reading what a source states", () => {
   it("does not invent a form for a product that states none", () => {
     const product = parseCatalogueProduct({
       ...CATALOGUE_RECORD,
+      name: "Some Product Without Any Form",
+      measurementUnit: "1 Unit",
+      subtitleText: "1 Unit",
+      shortSubtitleText: "1 Unit",
+      packform: "BOX",
+    })!;
+    expect(product.form).toBeNull();
+  });
+
+  it("names the form a non-medicine record states, so it is not left blank", () => {
+    const kit = parseCatalogueProduct({
+      ...CATALOGUE_RECORD,
       name: "Prega News One Step Urine Hcg Pregnancy Test Kit",
       measurementUnit: "1 Test Kit(s) in Packet",
       subtitleText: "1 Test Kit(s)",
       shortSubtitleText: "1 Test Kit(s)",
       packform: "PACKET",
     })!;
-    expect(product.form).toBeNull();
-    expect(product.packSize).toBe("1 Test Kit(s) in Packet");
+    expect(kit.form).toBe("device");
+    expect(kit.packSize).toBe("1 Test Kit(s) in Packet");
+
+    const cleanser = parseCatalogueProduct({
+      ...CATALOGUE_RECORD,
+      name: "Cetaphil Gentle Skin Cleanser | Dry To Normal Sensitive Skin | 118 Ml",
+      measurementUnit: "118ml Skin Cleanser in Bottle",
+      subtitleText: "118ml Skin Cleanser in Bottle",
+      shortSubtitleText: "118ml Skin Cleanser",
+      packform: "BOTTLE",
+    })!;
+    expect(cleanser.form).toBe("cleanser");
+    expect(cleanser.packSize).toBe("118ml Skin Cleanser in Bottle");
   });
 
   it("never repeats the same pack size stated in several fields", () => {
@@ -211,6 +234,20 @@ describe("a product must not inherit a different variant's local record", () => 
     expect(strengthFromProductName("Dolo 650")).toBe("650 mg");
     expect(strengthFromProductName("Brufen 400mg")).toBe("400 mg");
     expect(strengthFromProductName("Cetaphil Gentle Cleanser")).toBeUndefined();
+  });
+
+  it("reads a hyphenated name as the same strength as a spaced one", () => {
+    expect(strengthFromProductName("augmentin-625 duo")).toBe("625 mg");
+  });
+
+  it("never reads a container measure as a strength", () => {
+    // A 118 ml bottle is not a 118 mg dose, and asking for one would send the
+    // resolver looking for a pack that does not exist.
+    expect(strengthFromProductName("Cetaphil Gentle Skin Cleanser 118 ml")).toBeUndefined();
+    expect(strengthFromProductName("Volini Gel 30 g")).toBeUndefined();
+    expect(strengthFromProductName("Cetaphil 125ml Skin Cleanser")).toBeUndefined();
+    // A real dose stated alongside a volume is still a dose.
+    expect(strengthFromProductName("Cefuroxime 250mg in 50ml")).toBe("250 mg");
   });
 
   it("keeps the 1000mg reference record away from the 625mg product", () => {
