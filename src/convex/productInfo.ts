@@ -473,6 +473,13 @@ export function neutralDescription(input: ProductIdentity, kind: ProductKind): s
   return parts.join(" ");
 }
 
-/** The copy required when a product could not be identified with confidence. */
+/**
+ * The copy required when a product could not be identified with confidence.
+ *
+ * This is shown only after the curated reference catalogue AND the online
+ * product sources have both been asked, so the message states that the online
+ * lookup was attempted and failed to verify this exact product — never that a
+ * name was simply "not found" in a local list.
+ */
 export const NO_CONFIDENT_MATCH_MESSAGE =
-  "Product match not confidently found. Please select a matching product or enter/verify the required information manually.";
+  "This exact product could not be verified in the reference catalogue or in any online product source, so no product details were filled in. Please check the product name, or enter the details manually.";

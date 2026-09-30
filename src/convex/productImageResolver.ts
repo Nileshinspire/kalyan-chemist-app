@@ -41,10 +41,10 @@ const USER_AGENT =
   "KalyanChemist/1.0 (https://kalyanchemist.com; product image retrieval)";
 
 /** Licensed catalogue with per-product records: name, manufacturer, images. */
-const PHARMEASY_SEARCH = "https://pharmeasy.in/search/all?name=";
+export const PHARMEASY_SEARCH = "https://pharmeasy.in/search/all?name=";
 
 /** Open product databases: product name, brand, quantity and a real packshot. */
-const OPEN_FACTS_HOSTS = [
+export const OPEN_FACTS_HOSTS = [
   "world.openfoodfacts.org",
   "world.openbeautyfacts.org",
   "world.openproductsfacts.org",
@@ -52,14 +52,14 @@ const OPEN_FACTS_HOSTS = [
 
 const WIKIDATA_API = "https://www.wikidata.org/w/api.php";
 
-const SITE_TIMEOUT_MS = 8_000;
+export const SITE_TIMEOUT_MS = 8_000;
 const FETCH_TIMEOUT_MS = 12_000;
 /** Card-sized render of the stored asset — crisp, small, and CDN-supported. */
 const IMAGE_DIM = "600x0";
 const MIN_IMAGE_BYTES = 2_000;
 const MAX_IMAGE_BYTES = 4_000_000;
 /** Queries per source before moving on to the next one. */
-const MAX_QUERIES_PER_SOURCE = 4;
+export const MAX_QUERIES_PER_SOURCE = 4;
 /** Product pages opened on a brand's own site before giving up on it. */
 const MAX_OFFICIAL_PAGES = 3;
 /** Total candidate images downloaded across every source. */
@@ -86,7 +86,7 @@ function normalize(value: string): string {
     .trim();
 }
 
-function words(value: string): string[] {
+export function words(value: string): string[] {
   return normalize(value).split(" ").filter(Boolean);
 }
 
@@ -548,6 +548,14 @@ function buildRules(identity: ProductIdentity): IdentityRules {
 
 // ── Candidates ──
 
+/**
+ * The words that identify this product. Shared with the metadata resolver so a
+ * brand site is searched for the same product the image resolver looks for.
+ */
+export function identityWordsOf(identity: ProductIdentity): Set<string> {
+  return buildRules(identity).identityWords;
+}
+
 type CandidateImage = { url: string; face?: string };
 
 type Candidate = {
@@ -563,13 +571,13 @@ type Candidate = {
   images: CandidateImage[];
 };
 
-type RawRecord = Record<string, unknown>;
+export type RawRecord = Record<string, unknown>;
 
-function asString(value: unknown): string | undefined {
+export function asString(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
-function single(value: unknown): string | undefined {
+export function single(value: unknown): string | undefined {
   if (Array.isArray(value)) return asString(value[0]);
   return asString(value);
 }
@@ -1154,7 +1162,14 @@ export function galleryStatusMessage(found: number): string | null {
  * → 30. Pack size is only a preference in the exact-match rules, so two records
  * can both be "Dolo 650" while being different products.
  */
-function statedPackSizes(candidate: Candidate): number[] {
+/** The identity fields the pack/maker comparisons read. */
+type IdentityText = {
+  name: string;
+  packText?: string;
+  manufacturer?: string;
+};
+
+export function statedPackSizes(candidate: IdentityText): number[] {
   const text = `${candidate.name} ${candidate.packText ?? ""}`;
   const sizes: number[] = [...readNumbers(text).packs];
   const pattern =
@@ -1174,7 +1189,7 @@ function samePackFamily(accepted: Candidate, extra: Candidate): boolean {
   return left.some((value) => right.includes(value));
 }
 
-function sameMaker(accepted: Candidate, extra: Candidate): boolean {
+export function sameMaker(accepted: IdentityText, extra: IdentityText): boolean {
   const left = normalize(accepted.manufacturer ?? "");
   const right = normalize(extra.manufacturer ?? "");
   if (!left || !right) return true;
@@ -1210,7 +1225,7 @@ async function fetchWithTimeout(
   }
 }
 
-async function getText(
+export async function getText(
   url: string,
   accept = "text/html,application/xhtml+xml",
   timeoutMs = FETCH_TIMEOUT_MS,
@@ -1228,7 +1243,7 @@ async function getText(
   }
 }
 
-async function getJson(url: string): Promise<unknown | null> {
+export async function getJson(url: string): Promise<unknown | null> {
   const text = await getText(url, "application/json");
   if (!text) return null;
   try {
@@ -1238,7 +1253,7 @@ async function getJson(url: string): Promise<unknown | null> {
   }
 }
 
-function nextData(html: string): unknown | null {
+export function nextData(html: string): unknown | null {
   const match = html.match(
     /<script[^>]*id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/i,
   );
@@ -1280,7 +1295,7 @@ function informativeComposition(value?: string): string | undefined {
  * ("Ensure Diabetes Care 950g") still finds the product whose catalogue title
  * is worded differently.
  */
-function searchVariants(identity: ProductIdentity): string[] {
+export function searchVariants(identity: ProductIdentity): string[] {
   const name = identity.productName.trim();
   const nameWords = words(name);
   const leading = nameWords[0] ?? name;
@@ -1348,7 +1363,7 @@ const brandSiteCache = new Map<string, string | null>();
  * A probed site is only accepted when its own page mentions the brand, and the
  * product page it later offers still has to pass the exact-match rules.
  */
-async function officialSite(brand: string): Promise<string | null> {
+export async function officialSite(brand: string): Promise<string | null> {
   const key = normalize(brand);
   if (!key) return null;
   if (brandSiteCache.has(key)) return brandSiteCache.get(key) ?? null;
@@ -1434,7 +1449,7 @@ async function probedSite(brand: string): Promise<string | null> {
 }
 
 /** On-site search paths, tried in order — the common storefront patterns. */
-const SITE_SEARCH_PATTERNS = [
+export const SITE_SEARCH_PATTERNS = [
   "/search?q={q}&type=product",
   "/?s={q}&post_type=product",
   "/search?q={q}",
@@ -1456,7 +1471,7 @@ const FILE_EXTENSION = /\.(?:css|js|mjs|png|jpe?g|gif|webp|svg|ico|woff2?|ttf|eo
  * link whose slug mentions the product's own words is a far better bet than
  * whatever happened to be first in the results grid.
  */
-function productLinks(
+export function productLinks(
   html: string,
   origin: string,
   identityWords: Set<string>,
@@ -1667,7 +1682,7 @@ async function officialSiteCandidates(
 
 // ── Source 2: licensed pharmacy catalogue ──
 
-function collectRecords(root: unknown): RawRecord[] {
+export function collectRecords(root: unknown): RawRecord[] {
   const found: RawRecord[] = [];
   const seen = new Set<object>();
   const walk = (node: unknown, depth: number) => {

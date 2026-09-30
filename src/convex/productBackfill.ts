@@ -19,6 +19,10 @@ import {
   type ProductIdentity,
 } from "./productInfo";
 import { buildProductContent } from "./productContent";
+import {
+  resolveProductMetadata,
+  type ResolvedProductMetadata,
+} from "./productMetadataResolver";
 
 // ════════════════════════════════════════════════════════════════
 // VERIFIED PRODUCT REFERENCE DATA
@@ -30,6 +34,27 @@ import { buildProductContent } from "./productContent";
 // re-derive a reference record locally.
 export { MEDICINES_DB, getStorageInfo, findVerifiedReference } from "./productReference";
 export type { MedicineInfo, VerifiedReference } from "./productReference";
+
+/**
+ * A strength the admin wrote into the product name itself, e.g. "Dolo 650" or
+ * "Augmentin 625 Duo".
+ *
+ * The curated reference records list every strength a brand is sold in, so
+ * "Augmentin" (the 1000 mg Duo) also covers "Augmentin 625 Duo" — which is a
+ * different product and must not inherit the 1000 mg composition. The name's
+ * own dose is therefore read here and handed to the reference lookup, which
+ * already knows how to reject a strength a record never states.
+ *
+ * This value is used ONLY for that check. It is deliberately not folded into
+ * the identity that classifies the product or that drives image resolution,
+ * where a pack count written in a name would be mistaken for a dose.
+ */
+export function strengthFromProductName(name: string): string | undefined {
+  const withUnit = name.match(/(\d{2,4}(?:\.\d+)?)\s*(mg|mcg|iu|%)/i);
+  if (withUnit) return `${withUnit[1]} ${withUnit[2].toLowerCase()}`;
+  const bare = name.match(/(?:^|[\s(])(\d{2,4})(?=$|[\s)])/);
+  return bare ? `${bare[1]} mg` : undefined;
+}
 
 // Known manufacturers fallback
 const KNOWN_MANUFACTURERS: Record<string, string> = {
@@ -432,8 +457,29 @@ export const enrichProduct = action({
       categoryName: args.categoryName ?? null,
       composition: args.composition ?? null,
       manufacturer: args.manufacturer ?? null,
-      strength: args.strength ?? null,
+      strength: args.strength ?? strengthFromProductName(args.productName) ?? null,
     }).reference;
+
+    // The curated catalogue is a reference source, never the gate. When it has
+    // no record for this product, the exact product is identified ONLINE before
+    // anything is classified, so a real product is never reported as
+    // "unknown" just because it is not listed in MEDICINES_DB.
+    let online: ResolvedProductMetadata | null = null;
+    if (!matched) {
+      online = await resolveProductMetadata({
+        productName: args.productName,
+        brand: args.brand || undefined,
+        manufacturer: args.manufacturer || undefined,
+        composition: args.composition || undefined,
+        form: args.form || undefined,
+        strength: args.strength || undefined,
+        dosage: args.dosage || undefined,
+        packSize: args.packSize || undefined,
+        sku: args.sku || undefined,
+      });
+      if (!online.matched) online = null;
+    }
+    const resolved = online;
 
     const result: {
       imageUrl: string | null;
@@ -453,13 +499,24 @@ export const enrichProduct = action({
       /** False when the product type could not be established with confidence. */
       kindConfident: boolean;
       kindReason: string;
-      /** False when no verified reference record backs the clinical fields. */
+      /** False when no verified source backs the clinical fields. */
       matchFound: boolean;
+      /** Where the verified record came from: the curated catalogue or online. */
+      matchSource: string | null;
+      /** The page the product was verified on, for the admin's audit trail. */
+      sourceUrl: string | null;
+      /** Identity fields resolved from a source, filled for admin review. */
+      strength: string | null;
+      packSize: string | null;
+      brand: string | null;
+      prescriptionRequired: boolean | null;
     } = {
       imageUrl: null, manufacturer: null, benefits: null, description: null,
       consumeType: null, safetyNote: null, form: null, storageInformation: null,
       composition: null, expiryDate: null, category: null, subcategory: null,
       productKind: "unknown", kindConfident: false, kindReason: "", matchFound: false,
+      matchSource: null, sourceUrl: null, strength: null, packSize: null,
+      brand: null, prescriptionRequired: null,
     };
 
     // Category inference based on product form, composition, and name.
@@ -606,15 +663,17 @@ export const enrichProduct = action({
     // Classify what this product actually IS before writing any copy. The
     // product name outranks the `form` field, so a condom stored as
     // `form: "tablet"` is still treated as a condom and never gets oral
-    // medicine instructions.
+    // medicine instructions. When the product was identified online, the
+    // resolved form / composition / manufacturer / strength are what gets
+    // classified — never the empty fields the admin happened to type.
     const identity = {
       name: args.productName,
-      form: matched?.form || args.form || null,
-      packSize: args.packSize || null,
+      form: matched?.form || resolved?.form || args.form || null,
+      packSize: args.packSize || resolved?.packSize || null,
       categoryName: args.categoryName ?? null,
-      composition: matched?.composition || args.composition || null,
-      manufacturer: matched?.manufacturer || args.manufacturer || null,
-      strength: args.strength ?? null,
+      composition: matched?.composition || resolved?.composition || args.composition || null,
+      manufacturer: matched?.manufacturer || resolved?.manufacturer || args.manufacturer || null,
+      strength: args.strength ?? resolved?.strength ?? null,
     };
     const classification = classifyProduct(identity);
     result.productKind = classification.kind;
@@ -623,6 +682,7 @@ export const enrichProduct = action({
 
     if (matched) {
       result.matchFound = true;
+      result.matchSource = "reference";
       result.manufacturer = matched.manufacturer;
       result.benefits = matched.benefits;
       result.description = matched.description;
@@ -639,6 +699,38 @@ export const enrichProduct = action({
       result.storageInformation = matched.storageInformation || getStorageInfo(matched.composition || "", matched.form || args.form || "tablet");
       // Category inference
       result.category = inferCategory(matched.form || args.form || "", matched.composition || "", args.productName);
+    } else if (resolved) {
+      // The exact product was identified online. Its own metadata fills the
+      // form; clinical copy is carried over only where the source published it,
+      // because a benefit, direction or warning that the source did not state
+      // is not this product's information.
+      result.matchFound = true;
+      result.matchSource = "online";
+      result.sourceUrl = resolved.sourceUrl;
+      result.manufacturer = resolved.manufacturer;
+      result.composition = resolved.composition;
+      result.form = resolved.form || args.form || null;
+      result.strength = resolved.strength ?? args.strength ?? null;
+      result.packSize = resolved.packSize ?? args.packSize ?? null;
+      result.brand = resolved.brand ?? args.brand ?? null;
+      result.prescriptionRequired = resolved.prescriptionRequired;
+      // Expiry Date — only a trusted batch source may state one; never
+      // calculated from the pack or the manufacturing date.
+      result.expiryDate = null;
+      // Benefits are the resolved product's own, never composition-keyed
+      // filler text.
+      result.benefits = resolved.benefits;
+      result.description = resolved.description ??
+        (classification.confident ? neutralDescription(identity, classification.kind) : null);
+      result.consumeType = resolved.directions ?? productDirections(identity, classification.kind);
+      result.safetyNote = resolved.safety ?? productSafety(identity, classification.kind);
+      result.storageInformation = resolved.storage ??
+        getStorageInfo(resolved.composition || args.productName, resolved.form || args.form || "");
+      result.category = inferCategory(
+        resolved.form || args.form || "",
+        resolved.composition || "",
+        resolved.productName || args.productName,
+      );
     } else {
       // No verified reference record. Only the manufacturer the admin supplied
       // is carried over; benefits and clinical copy are NOT invented.

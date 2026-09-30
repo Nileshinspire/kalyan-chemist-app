@@ -214,6 +214,9 @@ export default function AdminProducts() {
     kindConfident: boolean;
     kindReason: string;
     matchFound: boolean;
+    /** Where the verified record came from, so the admin knows what to trust. */
+    matchSource: string | null;
+    sourceUrl: string | null;
   } | null>(null);
   const [candidates, setCandidates] = useState<
     Array<{ name: string; manufacturer: string; composition: string; form: string | null }> | null
@@ -509,6 +512,27 @@ export default function AdminProducts() {
         newForm.form = (result as any).form;
         filled.push("Form");
       }
+      // Strength / Pack Size — resolved for the exact variant, so the admin does
+      // not have to type what the product source already states.
+      if ((result as any).strength) {
+        newForm.strength = (result as any).strength;
+        filled.push("Strength");
+      }
+      if ((result as any).packSize) {
+        newForm.packSize = (result as any).packSize;
+        filled.push("Pack Size");
+      }
+      // Brand — only ever linked to a brand that already exists in this store;
+      // the Auto Fill never creates catalogue entries of its own.
+      if ((result as any).brand && !newForm.brandId && brands) {
+        const brand = brands.find(
+          (b: any) => b.name.toLowerCase() === String((result as any).brand).toLowerCase(),
+        );
+        if (brand) {
+          newForm.brandId = brand._id;
+          filled.push("Brand");
+        }
+      }
       // Expiry Date — fill if available (never calculated)
       if ((result as any).expiryDate) {
         newForm.expiryDate = (result as any).expiryDate;
@@ -583,6 +607,8 @@ export default function AdminProducts() {
         kindConfident: (result as any).kindConfident ?? false,
         kindReason: (result as any).kindReason ?? "",
         matchFound: (result as any).matchFound ?? false,
+        matchSource: (result as any).matchSource ?? null,
+        sourceUrl: (result as any).sourceUrl ?? null,
       });
 
       if (!(result as any).matchFound) {
@@ -1027,6 +1053,25 @@ export default function AdminProducts() {
                     <p className="font-semibold text-foreground">
                       Identified as: {matchInfo.productKind.replace(/_/g, " ")}
                     </p>
+                    {matchInfo.matchFound && (
+                      <p className="text-muted-foreground">
+                        Verified from:{" "}
+                        {matchInfo.matchSource === "online" ? "online product source" : "reference catalogue"}
+                        {matchInfo.sourceUrl && (
+                          <>
+                            {" · "}
+                            <a
+                              href={matchInfo.sourceUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="underline"
+                            >
+                              source page
+                            </a>
+                          </>
+                        )}
+                      </p>
+                    )}
                     {matchInfo.kindReason && (
                       <p className="text-muted-foreground">Why: {matchInfo.kindReason}</p>
                     )}
