@@ -181,6 +181,23 @@ describe("exact product matching", () => {
     ).toBe(false);
   });
 
+  it("accepts a record whose manufacturer field is just the product's own brand", () => {
+    // The catalogue publishes the consumer brand where it means the maker, so a
+    // label must not be read as a conflicting manufacturer.
+    const labelled = parseCatalogueProduct({
+      name: "Volini Pain Relief | Gel | 100 Gm",
+      manufacturer: "VOLINI",
+      measurementUnit: "100g Gel in Tube",
+    })!;
+    expect(
+      catalogueProductMatchesIdentity(labelled, {
+        productName: "Volini Gel",
+        form: "gel",
+        manufacturer: "Reckitt",
+      }),
+    ).toBe(true);
+  });
+
   it("rejects an unrelated product entirely", () => {
     expect(
       catalogueProductMatchesIdentity(product, { productName: "Brufen 400mg" }),

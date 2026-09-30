@@ -39,21 +39,24 @@ import {
   asString,
   single,
   words,
-  nextData,
-  collectRecords,
   searchVariants,
   getText,
   getJson,
   officialSite,
   productLinks,
   identityWordsOf,
-  matchesProductIdentity,
+  productNameMatchesIdentity,
+  makerIsBrandLabel,
+  catalogueSearchRecords,
+  imagesOf,
+  jsonLdImages,
   sameMaker,
   MAX_QUERIES_PER_SOURCE,
   SITE_SEARCH_PATTERNS,
   SITE_TIMEOUT_MS,
   PHARMEASY_SEARCH,
   type ProductIdentity,
+  type ProductRecordImages,
   type RawRecord,
 } from "./productImageResolver";
 
@@ -79,6 +82,13 @@ export type ResolvedProductMetadata = {
   sku: string | null;
   source: string | null;
   sourceUrl: string | null;
+  /**
+   * The exact record that was matched, together with the image assets that same
+   * record publishes. The Auto Fill stores these assets, so the packshot on the
+   * product is always the packshot of the product whose metadata was just
+   * resolved — never a second, independent lookup of some other product.
+   */
+  record: ProductRecordImages | null;
   /** Sources consulted and why a candidate was rejected (admin audit trail). */
   notes: string[];
 };
@@ -107,6 +117,8 @@ export type OfficialProduct = {
   category: string | null;
   source: string;
   sourceUrl: string | null;
+  /** The images that page's own Product schema lists for this product. */
+  images: ProductRecordImages["images"];
 };
 
 /** A structured drug label record. */
@@ -143,6 +155,7 @@ const EMPTY: ResolvedProductMetadata = {
   sku: null,
   source: null,
   sourceUrl: null,
+  record: null,
   notes: [],
 };
 
@@ -355,7 +368,17 @@ export function catalogueProductMatchesIdentity(
   product: CatalogueProduct,
   identity: ProductIdentity,
 ): boolean {
-  if (!matchesProductIdentity(product.productName, identity, product.manufacturer ?? undefined)) {
+  // Weighted identity matching: capitalization, punctuation, word order,
+  // marketing wording and an abbreviated manufacturer never hide a genuine
+  // record, while a different strength, dosage form, pack, brand or product is
+  // still refused below and by the shared exact-match engine.
+  if (
+    !productNameMatchesIdentity(
+      product.productName,
+      identity,
+      product.manufacturer ?? undefined,
+    )
+  ) {
     return false;
   }
 
@@ -366,10 +389,14 @@ export function catalogueProductMatchesIdentity(
     if (stated.length > 0 && !stated.every((word) => found.includes(word))) return false;
   }
 
-  // A manufacturer the admin stated must not be contradicted by this record.
+  // A manufacturer the admin stated must not be contradicted by this record. A
+  // catalogue that publishes the consumer brand in the manufacturer field
+  // ("VOLINI" for the Volini gel made by Reckitt) is stating a label, not a
+  // conflicting maker, so it never rejects an otherwise exact record.
   if (
     identity.manufacturer &&
     product.manufacturer &&
+    !makerIsBrandLabel(product.productName, product.manufacturer) &&
     !sameMaker(
       { name: product.productName, manufacturer: product.manufacturer },
       { name: identity.productName, manufacturer: identity.manufacturer },
@@ -430,6 +457,9 @@ export function parseJsonLdProduct(html: string): OfficialProduct | null {
       ),
       source: "official-site",
       sourceUrl: null,
+      // The structured Product schema of this very page is the record's own
+      // image list, so these are the brand's assets for this exact product.
+      images: jsonLdImages(node).map((url) => ({ url })),
     };
   }
   return null;
@@ -462,7 +492,7 @@ export function officialProductMatchesIdentity(
   product: OfficialProduct,
   identity: ProductIdentity,
 ): boolean {
-  return matchesProductIdentity(
+  return productNameMatchesIdentity(
     product.productName,
     identity,
     product.manufacturer ?? undefined,
@@ -544,7 +574,7 @@ export function labelProductMatchesIdentity(
   if (identity.form && product.form) {
     if (dosageFormFrom(identity.form) !== product.form) return false;
   }
-  return matchesProductIdentity(
+  return productNameMatchesIdentity(
     product.productName,
     { ...identity, productName: identity.productName },
     product.manufacturer ?? undefined,
@@ -562,6 +592,14 @@ export function labelProductMatchesIdentity(
  */
 export async function resolveProductMetadata(
   identity: ProductIdentity,
+  options?: {
+    /**
+     * Whether the openFDA label lookup runs. It only fills clinical copy, so a
+     * caller that already has verified copy (a curated reference record) skips
+     * it and spends its requests on identifying the product instead.
+     */
+    includeLabels?: boolean,
+  },
 ): Promise<ResolvedProductMetadata> {
   const notes: string[] = [];
   const result: ResolvedProductMetadata = { ...EMPTY, notes };
@@ -578,12 +616,23 @@ export async function resolveProductMetadata(
     result.description = official.description;
     result.source = official.source;
     result.sourceUrl = official.sourceUrl;
+    // The matched record and the images that belong to it travel together, so
+    // the Auto Fill never has to look the product up a second time for a photo.
+    result.record = {
+      name: official.productName,
+      source: official.source,
+      sourceUrl: official.sourceUrl,
+      pageUrl: official.sourceUrl ?? undefined,
+      manufacturer: official.manufacturer,
+      images: official.images,
+    };
     return result;
   }
 
   // ── 2. The licensed pharmacy catalogue ──
-  const catalogue = await resolveFromCatalogue(identity, notes);
-  if (catalogue) {
+  const found = await resolveFromCatalogue(identity, notes);
+  const catalogue = found?.product ?? null;
+  if (catalogue && found) {
     result.matched = true;
     result.productName = catalogue.productName;
     result.brand = catalogue.brand;
@@ -595,10 +644,24 @@ export async function resolveProductMetadata(
     result.prescriptionRequired = catalogue.prescriptionRequired;
     result.source = catalogue.source;
     result.sourceUrl = catalogue.sourceUrl;
+    // The catalogue record IS the product record: its own DAM/image fields are
+    // the assets stored for this product.
+    result.record = {
+      name: catalogue.productName,
+      source: catalogue.source,
+      sourceUrl: catalogue.sourceUrl,
+      pageUrl: catalogue.sourceUrl ?? undefined,
+      manufacturer: catalogue.manufacturer,
+      packText: catalogue.packSize,
+      images: imagesOf(found.record),
+    };
 
     // ── 3. Structured label data, to fill the clinical copy the catalogue
     //       does not publish. Only for the same substance / strength / form. ──
-    const label = await resolveFromLabels(identity, catalogue, notes);
+    const label =
+      options?.includeLabels === false
+        ? null
+        : await resolveFromLabels(identity, catalogue, notes);
     if (label) {
       result.benefits = label.benefits;
       result.directions = label.directions;
@@ -613,7 +676,10 @@ export async function resolveProductMetadata(
   }
 
   // ── 3. Structured drug labels as the identity source ──
-  const labelOnly = await resolveFromLabels(identity, null, notes);
+  const labelOnly =
+    options?.includeLabels === false
+      ? null
+      : await resolveFromLabels(identity, null, notes);
   if (labelOnly) {
     result.matched = true;
     result.productName = labelOnly.productName;
@@ -670,25 +736,22 @@ async function resolveFromOfficialSite(
 async function resolveFromCatalogue(
   identity: ProductIdentity,
   notes: string[],
-): Promise<CatalogueProduct | null> {
+): Promise<{ product: CatalogueProduct; record: RawRecord } | null> {
   const queries = searchVariants(identity).slice(0, MAX_QUERIES_PER_SOURCE);
   let asked = 0;
   for (const query of queries) {
-    const html = await getText(
-      `${PHARMEASY_SEARCH}${encodeURIComponent(query)}`,
-      "text/html,application/xhtml+xml",
-    );
-    if (!html) continue;
-    const data = nextData(html);
-    if (!data) continue;
+    // The catalogue answer is cached per query, so the image pass that follows
+    // reads the same records instead of asking the catalogue all over again.
+    const records = await catalogueSearchRecords(query);
+    if (records.length === 0) continue;
     asked += 1;
-    const candidates = collectRecords(data)
-      .map(parseCatalogueProduct)
-      .filter((product): product is CatalogueProduct => product !== null);
 
     let rejected = 0;
-    for (const product of candidates) {
-      if (catalogueProductMatchesIdentity(product, identity)) return product;
+    for (const record of records) {
+      const product = parseCatalogueProduct(record);
+      if (product && catalogueProductMatchesIdentity(product, identity)) {
+        return { product, record };
+      }
       rejected += 1;
       if (rejected >= 3) break;
     }

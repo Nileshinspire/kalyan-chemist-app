@@ -556,7 +556,32 @@ export function identityWordsOf(identity: ProductIdentity): Set<string> {
   return buildRules(identity).identityWords;
 }
 
-type CandidateImage = { url: string; face?: string };
+export type CandidateImage = { url: string; face?: string };
+
+/**
+ * The exact product record the resolver accepted, together with the image
+ * assets that record itself publishes.
+ *
+ * This is what makes metadata and images describe the SAME product: the record
+ * is identified once, and its own assets are the only images considered. There
+ * is no second, independent search that could resolve a different product's
+ * packshot, and no general image search anywhere in the path.
+ */
+export type ProductRecordImages = {
+  /** The record's own product name, as the source states it. */
+  name: string;
+  /** Which source published the record ("pharmacy-catalogue", brand site…). */
+  source: string;
+  /** Page/API the record came from, for the admin's audit trail. */
+  sourceUrl: string | null;
+  /** The product page itself, when the source has one. */
+  pageUrl?: string;
+  manufacturer?: string | null;
+  /** Pack text the record states ("10 Tablet(s) in Strip"). */
+  packText?: string | null;
+  /** Image assets belonging to THIS record. */
+  images: CandidateImage[];
+};
 
 type Candidate = {
   name: string;
@@ -991,6 +1016,16 @@ type ScoredCandidate = { candidate: Candidate; score: number; reasons: string[] 
 function scoreCandidate(
   candidate: Candidate,
   rules: IdentityRules,
+  /**
+   * "strict" demands every meaningful word of the typed name. "weighted"
+   * relaxes only that: a catalogue that words the same product differently
+   * ("Augmentin Duo 625 Tablets" for "Augmentin 625 Duo", or a reordered title)
+   * is still the same product, so the distinctive words (4+ letters) and most
+   * of the rest must be present. Every hard rule below — strength, dosage
+   * form, brand variant markers, extra doses — applies unchanged in both modes,
+   * so a different variant, form, pack or product is still rejected.
+   */
+  tolerance: "strict" | "weighted" = "strict",
 ): ScoredCandidate | null {
   const name = normalize(candidate.name);
   const candidateWords = wordSet(candidate.name);
@@ -1004,8 +1039,16 @@ function scoreCandidate(
   const missingExtra = rules.extra.filter(
     (word) => !includesWord(candidateWords, word),
   );
-  if (missingExtra.length > 0) return null;
-  if (rules.extra.length > 0) reasons.push(`name:${rules.extra.join("+")}`);
+  if (missingExtra.length > 0) {
+    if (tolerance === "strict") return null;
+    const distinctive = missingExtra.filter((word) => word.length >= 4);
+    if (distinctive.length > 0) return null;
+    const present = rules.extra.length - missingExtra.length;
+    if (present * 5 < rules.extra.length * 3) return null;
+    reasons.push(`name:weighted(${present}/${rules.extra.length})`);
+  } else if (rules.extra.length > 0) {
+    reasons.push(`name:${rules.extra.join("+")}`);
+  }
 
   // A candidate that carries a variant marker the product's own name does not
   // is a different formulation of the same brand ("Telma LN", "Crocin
@@ -1132,6 +1175,106 @@ export function matchesProductIdentity(
  * *Formula*) keeps its real packshot, while a logo, diagram or placeholder is
  * always rejected.
  */
+/**
+ * Exported for the resolver that owns a catalogue record: is this record the
+ * exact product the admin asked for? Strict whole-word matching first, and a
+ * weighted name match as the tolerant second try — so capitalization,
+ * punctuation, word order, marketing wording and an abbreviated manufacturer
+ * never hide a genuine record, while a wrong strength, form, pack, brand or
+ * product is still refused.
+ */
+export function productNameMatchesIdentity(
+  candidateName: string,
+  identity: ProductIdentity,
+  candidateManufacturer?: string,
+): boolean {
+  const rules = buildRules(identity);
+  if (rules.core.length === 0) return false;
+  const candidate: Candidate = {
+    name: candidateName,
+    manufacturer: candidateManufacturer,
+    source: "match",
+    images: [],
+  };
+  return (
+    scoreCandidate(candidate, rules) !== null ||
+    scoreCandidate(candidate, rules, "weighted") !== null
+  );
+}
+
+/**
+ * True when a record's "manufacturer" is really just this product's own brand
+ * label. Catalogues routinely publish the consumer brand where they mean the
+ * maker — the Volini gel is listed as "VOLINI" and made by Reckitt — so a label
+ * must never be read as a conflicting manufacturer. A genuine, different company
+ * name still conflicts.
+ */
+export function makerIsBrandLabel(
+  recordName: string,
+  maker: string | null | undefined,
+): boolean {
+  const label = words(maker ?? "").filter((word) => word.length > 3);
+  if (label.length === 0) return false;
+  const nameWords = wordSet(recordName);
+  return label.every((word) => includesWord(nameWords, word));
+}
+
+/**
+ * A hard conflict between a resolved record and the requested product: a
+ * different maker, or a different pack. These two never tolerate a difference —
+ * a packshot of somebody else's version of the same molecule is not this
+ * product. Returns the reason, or null when the record does not conflict.
+ */
+export function recordConflictReason(
+  record: { name: string; manufacturer?: string | null; packText?: string | null },
+  identity: ProductIdentity,
+): string | null {
+  if (
+    identity.manufacturer &&
+    record.manufacturer &&
+    !makerIsBrandLabel(record.name, record.manufacturer) &&
+    !sameMaker(
+      { name: record.name, manufacturer: record.manufacturer },
+      { name: identity.productName, manufacturer: identity.manufacturer },
+    )
+  ) {
+    return "is made by a different manufacturer";
+  }
+  const wantedPacks = statedPackSizes({
+    name: identity.productName,
+    packText: identity.packSize,
+  });
+  const offeredPacks = statedPackSizes({
+    name: record.name,
+    packText: record.packText ?? undefined,
+  });
+  if (
+    wantedPacks.length > 0 &&
+    offeredPacks.length > 0 &&
+    !wantedPacks.some((value) => offeredPacks.includes(value))
+  ) {
+    return "is a different pack";
+  }
+  return null;
+}
+
+/**
+ * The same check, for a record the catalogue resolver already accepted: weighted
+ * name matching, plus the maker and pack conflicts that never tolerate a
+ * difference.
+ */
+export function recordMatchesIdentity(
+  record: { name: string; manufacturer?: string | null; packText?: string | null },
+  identity: ProductIdentity,
+): boolean {
+  if (recordConflictReason(record, identity)) return false;
+  return productNameMatchesIdentity(
+    record.name,
+    identity,
+    record.manufacturer ?? undefined,
+  );
+}
+
 export function isPackshotImageCandidate(
   url: string,
   identity: ProductIdentity,
@@ -1517,7 +1660,7 @@ function attrOf(html: string, pattern: RegExp): string | null {
 }
 
 /** Image URLs inside a JSON-LD node, however the site nests them. */
-function jsonLdImages(node: unknown, depth = 0): string[] {
+export function jsonLdImages(node: unknown, depth = 0): string[] {
   if (depth > 6 || node === null || typeof node !== "object") return [];
   if (Array.isArray(node)) {
     return node.flatMap((item) => jsonLdImages(item, depth + 1));
@@ -1708,7 +1851,12 @@ export function collectRecords(root: unknown): RawRecord[] {
   return found;
 }
 
-function imagesOf(record: RawRecord): CandidateImage[] {
+/**
+ * The image assets a catalogue record publishes for itself (its DAM entry and
+ * its main image). Exported so the metadata resolver can hand the very same
+ * record's assets to the image pipeline.
+ */
+export function imagesOf(record: RawRecord): CandidateImage[] {
   const images: CandidateImage[] = [];
   const dam = record.damImages;
   if (Array.isArray(dam)) {
@@ -1744,15 +1892,48 @@ function toPharmacyCandidate(record: RawRecord): Candidate | null {
   };
 }
 
-async function catalogueCandidates(query: string): Promise<Candidate[]> {
+/**
+ * Catalogue search results, kept in memory for a few minutes.
+ *
+ * The metadata pass and the image pass ask the catalogue the same questions
+ * about the same product. Caching the answer means one request per query
+ * instead of two, and re-running Auto Fill for a product that was just filled
+ * costs no new requests at all.
+ */
+const CATALOGUE_CACHE_MS = 10 * 60_000;
+const CATALOGUE_CACHE_MAX = 24;
+const catalogueCache = new Map<string, { at: number; records: RawRecord[] }>();
+
+/**
+ * The raw per-product records the pharmacy catalogue returns for a query.
+ * Shared by the metadata resolver and the image resolver so both read the very
+ * same record rather than searching for the product twice.
+ */
+export async function catalogueSearchRecords(query: string): Promise<RawRecord[]> {
+  const key = query.trim().toLowerCase();
+  const cached = catalogueCache.get(key);
+  if (cached && Date.now() - cached.at < CATALOGUE_CACHE_MS) return cached.records;
+
   const html = await getText(
     `${PHARMEASY_SEARCH}${encodeURIComponent(query)}`,
     "text/html,application/xhtml+xml",
   );
-  if (!html) return [];
-  const data = nextData(html);
+  const data = html ? nextData(html) : null;
   if (!data) return [];
-  return collectRecords(data)
+  const records = collectRecords(data);
+  if (catalogueCache.size >= CATALOGUE_CACHE_MAX) {
+    const oldest = [...catalogueCache.entries()].sort(
+      (a, b) => a[1].at - b[1].at,
+    )[0];
+    if (oldest) catalogueCache.delete(oldest[0]);
+  }
+  catalogueCache.set(key, { at: Date.now(), records });
+  return records;
+}
+
+async function catalogueCandidates(query: string): Promise<Candidate[]> {
+  const records = await catalogueSearchRecords(query);
+  return records
     .map(toPharmacyCandidate)
     .filter((candidate): candidate is Candidate => candidate !== null);
 }
@@ -2010,6 +2191,244 @@ export type ProductImageOutcome =
     }
   | { ok: false; message: string; considered: string[] };
 
+/** One verified view stored from a product record's own image assets. */
+type StoredView = { url: string; imageUrlSource: string; tier: number };
+
+/** Budget and shared state for a single image-resolution pass. */
+type ViewStore = {
+  existingByHash?: Map<string, string>;
+  /** Content hashes already stored, so one photograph is never stored twice. */
+  storedHashes: Set<string>;
+  downloads: { count: number };
+  /**
+   * The first image that verified but has an unusable shape, kept as a
+   * fallback: a real packshot in an odd shape still beats no image at all.
+   */
+  fallback: { image: DownloadedImage; entry: ScoredCandidate } | null;
+};
+
+/**
+ * Download and store up to `limit` genuine views from ONE already-verified
+ * product record. Images are ranked first (front packshot, then clean cut-outs,
+ * then back/side faces), then fetched in that order, so the front leads the
+ * gallery and later faces become thumbnails. Each view is content-hashed, so
+ * the same photograph served twice is stored once.
+ *
+ * With `retries`, an asset that failed to download is asked for again from the
+ * same record. A dropped connection, a timeout or a 5xx is not the same thing as
+ * a record that publishes no image, and treating it as one is exactly how a
+ * product whose packshot exists ends up saved with a blank image.
+ */
+async function collectRecordViews(
+  ctx: ActionCtx,
+  entry: ScoredCandidate,
+  rules: IdentityRules,
+  limit: number,
+  state: ViewStore,
+  options?: { retries?: number },
+): Promise<StoredView[]> {
+  const faceByUrl = new Map<string, number>();
+  for (const image of entry.candidate.images) {
+    const normalized = normalizeImageUrl(image.url);
+    if (normalized) faceByUrl.set(normalized, imageTier(image));
+  }
+  const images = rankImages(entry.candidate, rules.identityWords);
+  if (images.length === 0) return [];
+  const stored: StoredView[] = [];
+  const failed: string[] = [];
+
+  const budgetLeft = () =>
+    stored.length < limit && state.downloads.count < MAX_IMAGE_DOWNLOADS;
+
+  /** Download, verify and store one ranked asset. True when it was stored. */
+  const take = async (url: string): Promise<boolean> => {
+    if (stored.length >= limit) return false;
+    if (state.downloads.count >= MAX_IMAGE_DOWNLOADS) return false;
+    state.downloads.count += 1;
+    const original = (entry.candidate.images[0]?.url ?? url).split("?")[0];
+    const downloaded = await downloadImage(url, original);
+    if (!downloaded) {
+      failed.push(url);
+      return false;
+    }
+    if (!downloaded.shapeOk) {
+      if (!state.fallback) state.fallback = { image: downloaded, entry };
+      return false;
+    }
+    const hash = contentHash(downloaded.bytes);
+    if (state.storedHashes.has(hash)) return false;
+    const tier = faceByUrl.get(url) ?? 1;
+    // Already part of this product's gallery under a different URL. Re-use the
+    // stored asset instead of skipping it, so a front packshot that is
+    // currently only a thumbnail can still be ordered as the primary.
+    const existingUrl = state.existingByHash?.get(hash);
+    if (existingUrl) {
+      state.storedHashes.add(hash);
+      stored.push({ url: existingUrl, imageUrlSource: url, tier });
+      return true;
+    }
+    const storedUrl = await store(ctx, downloaded);
+    if (!storedUrl) return false;
+    state.storedHashes.add(hash);
+    stored.push({ url: storedUrl, imageUrlSource: url, tier });
+    return true;
+  };
+
+  for (const image of images) {
+    if (!budgetLeft()) break;
+    await take(image.url);
+  }
+
+  for (let attempt = 0; attempt < (options?.retries ?? 0); attempt += 1) {
+    if (!budgetLeft() || failed.length === 0) break;
+    const retry = failed.splice(0, failed.length);
+    for (const url of retry) {
+      if (!budgetLeft()) break;
+      await take(url);
+    }
+  }
+
+  return stored;
+}
+
+/** Store the last-resort packshot of an odd shape and report it honestly. */
+async function fallbackOutcome(
+  ctx: ActionCtx,
+  fallback: { image: DownloadedImage; entry: ScoredCandidate },
+): Promise<ProductImageOutcome> {
+  const stored = await store(ctx, fallback.image);
+  if (!stored) {
+    return {
+      ok: false,
+      message: "Exact product packshot could not be verified.",
+      considered: [fallback.entry.candidate.name],
+    };
+  }
+  return {
+    ok: true,
+    imageUrl: stored,
+    additionalImages: [],
+    views: 1,
+    complete: false,
+    message: galleryStatusMessage(1) ?? undefined,
+    matchedName: fallback.entry.candidate.name,
+    source: fallback.entry.candidate.source,
+    sourceUrl: fallback.entry.candidate.pageUrl ?? fallback.image.sourceUrl,
+    imageUrlSource: fallback.image.sourceUrl,
+    notes: [...fallback.entry.reasons, "unusual-aspect-ratio"],
+  };
+}
+
+/**
+ * Store the images of ONE already-identified product record.
+ *
+ * This is the step the Auto Fill uses: the record was found by the catalogue
+ * resolver (which is what decided the product's metadata), and this stores that
+ * record's own image assets — the front packshot first, then whatever other
+ * genuine views that same record publishes. No other search runs, no image is
+ * transformed, and a record that is not this exact product contributes nothing.
+ */
+export async function storeRecordImages(
+  ctx: ActionCtx,
+  identity: ProductIdentity,
+  record: ProductRecordImages,
+  options?: { existingByHash?: Map<string, string> },
+): Promise<ProductImageOutcome> {
+  const rules = buildRules(identity);
+  if (rules.core.length === 0) {
+    return {
+      ok: false,
+      message: "Enter the product name before fetching its image.",
+      considered: [],
+    };
+  }
+
+  const candidate: Candidate = {
+    name: record.name,
+    manufacturer: record.manufacturer ?? undefined,
+    packText: record.packText ?? undefined,
+    pageUrl: record.pageUrl ?? record.sourceUrl ?? undefined,
+    source: record.source,
+    images: record.images ?? [],
+  };
+
+  // The record's own identity is re-checked here, together with its images: a
+  // record that is not this exact product never contributes an image, however
+  // good that image looks. The maker and the pack count are re-checked as hard
+  // signals, so a record the catalogue matcher accepted is verified again at the
+  // point where its pictures are actually used.
+  const conflict = recordConflictReason(record, identity);
+  if (conflict) {
+    return {
+      ok: false,
+      message: `The record resolved for "${identity.productName}" ("${record.name}") ${conflict}, so none of its images were used.`,
+      considered: [record.name],
+    };
+  }
+
+  const scored =
+    scoreCandidate(candidate, rules) ??
+    scoreCandidate(candidate, rules, "weighted");
+  if (!scored) {
+    return {
+      ok: false,
+      message: `The record resolved for "${identity.productName}" ("${record.name}") is not this exact product, so none of its images were used.`,
+      considered: [record.name],
+    };
+  }
+
+  const state: ViewStore = {
+    existingByHash: options?.existingByHash,
+    storedHashes: new Set<string>(),
+    downloads: { count: 0 },
+    fallback: null,
+  };
+  const views = await collectRecordViews(
+    ctx,
+    scored,
+    rules,
+    MAX_PRODUCT_IMAGES,
+    state,
+    { retries: 1 },
+  );
+  const ordered = orderViewsForDisplay(views);
+
+  if (ordered.length > 0) {
+    return {
+      ok: true,
+      imageUrl: ordered[0].url,
+      additionalImages: ordered.slice(1).map((view) => view.url),
+      views: ordered.length,
+      complete: ordered.length >= MAX_PRODUCT_IMAGES,
+      message: galleryStatusMessage(ordered.length) ?? undefined,
+      matchedName: candidate.name,
+      source: candidate.source,
+      sourceUrl:
+        candidate.pageUrl ?? candidate.images[0]?.url ?? ordered[0].url,
+      imageUrlSource: ordered[0].imageUrlSource,
+      notes: scored.reasons,
+    };
+  }
+
+  if (state.fallback) return await fallbackOutcome(ctx, state.fallback);
+
+  if ((record.images ?? []).length === 0) {
+    // The record was found, it simply publishes no picture of itself. Said
+    // plainly, so the admin is not told the image failed when there was none.
+    return {
+      ok: false,
+      message: `The exact product record for "${record.name}" was found, but it publishes no product images of its own.`,
+      considered: [candidate.name],
+    };
+  }
+
+  return {
+    ok: false,
+    message: `The exact product record for "${record.name}" was found, but none of the images it publishes could be downloaded. Nothing was invented to fill the gap — retry to fetch this same record's images again.`,
+    considered: [candidate.name],
+  };
+}
+
 /**
  * Resolve, verify, download and store the image for one product identity.
  * Shared by the admin action and the backfill pass so both behave identically.
@@ -2040,72 +2459,31 @@ export async function resolveAndStore(
 
   const considered: string[] = [];
   let fetches = 0;
-  let downloads = 0;
-  /** Content hashes already stored, so the same photo is never added twice. */
-  const storedHashes = new Set<string>();
-  // The first image that verified but has an unusable shape, kept as a
-  // fallback: a real packshot in an odd shape still beats no image at all.
-  let fallback: { image: DownloadedImage; entry: ScoredCandidate } | null = null;
+  const state: ViewStore = {
+    existingByHash,
+    storedHashes: new Set<string>(),
+    downloads: { count: 0 },
+    fallback: null,
+  };
 
   /**
-   * Download and store up to `limit` genuine views from ONE already-verified
-   * product record. Images are ranked first (front packshot, then clean cut-outs,
-   * then back/side faces), then fetched in order, so the front leads the gallery
-   * and later faces become thumbnails. Each view is content-hashed so the same
-   * photograph served twice is stored once.
+   * Store this record's views. Shared with the record-level pipeline, so a
+   * packshot found from a resolved catalogue record and one found by the search
+   * pipeline are downloaded, verified and ordered identically.
    */
   const storeRecordViews = async (
     entry: ScoredCandidate,
     limit: number,
-  ): Promise<Array<{ url: string; imageUrlSource: string; tier: number }>> => {
-    const faceByUrl = new Map<string, number>();
-    for (const image of entry.candidate.images) {
-      const normalized = normalizeImageUrl(image.url);
-      if (normalized) faceByUrl.set(normalized, imageTier(image));
-    }
-    const images = rankImages(entry.candidate, rules.identityWords);
-    if (images.length === 0) return [];
-    const stored: Array<{ url: string; imageUrlSource: string; tier: number }> = [];
-    for (const image of images) {
-      if (stored.length >= limit) break;
-      if (downloads >= MAX_IMAGE_DOWNLOADS) break;
-      downloads += 1;
-      const original = (entry.candidate.images[0]?.url ?? image.url).split("?")[0];
-      const downloaded = await downloadImage(image.url, original);
-      if (!downloaded) continue;
-      if (!downloaded.shapeOk) {
-        if (!fallback) fallback = { image: downloaded, entry };
-        continue;
-      }
-      const hash = contentHash(downloaded.bytes);
-      if (storedHashes.has(hash)) continue;
-      const tier = faceByUrl.get(image.url) ?? 1;
-      // Already part of this product's gallery under a different URL. Re-use
-      // the stored asset instead of skipping it, so a front packshot that is
-      // currently only a thumbnail can still be ordered as the primary.
-      const existingUrl = existingByHash?.get(hash);
-      if (existingUrl) {
-        storedHashes.add(hash);
-        stored.push({ url: existingUrl, imageUrlSource: image.url, tier });
-        continue;
-      }
-      const url = await store(ctx, downloaded);
-      if (!url) continue;
-      storedHashes.add(hash);
-      stored.push({
-        url,
-        imageUrlSource: image.url,
-        tier,
-      });
-    }
-    return stored;
+  ): Promise<StoredView[]> => {
+    if (limit <= 0) return [];
+    return await collectRecordViews(ctx, entry, rules, limit, state);
   };
 
   // The gallery being assembled. The best exact match leads it; further records
   // that are the same product in the same pack by the same maker may top it up
   // to the full set of verified views. Every stored view is content-hashed, so
   // the same photograph served by two records is only ever stored once.
-  let gallery: Array<{ url: string; imageUrlSource: string; tier: number }> = [];
+  let gallery: StoredView[] = [];
   let primary: ScoredCandidate | null = null;
 
   /** Add every usable view these exact matches offer. True when it is complete. */
@@ -2184,7 +2562,7 @@ export async function resolveAndStore(
   // read here would be narrowed to `null` by the compiler.
   const lead = (): ScoredCandidate | null => primary;
   const spare = (): { image: DownloadedImage; entry: ScoredCandidate } | null =>
-    fallback;
+    state.fallback;
 
   const best = lead();
   if (best && gallery.length > 0) {
@@ -2206,22 +2584,8 @@ export async function resolveAndStore(
 
   const unusable = spare();
   if (unusable) {
-    const stored = await store(ctx, unusable.image);
-    if (stored) {
-      return {
-        ok: true,
-        imageUrl: stored,
-        additionalImages: [],
-        views: 1,
-        complete: false,
-        message: galleryStatusMessage(1) ?? undefined,
-        matchedName: unusable.entry.candidate.name,
-        source: unusable.entry.candidate.source,
-        sourceUrl: unusable.entry.candidate.pageUrl ?? unusable.image.sourceUrl,
-        imageUrlSource: unusable.image.sourceUrl,
-        notes: [...unusable.entry.reasons, "unusual-aspect-ratio"],
-      };
-    }
+    const outcome = await fallbackOutcome(ctx, unusable);
+    if (outcome.ok) return outcome;
   }
 
   return {

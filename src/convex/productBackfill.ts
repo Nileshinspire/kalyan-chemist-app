@@ -23,6 +23,10 @@ import {
   resolveProductMetadata,
   type ResolvedProductMetadata,
 } from "./productMetadataResolver";
+import {
+  storeRecordImages,
+  type ProductIdentity as ResolverIdentity,
+} from "./productImageResolver";
 
 // ════════════════════════════════════════════════════════════════
 // VERIFIED PRODUCT REFERENCE DATA
@@ -446,7 +450,7 @@ export const enrichProduct = action({
     /** Admin's chosen category; a strong signal for product type. */
     categoryName: v.optional(v.string()),
   },
-  handler: async (_ctx, args) => {
+  handler: async (ctx, args) => {
     // Try the verified reference catalogue first (no API needed). The lookup
     // only returns a record that describes this exact variant, so "Dolo 500"
     // never borrows the 650 mg tablet's composition.
@@ -460,29 +464,47 @@ export const enrichProduct = action({
       strength: args.strength ?? strengthFromProductName(args.productName) ?? null,
     }).reference;
 
-    // The curated catalogue is a reference source, never the gate. When it has
-    // no record for this product, the exact product is identified ONLINE before
-    // anything is classified, so a real product is never reported as
-    // "unknown" just because it is not listed in MEDICINES_DB.
-    let online: ResolvedProductMetadata | null = null;
-    if (!matched) {
-      online = await resolveProductMetadata({
+    // ONE lookup identifies the exact product record and answers for both the
+    // metadata and the images, the way a pharmacy catalogue works:
+    //   product name → exact record → that record's own image assets.
+    // The curated MEDICINES_DB stays a reference (it verifies the clinical copy
+    // for the products it covers) and is never the gate: a product it does not
+    // list is still resolved online, so a real product is never reported as
+    // "unknown" just because it is missing locally.
+    const online = await resolveProductMetadata(
+      {
         productName: args.productName,
         brand: args.brand || undefined,
-        manufacturer: args.manufacturer || undefined,
-        composition: args.composition || undefined,
-        form: args.form || undefined,
-        strength: args.strength || undefined,
+        manufacturer: args.manufacturer || matched?.manufacturer || undefined,
+        composition: args.composition || matched?.composition || undefined,
+        form: args.form || matched?.form || undefined,
+        strength:
+          args.strength || strengthFromProductName(args.productName) || undefined,
         dosage: args.dosage || undefined,
         packSize: args.packSize || undefined,
         sku: args.sku || undefined,
-      });
-      if (!online.matched) online = null;
-    }
-    const resolved = online;
+      },
+      // The reference record already verified the copy, so the label lookup
+      // (which only fills clinical copy) is skipped in that case.
+      { includeLabels: !matched },
+    );
+    // Metadata is only taken from the online record when there is no verified
+    // local record for this exact variant.
+    const resolved: ResolvedProductMetadata | null =
+      !matched && online.matched ? online : null;
 
     const result: {
       imageUrl: string | null;
+      /** Genuine other views of the SAME product record, already in storage. */
+      additionalImages: string[];
+      /** Provenance of the stored packshot, preserved on the product. */
+      imageSource: string | null;
+      imageUrlSource: string | null;
+      /** The record's product name, so the admin can see what was resolved. */
+      imageMatchedName: string | null;
+      imageViews: number;
+      imageComplete: boolean;
+      imageMessage: string | null;
       manufacturer: string | null;
       benefits: string | null;
       description: string | null;
@@ -511,7 +533,10 @@ export const enrichProduct = action({
       brand: string | null;
       prescriptionRequired: boolean | null;
     } = {
-      imageUrl: null, manufacturer: null, benefits: null, description: null,
+      imageUrl: null, additionalImages: [], imageSource: null,
+      imageUrlSource: null, imageMatchedName: null, imageViews: 0,
+      imageComplete: false, imageMessage: null,
+      manufacturer: null, benefits: null, description: null,
       consumeType: null, safetyNote: null, form: null, storageInformation: null,
       composition: null, expiryDate: null, category: null, subcategory: null,
       productKind: "unknown", kindConfident: false, kindReason: "", matchFound: false,
@@ -759,12 +784,48 @@ export const enrichProduct = action({
       result.category = inferCategory(args.form || "", args.composition || "", args.productName);
     }
 
-    // No image is produced here on purpose. A chemical structure from
-    // Wikimedia Commons, or a generated initials graphic, is not a product
-    // packshot. Images come exclusively from the verified resolver
-    // (productImageResolver), which proves the image belongs to this exact
-    // product and stores it in Convex storage.
-    result.imageUrl = null;
+    // No image is invented here. A chemical structure from Wikimedia Commons, or
+    // a generated initials graphic, is not a product packshot, so the only
+    // images that can reach a product are the assets published by the exact
+    // product record that was just resolved — stored in Convex storage, never
+    // left as a third-party URL, and never cropped, mirrored or re-angled.
+    if (online.record) {
+      const imageIdentity: ResolverIdentity = {
+        productName: args.productName,
+        brand: args.brand || online.brand || undefined,
+        manufacturer:
+          args.manufacturer ||
+          matched?.manufacturer ||
+          online.manufacturer ||
+          undefined,
+        composition:
+          args.composition || matched?.composition || online.composition || undefined,
+        form: args.form || matched?.form || online.form || undefined,
+        strength:
+          args.strength ||
+          strengthFromProductName(args.productName) ||
+          online.strength ||
+          undefined,
+        packSize: args.packSize || online.packSize || undefined,
+        sku: args.sku || undefined,
+      };
+      const image = await storeRecordImages(ctx, imageIdentity, online.record);
+      if (image.ok) {
+        result.imageUrl = image.imageUrl;
+        result.additionalImages = image.additionalImages;
+        result.imageSource = image.source;
+        result.imageUrlSource = image.imageUrlSource;
+        result.imageMatchedName = image.matchedName;
+        result.imageViews = image.views;
+        result.imageComplete = image.complete;
+        result.imageMessage = image.message ?? null;
+      } else {
+        // The exact product WAS found — only its images could not be stored. The
+        // reason is passed on so the admin retries this same record instead of
+        // saving the product as though it had no packshot.
+        result.imageMessage = image.message;
+      }
+    }
 
     return result;
   },

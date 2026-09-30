@@ -399,9 +399,8 @@ export default function AdminHealthcareDevices() {
       // A placeholder left over from an earlier auto-fill is never kept.
       if (/^data:/i.test(newForm.imageUrl ?? "")) newForm.imageUrl = undefined;
 
-      // The image is resolved at the end of this handler, once every identity
-      // field below has been filled, so the search uses the complete product
-      // identity rather than just the name.
+      // The image is resolved at the end of this handler, from the same product
+      // record as the metadata above.
       if (result.description) {
         newForm.description = result.description;
         filled.push("Description");
@@ -439,47 +438,73 @@ export default function AdminHealthcareDevices() {
         filled.push("Storage Information");
       }
 
-      // Resolve the real device packshot through the verified pipeline, using
-      // the complete identity. On failure the form keeps whatever image the
-      // admin supplied and says plainly that none could be verified — a
-      // placeholder is never written.
+      // The device's packshot comes from the SAME product record the metadata
+      // above was resolved from: the Auto Fill already stored that record's own
+      // front packshot and genuine additional views, so nothing is searched
+      // twice and the photo can never belong to a different product. Only when
+      // the record published no usable image is the full resolver asked, and it
+      // still refuses to write a placeholder.
       let imageMessage: string | null = null;
       let imageWarning: string | null = null;
+      let recordImageApplied = false;
+      if (result.imageUrl) {
+        const recordImages: string[] = result.additionalImages ?? [];
+        newForm.imageUrl = result.imageUrl;
+        newForm.imageSource = result.imageSource ?? undefined;
+        newForm.imageUrlSource = result.imageUrlSource ?? undefined;
+        if (recordImages.length > 0) newForm.additionalImages = recordImages;
+        filled.push("Image");
+        if (recordImages.length > 0) {
+          filled.push(
+            `${recordImages.length} more view${recordImages.length === 1 ? "" : "s"}`,
+          );
+        }
+        recordImageApplied = true;
+        // A device that genuinely publishes fewer than five views is reported
+        // as not image-complete rather than topped up with a worse photo.
+        if (!result.imageComplete) {
+          imageWarning =
+            result.imageMessage ??
+            "5 verified product images could not be found for this exact product.";
+        }
+      }
       try {
-        const image = await resolveProductImageAction({
-          productName: newForm.name,
-          brand: brand || undefined,
-          manufacturer: newForm.manufacturer || undefined,
-          composition: newForm.composition || undefined,
-          form: newForm.form || undefined,
-          strength: newForm.strength || undefined,
-          dosage: newForm.dosage || undefined,
-          packSize: newForm.packSize || undefined,
-          sku: newForm.sku || undefined,
-        });
-        if (image.ok) {
-          newForm.imageUrl = image.imageUrl;
-          newForm.imageSource = image.source;
-          newForm.imageUrlSource = image.imageUrlSource;
-          filled.push("Image");
-          if (image.additionalImages.length > 0) {
-            newForm.additionalImages = image.additionalImages;
-            filled.push(
-              `${image.additionalImages.length} more view${image.additionalImages.length === 1 ? "" : "s"}`,
-            );
+        if (!recordImageApplied) {
+          const image = await resolveProductImageAction({
+            productName: newForm.name,
+            brand: brand || undefined,
+            manufacturer: newForm.manufacturer || undefined,
+            composition: newForm.composition || undefined,
+            form: newForm.form || undefined,
+            strength: newForm.strength || undefined,
+            dosage: newForm.dosage || undefined,
+            packSize: newForm.packSize || undefined,
+            sku: newForm.sku || undefined,
+          });
+          if (image.ok) {
+            newForm.imageUrl = image.imageUrl;
+            newForm.imageSource = image.source;
+            newForm.imageUrlSource = image.imageUrlSource;
+            filled.push("Image");
+            if (image.additionalImages.length > 0) {
+              newForm.additionalImages = image.additionalImages;
+              filled.push(
+                `${image.additionalImages.length} more view${image.additionalImages.length === 1 ? "" : "s"}`,
+              );
+            }
+            if (!image.complete) {
+              imageWarning =
+                image.message ??
+                "5 verified product images could not be found for this exact product.";
+            }
+          } else {
+            imageMessage = image.message;
           }
-          // A device that genuinely publishes fewer than five views is reported
-          // as not image-complete rather than topped up with a worse photo.
-          if (!image.complete) {
-            imageWarning =
-              image.message ??
-              "5 verified product images could not be found for this exact product.";
-          }
-        } else {
-          imageMessage = image.message;
         }
       } catch {
-        imageMessage = "Exact product packshot could not be verified.";
+        if (!recordImageApplied) {
+          imageMessage = "Exact product packshot could not be verified.";
+        }
       }
 
       setForm(newForm);

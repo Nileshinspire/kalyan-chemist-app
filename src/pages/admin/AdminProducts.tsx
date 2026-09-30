@@ -474,9 +474,8 @@ export default function AdminProducts() {
       // A placeholder left over from an earlier auto-fill is never kept.
       if (/^data:/i.test(newForm.imageUrl ?? "")) newForm.imageUrl = undefined;
 
-      // The image is resolved further down, through its own pipeline: the
-      // metadata action's `imageUrl` can be a generated placeholder or a
-      // Wikipedia diagram, so it is deliberately not used here.
+      // The image is resolved further down, from the very same product record
+      // the metadata above came from.
       // Description — always overwrite with product-specific description
       if (result.description) {
         newForm.description = result.description;
@@ -575,25 +574,71 @@ export default function AdminProducts() {
         }
       }
 
-      // Image last, so the pipeline can use every field that was just filled.
-      const verifiedImage = await fetchVerifiedImage(newForm);
-      if (verifiedImage) {
-        newForm.imageUrl = verifiedImage.imageUrl;
-        newForm.imageSource = verifiedImage.imageSource;
-        newForm.imageUrlSource = verifiedImage.imageUrlSource;
+      // Image: the Auto Fill already resolved the exact product record and
+      // stored THAT record's own packshot together with the metadata above, so
+      // the product's fields and its photo always describe one product. The
+      // image is applied here because it still goes through the admin's own
+      // save path, but nothing is searched a second time.
+      let recordImageApplied = false;
+      if (result.imageUrl) {
+        const recordImages: string[] = result.additionalImages ?? [];
+        newForm.imageUrl = result.imageUrl;
+        newForm.additionalImages = recordImages;
+        // Provenance travels with the image so a later audit can tell exactly
+        // which record's asset was stored.
+        newForm.imageSource = result.imageSource ?? undefined;
+        newForm.imageUrlSource = result.imageUrlSource ?? undefined;
         filled.push("Image");
-        if (verifiedImage.additionalImages.length > 0) {
-          newForm.additionalImages = verifiedImage.additionalImages;
+        if (recordImages.length > 0) {
           filled.push(
-            `${verifiedImage.additionalImages.length} more view${verifiedImage.additionalImages.length === 1 ? "" : "s"}`,
+            `${recordImages.length} more view${recordImages.length === 1 ? "" : "s"}`,
           );
         }
-        if (!verifiedImage.complete) {
+        setImageStatus({
+          state: "verified",
+          matchedName: result.imageMatchedName ?? newForm.name,
+          views: recordImages.length,
+          source: result.imageSource ?? "",
+          complete: result.imageComplete ?? false,
+          message: result.imageMessage ?? undefined,
+        });
+        recordImageApplied = true;
+        if (!result.imageComplete) {
           toast.warning(
-            verifiedImage.message ??
+            result.imageMessage ??
               `${TARGET_GALLERY_IMAGES} verified product images could not be found for this exact product.`,
             { duration: 9000 },
           );
+        }
+      }
+      if (!recordImageApplied) {
+        // Either no catalogue record was found for this product, or the record's
+        // own assets could not be downloaded. The full resolver is asked for
+        // this exact product, which searches the same catalogue again and can
+        // also repair an image that is already stored.
+        const verifiedImage = await fetchVerifiedImage(newForm);
+        if (verifiedImage) {
+          newForm.imageUrl = verifiedImage.imageUrl;
+          newForm.imageSource = verifiedImage.imageSource;
+          newForm.imageUrlSource = verifiedImage.imageUrlSource;
+          filled.push("Image");
+          if (verifiedImage.additionalImages.length > 0) {
+            newForm.additionalImages = verifiedImage.additionalImages;
+            filled.push(
+              `${verifiedImage.additionalImages.length} more view${verifiedImage.additionalImages.length === 1 ? "" : "s"}`,
+            );
+          }
+          if (!verifiedImage.complete) {
+            toast.warning(
+              verifiedImage.message ??
+                `${TARGET_GALLERY_IMAGES} verified product images could not be found for this exact product.`,
+              { duration: 9000 },
+            );
+          }
+        } else if (result.imageMessage) {
+          // The exact product record was found, only its images failed: say so
+          // plainly instead of implying the product has no packshot.
+          toast.error(result.imageMessage, { duration: 9000 });
         }
       }
 
