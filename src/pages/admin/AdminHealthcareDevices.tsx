@@ -452,6 +452,12 @@ export default function AdminHealthcareDevices() {
         if (image.ok) {
           newForm.imageUrl = image.imageUrl;
           filled.push("Image");
+          if (image.additionalImages.length > 0) {
+            newForm.additionalImages = image.additionalImages;
+            filled.push(
+              `${image.additionalImages.length} more view${image.additionalImages.length === 1 ? "" : "s"}`,
+            );
+          }
         } else {
           imageMessage = image.message;
         }

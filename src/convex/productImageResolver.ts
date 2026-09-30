@@ -64,6 +64,10 @@ const MAX_QUERIES_PER_SOURCE = 4;
 const MAX_OFFICIAL_PAGES = 3;
 /** Total candidate images downloaded across every source. */
 const MAX_CANDIDATE_FETCHES = 8;
+/** Genuine views stored for one product: the front packshot plus up to three. */
+export const MAX_PRODUCT_IMAGES = 4;
+/** Hard ceiling on image downloads per resolution, shared across every view. */
+const MAX_IMAGE_DOWNLOADS = 12;
 
 // ── Text helpers ──
 
@@ -1432,6 +1436,20 @@ function imageDimensions(bytes: Uint8Array): { width: number; height: number } |
 const MIN_IMAGE_EDGE = 200;
 const MIN_ASPECT_RATIO = 0.34;
 
+/**
+ * FNV-1a over the downloaded bytes: a cheap, dependency-free content id used to
+ * collapse the same photograph served from two different URLs, so a gallery
+ * can never show the same view twice.
+ */
+export function contentHash(bytes: Uint8Array): string {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < bytes.length; i += 1) {
+    hash ^= bytes[i];
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0).toString(16).padStart(8, "0");
+}
+
 function isUsableShape(dimensions: { width: number; height: number } | null): boolean {
   if (!dimensions) return true; // unknown size: the bytes already passed validation
   const long = Math.max(dimensions.width, dimensions.height);
@@ -1503,7 +1521,14 @@ async function store(ctx: ActionCtx, image: DownloadedImage): Promise<string | n
 export type ProductImageOutcome =
   | {
       ok: true;
+      /** The front packshot — the primary product image. */
       imageUrl: string;
+      /**
+       * Other genuine views of the SAME verified product record (0–3). These
+       * are back/side/box faces from the record that already passed the exact
+       * identity check, so they are the real product, never a fabricated angle.
+       */
+      additionalImages: string[];
       matchedName: string;
       source: string;
       sourceUrl: string;
@@ -1530,46 +1555,70 @@ export async function resolveAndStore(
 
   const considered: string[] = [];
   let fetches = 0;
+  let downloads = 0;
+  /** Content hashes already stored, so the same photo is never added twice. */
+  const storedHashes = new Set<string>();
+  // The first image that verified but has an unusable shape, kept as a
+  // fallback: a real packshot in an odd shape still beats no image at all.
+  let fallback: { image: DownloadedImage; entry: ScoredCandidate } | null = null;
 
-  const tryCandidates = async (
-    scored: ScoredCandidate[],
-  ): Promise<ProductImageOutcome | null> => {
-    scored.sort((a, b) => b.score - a.score);
-    // The first image that verified but has an unusable shape is kept as a
-    // fallback: a real packshot in an odd shape still beats no image at all.
-    let fallback: { image: DownloadedImage; entry: ScoredCandidate } | null = null;
-
-    for (const entry of scored) {
-      if (fetches >= MAX_CANDIDATE_FETCHES) break;
-      const images = rankImages(entry.candidate, rules.identityWords);
-      if (images.length === 0) continue;
-      fetches += 1;
-      if (!considered.includes(entry.candidate.name)) {
-        considered.push(entry.candidate.name);
-      }
-
-      // The best-ranked image for this product record: the front-facing
-      // packshot, or a white-background cut-out when the source labels one.
-      const chosen = images[0];
-
-      const downloaded = await downloadImage(
-        chosen.url,
-        (entry.candidate.images[0]?.url ?? chosen.url).split("?")[0],
-      );
+  /**
+   * Download and store up to `MAX_PRODUCT_IMAGES` genuine views from ONE
+   * already-verified product record. Images are ranked first (front packshot,
+   * then clean cut-outs, then back/side faces), then fetched in order, so the
+   * front leads the gallery and later faces become thumbnails. Each view is
+   * content-hashed so the same photograph served twice is stored once.
+   */
+  const storeRecordViews = async (entry: ScoredCandidate): Promise<string[]> => {
+    const images = rankImages(entry.candidate, rules.identityWords);
+    if (images.length === 0) return [];
+    const stored: string[] = [];
+    for (const image of images) {
+      if (stored.length >= MAX_PRODUCT_IMAGES) break;
+      if (downloads >= MAX_IMAGE_DOWNLOADS) break;
+      downloads += 1;
+      const original = (entry.candidate.images[0]?.url ?? image.url).split("?")[0];
+      const downloaded = await downloadImage(image.url, original);
       if (!downloaded) continue;
       if (!downloaded.shapeOk) {
         if (!fallback) fallback = { image: downloaded, entry };
         continue;
       }
+      const hash = contentHash(downloaded.bytes);
+      if (storedHashes.has(hash)) continue;
+      const url = await store(ctx, downloaded);
+      if (!url) continue;
+      storedHashes.add(hash);
+      stored.push(url);
+    }
+    return stored;
+  };
 
-      const stored = await store(ctx, downloaded);
-      if (!stored) continue;
+  const tryCandidates = async (
+    scored: ScoredCandidate[],
+  ): Promise<ProductImageOutcome | null> => {
+    scored.sort((a, b) => b.score - a.score);
+
+    for (const entry of scored) {
+      if (fetches >= MAX_CANDIDATE_FETCHES) break;
+      if (rankImages(entry.candidate, rules.identityWords).length === 0) continue;
+      fetches += 1;
+      if (!considered.includes(entry.candidate.name)) {
+        considered.push(entry.candidate.name);
+      }
+
+      // Every usable face of this verified record, front first.
+      const views = await storeRecordViews(entry);
+      if (views.length === 0) continue;
+
       return {
         ok: true,
-        imageUrl: stored,
+        imageUrl: views[0],
+        additionalImages: views.slice(1),
         matchedName: entry.candidate.name,
         source: entry.candidate.source,
-        sourceUrl: entry.candidate.pageUrl ?? downloaded.sourceUrl,
+        sourceUrl:
+          entry.candidate.pageUrl ?? entry.candidate.images[0]?.url ?? views[0],
         notes: entry.reasons,
       };
     }
@@ -1580,6 +1629,7 @@ export async function resolveAndStore(
         return {
           ok: true,
           imageUrl: stored,
+          additionalImages: [],
           matchedName: fallback.entry.candidate.name,
           source: fallback.entry.candidate.source,
           sourceUrl:

@@ -18,6 +18,7 @@ import {
   isVerifiedProductImage,
   needsProductImageRepair,
   resolveAndStore,
+  MAX_PRODUCT_IMAGES,
   type ProductIdentity,
 } from "./productImageResolver";
 
@@ -25,6 +26,7 @@ type AuditRow = {
   id: Id<"products">;
   name: string;
   imageUrl: string;
+  additionalImages: string[];
   manufacturer: string;
   composition: string;
   form: string;
@@ -33,6 +35,50 @@ type AuditRow = {
   packSize: string;
   sku: string;
 };
+
+/**
+ * True when the stored gallery cannot be trusted: no views at all, a blank or
+ * third-party URL, a repeat of another view, or the front image listed again as
+ * a thumbnail. Each of those is exactly what this backfill is meant to fix.
+ */
+export function needsAdditionalImagesRepair(
+  images: string[],
+  imageUrl: string,
+): boolean {
+  if (!images || images.length === 0) return true;
+  const seen = new Set<string>();
+  for (const raw of images) {
+    const url = (raw ?? "").trim();
+    if (!url) return true;
+    if (url === imageUrl) return true;
+    if (!isVerifiedProductImage(url)) return true;
+    if (seen.has(url)) return true;
+    seen.add(url);
+  }
+  return false;
+}
+
+/**
+ * Keep only genuine, verified, distinct views — fresh results first, then any
+ * still-valid stored views — and cap the total at `MAX_PRODUCT_IMAGES`. This
+ * means a re-resolve can add views but never downgrade or duplicate them.
+ */
+export function mergeAdditionalImages(
+  existing: string[],
+  incoming: string[],
+  imageUrl: string,
+): string[] {
+  const out: string[] = [];
+  const seen = new Set([imageUrl]);
+  for (const raw of [...incoming, ...existing]) {
+    const url = (raw ?? "").trim();
+    if (!url || seen.has(url) || !isVerifiedProductImage(url)) continue;
+    seen.add(url);
+    out.push(url);
+    if (out.length >= MAX_PRODUCT_IMAGES - 1) break;
+  }
+  return out;
+}
 
 /**
  * The generated `internal` tree contains this very module, so referring to it
@@ -63,7 +109,11 @@ type ProductAdminRefs = {
     setProductImage: FunctionReference<
       "mutation",
       "internal",
-      { productId: Id<"products">; imageUrl: string },
+      {
+        productId: Id<"products">;
+        imageUrl: string;
+        additionalImages?: string[];
+      },
       null
     >;
   };
@@ -139,16 +189,22 @@ export const repairProductImage = action({
       return { ok: false as const, message: outcome.message };
     }
 
-    if (outcome.imageUrl !== row.imageUrl) {
-      await ctx.runMutation(internal.adminProducts.setProductImage, {
-        productId: row.id,
-        imageUrl: outcome.imageUrl,
-      });
-    }
+    const additionalImages = mergeAdditionalImages(
+      row.additionalImages,
+      outcome.additionalImages,
+      outcome.imageUrl,
+    );
+
+    await ctx.runMutation(internal.adminProducts.setProductImage, {
+      productId: row.id,
+      imageUrl: outcome.imageUrl,
+      additionalImages,
+    });
 
     return {
       ok: true as const,
       imageUrl: outcome.imageUrl,
+      additionalImages,
       matchedName: outcome.matchedName,
       replaced: outcome.imageUrl !== row.imageUrl,
     };
@@ -180,12 +236,22 @@ export const repairProductImages = internalAction({
       const wanted = new Set(args.productIds as string[]);
       candidates = rows.filter((row) => wanted.has(row.id as string));
     } else if (!args.force) {
-      candidates = rows.filter((row) => needsProductImageRepair(row.imageUrl));
+      candidates = rows.filter(
+        (row) =>
+          needsProductImageRepair(row.imageUrl) ||
+          needsAdditionalImagesRepair(row.additionalImages, row.imageUrl),
+      );
     }
     const needsRepair = candidates;
     const batch = args.limit ? needsRepair.slice(0, args.limit) : needsRepair;
 
-    const repaired: { name: string; from: string; to: string }[] = [];
+    const repaired: {
+      name: string;
+      from: string;
+      to: string;
+      /** Number of genuine extra views now stored (0-3). */
+      views: number;
+    }[] = [];
     const unresolved: { name: string; current: string; reason: string }[] = [];
     const unchanged: string[] = [];
 
@@ -212,7 +278,17 @@ export const repairProductImages = internalAction({
         continue;
       }
 
-      if (outcome.imageUrl === row.imageUrl) {
+      const additionalImages = mergeAdditionalImages(
+        row.additionalImages,
+        outcome.additionalImages,
+        outcome.imageUrl,
+      );
+
+      const imageSame = outcome.imageUrl === row.imageUrl;
+      const gallerySame =
+        additionalImages.length === row.additionalImages.length &&
+        additionalImages.every((url, i) => url === row.additionalImages[i]);
+      if (imageSame && gallerySame) {
         unchanged.push(row.name);
         continue;
       }
@@ -221,12 +297,14 @@ export const repairProductImages = internalAction({
         name: row.name,
         from: row.imageUrl,
         to: outcome.imageUrl,
+        views: additionalImages.length,
       });
 
       if (args.dryRun !== true) {
         await ctx.runMutation(internal.adminProducts.setProductImage, {
           productId: row.id,
           imageUrl: outcome.imageUrl,
+          additionalImages,
         });
       }
     }

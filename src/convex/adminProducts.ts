@@ -54,6 +54,9 @@ export const productsForImageAudit = internalQuery({
       id: product._id,
       name: product.name,
       imageUrl: (product.imageUrl ?? "").trim(),
+      additionalImages: (product.additionalImages ?? []).map((url) =>
+        String(url ?? "").trim(),
+      ),
       manufacturer: product.manufacturer ?? "",
       composition: product.composition ?? "",
       form: product.form ?? "",
@@ -75,6 +78,9 @@ export const productImageRow = internalQuery({
       id: product._id,
       name: product.name,
       imageUrl: (product.imageUrl ?? "").trim(),
+      additionalImages: (product.additionalImages ?? []).map((url) =>
+        String(url ?? "").trim(),
+      ),
       manufacturer: product.manufacturer ?? "",
       composition: product.composition ?? "",
       form: product.form ?? "",
@@ -91,11 +97,36 @@ export const productImageRow = internalQuery({
  * change a product's name, price, stock, category or any other field.
  */
 export const setProductImage = internalMutation({
-  args: { productId: v.id("products"), imageUrl: v.string() },
+  args: {
+    productId: v.id("products"),
+    imageUrl: v.string(),
+    /**
+     * Genuine other views of the same product. Every URL is validated like the
+     * primary image and de-duplicated against it, so a gallery can never hold a
+     * placeholder, the front image twice, or an empty slot.
+     */
+    additionalImages: v.optional(v.array(v.string())),
+  },
   handler: async (ctx, args) => {
     const imageUrl = args.imageUrl.trim();
     assertRealImageUrl(imageUrl, true);
-    await ctx.db.patch(args.productId, { imageUrl, updatedAt: Date.now() });
+
+    const seen = new Set([imageUrl]);
+    const additionalImages: string[] = [];
+    for (const raw of args.additionalImages ?? []) {
+      const url = String(raw ?? "").trim();
+      if (!url || seen.has(url)) continue;
+      assertRealImageUrl(url, false);
+      seen.add(url);
+      additionalImages.push(url);
+    }
+
+    await ctx.db.patch(args.productId, {
+      imageUrl,
+      additionalImages:
+        additionalImages.length > 0 ? additionalImages : undefined,
+      updatedAt: Date.now(),
+    });
   },
 });
 

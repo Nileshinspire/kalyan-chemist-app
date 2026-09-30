@@ -121,7 +121,7 @@ const FORM_OPTIONS = ["tablet", "capsule", "syrup", "injection", "cream", "gel",
 type ImageStatus =
   | { state: "idle" }
   | { state: "loading" }
-  | { state: "verified"; matchedName: string }
+  | { state: "verified"; matchedName: string; views: number }
   | { state: "unverified"; message: string };
 
 export default function AdminProducts() {
@@ -289,7 +289,9 @@ export default function AdminProducts() {
    * returns a placeholder: on failure the form keeps no image and the reason is
    * surfaced, so the admin can correct the name or retry.
    */
-  const fetchVerifiedImage = async (source: ProductForm): Promise<string | null> => {
+  const fetchVerifiedImage = async (
+    source: ProductForm,
+  ): Promise<{ imageUrl: string; additionalImages: string[] } | null> => {
     setImageStatus({ state: "loading" });
     try {
       const brand = brands?.find((b) => b._id === source.brandId)?.name;
@@ -305,8 +307,15 @@ export default function AdminProducts() {
         sku: source.sku || undefined,
       });
       if (result.ok) {
-        setImageStatus({ state: "verified", matchedName: result.matchedName });
-        return result.imageUrl;
+        setImageStatus({
+          state: "verified",
+          matchedName: result.matchedName,
+          views: result.additionalImages.length,
+        });
+        return {
+          imageUrl: result.imageUrl,
+          additionalImages: result.additionalImages,
+        };
       }
       setImageStatus({ state: "unverified", message: result.message });
       return null;
@@ -327,10 +336,21 @@ export default function AdminProducts() {
       toast.error("Enter the product name first.");
       return;
     }
-    const imageUrl = await fetchVerifiedImage(form);
-    if (imageUrl) {
-      setForm({ ...form, imageUrl });
-      toast.success("Product image verified");
+    const found = await fetchVerifiedImage(form);
+    if (found) {
+      setForm({
+        ...form,
+        imageUrl: found.imageUrl,
+        additionalImages:
+          found.additionalImages.length > 0
+            ? found.additionalImages
+            : form.additionalImages,
+      });
+      toast.success(
+        found.additionalImages.length > 0
+          ? `Verified packshot + ${found.additionalImages.length} product view${found.additionalImages.length === 1 ? "" : "s"}`
+          : "Product image verified",
+      );
     } else {
       toast.error("Exact product image could not be verified.");
     }
@@ -448,8 +468,14 @@ export default function AdminProducts() {
       // Image last, so the pipeline can use every field that was just filled.
       const verifiedImage = await fetchVerifiedImage(newForm);
       if (verifiedImage) {
-        newForm.imageUrl = verifiedImage;
+        newForm.imageUrl = verifiedImage.imageUrl;
         filled.push("Image");
+        if (verifiedImage.additionalImages.length > 0) {
+          newForm.additionalImages = verifiedImage.additionalImages;
+          filled.push(
+            `${verifiedImage.additionalImages.length} more view${verifiedImage.additionalImages.length === 1 ? "" : "s"}`,
+          );
+        }
       }
 
       setForm(newForm);
@@ -994,6 +1020,9 @@ export default function AdminProducts() {
                 {imageStatus.state === "verified" && (
                   <p className="text-xs text-green-600">
                     Verified packshot: {imageStatus.matchedName}
+                    {imageStatus.views > 0
+                      ? ` · ${imageStatus.views} additional genuine view${imageStatus.views === 1 ? "" : "s"} found`
+                      : " · no additional views available"}
                   </p>
                 )}
                 {imageStatus.state === "unverified" && (
@@ -1014,7 +1043,24 @@ export default function AdminProducts() {
               </div>
               <div className="sm:col-span-2 space-y-2">
                 <Label>Additional Product Images (Gallery)</Label>
-                <p className="text-[11px] text-muted-foreground">Enter image URLs for additional product views/angles. These appear as selectable thumbnails on the product page.</p>
+                <p className="text-[11px] text-muted-foreground">Real views of this exact product, filled automatically by Auto Fill / Fetch image. They appear as selectable thumbnails on the product page; edit or remove any you do not want.</p>
+                {form.additionalImages.some((img) => img.trim()) && (
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
+                    {form.imageUrl && (
+                      <div className="size-16 rounded-lg border-2 border-primary bg-muted/30 flex items-center justify-center overflow-hidden" title="Main image">
+                        <img src={form.imageUrl} alt="Main" className="size-full object-contain p-1" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                      </div>
+                    )}
+                    {form.additionalImages
+                      .map((img) => img.trim())
+                      .filter(Boolean)
+                      .map((img, idx) => (
+                        <div key={`${img}-${idx}`} className="size-16 rounded-lg border border-border/60 bg-muted/30 flex items-center justify-center overflow-hidden" title={`View ${idx + 1}`}>
+                          <img src={img} alt={`View ${idx + 1}`} className="size-full object-contain p-1" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                        </div>
+                      ))}
+                  </div>
+                )}
                 {form.additionalImages.map((img, idx) => (
                   <div key={idx} className="flex items-center gap-2">
                     <Input value={img} onChange={(e) => { const imgs = [...form.additionalImages]; imgs[idx] = e.target.value; setForm({ ...form, additionalImages: imgs }); }} placeholder="https://... additional image URL" className="flex-1" />
