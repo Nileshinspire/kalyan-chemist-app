@@ -29,7 +29,7 @@ import {
   SheetTitle,
   SheetDescription,
 } from "@/components/ui/sheet";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import {
   ArrowLeft,
@@ -64,7 +64,7 @@ import {
   Search,
   Lock,
 } from "lucide-react";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useSetBreadcrumb, getBreadcrumbState } from "@/hooks/useBreadcrumb";
 import { useNavigation } from "@/context/NavigationContext";
 import {
@@ -261,6 +261,11 @@ export default function ProductDetail() {
   const [shareOpen, setShareOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [selectedImage, setSelectedImage] = useState(0);
+  // Image-gallery interaction state. `zoomActive` only flips on enter/leave;
+  // the zoom focus point is written imperatively to the selected image's
+  // transform-origin on mousemove, so tracking never triggers a re-render.
+  const [zoomActive, setZoomActive] = useState(false);
+  const galleryImgRef = useRef<HTMLImageElement | null>(null);
   const [selectedVariantIndex, setSelectedVariantIndex] = useState(0);
   const [activeTab, setActiveTab] = useState("product-info");
 
@@ -505,6 +510,19 @@ export default function ProductDetail() {
     ...((p as any).additionalImages || []).filter((img: string) => img && img !== p.imageUrl),
   ];
 
+  // Magnifier focus point: map the pointer to a percentage of the rendered
+  // (object-contain) image box and write it straight to the DOM. Keeping this
+  // out of React state is what makes the zoom track the cursor smoothly.
+  const setGalleryOrigin = (clientX: number, clientY: number) => {
+    const img = galleryImgRef.current;
+    if (!img) return;
+    const rect = img.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    const x = Math.min(100, Math.max(0, ((clientX - rect.left) / rect.width) * 100));
+    const y = Math.min(100, Math.max(0, ((clientY - rect.top) / rect.height) * 100));
+    img.style.transformOrigin = `${x}% ${y}%`;
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
@@ -612,15 +630,18 @@ export default function ProductDetail() {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <div className="flex gap-3 items-start">
-              {/* Thumbnails — vertical on desktop, horizontal on mobile */}
+            <div className="flex flex-col-reverse gap-3 items-start lg:flex-row">
+              {/* Thumbnails — vertical rail beside the image on desktop, a
+                  horizontal scroll strip beneath it on smaller screens */}
               {allImages.length > 1 && (
-                <div className="flex lg:flex-col gap-2 overflow-x-auto lg:overflow-x-visible shrink-0">
+                <div className="flex w-full gap-2 overflow-x-auto pb-1 lg:pb-0 lg:w-auto lg:flex-col lg:overflow-x-visible shrink-0">
                   {allImages.map((img, idx) => (
                     <button
-                      key={idx}
+                      key={`${img}-${idx}`}
                       type="button"
                       onClick={() => setSelectedImage(idx)}
+                      aria-label={`Show product image ${idx + 1} of ${allImages.length}`}
+                      aria-current={selectedImage === idx}
                       className={`size-16 sm:size-18 lg:size-20 rounded-xl border-2 overflow-hidden shrink-0 transition-all duration-200 bg-gradient-to-br from-primary/[0.03] to-primary/[0.01] flex items-center justify-center cursor-pointer ${
                         selectedImage === idx
                           ? "border-primary shadow-md ring-1 ring-primary/20"
@@ -630,6 +651,9 @@ export default function ProductDetail() {
                       <img
                         src={img}
                         alt={`${p.name} view ${idx + 1}`}
+                        loading={selectedImage === idx ? "eager" : "lazy"}
+                        decoding="async"
+                        draggable={false}
                         className="size-full object-contain p-1"
                         onError={(e) => {
                           (e.target as HTMLImageElement).style.display = "none";
@@ -640,22 +664,56 @@ export default function ProductDetail() {
                 </div>
               )}
 
-              {/* Main image */}
-              <div className="flex-1 rounded-2xl border border-border/60 bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] flex items-center justify-center h-[300px] sm:h-[400px] overflow-hidden relative">
+              {/* Main image — cursor-following magnifier on hover */}
+              <div
+                className={`w-full lg:flex-1 rounded-2xl border border-border/60 bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] flex items-center justify-center h-[300px] sm:h-[400px] overflow-hidden relative ${
+                  allImages.length > 0 ? "cursor-zoom-in" : ""
+                }`}
+                onMouseEnter={(e) => {
+                  if (allImages.length === 0) return;
+                  setGalleryOrigin(e.clientX, e.clientY);
+                  setZoomActive(true);
+                }}
+                onMouseMove={(e) => {
+                  if (zoomActive) setGalleryOrigin(e.clientX, e.clientY);
+                }}
+                onMouseLeave={() => setZoomActive(false)}
+              >
                 {allImages.length > 0 ? (
-                  <img
-                    src={allImages[selectedImage] || allImages[0]}
-                    alt={p.name}
-                    className="max-h-full max-w-full object-contain p-6 transition-opacity duration-300"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = "none";
-                    }}
-                  />
+                  <AnimatePresence initial={false}>
+                    <motion.div
+                      key={selectedImage}
+                      className="absolute inset-0 flex items-center justify-center pointer-events-none"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.25, ease: "easeOut" }}
+                    >
+                      <img
+                        ref={(el) => {
+                          if (el) galleryImgRef.current = el;
+                        }}
+                        src={allImages[selectedImage] || allImages[0]}
+                        alt={p.name}
+                        decoding="async"
+                        draggable={false}
+                        className="max-h-full max-w-full object-contain p-6 select-none"
+                        style={{
+                          transform: zoomActive ? "scale(2)" : "scale(1)",
+                          transition: "transform 320ms cubic-bezier(0.22, 1, 0.36, 1)",
+                          willChange: "transform",
+                        }}
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = "none";
+                        }}
+                      />
+                    </motion.div>
+                  </AnimatePresence>
                 ) : (
                   <Pill className="size-24 text-primary/15" />
                 )}
                 {hasDiscount && (
-                  <div className="absolute top-4 left-4">
+                  <div className="absolute top-4 left-4 pointer-events-none">
                     <Badge className="text-sm font-bold bg-gradient-to-r from-green-500 to-emerald-500 text-white border-0 shadow-md">
                       {discountPct}% OFF
                     </Badge>
