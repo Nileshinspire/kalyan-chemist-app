@@ -318,6 +318,42 @@ const STOP_WORDS = new Set([
   "care",
 ]);
 
+/**
+ * Suffixes a brand uses to sell a DIFFERENT formulation under the same name —
+ * "Telma" vs "Telma LN", "Crocin" vs "Crocin Advance", "Volini" vs "Volini
+ * Duo". A candidate carrying one of these that the requested product does not
+ * is a different product, never a longer title for the same one.
+ */
+const VARIANT_MARKERS = new Set([
+  "ln",
+  "sr",
+  "xr",
+  "xl",
+  "er",
+  "cr",
+  "ds",
+  "od",
+  "hd",
+  "rz",
+  "sp",
+  "xt",
+  "xs",
+  "duo",
+  "forte",
+  "plus",
+  "active",
+  "advance",
+  "advanced",
+  "gold",
+  "junior",
+  "pediatric",
+  "paediatric",
+  "cv",
+  "lb",
+  "max",
+  "pro",
+]);
+
 type Dose = { value: number; unit: "mg" | "mcg" | "iu" | "bare" };
 
 /**
@@ -406,6 +442,12 @@ type IdentityRules = {
   manufacturerWords: string[];
   /** Words that belong to the product's own name (never treated as noise). */
   identityWords: Set<string>;
+  /**
+   * Words the admin actually stated (name, brand, form, strength, pack size).
+   * A variant marker the candidate adds but this set does not contain is
+   * treated as a different product.
+   */
+  statedWords: Set<string>;
   normalizedQuery: string;
 };
 
@@ -472,6 +514,20 @@ function buildRules(identity: ProductIdentity): IdentityRules {
           identity.form,
           identity.composition,
           identity.sku,
+        ]
+          .filter(Boolean)
+          .join(" "),
+      ),
+    ),
+    statedWords: new Set(
+      words(
+        [
+          identity.productName,
+          identity.brand,
+          identity.form,
+          identity.strength,
+          identity.dosage,
+          identity.packSize,
         ]
           .filter(Boolean)
           .join(" "),
@@ -943,6 +999,13 @@ function scoreCandidate(
   if (missingExtra.length > 0) return null;
   if (rules.extra.length > 0) reasons.push(`name:${rules.extra.join("+")}`);
 
+  // A candidate that carries a variant marker the product's own name does not
+  // is a different formulation of the same brand ("Telma LN", "Crocin
+  // Advance"), never the same product with a longer title.
+  for (const word of candidateWords) {
+    if (VARIANT_MARKERS.has(word) && !rules.statedWords.has(word)) return null;
+  }
+
   const masses = massInMg(candidate.name);
   for (const dose of rules.doses) {
     const matched =
@@ -956,6 +1019,16 @@ function scoreCandidate(
   }
   if (rules.doses.length > 0) {
     reasons.push(`dose:${rules.doses.map((d) => `${d.value}${d.unit}`).join(",")}`);
+
+    // A candidate that states an extra mass strength the product does not is a
+    // different strength of the same brand ("Telma LN 40/10" for "Telma 40").
+    // Only explicit mg/mcg/g masses are compared, so pack counts and bare
+    // strengths never provoke a rejection.
+    const statedMasses = massInMg(candidate.name);
+    const unwantedMass = statedMasses.some(
+      (mass) => !rules.doses.some((dose) => Math.abs(dose.value - mass) < 0.01),
+    );
+    if (unwantedMass) return null;
   }
 
   const candidateForms = unique(

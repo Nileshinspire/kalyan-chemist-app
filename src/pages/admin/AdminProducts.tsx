@@ -152,11 +152,14 @@ type ImageAuditReport = {
     reason: string | null;
     imageUrl: string;
     suspiciousSource: string | null;
+    /** Where the stored image came from, for the audit trail. */
+    imageSource?: string;
+    imageUrlSource?: string;
   }>;
   counts: Record<string, number>;
   reResolved: boolean;
   checked: number;
-  repaired: Array<{ name: string; views: number }>;
+  repaired: Array<{ name: string; views: number; imageUrlSource?: string }>;
   /** Re-resolved products that still have fewer than the full set of views. */
   incomplete: Array<{ name: string; views: number }>;
   unresolved: Array<{ name: string; current: string; reason: string }>;
@@ -734,6 +737,13 @@ export default function AdminProducts() {
                 {auditReport.reResolved
                   ? ` · ${auditReport.repaired.length} re-resolved`
                   : ""}
+                {auditReport.flagged.some(
+                  (item) => item.suspiciousSource || item.imageUrlSource,
+                ) && (
+                  <span className="block text-[11px] text-muted-foreground/80">
+                    Each flagged image lists the source it was stored from.
+                  </span>
+                )}
                 {auditReport.unresolved.length > 0
                   ? ` · ${auditReport.unresolved.length} could not be verified`
                   : ""}
@@ -755,6 +765,15 @@ export default function AdminProducts() {
                         <p className="text-xs text-muted-foreground">
                           {AUDIT_REASON_COPY[item.reason ?? ""] ?? item.reason ?? "Unknown issue"}
                         </p>
+                        {(item.suspiciousSource || item.imageUrlSource) && (
+                          <p
+                            className="truncate font-mono text-[10px] text-muted-foreground/80"
+                            title={item.suspiciousSource ?? item.imageUrlSource}
+                          >
+                            source: {item.imageSource ? `${item.imageSource} · ` : ""}
+                            {item.suspiciousSource ?? item.imageUrlSource}
+                          </p>
+                        )}
                       </div>
                       <Badge variant="secondary" className="shrink-0 text-[10px]">
                         {item.reason ?? "unknown"}

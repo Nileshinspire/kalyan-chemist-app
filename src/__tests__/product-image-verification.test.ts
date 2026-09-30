@@ -82,6 +82,44 @@ describe("product image exact-match verification", () => {
     ).toBe(false);
   });
 
+  it("rejects the same brand under a different variant marker", () => {
+    // Telma LN is a different combination product from Telma 40.
+    expect(
+      matchesProductIdentity("Telma Ln 40/10Mg Strip Of 15 Tablets", {
+        productName: "Telma 40",
+        brand: "Telma",
+      }),
+    ).toBe(false);
+    // A plain variant must not borrow an "Advance"/"Fort" line.
+    expect(
+      matchesProductIdentity("Crocin Advance 500Mg Strip Of 15 Tablets", {
+        productName: "Crocin 500",
+      }),
+    ).toBe(false);
+    expect(
+      matchesProductIdentity("Volini Duo Gel 30 Gm", {
+        productName: "Volini Gel",
+        brand: "Volini",
+      }),
+    ).toBe(false);
+  });
+
+  it("keeps a variant marker the product's own name states", () => {
+    expect(
+      matchesProductIdentity("Crocin Advance 500Mg Strip Of 20 Tablets", {
+        productName: "Crocin Advance 500mg",
+      }),
+    ).toBe(true);
+  });
+
+  it("rejects a candidate that adds an unrequested mass strength", () => {
+    expect(
+      matchesProductIdentity("Glycomet 850Mg Strip Of 15 Tablets", {
+        productName: "Glycomet 500",
+      }),
+    ).toBe(false);
+  });
+
   it("rejects the generic composition listing for a branded product", () => {
     expect(
       matchesProductIdentity("Paracetamol / Acetaminophen(650.0 Mg)", {

@@ -281,6 +281,9 @@ type RepairResult =
       name: string;
       from: string;
       imageUrl: string;
+      /** Provenance of the resolved image, for the admin's audit panel. */
+      imageSource: string;
+      imageUrlSource: string;
       additionalImages: string[];
       matchedName: string;
       /** Number of genuine extra views now stored. */
@@ -399,6 +402,8 @@ async function resolveAndPatch(
       name: row.name,
       from: row.imageUrl,
       imageUrl: outcome.imageUrl,
+      imageSource: outcome.source,
+      imageUrlSource: outcome.imageUrlSource,
       additionalImages,
       matchedName: outcome.matchedName,
       views: additionalImages.length,
@@ -423,6 +428,8 @@ async function resolveAndPatch(
     name: row.name,
     from: row.imageUrl,
     imageUrl: outcome.imageUrl,
+    imageSource: outcome.source,
+    imageUrlSource: outcome.imageUrlSource,
     additionalImages,
     matchedName: outcome.matchedName,
     views: additionalImages.length,
@@ -498,12 +505,12 @@ export const repairProductImages = internalAction({
       );
     }
     const needsRepair = candidates;
-    const batch = args.limit ? needsRepair.slice(0, args.limit) : needsRepair;
-
-    const repaired: {
+    const batch = args.limit ? needsRepair.slice(0, args.limit) : needsRepair;    const repaired: {
       name: string;
       from: string;
       to: string;
+      /** Provenance of the image that replaced the old one. */
+      imageUrlSource: string;
       /** Number of genuine extra views now stored (0-3). */
       views: number;
     }[] = [];
@@ -530,6 +537,7 @@ export const repairProductImages = internalAction({
           name: result.name,
           from: result.from,
           to: result.imageUrl,
+          imageUrlSource: result.imageUrlSource,
           views: result.views,
         });
         if (!result.complete) {
@@ -623,9 +631,13 @@ async function runImageAudit(
       reason: entry.audit.reason,
       imageUrl: entry.row.imageUrl,
       suspiciousSource: entry.audit.suspiciousSource,
+      // Provenance so the admin can see where a flagged image actually came
+      // from, and where the replaced one came from after a re-resolve.
+      imageSource: entry.row.imageSource,
+      imageUrlSource: entry.row.imageUrlSource,
     }));
 
-    const repaired: { name: string; views: number }[] = [];
+    const repaired: { name: string; views: number; imageUrlSource: string }[] = [];
     const incomplete: { name: string; views: number }[] = [];
     const unresolved: { name: string; current: string; reason: string }[] = [];
     const batch = args.reResolve === true
@@ -643,7 +655,11 @@ async function runImageAudit(
           reason: result.reason,
         });
       } else {
-        repaired.push({ name: result.name, views: result.views });
+        repaired.push({
+          name: result.name,
+          views: result.views,
+          imageUrlSource: result.imageUrlSource,
+        });
         if (!result.complete) {
           incomplete.push({ name: result.name, views: result.views });
         }
