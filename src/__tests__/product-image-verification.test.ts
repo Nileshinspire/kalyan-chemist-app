@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   galleryStatusMessage,
+  imageTier,
   isPackshotImageCandidate,
   isPackshotLookingUrl,
   isVerifiedProductImage,
   matchesProductIdentity,
   needsProductImageRepair,
+  orderViewsForDisplay,
   MAX_PRODUCT_IMAGES,
 } from "@/convex/productImageResolver";
 
@@ -342,6 +344,41 @@ describe("gallery completeness", () => {
         "5 verified product images could not be found for this exact product.",
       );
     }
+  });
+});
+
+describe("front packshot leads the gallery", () => {
+  it("tiers a front face above an unlabelled shot and a back panel", () => {
+    expect(imageTier({ url: "https://x/whatever.jpg", face: "front" })).toBe(2);
+    expect(imageTier({ url: "https://x/whatever.jpg", face: "box-front" })).toBe(2);
+    expect(imageTier({ url: "https://x/whatever.jpg" })).toBe(1);
+    expect(imageTier({ url: "https://x/dolo-650-back.jpg" })).toBe(0);
+    expect(imageTier({ url: "https://x/whatever.jpg", face: "box-back" })).toBe(0);
+    expect(imageTier({ url: "https://x/whatever.jpg", face: "side" })).toBe(0);
+  });
+
+  it("promotes a front packshot above a back panel found first", () => {
+    const ordered = orderViewsForDisplay([
+      { url: "back", tier: 0 },
+      { url: "side", tier: 0 },
+      { url: "front", tier: 2 },
+    ]);
+    expect(ordered.map((v) => v.url)).toEqual(["front", "back", "side"]);
+  });
+
+  it("keeps the found order within a tier", () => {
+    const ordered = orderViewsForDisplay([
+      { url: "front-a", tier: 2 },
+      { url: "unknown-a", tier: 1 },
+      { url: "front-b", tier: 2 },
+      { url: "unknown-b", tier: 1 },
+    ]);
+    expect(ordered.map((v) => v.url)).toEqual([
+      "front-a",
+      "front-b",
+      "unknown-a",
+      "unknown-b",
+    ]);
   });
 });
 

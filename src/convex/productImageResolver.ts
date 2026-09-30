@@ -795,29 +795,69 @@ const GENERIC_PHOTO_MARKERS = [
 ];
 
 /**
+ * Faces that mean the picture is the front of the pack — what a product card
+ * must show. Everything else is a back, side or detail view.
+ */
+const FRONT_FACES = ["front", "box-front"];
+const NON_FRONT_FACES = ["box-back", "back", "side", "rear", "top", "bottom"];
+
+/** File-name portion of an image URL, lower-cased and de-watermarked. */
+function imageFileName(url: string): string {
+  const lower = url.toLowerCase();
+  return (lower.split("?")[0].split("/").pop() ?? "").replace(
+    /non-watermark(ed)?/g,
+    "",
+  );
+}
+
+/**
+ * How suitable an image is to lead a gallery: 2 for a front-facing packshot,
+ * 1 for a shot whose face is simply unknown, 0 for a back/side/rear view. Only
+ * an explicit back or side marker is demoted to 0, so an unlabelled catalogue
+ * photo still counts as a usable front.
+ */
+export function imageTier(image: { url: string; face?: string }): number {
+  const face = (image.face ?? "").toLowerCase();
+  if (FRONT_FACES.includes(face)) return 2;
+  if (NON_FRONT_FACES.includes(face)) return 0;
+  const file = imageFileName(image.url);
+  if (NON_FRONT_FACES.some((t) => fileHasSegment(file, t))) return 0;
+  return 1;
+}
+
+/**
+ * Order verified views for display: front-facing packshots first, then views
+ * whose face is unknown, then explicit back/side faces. The sort is stable, so
+ * views in the same tier keep the order they were found in. The first element
+ * becomes the product card's primary image, which is why a front packshot must
+ * never be left behind a back panel.
+ */
+export function orderViewsForDisplay<T extends { tier: number }>(views: T[]): T[] {
+  return [...views].sort((a, b) => b.tier - a.tier);
+}
+
+/**
  * Rank a candidate's images the way a product grid should look: a front-facing
  * packshot on a clean background first, then other usable shots, with back
  * panels, side views and zoomed detail crops ranked last.
  */
 function imageScore(image: CandidateImage, name: string): number {
   const lower = image.url.toLowerCase();
-  const file = (lower.split("?")[0].split("/").pop() ?? "").replace(
-    /non-watermark(ed)?/g,
-    "",
-  );
+  const file = imageFileName(image.url);
   let score = 0;
   const face = (image.face ?? "").toLowerCase();
 
+  // A front-facing packshot always wins, because the card and the detail page's
+  // main image must show the front of the pack. The bonus is large enough to
+  // dominate every other signal, so a back panel can never outrank the front.
   // The catalogue's "front" face is the product photograph that fills the
   // frame; "box-front" is often a small, washed-out box shot, so it ranks just
   // below it. Back panels, sides and zoomed details rank last.
-  if (face === "front") score += 5;
-  else if (face === "box-front") score += 4;
-  else if (["box-back", "back", "side", "rear", "top", "bottom"].includes(face))
-    score -= 4;
-  else if (fileHasSegment(file, "front")) score += 2;
-  if (["back", "side", "rear", "top", "bottom"].some((t) => fileHasSegment(file, t)))
-    score -= 3;
+  if (face === "front") score += 21;
+  else if (face === "box-front") score += 20;
+  else if (NON_FRONT_FACES.includes(face)) score -= 20;
+  else if (fileHasSegment(file, "front")) score += 12;
+  if (NON_FRONT_FACES.some((t) => fileHasSegment(file, t))) score -= 12;
 
   if (WHITE_BACKGROUND_MARKERS.some((t) => fileHasSegment(file, t))) score += 3;
   if (DETAIL_MARKERS.some((t) => fileHasSegment(file, t))) score -= 3;
@@ -1891,14 +1931,16 @@ export async function resolveAndStore(
   identity: ProductIdentity,
   options?: {
     /**
-     * Content hashes of images this product already has stored. A freshly
-     * resolved view whose bytes match one of them is dropped, so re-running
-     * enrichment can never put the same photograph in the gallery twice.
+     * Images this product already has stored, keyed by content hash. A freshly
+     * resolved view whose bytes match one of them is re-used rather than stored
+     * again, so re-running enrichment never duplicates a photograph and a front
+     * packshot that is already a thumbnail can still be promoted to the
+     * primary slot.
      */
-    existingHashes?: Set<string>;
+    existingByHash?: Map<string, string>;
   },
 ): Promise<ProductImageOutcome> {
-  const existingHashes = options?.existingHashes;
+  const existingByHash = options?.existingByHash;
   const rules = buildRules(identity);
   if (rules.core.length === 0) {
     return {
@@ -1927,10 +1969,15 @@ export async function resolveAndStore(
   const storeRecordViews = async (
     entry: ScoredCandidate,
     limit: number,
-  ): Promise<Array<{ url: string; imageUrlSource: string }>> => {
+  ): Promise<Array<{ url: string; imageUrlSource: string; tier: number }>> => {
+    const faceByUrl = new Map<string, number>();
+    for (const image of entry.candidate.images) {
+      const normalized = normalizeImageUrl(image.url);
+      if (normalized) faceByUrl.set(normalized, imageTier(image));
+    }
     const images = rankImages(entry.candidate, rules.identityWords);
     if (images.length === 0) return [];
-    const stored: Array<{ url: string; imageUrlSource: string }> = [];
+    const stored: Array<{ url: string; imageUrlSource: string; tier: number }> = [];
     for (const image of images) {
       if (stored.length >= limit) break;
       if (downloads >= MAX_IMAGE_DOWNLOADS) break;
@@ -1944,12 +1991,24 @@ export async function resolveAndStore(
       }
       const hash = contentHash(downloaded.bytes);
       if (storedHashes.has(hash)) continue;
-      // Already part of this product's gallery under a different URL.
-      if (existingHashes?.has(hash)) continue;
+      const tier = faceByUrl.get(image.url) ?? 1;
+      // Already part of this product's gallery under a different URL. Re-use
+      // the stored asset instead of skipping it, so a front packshot that is
+      // currently only a thumbnail can still be ordered as the primary.
+      const existingUrl = existingByHash?.get(hash);
+      if (existingUrl) {
+        storedHashes.add(hash);
+        stored.push({ url: existingUrl, imageUrlSource: image.url, tier });
+        continue;
+      }
       const url = await store(ctx, downloaded);
       if (!url) continue;
       storedHashes.add(hash);
-      stored.push({ url, imageUrlSource: image.url });
+      stored.push({
+        url,
+        imageUrlSource: image.url,
+        tier,
+      });
     }
     return stored;
   };
@@ -1958,7 +2017,7 @@ export async function resolveAndStore(
   // that are the same product in the same pack by the same maker may top it up
   // to the full set of verified views. Every stored view is content-hashed, so
   // the same photograph served by two records is only ever stored once.
-  const gallery: Array<{ url: string; imageUrlSource: string }> = [];
+  let gallery: Array<{ url: string; imageUrlSource: string; tier: number }> = [];
   let primary: ScoredCandidate | null = null;
 
   /** Add every usable view these exact matches offer. True when it is complete. */
@@ -2025,6 +2084,13 @@ export async function resolveAndStore(
       complete = await collectFrom(await openFactsCandidates(query));
     }
   }
+
+  // The product card and the detail page's main image must show the FRONT of
+  // the pack. Views are collected record by record, and the leading record can
+  // offer only a back or side face; ordering by face tier promotes any genuine
+  // front packshot to the primary slot while leaving the remaining views in the
+  // order they were found.
+  gallery = orderViewsForDisplay(gallery);
 
   // Read through accessors: both are filled in by closures above, and a direct
   // read here would be narrowed to `null` by the compiler.

@@ -333,9 +333,14 @@ async function resolveAndPatch(
     row.imageUrl,
     ...row.additionalImages,
   ]);
+  // Keyed the other way round so the resolver can re-use an already-stored
+  // view (and promote a front packshot that currently sits in the gallery)
+  // without downloading or storing the same photograph a second time.
+  const existingByHash = new Map<string, string>();
+  for (const [url, hash] of storedHashes) existingByHash.set(hash, url);
   try {
     outcome = await resolveAndStore(ctx, identityOf(row), {
-      existingHashes: new Set(storedHashes.values()),
+      existingByHash,
     });
   } catch (error) {
     console.error("[productImageRepair] failed for", row.name, error);
