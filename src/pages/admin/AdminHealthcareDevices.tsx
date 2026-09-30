@@ -444,6 +444,7 @@ export default function AdminHealthcareDevices() {
       // admin supplied and says plainly that none could be verified — a
       // placeholder is never written.
       let imageMessage: string | null = null;
+      let imageWarning: string | null = null;
       try {
         const image = await resolveProductImageAction({
           productName: newForm.name,
@@ -467,6 +468,13 @@ export default function AdminHealthcareDevices() {
               `${image.additionalImages.length} more view${image.additionalImages.length === 1 ? "" : "s"}`,
             );
           }
+          // A device that genuinely publishes fewer than five views is reported
+          // as not image-complete rather than topped up with a worse photo.
+          if (!image.complete) {
+            imageWarning =
+              image.message ??
+              "5 verified product images could not be found for this exact product.";
+          }
         } else {
           imageMessage = image.message;
         }
@@ -476,6 +484,7 @@ export default function AdminHealthcareDevices() {
 
       setForm(newForm);
       if (imageMessage) toast.error(imageMessage);
+      if (imageWarning) toast.warning(imageWarning, { duration: 9000 });
 
       if (filled.length > 0) {
         toast.success(`Auto-filled: ${filled.join(", ")} for "${form.name}"`);
@@ -800,7 +809,7 @@ export default function AdminHealthcareDevices() {
               </div>
               <div className="sm:col-span-2 space-y-2">
                 <Label>Additional Product Images (Gallery)</Label>
-                <p className="text-[11px] text-muted-foreground">Enter image URLs for additional product views/angles. These appear as selectable thumbnails on the product page.</p>
+                <p className="text-[11px] text-muted-foreground">Up to 4 real views of this exact product (5 images in total). Auto-fetch fills these in automatically — manual URLs are only for exceptional cases. These appear as selectable thumbnails on the product page.</p>
                 {form.additionalImages.map((img, idx) => (
                   <div key={idx} className="flex items-center gap-2">
                     <Input value={img} onChange={(e) => { const imgs = [...form.additionalImages]; imgs[idx] = e.target.value; setForm({ ...form, additionalImages: imgs }); }} placeholder="https://... additional image URL" className="flex-1" />

@@ -6,6 +6,7 @@ import {
 } from "@/convex/productImageResolver";
 import {
   auditProductImage,
+  hasDuplicateViewContent,
   mergeAdditionalImages,
   needsAdditionalImagesRepair,
 } from "@/convex/productImageRepair";
@@ -94,8 +95,27 @@ describe("merging views across a re-resolve", () => {
       [VIEW_A, VIEW_B, VIEW_C],
       PRIMARY,
     );
-    expect(merged).toEqual([VIEW_A, VIEW_B, VIEW_C]);
+    // One front packshot plus four thumbnails — never a fifth extra view.
+    expect(merged).toEqual([VIEW_A, VIEW_B, VIEW_C, VIEW_D]);
     expect(merged.length).toBe(MAX_PRODUCT_IMAGES - 1);
+  });
+
+  it("drops a stored view that repeats the picture of one already kept", () => {
+    // Two URLs of the same photograph would render as two identical thumbnails.
+    const hashes = new Map([
+      [VIEW_A, "hash-front"],
+      [VIEW_B, "hash-front"],
+      [VIEW_C, "hash-back"],
+    ]);
+    expect(
+      mergeAdditionalImages([VIEW_A, VIEW_B, VIEW_C], [], PRIMARY, hashes),
+    ).toEqual([VIEW_A, VIEW_C]);
+  });
+
+  it("spots a repeated view from the stored bytes", () => {
+    expect(hasDuplicateViewContent(["a", "b", "a"])).toBe(true);
+    expect(hasDuplicateViewContent(["a", "b", "c"])).toBe(false);
+    expect(hasDuplicateViewContent([])).toBe(false);
   });
 
   it("keeps an existing verified view when a re-resolve finds nothing new", () => {

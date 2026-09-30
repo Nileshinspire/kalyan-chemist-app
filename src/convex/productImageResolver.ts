@@ -64,10 +64,13 @@ const MAX_QUERIES_PER_SOURCE = 4;
 const MAX_OFFICIAL_PAGES = 3;
 /** Total candidate images downloaded across every source. */
 const MAX_CANDIDATE_FETCHES = 8;
-/** Genuine views stored for one product: the front packshot plus up to three. */
-export const MAX_PRODUCT_IMAGES = 4;
+/**
+ * Verified images stored for one product: one front packshot plus four genuinely
+ * different views of that same product.
+ */
+export const MAX_PRODUCT_IMAGES = 5;
 /** Hard ceiling on image downloads per resolution, shared across every view. */
-const MAX_IMAGE_DOWNLOADS = 12;
+const MAX_IMAGE_DOWNLOADS = 16;
 
 // ── Text helpers ──
 
@@ -1018,6 +1021,66 @@ export function isPackshotImageCandidate(
   return isUsableImageUrl(url, allowed);
 }
 
+// ── Collecting a full gallery for one product ──
+
+/**
+ * What the admin is told when the exact product has fewer than the full set of
+ * verified views. The target is never met by lowering the bar: a hand-held
+ * photo, a lifestyle shot, a duplicate, a different pack size or a generated
+ * angle is never added, so the product is reported as not image-complete
+ * instead of being saved with something misleading.
+ */
+export function galleryStatusMessage(found: number): string | null {
+  if (found >= MAX_PRODUCT_IMAGES) return null;
+  const views = `${found} verified view${found === 1 ? "" : "s"}`;
+  return `${MAX_PRODUCT_IMAGES} verified product images could not be found for this exact product. ${views} of the same product ${found === 1 ? "is" : "are"} available — no unverified, duplicated or generated images were added.`;
+}
+
+/**
+ * Pack/container sizes a record states: "Strip Of 15 Tablets" → 15, "Box | 30 Gm"
+ * → 30. Pack size is only a preference in the exact-match rules, so two records
+ * can both be "Dolo 650" while being different products.
+ */
+function statedPackSizes(candidate: Candidate): number[] {
+  const text = `${candidate.name} ${candidate.packText ?? ""}`;
+  const sizes: number[] = [...readNumbers(text).packs];
+  const pattern =
+    /(?:strip|pack|box|tablets?|capsules?|sachets?)\s*(?:of|pack of|x)?\s*[:-]?\s*(\d{1,4})\b/gi;
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(text))) {
+    const value = Number(match[1]);
+    if (Number.isFinite(value) && value > 0) sizes.push(value);
+  }
+  return unique(sizes);
+}
+
+function samePackFamily(accepted: Candidate, extra: Candidate): boolean {
+  const left = statedPackSizes(accepted);
+  const right = statedPackSizes(extra);
+  if (left.length === 0 || right.length === 0) return true;
+  return left.some((value) => right.includes(value));
+}
+
+function sameMaker(accepted: Candidate, extra: Candidate): boolean {
+  const left = normalize(accepted.manufacturer ?? "");
+  const right = normalize(extra.manufacturer ?? "");
+  if (!left || !right) return true;
+  const overlap = (short: string, long: string) =>
+    short
+      .split(/[^a-z0-9]+/)
+      .some((word) => word.length > 3 && long.includes(word));
+  return overlap(left, right) || overlap(right, left);
+}
+
+/**
+ * A second verified record may only add views to the same product's gallery when
+ * it is the same pack by the same maker. Strength and dosage form are already
+ * enforced per record by the exact-match rules.
+ */
+function sameProductVariant(accepted: Candidate, extra: Candidate): boolean {
+  return samePackFamily(accepted, extra) && sameMaker(accepted, extra);
+}
+
 // ── Network ──
 
 async function fetchWithTimeout(
@@ -1794,6 +1857,17 @@ export type ProductImageOutcome =
        * identity check, so they are the real product, never a fabricated angle.
        */
       additionalImages: string[];
+      /** How many verified views were stored for this product in total. */
+      views: number;
+      /**
+       * False when the exact product has fewer than `MAX_PRODUCT_IMAGES` verified
+       * views. The product is still saved with the genuine images that were
+       * found — nothing is invented to reach the target — but enrichment is
+       * explicitly not complete, and `message` says so.
+       */
+      complete: boolean;
+      /** Set when `complete` is false. */
+      message?: string;
       matchedName: string;
       source: string;
       /** The page the packshot was found on, for the admin's audit trail. */
@@ -1815,7 +1889,16 @@ export type ProductImageOutcome =
 export async function resolveAndStore(
   ctx: ActionCtx,
   identity: ProductIdentity,
+  options?: {
+    /**
+     * Content hashes of images this product already has stored. A freshly
+     * resolved view whose bytes match one of them is dropped, so re-running
+     * enrichment can never put the same photograph in the gallery twice.
+     */
+    existingHashes?: Set<string>;
+  },
 ): Promise<ProductImageOutcome> {
+  const existingHashes = options?.existingHashes;
   const rules = buildRules(identity);
   if (rules.core.length === 0) {
     return {
@@ -1835,20 +1918,21 @@ export async function resolveAndStore(
   let fallback: { image: DownloadedImage; entry: ScoredCandidate } | null = null;
 
   /**
-   * Download and store up to `MAX_PRODUCT_IMAGES` genuine views from ONE
-   * already-verified product record. Images are ranked first (front packshot,
-   * then clean cut-outs, then back/side faces), then fetched in order, so the
-   * front leads the gallery and later faces become thumbnails. Each view is
-   * content-hashed so the same photograph served twice is stored once.
+   * Download and store up to `limit` genuine views from ONE already-verified
+   * product record. Images are ranked first (front packshot, then clean cut-outs,
+   * then back/side faces), then fetched in order, so the front leads the gallery
+   * and later faces become thumbnails. Each view is content-hashed so the same
+   * photograph served twice is stored once.
    */
   const storeRecordViews = async (
     entry: ScoredCandidate,
+    limit: number,
   ): Promise<Array<{ url: string; imageUrlSource: string }>> => {
     const images = rankImages(entry.candidate, rules.identityWords);
     if (images.length === 0) return [];
     const stored: Array<{ url: string; imageUrlSource: string }> = [];
     for (const image of images) {
-      if (stored.length >= MAX_PRODUCT_IMAGES) break;
+      if (stored.length >= limit) break;
       if (downloads >= MAX_IMAGE_DOWNLOADS) break;
       downloads += 1;
       const original = (entry.candidate.images[0]?.url ?? image.url).split("?")[0];
@@ -1860,6 +1944,8 @@ export async function resolveAndStore(
       }
       const hash = contentHash(downloaded.bytes);
       if (storedHashes.has(hash)) continue;
+      // Already part of this product's gallery under a different URL.
+      if (existingHashes?.has(hash)) continue;
       const url = await store(ctx, downloaded);
       if (!url) continue;
       storedHashes.add(hash);
@@ -1868,13 +1954,22 @@ export async function resolveAndStore(
     return stored;
   };
 
-  const tryCandidates = async (
-    scored: ScoredCandidate[],
-  ): Promise<ProductImageOutcome | null> => {
-    scored.sort((a, b) => b.score - a.score);
+  // The gallery being assembled. The best exact match leads it; further records
+  // that are the same product in the same pack by the same maker may top it up
+  // to the full set of verified views. Every stored view is content-hashed, so
+  // the same photograph served by two records is only ever stored once.
+  const gallery: Array<{ url: string; imageUrlSource: string }> = [];
+  let primary: ScoredCandidate | null = null;
 
+  /** Add every usable view these exact matches offer. True when it is complete. */
+  const collect = async (scored: ScoredCandidate[]): Promise<boolean> => {
+    scored.sort((a, b) => b.score - a.score);
     for (const entry of scored) {
-      if (fetches >= MAX_CANDIDATE_FETCHES) break;
+      if (gallery.length >= MAX_PRODUCT_IMAGES) return true;
+      if (fetches >= MAX_CANDIDATE_FETCHES) return gallery.length > 0;
+      if (primary && !sameProductVariant(primary.candidate, entry.candidate)) {
+        continue;
+      }
       if (rankImages(entry.candidate, rules.identityWords).length === 0) continue;
       fetches += 1;
       if (!considered.includes(entry.candidate.name)) {
@@ -1882,83 +1977,108 @@ export async function resolveAndStore(
       }
 
       // Every usable face of this verified record, front first.
-      const views = await storeRecordViews(entry);
+      const views = await storeRecordViews(
+        entry,
+        MAX_PRODUCT_IMAGES - gallery.length,
+      );
       if (views.length === 0) continue;
-
-      return {
-        ok: true,
-        imageUrl: views[0].url,
-        additionalImages: views.slice(1).map((view) => view.url),
-        matchedName: entry.candidate.name,
-        source: entry.candidate.source,
-        sourceUrl:
-          entry.candidate.pageUrl ??
-          entry.candidate.images[0]?.url ??
-          views[0].url,
-        imageUrlSource: views[0].imageUrlSource,
-        notes: entry.reasons,
-      };
+      if (!primary) primary = entry;
+      gallery.push(...views);
     }
-
-    if (fallback) {
-      const stored = await store(ctx, fallback.image);
-      if (stored) {
-        return {
-          ok: true,
-          imageUrl: stored,
-          additionalImages: [],
-          matchedName: fallback.entry.candidate.name,
-          source: fallback.entry.candidate.source,
-          sourceUrl:
-            fallback.entry.candidate.pageUrl ?? fallback.image.sourceUrl,
-          imageUrlSource: fallback.image.sourceUrl,
-          notes: [...fallback.entry.reasons, "unusual-aspect-ratio"],
-        };
-      }
-    }
-    return null;
+    return gallery.length >= MAX_PRODUCT_IMAGES;
   };
 
-  const verifiedFrom = async (
-    candidates: Candidate[],
-  ): Promise<ProductImageOutcome | null> => {
+  /** Score records against the identity, then add their views. */
+  const collectFrom = async (candidates: Candidate[]): Promise<boolean> => {
     const scored: ScoredCandidate[] = [];
     for (const candidate of candidates) {
       const result = scoreCandidate(candidate, rules);
       if (result) scored.push(result);
     }
-    if (scored.length === 0) return null;
-    return await tryCandidates(scored);
+    if (scored.length === 0) return false;
+    return await collect(scored);
   };
 
   // Source 1 — the brand's own product page.
-  const fromOfficial = await tryCandidates(
+  let complete = await collect(
     await officialSiteCandidates(identity, rules),
   );
-  if (fromOfficial) return fromOfficial;
 
-  // Source 2 — the licensed pharmacy catalogue, asked with every identity.
-  for (const query of searchVariants(identity)) {
-    if (fetches >= MAX_CANDIDATE_FETCHES) break;
-    const found = await verifiedFrom(await catalogueCandidates(query));
-    if (found) return found;
+  // Source 2 — the licensed pharmacy catalogue, asked with every identity. A
+  // record that only offers a couple of faces does not stop the search: the
+  // next query keeps looking for further genuine views of the same product.
+  if (!complete) {
+    for (const query of searchVariants(identity)) {
+      if (complete || fetches >= MAX_CANDIDATE_FETCHES) break;
+      complete = await collectFrom(await catalogueCandidates(query));
+    }
   }
 
   // Source 3 — open product databases, including a direct barcode lookup.
   const barcode = barcodeOf(identity);
-  if (barcode) {
-    const found = await verifiedFrom(await openFactsByBarcode(barcode));
-    if (found) return found;
+  if (!complete && barcode) {
+    complete = await collectFrom(await openFactsByBarcode(barcode));
   }
-  for (const query of searchVariants(identity).slice(0, MAX_QUERIES_PER_SOURCE)) {
-    if (fetches >= MAX_CANDIDATE_FETCHES) break;
-    const found = await verifiedFrom(await openFactsCandidates(query));
-    if (found) return found;
+  if (!complete) {
+    for (const query of searchVariants(identity).slice(0, MAX_QUERIES_PER_SOURCE)) {
+      if (complete || fetches >= MAX_CANDIDATE_FETCHES) break;
+      complete = await collectFrom(await openFactsCandidates(query));
+    }
+  }
+
+  // Read through accessors: both are filled in by closures above, and a direct
+  // read here would be narrowed to `null` by the compiler.
+  const lead = (): ScoredCandidate | null => primary;
+  const spare = (): { image: DownloadedImage; entry: ScoredCandidate } | null =>
+    fallback;
+
+  const best = lead();
+  if (best && gallery.length > 0) {
+    return {
+      ok: true,
+      imageUrl: gallery[0].url,
+      additionalImages: gallery.slice(1).map((view) => view.url),
+      views: gallery.length,
+      complete: gallery.length >= MAX_PRODUCT_IMAGES,
+      message: galleryStatusMessage(gallery.length) ?? undefined,
+      matchedName: best.candidate.name,
+      source: best.candidate.source,
+      sourceUrl:
+        best.candidate.pageUrl ?? best.candidate.images[0]?.url ?? gallery[0].url,
+      imageUrlSource: gallery[0].imageUrlSource,
+      notes: best.reasons,
+    };
+  }
+
+  const unusable = spare();
+  if (unusable) {
+    const stored = await store(ctx, unusable.image);
+    if (stored) {
+      return {
+        ok: true,
+        imageUrl: stored,
+        additionalImages: [],
+        views: 1,
+        complete: false,
+        message: galleryStatusMessage(1) ?? undefined,
+        matchedName: unusable.entry.candidate.name,
+        source: unusable.entry.candidate.source,
+        sourceUrl: unusable.entry.candidate.pageUrl ?? unusable.image.sourceUrl,
+        imageUrlSource: unusable.image.sourceUrl,
+        notes: [...unusable.entry.reasons, "unusual-aspect-ratio"],
+      };
+    }
   }
 
   return {
     ok: false,
-    message: "Exact product packshot could not be verified.",
+    // `considered` is non-empty when the exact product was matched but every
+    // image it offers is already stored — that is "nothing new", not "no such
+    // product", and the admin needs to be able to tell the two apart.
+    message:
+      considered.length > 0
+        ? "No new verified views were found for this exact product; the stored packshot was kept."
+        : "Exact product packshot could not be verified.",
     considered: unique(considered).slice(0, 5),
   };
 }
@@ -2015,6 +2135,17 @@ export const resolveImage = internalAction({
 export function isVerifiedProductImage(url: string | null | undefined): boolean {
   const value = (url ?? "").trim();
   return /^https:\/\/[a-z0-9-]+\.convex\.cloud\/api\/storage\//i.test(value);
+}
+
+/**
+ * The storage id behind a Convex-storage image URL, or null when the URL is
+ * some other source. Used to re-hash what a product already has stored.
+ */
+export function storageIdFromImageUrl(
+  url: string | null | undefined,
+): string | null {
+  const match = (url ?? "").match(/\/api\/storage\/([A-Za-z0-9_-]+)$/);
+  return match?.[1] ?? null;
 }
 
 /**

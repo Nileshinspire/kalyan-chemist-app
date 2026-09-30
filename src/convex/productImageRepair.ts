@@ -20,9 +20,11 @@ import { internal as generatedInternal } from "./_generated/api";
 import type { FunctionReference } from "convex/server";
 import type { Id } from "./_generated/dataModel";
 import {
+  contentHash,
   isPackshotLookingUrl,
   isVerifiedProductImage,
   resolveAndStore,
+  storageIdFromImageUrl,
   MAX_PRODUCT_IMAGES,
   type ProductIdentity,
 } from "./productImageResolver";
@@ -72,7 +74,8 @@ export type ImageAuditReason =
   | "placeholder"
   | "third-party"
   | "suspicious-source"
-  | "broken-gallery";
+  | "broken-gallery"
+  | "duplicate-views";
 
 export type ImageAudit = {
   /** True when the stored image or its gallery can no longer be trusted. */
@@ -133,22 +136,42 @@ export function auditProductImage(row: {
  * Keep only genuine, verified, distinct views — fresh results first, then any
  * still-valid stored views — and cap the total at `MAX_PRODUCT_IMAGES`. This
  * means a re-resolve can add views but never downgrade or duplicate them.
+ *
+ * When `hashesByUrl` is supplied, a stored view whose bytes repeat a view that
+ * has already been kept is dropped too: the same photograph served from two URLs
+ * would otherwise show up as two identical thumbnails.
  */
 export function mergeAdditionalImages(
   existing: string[],
   incoming: string[],
   imageUrl: string,
+  hashesByUrl?: Map<string, string>,
 ): string[] {
   const out: string[] = [];
-  const seen = new Set([imageUrl]);
+  const seenUrls = new Set([imageUrl]);
+  const seenHashes = new Set<string>();
+  // The front image is already in the gallery, so a view that repeats its
+  // picture is a duplicate too.
+  const primaryHash = hashesByUrl?.get(imageUrl);
+  if (primaryHash) seenHashes.add(primaryHash);
   for (const raw of [...incoming, ...existing]) {
     const url = (raw ?? "").trim();
-    if (!url || seen.has(url) || !isVerifiedProductImage(url)) continue;
-    seen.add(url);
+    if (!url || seenUrls.has(url) || !isVerifiedProductImage(url)) continue;
+    const hash = hashesByUrl?.get(url);
+    if (hash) {
+      if (seenHashes.has(hash)) continue;
+      seenHashes.add(hash);
+    }
+    seenUrls.add(url);
     out.push(url);
     if (out.length >= MAX_PRODUCT_IMAGES - 1) break;
   }
   return out;
+}
+
+/** True when two of a product's stored images are the same picture. */
+export function hasDuplicateViewContent(hashes: string[]): boolean {
+  return hashes.length > 0 && new Set(hashes).size !== hashes.length;
 }
 
 /**
@@ -260,8 +283,12 @@ type RepairResult =
       imageUrl: string;
       additionalImages: string[];
       matchedName: string;
-      /** Number of genuine extra views now stored (0-3). */
+      /** Number of genuine extra views now stored. */
       views: number;
+      /** False when fewer than `MAX_PRODUCT_IMAGES` verified views exist. */
+      complete: boolean;
+      /** Why the gallery is short, when it is. */
+      message?: string;
       replaced: boolean;
     };
 
@@ -271,14 +298,45 @@ type RepairResult =
  * identically. When the exact product's packshot cannot be verified, nothing is
  * written and the stored image is left exactly as it was.
  */
+/**
+ * Content hashes of the images a product already has stored. Passed to the
+ * resolver so a re-resolve can recognise a photo that is already in the gallery
+ * and skip it, instead of storing the same picture a second time under a new
+ * URL.
+ */
+async function storedImageHashes(
+  ctx: ActionCtx,
+  urls: string[],
+): Promise<Map<string, string>> {
+  const hashes = new Map<string, string>();
+  for (const url of [urls[0], ...urls.slice(1)]) {
+    const id = storageIdFromImageUrl(url);
+    if (!id || hashes.has(url)) continue;
+    try {
+      const blob = await ctx.storage.get(id);
+      if (!blob) continue;
+      hashes.set(url, contentHash(new Uint8Array(await blob.arrayBuffer())));
+    } catch {
+      // An unreadable legacy asset is simply not compared against.
+    }
+  }
+  return hashes;
+}
+
 async function resolveAndPatch(
   ctx: ActionCtx,
   row: AuditRow,
   patch: boolean,
 ): Promise<RepairResult> {
   let outcome;
+  const storedHashes = await storedImageHashes(ctx, [
+    row.imageUrl,
+    ...row.additionalImages,
+  ]);
   try {
-    outcome = await resolveAndStore(ctx, identityOf(row));
+    outcome = await resolveAndStore(ctx, identityOf(row), {
+      existingHashes: new Set(storedHashes.values()),
+    });
   } catch (error) {
     console.error("[productImageRepair] failed for", row.name, error);
     return {
@@ -290,6 +348,26 @@ async function resolveAndPatch(
   }
 
   if (!outcome.ok) {
+    // Nothing new could be verified. A product that already holds a verified
+    // packshot keeps it, but its gallery is still tidied of a repeated view —
+    // that cleanup needs no new image, so it must not depend on one.
+    if (isVerifiedProductImage(row.imageUrl)) {
+      const tidied = mergeAdditionalImages(
+        row.additionalImages,
+        [],
+        row.imageUrl,
+        storedHashes,
+      );
+      if (patch && tidied.length !== row.additionalImages.length) {
+        await ctx.runMutation(internal.adminProducts.setProductImage, {
+          productId: row.id,
+          imageUrl: row.imageUrl,
+          additionalImages: tidied,
+          imageSource: row.imageSource || undefined,
+          imageUrlSource: row.imageUrlSource || undefined,
+        });
+      }
+    }
     return {
       status: "unresolved",
       name: row.name,
@@ -302,6 +380,7 @@ async function resolveAndPatch(
     row.additionalImages,
     outcome.additionalImages,
     outcome.imageUrl,
+    storedHashes,
   );
 
   const imageSame = outcome.imageUrl === row.imageUrl;
@@ -318,6 +397,8 @@ async function resolveAndPatch(
       additionalImages,
       matchedName: outcome.matchedName,
       views: additionalImages.length,
+      complete: outcome.complete,
+      message: outcome.message,
       replaced: false,
     };
   }
@@ -340,6 +421,8 @@ async function resolveAndPatch(
     additionalImages,
     matchedName: outcome.matchedName,
     views: additionalImages.length,
+    complete: outcome.complete,
+    message: outcome.message,
     replaced: outcome.imageUrl !== row.imageUrl,
   };
 }
@@ -366,6 +449,8 @@ export const repairProductImage = action({
       imageUrl: result.imageUrl,
       additionalImages: result.additionalImages,
       matchedName: result.matchedName,
+      complete: result.complete,
+      message: result.message,
       replaced: result.replaced,
     };
   },
@@ -396,12 +481,15 @@ export const repairProductImages = internalAction({
       const wanted = new Set(args.productIds as string[]);
       candidates = rows.filter((row) => wanted.has(row.id as string));
     } else if (!args.force) {
-      // Everything the audit flags, plus a product with no gallery at all: a
-      // second genuine view may exist even when none is stored yet.
+      // Everything the audit flags, plus a product that is still short of the
+      // full set of verified views: more genuine views may exist than are
+      // stored, so a re-resolve is the only way to reach them.
       candidates = rows.filter(
         (row) =>
           auditProductImage(row).needsFix ||
-          needsAdditionalImagesRepair(row.additionalImages, row.imageUrl),
+          needsAdditionalImagesRepair(row.additionalImages, row.imageUrl) ||
+          (isVerifiedProductImage(row.imageUrl) &&
+            row.additionalImages.length < MAX_PRODUCT_IMAGES - 1),
       );
     }
     const needsRepair = candidates;
@@ -416,6 +504,8 @@ export const repairProductImages = internalAction({
     }[] = [];
     const unresolved: { name: string; current: string; reason: string }[] = [];
     const unchanged: string[] = [];
+    /** Products that still have fewer than the full set of verified views. */
+    const incomplete: { name: string; views: number }[] = [];
 
     for (const row of batch) {
       const result = await resolveAndPatch(ctx, row, args.dryRun !== true);
@@ -427,6 +517,9 @@ export const repairProductImages = internalAction({
         });
       } else if (result.status === "unchanged") {
         unchanged.push(result.name);
+        if (!result.complete) {
+          incomplete.push({ name: result.name, views: result.views });
+        }
       } else {
         repaired.push({
           name: result.name,
@@ -434,6 +527,9 @@ export const repairProductImages = internalAction({
           to: result.imageUrl,
           views: result.views,
         });
+        if (!result.complete) {
+          incomplete.push({ name: result.name, views: result.views });
+        }
       }
     }
 
@@ -445,6 +541,7 @@ export const repairProductImages = internalAction({
       repaired,
       unresolved,
       unchanged,
+      incomplete,
     };
   },
 });
@@ -468,6 +565,7 @@ async function runImageAudit(
     limit?: number;
     reResolve?: boolean;
     productIds?: Id<"products">[];
+    checkDuplicates?: boolean;
   },
 ) {
   {
@@ -480,9 +578,34 @@ async function runImageAudit(
       ? rows.filter((row) => wanted.has(row.id as string))
       : rows;
 
-    const flagged = scoped
-      .map((row) => ({ row, audit: auditProductImage(row) }))
-      .filter((entry) => entry.audit.needsFix);
+    const flagged: Array<{ row: AuditRow; audit: ImageAudit }> = [];
+    for (const row of scoped) {
+      const audit = auditProductImage(row);
+      // A gallery that repeats the same picture under two different URLs is
+      // invisible to the pure classifier, so the stored bytes are compared here.
+      if (
+        !audit.needsFix &&
+        args.checkDuplicates !== false &&
+        isVerifiedProductImage(row.imageUrl)
+      ) {
+        const hashes = await storedImageHashes(ctx, [
+          row.imageUrl,
+          ...row.additionalImages,
+        ]);
+        if (hasDuplicateViewContent([...hashes.values()])) {
+          flagged.push({
+            row,
+            audit: {
+              needsFix: true,
+              reason: "duplicate-views",
+              suspiciousSource: null,
+            },
+          });
+          continue;
+        }
+      }
+      if (audit.needsFix) flagged.push({ row, audit });
+    }
 
     const counts: Record<string, number> = {};
     for (const entry of flagged) {
@@ -498,6 +621,7 @@ async function runImageAudit(
     }));
 
     const repaired: { name: string; views: number }[] = [];
+    const incomplete: { name: string; views: number }[] = [];
     const unresolved: { name: string; current: string; reason: string }[] = [];
     const batch = args.reResolve === true
       ? args.limit
@@ -515,6 +639,9 @@ async function runImageAudit(
         });
       } else {
         repaired.push({ name: result.name, views: result.views });
+        if (!result.complete) {
+          incomplete.push({ name: result.name, views: result.views });
+        }
       }
     }
 
@@ -525,6 +652,7 @@ async function runImageAudit(
       reResolved: args.reResolve === true,
       checked: batch.length,
       repaired,
+      incomplete,
       unresolved,
     };
   }
@@ -536,6 +664,8 @@ const imageAuditArgs = {
   reResolve: v.optional(v.boolean()),
   /** Audit just these products. */
   productIds: v.optional(v.array(v.id("products"))),
+  /** Compare stored bytes to spot a repeated view. On by default. */
+  checkDuplicates: v.optional(v.boolean()),
 };
 
 export const auditProductImages = action({

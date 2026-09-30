@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  galleryStatusMessage,
   isPackshotImageCandidate,
   isPackshotLookingUrl,
   isVerifiedProductImage,
   matchesProductIdentity,
   needsProductImageRepair,
+  MAX_PRODUCT_IMAGES,
 } from "@/convex/productImageResolver";
 
 /**
@@ -321,6 +323,25 @@ describe("packshot image filtering", () => {
         { productName: "Arm Sling Support" },
       ),
     ).toBe(true);
+  });
+});
+
+describe("gallery completeness", () => {
+  it("targets one packshot plus four different views", () => {
+    expect(MAX_PRODUCT_IMAGES).toBe(5);
+  });
+
+  it("says nothing when the full set of verified views was stored", () => {
+    expect(galleryStatusMessage(MAX_PRODUCT_IMAGES)).toBeNull();
+    expect(galleryStatusMessage(MAX_PRODUCT_IMAGES + 2)).toBeNull();
+  });
+
+  it("reports a short gallery instead of lowering the bar", () => {
+    for (const found of [1, 2, 3, 4]) {
+      expect(galleryStatusMessage(found)).toContain(
+        "5 verified product images could not be found for this exact product.",
+      );
+    }
   });
 });
 

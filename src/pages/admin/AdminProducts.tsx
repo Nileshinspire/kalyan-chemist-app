@@ -122,11 +122,26 @@ const EMPTY_FORM: ProductForm = {
 
 const FORM_OPTIONS = ["tablet", "capsule", "syrup", "injection", "cream", "gel", "ointment", "lotion", "drops", "nasal drops", "spray", "inhaler", "powder", "sachet", "balm", "strip", "other"];
 
+/**
+ * Verified images wanted per product: one front packshot plus four genuinely
+ * different views. Kept in step with `MAX_PRODUCT_IMAGES` in the image
+ * pipeline, which is the module that decides what a real product can offer.
+ */
+const TARGET_GALLERY_IMAGES = 5;
+
 /** Result of the strict product-image lookup shown next to the image field. */
 type ImageStatus =
   | { state: "idle" }
   | { state: "loading" }
-  | { state: "verified"; matchedName: string; views: number; source: string }
+  | {
+      state: "verified";
+      matchedName: string;
+      views: number;
+      source: string;
+      /** False when the exact product has fewer than 5 verified images. */
+      complete: boolean;
+      message?: string;
+    }
   | { state: "unverified"; message: string };
 
 /** What the image audit found, one entry per product that needs attention. */
@@ -142,6 +157,8 @@ type ImageAuditReport = {
   reResolved: boolean;
   checked: number;
   repaired: Array<{ name: string; views: number }>;
+  /** Re-resolved products that still have fewer than the full set of views. */
+  incomplete: Array<{ name: string; views: number }>;
   unresolved: Array<{ name: string; current: string; reason: string }>;
 };
 
@@ -154,6 +171,8 @@ const AUDIT_REASON_COPY: Record<string, string> = {
     "Stored from a person / hand-held / lifestyle / stock photo source rather than a packshot.",
   "broken-gallery":
     "The gallery repeats an image, or holds a URL that is not a verified asset.",
+  "duplicate-views":
+    "Two thumbnails are the same picture stored twice — re-resolve to get genuinely different views.",
 };
 
 export default function AdminProducts() {
@@ -337,6 +356,8 @@ export default function AdminProducts() {
     additionalImages: string[];
     imageSource: string;
     imageUrlSource: string;
+    complete: boolean;
+    message?: string;
   } | null> => {
     setImageStatus({ state: "loading" });
     try {
@@ -358,12 +379,16 @@ export default function AdminProducts() {
           matchedName: result.matchedName,
           views: result.additionalImages.length,
           source: result.source,
+          complete: result.complete,
+          message: result.message,
         });
         return {
           imageUrl: result.imageUrl,
           additionalImages: result.additionalImages,
           imageSource: result.source,
           imageUrlSource: result.imageUrlSource,
+          complete: result.complete,
+          message: result.message,
         };
       }
       setImageStatus({ state: "unverified", message: result.message });
@@ -404,6 +429,11 @@ export default function AdminProducts() {
           ? `Verified packshot + ${found.additionalImages.length} product view${found.additionalImages.length === 1 ? "" : "s"}`
           : "Product image verified",
       );
+      if (!found.complete) {
+        // Never reported as a completed enrichment: the product simply does not
+        // have that many genuine views published anywhere.
+        toast.warning(found.message ?? `${TARGET_GALLERY_IMAGES} verified product images could not be found for this exact product.`);
+      }
     } else {
       toast.error("Exact product packshot could not be verified.");
     }
@@ -531,6 +561,13 @@ export default function AdminProducts() {
             `${verifiedImage.additionalImages.length} more view${verifiedImage.additionalImages.length === 1 ? "" : "s"}`,
           );
         }
+        if (!verifiedImage.complete) {
+          toast.warning(
+            verifiedImage.message ??
+              `${TARGET_GALLERY_IMAGES} verified product images could not be found for this exact product.`,
+            { duration: 9000 },
+          );
+        }
       }
 
       setForm(newForm);
@@ -614,6 +651,13 @@ export default function AdminProducts() {
       });
       if (image.ok) {
         toast.success(`Product image set from "${image.matchedName}"`);
+        if (!image.complete) {
+          toast.warning(
+            image.message ??
+              `${TARGET_GALLERY_IMAGES} verified product images could not be found for this exact product.`,
+            { duration: 9000 },
+          );
+        }
       } else {
         toast.error(`Product image not replaced: ${image.message}`);
       }
@@ -718,6 +762,16 @@ export default function AdminProducts() {
                     </div>
                   ))}
                 </div>
+              )}
+              {auditReport.incomplete.length > 0 && (
+                <p className="text-xs text-muted-foreground">
+                  Short of {TARGET_GALLERY_IMAGES} verified images:{" "}
+                  {auditReport.incomplete
+                    .map((item) => `${item.name} (${item.views})`)
+                    .join(", ")}{" "}
+                  — these products do not publish that many genuine views, and
+                  nothing unverified was added to fill the gap.
+                </p>
               )}
               {auditReport.unresolved.length > 0 && (
                 <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-2.5">
@@ -1172,12 +1226,21 @@ export default function AdminProducts() {
                   <p className="text-xs text-muted-foreground">Finding the exact product image…</p>
                 )}
                 {imageStatus.state === "verified" && (
-                  <p className="text-xs text-green-600">
+                  <p
+                    className={`text-xs ${imageStatus.complete ? "text-green-600" : "text-amber-600"}`}
+                  >
                     Verified packshot: {imageStatus.matchedName}
                     {imageStatus.source ? ` · source: ${imageStatus.source}` : ""}
-                    {imageStatus.views > 0
-                      ? ` · ${imageStatus.views} additional genuine view${imageStatus.views === 1 ? "" : "s"} found`
-                      : " · no additional views available"}
+                    {` · ${imageStatus.views + 1} of ${TARGET_GALLERY_IMAGES} verified images`}
+                    {imageStatus.complete
+                      ? " · gallery complete"
+                      : " · not image-complete"}
+                  </p>
+                )}
+                {imageStatus.state === "verified" && !imageStatus.complete && (
+                  <p className="text-xs text-amber-600">
+                    {imageStatus.message ??
+                      `${TARGET_GALLERY_IMAGES} verified product images could not be found for this exact product.`}
                   </p>
                 )}
                 {imageStatus.state === "unverified" && (
@@ -1198,7 +1261,7 @@ export default function AdminProducts() {
               </div>
               <div className="sm:col-span-2 space-y-2">
                 <Label>Additional Product Images (Gallery)</Label>
-                <p className="text-[11px] text-muted-foreground">Real views of this exact product, filled automatically by Auto Fill / Fetch image. They appear as selectable thumbnails on the product page; edit or remove any you do not want.</p>
+                <p className="text-[11px] text-muted-foreground">Up to {TARGET_GALLERY_IMAGES - 1} real views of this exact product ({TARGET_GALLERY_IMAGES} images in total), filled automatically by Auto Fill / Fetch image. They appear as selectable thumbnails on the product page; edit or remove any you do not want. Nothing is ever added that is not a genuine view of the same product.</p>
                 {form.additionalImages.some((img) => img.trim()) && (
                   <div className="flex flex-wrap items-center gap-2 pt-1">
                     {form.imageUrl && (
