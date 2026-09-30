@@ -1,19 +1,22 @@
 import { memo, useCallback, useEffect, useRef, useState, type RefObject } from "react";
-import { useNavigate, useLocation } from "react-router";
+import { useNavigate, useLocation, type NavigateFunction } from "react-router";
 import { beginProductTransition } from "@/lib/product-transition";
-
-/** Shared navigation into Product Details for every product card. */
-function goProduct(
-  navigate: ReturnType<typeof useNavigate>,
-  location: ReturnType<typeof useLocation>,
-  slug: string,
-): void {
-  beginProductTransition();
-  navigate(`/products/${slug}`, { state: { from: location.pathname + location.search } });
-}
 import { useQuery, useMutation, useConvex } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Card, CardContent } from "@/components/ui/card";
+
+/**
+ * Every product card navigates through here so the Product Details route
+ * always takes over the screen the moment the card is clicked.
+ */
+function goProduct(
+  navigate: NavigateFunction,
+  from: string,
+  slug: string,
+): void {
+  beginProductTransition();
+  navigate(`/products/${slug}`, { state: { from } });
+}
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Heart, ShoppingCart, Pill, Zap } from "lucide-react";
@@ -445,7 +448,7 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
       navigate(`/auth?returnTo=${encodeURIComponent(`/products/${product.slug}`)}`);
       return;
     }
-    goProduct(navigate, location, product.slug);
+    goProduct(navigate, location.pathname + location.search, product.slug);
   };
 
   const handleWishlist = async (e: React.MouseEvent) => {
@@ -480,7 +483,7 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
   return (
     <Card
       className="group relative overflow-hidden border-border/60 bg-card cursor-pointer transition-all duration-500 hover:shadow-card-hover hover:border-primary/20 hover:-translate-y-1"
-      onClick={() => goProduct(navigate, location, product.slug)}
+      onClick={() => goProduct(navigate, location.pathname + location.search, product.slug)}
       onMouseEnter={warmProductDetail}
       onFocus={warmProductDetail}
       onPointerDown={warmProductDetail}
