@@ -10,6 +10,7 @@ import React, { StrictMode, useEffect, lazy, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { HashRouter, Route, Routes, useLocation } from "react-router";
 import ScrollRestorer from "@/components/ScrollRestorer";
+import { useProductTransitionVeil } from "@/lib/product-transition";
 import { installRoutePrefetch } from "@/lib/route-preload";
 import { PageErrorBoundary } from "@/components/PageErrorBoundary";
 import AIChatbotFloat from "@/components/AIChatbotFloat";
@@ -196,6 +197,12 @@ function RouteSyncer() {
   // It caused duplicate browser-history entries in SPA routing, creating navigation
   // loops where the Back button would return to the same page.
 
+  return null;
+}
+
+/** Lifts the product-transition veil once the new route commits. */
+function ProductTransitionVeil() {
+  useProductTransitionVeil();
   return null;
 }
 
@@ -761,6 +768,7 @@ createRoot(document.getElementById("root")!).render(
         <HashRouter>
           <NavigationProvider>
             <ScrollRestorer />
+            <ProductTransitionVeil />
             <RouteSyncer />
             <PageErrorBoundary>
               <AnimatedRoutes />

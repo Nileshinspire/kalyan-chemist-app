@@ -1,4 +1,5 @@
 import { useNavigate, useLocation } from "react-router";
+import { beginProductTransition } from "@/lib/product-transition";
 import { useAuth } from "@/context/AuthContext";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { useSetBreadcrumb } from "@/hooks/useBreadcrumb";
@@ -243,7 +244,10 @@ export default function Cart() {
                         {/* Image */}
                         <div
                           className="shrink-0 w-20 h-20 rounded-xl bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] flex items-center justify-center cursor-pointer"
-                          onClick={() => navigate(`/products/${product.slug}`)}
+                          onClick={() => {
+                            beginProductTransition();
+                            navigate(`/products/${product.slug}`);
+                          }}
                         >
                           <Pill className="size-8 text-primary/20" />
                         </div>
@@ -254,7 +258,10 @@ export default function Cart() {
                             <div className="min-w-0">
                               <h3
                                 className="text-sm font-semibold truncate hover:text-primary cursor-pointer transition-colors"
-                                onClick={() => navigate(`/products/${product.slug}`)}
+                                onClick={() => {
+                            beginProductTransition();
+                            navigate(`/products/${product.slug}`);
+                          }}
                               >
                                 {product.name}
                               </h3>

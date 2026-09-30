@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router";
+import { beginProductTransition } from "@/lib/product-transition";
 import { useAuth } from "@/context/AuthContext";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -168,7 +169,10 @@ export default function Wishlist() {
                     {/* Product image area */}
                     <div
                       className="relative flex items-center justify-center bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] h-40 cursor-pointer"
-                      onClick={() => navigate(`/products/${product.slug}`)}
+                      onClick={() => {
+                        beginProductTransition();
+                        navigate(`/products/${product.slug}`);
+                      }}
                     >
                       <Pill className="size-12 text-primary/20 group-hover:scale-110 transition-all duration-500" />
                       {hasDiscount && (
@@ -204,7 +208,10 @@ export default function Wishlist() {
                       {/* Name */}
                       <h3
                         className="text-sm font-semibold line-clamp-2 hover:text-primary cursor-pointer transition-colors"
-                        onClick={() => navigate(`/products/${product.slug}`)}
+                        onClick={() => {
+                        beginProductTransition();
+                        navigate(`/products/${product.slug}`);
+                      }}
                       >
                         {product.name}
                       </h3>
@@ -252,7 +259,10 @@ export default function Wishlist() {
                           size="sm"
                           variant="outline"
                           className="h-9 text-xs rounded-lg"
-                          onClick={() => navigate(`/products/${product.slug}`)}
+                          onClick={() => {
+                        beginProductTransition();
+                        navigate(`/products/${product.slug}`);
+                      }}
                         >
                           <ArrowRight className="size-3" />
                         </Button>

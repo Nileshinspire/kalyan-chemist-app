@@ -25,6 +25,7 @@ import { openWhatsApp, generateEnquiryMessage } from "@/lib/whatsapp";
 import { preloadRoute } from "@/lib/route-preload";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
+import { beginProductTransition } from "@/lib/product-transition";
 import WhatsAppFloat from "@/components/WhatsAppFloat";
 import HealthConditions from "@/components/HealthConditions";
 import PopularLabTests from "@/components/PopularLabTests";
@@ -576,7 +577,10 @@ export default function Landing() {
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
                     className="group rounded-2xl border border-border/70 bg-card p-4 cursor-pointer transition-all duration-500 hover:shadow-card-hover hover:border-primary/20 hover:-translate-y-1"
-                    onClick={() => navigate(`/products/${product.slug}`, { state: { from: location.pathname + location.search } })}
+                    onClick={() => {
+                      beginProductTransition();
+                      navigate(`/products/${product.slug}`, { state: { from: location.pathname + location.search } });
+                    }}
                   >
                     <div className="relative flex items-center justify-center bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] h-32 rounded-xl mb-3 overflow-hidden">
                       <Pill className="size-10 text-primary/20 group-hover:text-primary/30 transition-all duration-500" />
@@ -642,7 +646,10 @@ export default function Landing() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 className="group rounded-2xl border border-border/70 bg-card overflow-hidden cursor-pointer transition-all duration-500 hover:shadow-card-hover hover:border-primary/20 hover:-translate-y-1"
-                onClick={() => navigate(`/products/${product.slug}`, { state: { from: location.pathname + location.search } })}
+                onClick={() => {
+                  beginProductTransition();
+                  navigate(`/products/${product.slug}`, { state: { from: location.pathname + location.search } });
+                }}
               >
                 <div className="relative flex items-center justify-center bg-gradient-to-br from-green-500/[0.06] to-emerald-500/[0.03] h-40">
                   <Pill className="size-12 text-primary/20 group-hover:scale-110 transition-all duration-500" />

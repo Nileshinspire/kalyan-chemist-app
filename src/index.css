@@ -224,6 +224,20 @@ html {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/*
+ * Product navigation transition veil.
+ *
+ * Set on <html> the instant a product card is clicked and lifted when the
+ * Product Details route commits, so the old page (its footer included) is
+ * never painted between the click and the new page: the shopper sees the
+ * listing one frame and the Product Details loading state the next. The
+ * module that owns the class also clears it on a fallback timer, so it can
+ * never strand the app behind an opaque screen.
+ */
+html.product-transition > body > #root {
+  visibility: hidden;
+}
+
 /* Selection color */
 ::selection {
   background-color: oklch(0.42 0.09 170 / 0.15);

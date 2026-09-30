@@ -36,6 +36,7 @@ import {
   Loader2,
   SlidersHorizontal,
 } from "lucide-react";
+import { beginProductTransition } from "@/lib/product-transition";
 
 /**
  * Extract URL search-param values OUTSIDE the component so they are stable
@@ -281,6 +282,7 @@ export default function Products() {
     setShowAutocomplete(false);
     setAutocompleteQuery("");
     if (suggestion.type === "product") {
+      beginProductTransition();
       navigate(`/products/${suggestion.slug}`, { state: { from: location.pathname + location.search } });
     } else if (suggestion.type === "category") {
       setSelectedCategorySlug(suggestion.slug);

@@ -9,6 +9,7 @@ import {
 } from "@/convex/productContent";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
+import { beginProductTransition } from "@/lib/product-transition";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -423,13 +424,16 @@ export default function ProductDetail() {
   };
 
   if (product === undefined) {
+    // No footer here: with the spinner main being only ~200px tall, a footer
+    // would fill the rest of the viewport and read as a "footer flash" during
+    // the loading moment. The full page (footer included) paints once the
+    // product data arrives.
     return (
       <div className="min-h-screen flex flex-col bg-background">
         <Navbar />
         <main className="flex-1 flex items-center justify-center">
           <Loader2 className="size-6 animate-spin text-muted-foreground" />
         </main>
-        <Footer />
       </div>
     );
   }
@@ -1454,7 +1458,10 @@ export default function ProductDetail() {
                   <div
                     key={rp._id}
                     className="group rounded-2xl border border-border/70 bg-card p-4 cursor-pointer transition-all duration-500 hover:shadow-card-hover hover:border-primary/20 hover:-translate-y-1"
-                    onClick={() => navigate(`/products/${rp.slug}`, { state: { from: backTo } })}
+                    onClick={() => {
+                      beginProductTransition();
+                      navigate(`/products/${rp.slug}`, { state: { from: backTo } });
+                    }}
                   >
                     <div className="flex items-center justify-center bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] h-28 rounded-xl mb-3 overflow-hidden">
                       {rp.imageUrl ? (
