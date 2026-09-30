@@ -5,6 +5,7 @@ import {
   MAX_PRODUCT_IMAGES,
 } from "@/convex/productImageResolver";
 import {
+  auditProductImage,
   mergeAdditionalImages,
   needsAdditionalImagesRepair,
 } from "@/convex/productImageRepair";
@@ -102,6 +103,77 @@ describe("merging views across a re-resolve", () => {
       VIEW_A,
       VIEW_B,
     ]);
+  });
+});
+
+describe("stored image audit — what needs re-resolving", () => {
+  const row = (over: Partial<Parameters<typeof auditProductImage>[0]>) => ({
+    imageUrl: PRIMARY,
+    additionalImages: [VIEW_A, VIEW_B],
+    imageUrlSource:
+      "https://cdn01.pharmeasy.in/dam/productsnowatermark/059346/dolo-650mg-strip-of-15-tablets-front-2-non-watermark.jpg",
+    ...over,
+  });
+
+  it("passes a verified packshot with a clean gallery and source", () => {
+    expect(auditProductImage(row({})).needsFix).toBe(false);
+  });
+
+  it("treats a product with a single genuine view as healthy", () => {
+    // Plenty of real products genuinely have only one packshot online.
+    expect(auditProductImage(row({ additionalImages: [] })).needsFix).toBe(false);
+  });
+
+  it("flags a missing or placeholder image", () => {
+    expect(auditProductImage(row({ imageUrl: "" })).reason).toBe("missing");
+    expect(
+      auditProductImage(row({ imageUrl: "data:image/svg+xml,%3Csvg%3E" })).reason,
+    ).toBe("placeholder");
+  });
+
+  it("flags a third-party URL", () => {
+    expect(
+      auditProductImage(
+        row({ imageUrl: "https://upload.wikimedia.org/x/dolo-650.png" }),
+      ).reason,
+    ).toBe("third-party");
+  });
+
+  it("flags a gallery that repeats the front image or an unverified URL", () => {
+    expect(
+      auditProductImage(row({ additionalImages: [PRIMARY] })).reason,
+    ).toBe("broken-gallery");
+    expect(
+      auditProductImage(row({ additionalImages: [VIEW_A, VIEW_A] })).reason,
+    ).toBe("broken-gallery");
+    expect(
+      auditProductImage(
+        row({ additionalImages: ["https://pharmeasy.in/dam/old.jpg"] }),
+      ).reason,
+    ).toBe("broken-gallery");
+  });
+
+  it("flags a packshot stored from a person/hand-held/lifestyle source", () => {
+    const instagram = auditProductImage(
+      row({ imageUrlSource: "https://scontent.cdninstagram.com/v/x/dolo-650.jpg" }),
+    );
+    expect(instagram.needsFix).toBe(true);
+    expect(instagram.reason).toBe("suspicious-source");
+    expect(instagram.suspiciousSource).toContain("cdninstagram");
+
+    expect(
+      auditProductImage(
+        row({ imageUrlSource: "https://example.com/dolo-650-in-hand-photo.jpg" }),
+      ).reason,
+    ).toBe("suspicious-source");
+  });
+
+  it("treats missing provenance as unknown rather than suspicious", () => {
+    // Images stored before provenance was recorded must not be reported as
+    // lifestyle photos; they are simply unaudited.
+    expect(
+      auditProductImage(row({ imageUrlSource: undefined })).needsFix,
+    ).toBe(false);
   });
 });
 

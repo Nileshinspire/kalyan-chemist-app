@@ -192,6 +192,9 @@ interface DeviceForm {
   safetyNote: string;
   expiryDate: string;
   additionalImages: string[];
+  /** Provenance of the verified packshot, saved with the device. */
+  imageSource?: string;
+  imageUrlSource?: string;
   isActive: boolean;
 }
 
@@ -301,6 +304,8 @@ export default function AdminHealthcareDevices() {
       safetyNote: product.safetyNote || "",
       expiryDate: product.expiryDate ? new Date(product.expiryDate).toISOString().split("T")[0] : "",
       additionalImages: product.additionalImages || [],
+      imageSource: product.imageSource,
+      imageUrlSource: product.imageUrlSource,
       isActive: product.isActive,
     });
     setDialogOpen(true);
@@ -325,6 +330,8 @@ export default function AdminHealthcareDevices() {
         brandId: (form.brandId || undefined) as any,
         imageUrl: form.imageUrl || undefined,
         additionalImages: form.additionalImages.length > 0 ? form.additionalImages : undefined,
+        imageSource: form.imageSource || undefined,
+        imageUrlSource: form.imageUrlSource || undefined,
         manufacturer: form.manufacturer,
         dosage: form.dosage || undefined,
         packSize: form.packSize,
@@ -451,6 +458,8 @@ export default function AdminHealthcareDevices() {
         });
         if (image.ok) {
           newForm.imageUrl = image.imageUrl;
+          newForm.imageSource = image.source;
+          newForm.imageUrlSource = image.imageUrlSource;
           filled.push("Image");
           if (image.additionalImages.length > 0) {
             newForm.additionalImages = image.additionalImages;

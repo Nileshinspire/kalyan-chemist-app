@@ -50,6 +50,8 @@ import {
   Loader2,
   Image,
   Wand2,
+  ShieldAlert,
+  CheckCircle2,
 } from "lucide-react";
 
 function slugify(text: string) {
@@ -84,6 +86,9 @@ interface ProductForm {
   safetyNote: string;
   expiryDate: string;
   additionalImages: string[];
+  /** Provenance of the verified packshot, saved with the product. */
+  imageSource?: string;
+  imageUrlSource?: string;
   isActive: boolean;
 }
 
@@ -121,8 +126,35 @@ const FORM_OPTIONS = ["tablet", "capsule", "syrup", "injection", "cream", "gel",
 type ImageStatus =
   | { state: "idle" }
   | { state: "loading" }
-  | { state: "verified"; matchedName: string; views: number }
+  | { state: "verified"; matchedName: string; views: number; source: string }
   | { state: "unverified"; message: string };
+
+/** What the image audit found, one entry per product that needs attention. */
+type ImageAuditReport = {
+  total: number;
+  flagged: Array<{
+    name: string;
+    reason: string | null;
+    imageUrl: string;
+    suspiciousSource: string | null;
+  }>;
+  counts: Record<string, number>;
+  reResolved: boolean;
+  checked: number;
+  repaired: Array<{ name: string; views: number }>;
+  unresolved: Array<{ name: string; current: string; reason: string }>;
+};
+
+/** Plain-language copy for each audit reason. */
+const AUDIT_REASON_COPY: Record<string, string> = {
+  missing: "No image stored — resolve the exact product packshot.",
+  placeholder: "A generated placeholder is stored — resolve the real packshot.",
+  "third-party": "Stored from an external URL instead of a verified download.",
+  "suspicious-source":
+    "Stored from a person / hand-held / lifestyle / stock photo source rather than a packshot.",
+  "broken-gallery":
+    "The gallery repeats an image, or holds a URL that is not a verified asset.",
+};
 
 export default function AdminProducts() {
   const [search, setSearch] = useState("");
@@ -143,7 +175,12 @@ export default function AdminProducts() {
   // metadata action (which can return a generated placeholder or a diagram).
   const resolveProductImageAction = useAction(api.productImageResolver.resolveProductImage);
   const repairProductImageAction = useAction(api.productImageRepair.repairProductImage);
+  // The rerunnable image audit: it reports every stored image that cannot be
+  // trusted, and re-resolves exactly those products in the same run.
+  const auditProductImagesAction = useAction(api.productImageRepair.auditProductImages);
   const [imageStatus, setImageStatus] = useState<ImageStatus>({ state: "idle" });
+  const [auditRunning, setAuditRunning] = useState(false);
+  const [auditReport, setAuditReport] = useState<ImageAuditReport | null>(null);
   const enrichSingleProduct = useMutation(api.productBackfill.enrichSingleProduct);
   const backfillProducts = useMutation(api.productBackfill.backfillProducts);
   const [backfilling, setBackfilling] = useState(false);
@@ -207,6 +244,8 @@ export default function AdminProducts() {
       safetyNote: product.safetyNote || "",
       expiryDate: product.expiryDate ? new Date(product.expiryDate).toISOString().split('T')[0] : "",
       additionalImages: product.additionalImages || [],
+      imageSource: product.imageSource,
+      imageUrlSource: product.imageUrlSource,
       isActive: product.isActive,
     });
     setDialogOpen(true);
@@ -243,6 +282,8 @@ export default function AdminProducts() {
         brandId: (form.brandId || undefined) as any,
         imageUrl: form.imageUrl || undefined,
         additionalImages: form.additionalImages.length > 0 ? form.additionalImages : undefined,
+        imageSource: form.imageSource || undefined,
+        imageUrlSource: form.imageUrlSource || undefined,
         manufacturer: form.manufacturer,
         dosage: form.dosage || undefined,
         packSize: form.packSize,
@@ -291,7 +332,12 @@ export default function AdminProducts() {
    */
   const fetchVerifiedImage = async (
     source: ProductForm,
-  ): Promise<{ imageUrl: string; additionalImages: string[] } | null> => {
+  ): Promise<{
+    imageUrl: string;
+    additionalImages: string[];
+    imageSource: string;
+    imageUrlSource: string;
+  } | null> => {
     setImageStatus({ state: "loading" });
     try {
       const brand = brands?.find((b) => b._id === source.brandId)?.name;
@@ -311,10 +357,13 @@ export default function AdminProducts() {
           state: "verified",
           matchedName: result.matchedName,
           views: result.additionalImages.length,
+          source: result.source,
         });
         return {
           imageUrl: result.imageUrl,
           additionalImages: result.additionalImages,
+          imageSource: result.source,
+          imageUrlSource: result.imageUrlSource,
         };
       }
       setImageStatus({ state: "unverified", message: result.message });
@@ -345,6 +394,10 @@ export default function AdminProducts() {
           found.additionalImages.length > 0
             ? found.additionalImages
             : form.additionalImages,
+        // Provenance travels with the image so a later audit can tell where the
+        // stored packshot actually came from.
+        imageSource: found.imageSource,
+        imageUrlSource: found.imageUrlSource,
       });
       toast.success(
         found.additionalImages.length > 0
@@ -469,6 +522,8 @@ export default function AdminProducts() {
       const verifiedImage = await fetchVerifiedImage(newForm);
       if (verifiedImage) {
         newForm.imageUrl = verifiedImage.imageUrl;
+        newForm.imageSource = verifiedImage.imageSource;
+        newForm.imageUrlSource = verifiedImage.imageUrlSource;
         filled.push("Image");
         if (verifiedImage.additionalImages.length > 0) {
           newForm.additionalImages = verifiedImage.additionalImages;
@@ -522,6 +577,27 @@ export default function AdminProducts() {
     }
   };
 
+  const handleImageAudit = async () => {
+    setAuditRunning(true);
+    try {
+      const report = await auditProductImagesAction({ reResolve: true });
+      setAuditReport(report);
+      if (report.flagged.length === 0) {
+        toast.success(
+          `Every stored image is a verified packshot (${report.total} products checked).`,
+        );
+      } else {
+        toast.success(
+          `${report.flagged.length} of ${report.total} images needed attention — ${report.repaired.length} re-resolved${report.unresolved.length > 0 ? `, ${report.unresolved.length} could not be verified` : ""}.`,
+        );
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Image audit failed");
+    } finally {
+      setAuditRunning(false);
+    }
+  };
+
   const handleEnrichSingle = async (productId: string) => {
     try {
       const result = await enrichSingleProduct({ productId: productId as any });
@@ -568,6 +644,15 @@ export default function AdminProducts() {
           <div className="flex gap-2">
             <Button
               variant="outline"
+              onClick={handleImageAudit}
+              disabled={auditRunning}
+              className="gap-2"
+            >
+              {auditRunning ? <Loader2 className="size-4 animate-spin" /> : <ShieldAlert className="size-4" />}
+              Audit Images
+            </Button>
+            <Button
+              variant="outline"
               onClick={handleBackfillAll}
               disabled={backfilling}
               className="gap-2"
@@ -580,6 +665,75 @@ export default function AdminProducts() {
             </Button>
           </div>
         </motion.div>
+
+        {auditReport && (
+          <Card className="border-border/60">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between gap-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <ShieldAlert className="size-4 text-amber-500" />
+                  Image audit
+                </CardTitle>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-7"
+                  onClick={() => setAuditReport(null)}
+                >
+                  <X className="size-3.5" />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                {auditReport.total} products checked · {auditReport.flagged.length} needed attention
+                {auditReport.reResolved
+                  ? ` · ${auditReport.repaired.length} re-resolved`
+                  : ""}
+                {auditReport.unresolved.length > 0
+                  ? ` · ${auditReport.unresolved.length} could not be verified`
+                  : ""}
+              </p>
+              {auditReport.flagged.length === 0 ? (
+                <p className="flex items-center gap-1.5 text-sm text-green-600">
+                  <CheckCircle2 className="size-4" /> Every stored image is a verified exact-product
+                  packshot.
+                </p>
+              ) : (
+                <div className="max-h-64 divide-y divide-border/60 overflow-y-auto rounded-lg border border-border/60">
+                  {auditReport.flagged.map((item, index) => (
+                    <div
+                      key={`${item.name}-${item.reason}-${index}`}
+                      className="flex items-start justify-between gap-3 p-2.5"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">{item.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {AUDIT_REASON_COPY[item.reason ?? ""] ?? item.reason ?? "Unknown issue"}
+                        </p>
+                      </div>
+                      <Badge variant="secondary" className="shrink-0 text-[10px]">
+                        {item.reason ?? "unknown"}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {auditReport.unresolved.length > 0 && (
+                <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-2.5">
+                  <p className="text-xs font-medium text-destructive">
+                    Exact product packshot could not be verified
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {auditReport.unresolved.map((item) => item.name).join(", ")} — check the name,
+                    strength and form, then resolve those products individually. No placeholder was
+                    stored.
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Filters */}
         <Card className="border-border/60">
@@ -1020,6 +1174,7 @@ export default function AdminProducts() {
                 {imageStatus.state === "verified" && (
                   <p className="text-xs text-green-600">
                     Verified packshot: {imageStatus.matchedName}
+                    {imageStatus.source ? ` · source: ${imageStatus.source}` : ""}
                     {imageStatus.views > 0
                       ? ` · ${imageStatus.views} additional genuine view${imageStatus.views === 1 ? "" : "s"} found`
                       : " · no additional views available"}
@@ -1035,7 +1190,7 @@ export default function AdminProducts() {
                     <div className="size-16 rounded-lg border border-border/60 bg-muted/30 flex items-center justify-center overflow-hidden">
                       <img src={form.imageUrl} alt="Preview" className="size-full object-contain p-1" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
                     </div>
-                    <Button type="button" variant="ghost" size="sm" className="text-xs text-destructive" onClick={() => setForm({ ...form, imageUrl: undefined })}>
+                    <Button type="button" variant="ghost" size="sm" className="text-xs text-destructive" onClick={() => setForm({ ...form, imageUrl: undefined, imageSource: undefined, imageUrlSource: undefined })}>
                       <X className="size-3 mr-1" /> Remove
                     </Button>
                   </div>

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   isPackshotImageCandidate,
+  isPackshotLookingUrl,
   isVerifiedProductImage,
   matchesProductIdentity,
   needsProductImageRepair,
@@ -320,6 +321,40 @@ describe("packshot image filtering", () => {
         { productName: "Arm Sling Support" },
       ),
     ).toBe(true);
+  });
+});
+
+describe("packshot provenance", () => {
+  it("accepts a catalogue packshot asset", () => {
+    expect(
+      isPackshotLookingUrl(
+        "https://cdn01.pharmeasy.in/dam/productsnowatermark/059346/dolo-650mg-strip-of-15-tablets-front-2-non-watermark.jpg",
+      ),
+    ).toBe(true);
+  });
+
+  it("rejects a person, lifestyle or stock-photo source", () => {
+    expect(
+      isPackshotLookingUrl(
+        "https://scontent.cdninstagram.com/v/t51/dolo-650-front.jpg",
+      ),
+    ).toBe(false);
+    expect(
+      isPackshotLookingUrl(
+        "https://example.com/media/dolo-650-person-holding-strip.jpg",
+      ),
+    ).toBe(false);
+    expect(
+      isPackshotLookingUrl("https://i.imgur.com/abc123.png"),
+    ).toBe(false);
+    expect(isPackshotLookingUrl("https://example.com/lifestyle-dolo.jpg")).toBe(
+      false,
+    );
+  });
+
+  it("treats a missing source as unknown, never as a packshot", () => {
+    expect(isPackshotLookingUrl("")).toBe(false);
+    expect(isPackshotLookingUrl(undefined)).toBe(false);
   });
 });
 

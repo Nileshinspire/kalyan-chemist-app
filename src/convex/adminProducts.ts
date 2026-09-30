@@ -57,6 +57,8 @@ export const productsForImageAudit = internalQuery({
       additionalImages: (product.additionalImages ?? []).map((url) =>
         String(url ?? "").trim(),
       ),
+      imageSource: product.imageSource ?? "",
+      imageUrlSource: product.imageUrlSource ?? "",
       manufacturer: product.manufacturer ?? "",
       composition: product.composition ?? "",
       form: product.form ?? "",
@@ -81,6 +83,8 @@ export const productImageRow = internalQuery({
       additionalImages: (product.additionalImages ?? []).map((url) =>
         String(url ?? "").trim(),
       ),
+      imageSource: product.imageSource ?? "",
+      imageUrlSource: product.imageUrlSource ?? "",
       manufacturer: product.manufacturer ?? "",
       composition: product.composition ?? "",
       form: product.form ?? "",
@@ -106,6 +110,9 @@ export const setProductImage = internalMutation({
      * placeholder, the front image twice, or an empty slot.
      */
     additionalImages: v.optional(v.array(v.string())),
+    /** Provenance of the packshot: the source label and its original image URL. */
+    imageSource: v.optional(v.string()),
+    imageUrlSource: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const imageUrl = args.imageUrl.trim();
@@ -125,6 +132,10 @@ export const setProductImage = internalMutation({
       imageUrl,
       additionalImages:
         additionalImages.length > 0 ? additionalImages : undefined,
+      // Keep provenance in step with the image it describes, so an audit never
+      // reads a stale source for a freshly replaced packshot.
+      imageSource: args.imageSource?.trim() || undefined,
+      imageUrlSource: args.imageUrlSource?.trim() || undefined,
       updatedAt: Date.now(),
     });
   },
@@ -229,6 +240,9 @@ export const create = mutation({
     categoryId: v.id("categories"),
     imageUrl: v.optional(v.string()),
     additionalImages: v.optional(v.array(v.string())),
+    /** Where the packshot came from, recorded by the image pipeline. */
+    imageSource: v.optional(v.string()),
+    imageUrlSource: v.optional(v.string()),
     manufacturer: v.string(),
     dosage: v.optional(v.string()),
     packSize: v.string(),
@@ -286,6 +300,9 @@ export const update = mutation({
     categoryId: v.id("categories"),
     imageUrl: v.optional(v.string()),
     additionalImages: v.optional(v.array(v.string())),
+    /** Where the packshot came from, recorded by the image pipeline. */
+    imageSource: v.optional(v.string()),
+    imageUrlSource: v.optional(v.string()),
     manufacturer: v.string(),
     dosage: v.optional(v.string()),
     packSize: v.string(),

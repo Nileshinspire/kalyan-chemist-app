@@ -193,6 +193,15 @@ const schema = defineSchema(
       categoryId: v.id("categories"),
       imageUrl: v.optional(v.string()),
       additionalImages: v.optional(v.array(v.string())),
+      /**
+       * Where the stored packshot came from — a source label plus the original
+       * remote image URL. Recorded by the image pipeline so a later audit can
+       * spot an image that was taken from a lifestyle/customer/stock source and
+       * re-resolve it. Optional: products stored before this existed simply have
+       * no provenance.
+       */
+      imageSource: v.optional(v.string()),
+      imageUrlSource: v.optional(v.string()),
       manufacturer: v.string(),
       dosage: v.optional(v.string()),
       packSize: v.string(),

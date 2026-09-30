@@ -1124,13 +1124,23 @@ function searchVariants(identity: ProductIdentity): string[] {
     }
   };
 
+  // The cleanest identities come first, because only the first
+  // `MAX_QUERIES_PER_SOURCE` of them are actually asked. An earlier version put
+  // the compound "manufacturer + name" queries up front, so a product whose
+  // catalogue title is worded differently was never asked about by its own
+  // name — the single most likely query to find it.
   // 1. Brand + product name + strength + form
   push([nameHasBrand ? undefined : identity.brand, name, identity.strength, identity.form]);
-  // 2. Manufacturer + product name + strength
-  push([identity.manufacturer, name, identity.strength]);
-  // 3. Product name + pack size + manufacturer
+  // 2. The plain name: what the product is actually called.
+  push([name]);
+  // 3. Name + strength, then the leading word, so a catalogue that words the
+  //    title differently (or drops the strength) can still be found.
+  push([name, identity.strength]);
+  push([leading, identity.strength]);
+  // 4. Product name + pack size + manufacturer
   push([name, informativePackSize(identity.packSize), identity.manufacturer]);
-  // 4. The exact full identity
+  // 5. Manufacturer + product name, and the exact full identity.
+  push([identity.manufacturer, name, identity.strength]);
   push([
     name,
     identity.brand,
@@ -1139,13 +1149,9 @@ function searchVariants(identity: ProductIdentity): string[] {
     informativePackSize(identity.packSize),
     informativeComposition(identity.composition),
   ]);
-  // 5. Plain name, then the leading word, so a differently worded catalogue
-  //    title can still be found and verified.
-  push([name]);
-  push([leading, identity.strength]);
   push([leading]);
 
-  return built.slice(0, MAX_QUERIES_PER_SOURCE + 5);
+  return built.slice(0, MAX_QUERIES_PER_SOURCE + 4);
 }
 
 /** A SKU that looks like a barcode can be looked up directly. */
@@ -1790,7 +1796,14 @@ export type ProductImageOutcome =
       additionalImages: string[];
       matchedName: string;
       source: string;
+      /** The page the packshot was found on, for the admin's audit trail. */
       sourceUrl: string;
+      /**
+       * The remote URL of the primary packshot itself, kept so a later audit can
+       * tell whether the stored image came from a packshot asset or from
+       * somewhere that only serves lifestyle or customer photographs.
+       */
+      imageUrlSource: string;
       notes: string[];
     }
   | { ok: false; message: string; considered: string[] };
@@ -1828,10 +1841,12 @@ export async function resolveAndStore(
    * front leads the gallery and later faces become thumbnails. Each view is
    * content-hashed so the same photograph served twice is stored once.
    */
-  const storeRecordViews = async (entry: ScoredCandidate): Promise<string[]> => {
+  const storeRecordViews = async (
+    entry: ScoredCandidate,
+  ): Promise<Array<{ url: string; imageUrlSource: string }>> => {
     const images = rankImages(entry.candidate, rules.identityWords);
     if (images.length === 0) return [];
-    const stored: string[] = [];
+    const stored: Array<{ url: string; imageUrlSource: string }> = [];
     for (const image of images) {
       if (stored.length >= MAX_PRODUCT_IMAGES) break;
       if (downloads >= MAX_IMAGE_DOWNLOADS) break;
@@ -1848,7 +1863,7 @@ export async function resolveAndStore(
       const url = await store(ctx, downloaded);
       if (!url) continue;
       storedHashes.add(hash);
-      stored.push(url);
+      stored.push({ url, imageUrlSource: image.url });
     }
     return stored;
   };
@@ -1872,12 +1887,15 @@ export async function resolveAndStore(
 
       return {
         ok: true,
-        imageUrl: views[0],
-        additionalImages: views.slice(1),
+        imageUrl: views[0].url,
+        additionalImages: views.slice(1).map((view) => view.url),
         matchedName: entry.candidate.name,
         source: entry.candidate.source,
         sourceUrl:
-          entry.candidate.pageUrl ?? entry.candidate.images[0]?.url ?? views[0],
+          entry.candidate.pageUrl ??
+          entry.candidate.images[0]?.url ??
+          views[0].url,
+        imageUrlSource: views[0].imageUrlSource,
         notes: entry.reasons,
       };
     }
@@ -1893,6 +1911,7 @@ export async function resolveAndStore(
           source: fallback.entry.candidate.source,
           sourceUrl:
             fallback.entry.candidate.pageUrl ?? fallback.image.sourceUrl,
+          imageUrlSource: fallback.image.sourceUrl,
           notes: [...fallback.entry.reasons, "unusual-aspect-ratio"],
         };
       }
@@ -1996,6 +2015,19 @@ export const resolveImage = internalAction({
 export function isVerifiedProductImage(url: string | null | undefined): boolean {
   const value = (url ?? "").trim();
   return /^https:\/\/[a-z0-9-]+\.convex\.cloud\/api\/storage\//i.test(value);
+}
+
+/**
+ * Exported for the admin image audit: could this remote URL be the primary
+ * image of a professional packshot, judged on its file name and host alone?
+ * A person, hand-held photo, lifestyle scene, screenshot, logo, diagram or
+ * stock photo is never a packshot, so an image stored from such a source is
+ * exactly what the audit is meant to flag for re-resolution.
+ */
+export function isPackshotLookingUrl(url: string | null | undefined): boolean {
+  const value = (url ?? "").trim();
+  if (!value) return false;
+  return isUsableImageUrl(value, new Set());
 }
 
 export function needsProductImageRepair(url: string | null | undefined): boolean {
