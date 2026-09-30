@@ -524,6 +524,7 @@ function single(value: unknown): string | undefined {
  * Liqu..." — keeps its real packshot instead of being filtered out.
  */
 const BAD_IMAGE_WORDS = new Set([
+  // Branding, icons and interface chrome.
   "logo",
   "logos",
   "logotype",
@@ -532,26 +533,102 @@ const BAD_IMAGE_WORDS = new Set([
   "icon",
   "icons",
   "sprite",
+  "watermark",
+  "avatar",
+  "flag",
+  "payment",
+  "wallet",
+  // Marketing and social-media artwork.
   "banner",
+  "poster",
+  "flyer",
+  "billboard",
+  "hoarding",
   "promo",
+  "promotion",
+  "promotional",
   "offer",
   "discount",
   "coupon",
+  "sponsored",
+  "advert",
+  "advertisement",
+  "advertising",
+  "ads",
+  "ad",
+  "creative",
+  // People, scenes and camera rolls — never a packshot. A product whose own
+  // name contains one of these words ("Dettol Hand Wash", "Arm Sling") is
+  // exempted by the identity check below, so its real packshot still passes.
+  "person",
+  "persons",
+  "people",
+  "human",
+  "humans",
+  "hand",
+  "hands",
+  "holding",
+  "hold",
+  "held",
+  "finger",
+  "fingers",
+  "wrist",
+  "arm",
+  "arms",
+  "selfie",
+  "selfies",
+  "portrait",
   "doctor",
   "nurse",
   "patient",
   "clinic",
   "hospital",
+  "ward",
+  "surgery",
+  "stethoscope",
+  "customer",
+  "customers",
+  "review",
+  "reviews",
+  "reviewer",
+  "testimonial",
+  "ugc",
+  "unboxing",
+  "lifestyle",
+  "scene",
+  "social",
+  "socialmedia",
+  "instagram",
+  "insta",
+  "facebook",
+  "youtube",
+  "twitter",
+  "tiktok",
+  "whatsapp",
+  "pinterest",
+  "camera",
+  "cam",
+  "webcam",
+  "smartphone",
+  "mobile",
+  "phone",
+  "screenshot",
+  "screengrab",
+  "clicked",
+  "snapshot",
+  "dsc",
+  "dscn",
+  // Editorial and scientific imagery.
   "blog",
   "article",
   "video",
   "prescription",
-  "placeholder",
-  "avatar",
-  "flag",
-  "payment",
-  "wallet",
   "illustration",
+  "cartoon",
+  "drawing",
+  "sketch",
+  "painting",
+  "clipart",
   "molecule",
   "skeletal",
   "chemical",
@@ -559,7 +636,7 @@ const BAD_IMAGE_WORDS = new Set([
   "diagram",
   "formula",
   "packshot",
-  "watermark",
+  "placeholder",
 ]);
 
 /** Substrings that mark a file even when glued to another word. */
@@ -570,7 +647,71 @@ const BAD_IMAGE_SUBSTRINGS = [
   "placeholder",
   "no-image",
   "noimage",
+  "clipart",
+  // Customer photos and camera rolls, however the site spells the file name.
+  "customerphoto",
+  "customerreview",
+  "userphoto",
+  "ugcphoto",
+  "lifestylephoto",
+  "personholding",
+  "handheld",
+  "inhand",
+  "phonecamera",
+  "mobilephoto",
+  "cameraphoto",
+  "wearing",
+  "instagram",
+  "socialmedia",
+  "screenshot",
+  "unboxing",
+  "advert",
+  "promotional",
 ];
+
+/**
+ * Hosts that never serve a professional packshot: social media and photo
+ * sharing CDNs hold customer photos, stock-photo libraries sell lifestyle
+ * imagery, and the open wikis hold chemical structures and logos.
+ */
+const BAD_IMAGE_HOSTS = [
+  "cdninstagram",
+  "instagr.am",
+  "scontent",
+  "fbcdn.net",
+  "lookaside",
+  "ytimg",
+  "ggpht",
+  "tiktokcdn",
+  "pinimg",
+  "twimg",
+  "imgur.com",
+  "cdn.discordapp",
+  "googleusercontent",
+  "shutterstock",
+  "istockphoto",
+  "gettyimages",
+  "alamy",
+  "dreamstime",
+  "123rf",
+  "freepik",
+  "vecteezy",
+  "depositphotos",
+  "stockphoto",
+  "pexels",
+  "unsplash",
+  "wikimedia.org",
+  "wikipedia.org",
+];
+
+/**
+ * Camera-roll file names — `IMG_2043.jpg`, `PXL_20230514_093355.jpg`,
+ * `WhatsApp Image 2023-05-14.jpg` — and light stamp-like names. These are
+ * photos someone took, never a catalogue's packshot asset, so they are
+ * rejected outright.
+ */
+const CAMERA_FILE_PATTERN =
+  /^(?:img|image|dsc|dscn|pxl|photo|pic|screenshot|screen[-_]?shot|whatsapp|fb[-_]?img|receive)[-_ ]?\d|^\d{8}[-_ ]?\d{4,6}$/;
 
 /**
  * Can this URL be a product photo at all? Judged on the file name only, with
@@ -580,6 +721,8 @@ function isUsableImageUrl(url: string, identityWords: Set<string>): boolean {
   const lower = url.toLowerCase();
   if (!/^https:\/\//.test(lower)) return false;
   if (!/\.(jpg|jpeg|png|webp)(\?|$)/.test(lower)) return false;
+  // A social-media, stock-photo or wiki host is never a product packshot.
+  if (BAD_IMAGE_HOSTS.some((host) => lower.includes(host))) return false;
 
   const file = (lower.split("?")[0].split("/").pop() ?? "")
     // The catalogue names clean assets "…-non-watermark.jpg"; those are the
@@ -588,6 +731,7 @@ function isUsableImageUrl(url: string, identityWords: Set<string>): boolean {
     .replace(/productsnowatermark/g, "");
 
   const segments = file.split(/[^a-z0-9]+/).filter(Boolean);
+  if (CAMERA_FILE_PATTERN.test(file.replace(/\.[a-z0-9]+$/, ""))) return false;
   for (const segment of segments) {
     if (!BAD_IMAGE_WORDS.has(segment)) continue;
     if (identityWords.has(segment)) continue;
@@ -619,6 +763,34 @@ const WHITE_BACKGROUND_MARKERS = [
 /** File-name markers of a detail, crop or non-packshot view. */
 const DETAIL_MARKERS = ["zoomed", "zoom", "crop", "detail", "macro", "closeup", "texture"];
 
+/** URL path segments that only real catalogue packshots live under. */
+const PACKSHOT_PATH_MARKERS = [
+  "/dam/products/",
+  "/dam/productsnowatermark/",
+  "/media/catalog/product/",
+  "/catalog/product/",
+  "/product-images/",
+  "/productimages/",
+  "/products/",
+];
+
+/**
+ * Generic camera or screenshot file names. Such an image is still real, so it
+ * is ranked rather than rejected, but it must never beat a proper packshot.
+ */
+const GENERIC_PHOTO_MARKERS = [
+  "photo",
+  "photos",
+  "photograph",
+  "picture",
+  "pic",
+  "pics",
+  "img",
+  "image",
+  "images",
+  "shot",
+];
+
 /**
  * Rank a candidate's images the way a product grid should look: a front-facing
  * packshot on a clean background first, then other usable shots, with back
@@ -649,7 +821,10 @@ function imageScore(image: CandidateImage, name: string): number {
 
   if (lower.includes("productsnowatermark")) score += 2;
   else if (lower.includes("-non-watermark")) score += 2;
-  if (lower.includes("/dam/products/")) score += 1;
+  if (PACKSHOT_PATH_MARKERS.some((t) => lower.includes(t))) score += 1;
+  // A phone-camera or screenshot file name says nothing good about the
+  // picture, so it only wins when the record holds nothing better.
+  if (GENERIC_PHOTO_MARKERS.some((t) => fileHasSegment(file, t))) score -= 2;
 
   // The image whose file name mirrors the product name is usually the packshot.
   const nameWords = words(name).slice(0, 3);
@@ -902,6 +1077,28 @@ function nextData(html: string): unknown | null {
 // ── Query variants ──
 
 /**
+ * A pack size is only worth searching when it carries a unit — "100 ml",
+ * "15 tablets", "30 g". A bare count ("1", "10") adds nothing but noise and
+ * makes a catalogue's own search return nothing at all.
+ */
+function informativePackSize(value?: string): string | undefined {
+  const pack = (value ?? "").trim();
+  if (!pack || !/\d/.test(pack) || !/[a-z]/i.test(pack)) return undefined;
+  return pack;
+}
+
+/**
+ * A composition helps a catalogue search only while it is short. A long
+ * chemical list ("Methyl Salicylate + Eucalyptus Oil + Turpentine Oil") is
+ * noise that makes the source's own search return nothing at all.
+ */
+function informativeComposition(value?: string): string | undefined {
+  const composition = (value ?? "").replace(/\s+/g, " ").trim();
+  if (!composition || composition.length > 40) return undefined;
+  return composition;
+}
+
+/**
  * Every precise identity worth searching, most specific first. A source is
  * asked all of them before the next source is tried, so a long name
  * ("Ensure Diabetes Care 950g") still finds the product whose catalogue title
@@ -932,15 +1129,15 @@ function searchVariants(identity: ProductIdentity): string[] {
   // 2. Manufacturer + product name + strength
   push([identity.manufacturer, name, identity.strength]);
   // 3. Product name + pack size + manufacturer
-  push([name, identity.packSize, identity.manufacturer]);
+  push([name, informativePackSize(identity.packSize), identity.manufacturer]);
   // 4. The exact full identity
   push([
     name,
     identity.brand,
     identity.strength,
     identity.form,
-    identity.packSize,
-    identity.composition,
+    informativePackSize(identity.packSize),
+    informativeComposition(identity.composition),
   ]);
   // 5. Plain name, then the leading word, so a differently worded catalogue
   //    title can still be found and verified.
@@ -1122,21 +1319,83 @@ function attrOf(html: string, pattern: RegExp): string | null {
   return match?.[1]?.trim() || null;
 }
 
-function metaImage(html: string, pageUrl: string): string | null {
-  const candidates = [
-    attrOf(html, /<meta[^>]+property=["']og:image:secure_url["'][^>]+content=["']([^"']+)["']/i),
-    attrOf(html, /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image:secure_url["']/i),
-    attrOf(html, /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i),
-    attrOf(html, /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i),
-    attrOf(html, /<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i),
-    attrOf(html, /"image"\s*:\s*("(?:[^"\\]|\\.)*")/i)?.replace(/^"|"$/g, ""),
-  ];
-  for (const candidate of candidates) {
-    if (!candidate) continue;
-    const absolute = absoluteUrl(candidate.replace(/\\\//g, "/"), pageUrl);
-    if (absolute) return absolute;
+/** Image URLs inside a JSON-LD node, however the site nests them. */
+function jsonLdImages(node: unknown, depth = 0): string[] {
+  if (depth > 6 || node === null || typeof node !== "object") return [];
+  if (Array.isArray(node)) {
+    return node.flatMap((item) => jsonLdImages(item, depth + 1));
   }
-  return null;
+  const record = node as RawRecord;
+  const urls: string[] = [];
+  for (const [key, value] of Object.entries(record)) {
+    if (key.toLowerCase() === "image") {
+      if (typeof value === "string") {
+        urls.push(value);
+      } else if (Array.isArray(value)) {
+        for (const item of value) {
+          if (typeof item === "string") {
+            urls.push(item);
+          } else if (item && typeof item === "object") {
+            const nested =
+              asString((item as RawRecord).url) ??
+              asString((item as RawRecord).contentUrl);
+            if (nested) urls.push(nested);
+          }
+        }
+      }
+    } else {
+      urls.push(...jsonLdImages(value, depth + 1));
+    }
+  }
+  return urls;
+}
+
+/**
+ * Every image a verified product page offers: the social/structured-data hero,
+ * the JSON-LD gallery (official sites list front, back, side and detail views
+ * there) and any product-looking <img> on the page. Ranking still decides which
+ * one leads the gallery, so a lifestyle or banner shot never becomes the
+ * packshot while a clean white-background view is available.
+ */
+function pageImages(html: string, pageUrl: string): CandidateImage[] {
+  const found: CandidateImage[] = [];
+  const seen = new Set<string>();
+  const push = (raw: string | null | undefined, face?: string) => {
+    if (!raw) return;
+    const absolute = absoluteUrl(raw.replace(/\\\//g, "/"), pageUrl);
+    if (!absolute) return;
+    const key = absolute.split("?")[0];
+    if (seen.has(key)) return;
+    seen.add(key);
+    found.push({ url: absolute, face });
+  };
+
+  push(attrOf(html, /<meta[^>]+property=["']og:image:secure_url["'][^>]+content=["']([^"']+)["']/i), "front");
+  push(attrOf(html, /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image:secure_url["']/i), "front");
+  push(attrOf(html, /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i), "front");
+  push(attrOf(html, /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i), "front");
+  push(attrOf(html, /<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i));
+
+  const blocks = html.matchAll(
+    /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi,
+  );
+  for (const block of blocks) {
+    let data: unknown;
+    try {
+      data = JSON.parse(block[1]);
+    } catch {
+      continue;
+    }
+    for (const url of jsonLdImages(data)) push(url);
+  }
+
+  const pattern = /<img[^>]+(?:src|data-src|data-zoom-image|data-large_image)=["']([^"']+)["']/gi;
+  let match: RegExpExecArray | null;
+  while (found.length < 16 && (match = pattern.exec(html))) {
+    push(match[1]);
+  }
+
+  return found;
 }
 
 function pageTitle(html: string): string | null {
@@ -1200,8 +1459,8 @@ async function officialSiteCandidates(
         const page = await getText(link, "text/html", SITE_TIMEOUT_MS);
         if (!page) continue;
         const title = pageTitle(page);
-        const image = metaImage(page, link);
-        if (!title || !image) continue;
+        const images = pageImages(page, link);
+        if (!title || images.length === 0) continue;
 
         const scored = scoreCandidate(
           {
@@ -1210,7 +1469,7 @@ async function officialSiteCandidates(
             packText: identity.packSize,
             pageUrl: link,
             source: "official-site",
-            images: [{ url: image, face: "front" }],
+            images,
           },
           rules,
         );
@@ -1680,7 +1939,7 @@ export async function resolveAndStore(
 
   return {
     ok: false,
-    message: "Exact product image could not be verified.",
+    message: "Exact product packshot could not be verified.",
     considered: unique(considered).slice(0, 5),
   };
 }

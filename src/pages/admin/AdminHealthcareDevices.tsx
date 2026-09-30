@@ -462,7 +462,7 @@ export default function AdminHealthcareDevices() {
           imageMessage = image.message;
         }
       } catch {
-        imageMessage = "Exact product image could not be verified.";
+        imageMessage = "Exact product packshot could not be verified.";
       }
 
       setForm(newForm);

@@ -352,7 +352,7 @@ export default function AdminProducts() {
           : "Product image verified",
       );
     } else {
-      toast.error("Exact product image could not be verified.");
+      toast.error("Exact product packshot could not be verified.");
     }
   };
 

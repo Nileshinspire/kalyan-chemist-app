@@ -213,6 +213,114 @@ describe("packshot image filtering", () => {
       ),
     ).toBe(true);
   });
+
+  it("rejects hand-held, customer and lifestyle photos", () => {
+    const identity = { productName: "Dolo 650", brand: "Dolo" };
+    expect(
+      isPackshotImageCandidate(
+        "https://example.com/media/dolo-650-person-holding-strip.jpg",
+        identity,
+      ),
+    ).toBe(false);
+    expect(
+      isPackshotImageCandidate(
+        "https://example.com/media/dolo-650-in-hand.jpg",
+        identity,
+      ),
+    ).toBe(false);
+    expect(
+      isPackshotImageCandidate(
+        "https://example.com/uploads/customer-review-dolo-650.jpg",
+        identity,
+      ),
+    ).toBe(false);
+    expect(
+      isPackshotImageCandidate(
+        "https://example.com/wp-content/uploads/2023/05/dolo-650-lifestyle-shot.jpg",
+        identity,
+      ),
+    ).toBe(false);
+    expect(
+      isPackshotImageCandidate(
+        "https://example.com/assets/dolo-650-camera-closeup.jpg",
+        identity,
+      ),
+    ).toBe(false);
+  });
+
+  it("rejects camera-roll and screenshot file names", () => {
+    const identity = { productName: "Dolo 650", brand: "Dolo" };
+    expect(
+      isPackshotImageCandidate("https://example.com/uploads/IMG_2043.jpg", identity),
+    ).toBe(false);
+    expect(
+      isPackshotImageCandidate(
+        "https://example.com/uploads/PXL_20230514_093355.jpg",
+        identity,
+      ),
+    ).toBe(false);
+    expect(
+      isPackshotImageCandidate(
+        "https://example.com/uploads/WhatsApp_Image_2023-05-14.jpg",
+        identity,
+      ),
+    ).toBe(false);
+    // A catalogue asset whose name merely ends in a digit is untouched.
+    expect(
+      isPackshotImageCandidate(
+        "https://example.com/assets/dolo-650mg-strip-front-2.jpg",
+        identity,
+      ),
+    ).toBe(true);
+  });
+
+  it("rejects social, stock-photo and wiki hosts", () => {
+    const identity = { productName: "Dolo 650", brand: "Dolo" };
+    expect(
+      isPackshotImageCandidate(
+        "https://scontent.cdninstagram.com/v/t51/dolo-650-front.jpg",
+        identity,
+      ),
+    ).toBe(false);
+    expect(
+      isPackshotImageCandidate("https://i.imgur.com/abc123.png", identity),
+    ).toBe(false);
+    expect(
+      isPackshotImageCandidate(
+        "https://upload.wikimedia.org/wikipedia/commons/dolo-650-3d-balls.png",
+        identity,
+      ),
+    ).toBe(false);
+    expect(
+      isPackshotImageCandidate(
+        "https://www.shutterstock.com/image-photo/dolo-650-strip-front.jpg",
+        identity,
+      ),
+    ).toBe(false);
+  });
+
+  it("keeps a clean white-background packshot and name words that look like noise", () => {
+    expect(
+      isPackshotImageCandidate(
+        "https://cdn01.pharmeasy.in/dam/productsnowatermark/022615/dolo-650mg-strip-of-15-tablets-front-2-non-watermark.jpg",
+        { productName: "Dolo 650", brand: "Dolo" },
+      ),
+    ).toBe(true);
+    // "Hand" is this product's own name, not a hand-held photo.
+    expect(
+      isPackshotImageCandidate(
+        "https://example.com/media/dettol-hand-wash-250ml.jpg",
+        { productName: "Dettol Hand Wash", brand: "Dettol" },
+      ),
+    ).toBe(true);
+    // "Arm" belongs to "Arm Sling Support", so its packshot survives too.
+    expect(
+      isPackshotImageCandidate(
+        "https://example.com/media/arm-sling-support.jpg",
+        { productName: "Arm Sling Support" },
+      ),
+    ).toBe(true);
+  });
 });
 
 describe("stored product image audit", () => {

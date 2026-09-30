@@ -260,11 +260,17 @@ export default function ProductDetail() {
   const [purchasersOpen, setPurchasersOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [selectedImage, setSelectedImage] = useState(0);
-  // Image-gallery interaction state. `zoomActive` only flips on enter/leave;
-  // the zoom focus point is written imperatively to the selected image's
-  // transform-origin on mousemove, so tracking never triggers a re-render.
-  const [zoomActive, setZoomActive] = useState(false);
+  // Image-gallery interaction state. This page stays mounted while one product
+  // links to another (related items, search, breadcrumbs), so the selection is
+  // stamped with the product it belongs to: a newly opened product therefore
+  // always starts on its own front packshot instead of carrying over the
+  // thumbnail index picked on the previous one.
+  // `zoomActive` only flips on enter/leave; the zoom focus point is written
+  // imperatively to the selected image's transform-origin on mousemove, so
+  // tracking the cursor never triggers a re-render.
+  const [gallery, setGallery] = useState({ slug, index: 0, zoom: false });
+  const selectedImage = gallery.slug === slug ? gallery.index : 0;
+  const zoomActive = gallery.slug === slug && gallery.zoom;
   const galleryImgRef = useRef<HTMLImageElement | null>(null);
   const [selectedVariantIndex, setSelectedVariantIndex] = useState(0);
   const [activeTab, setActiveTab] = useState("product-info");
@@ -639,7 +645,7 @@ export default function ProductDetail() {
                     <button
                       key={`${img}-${idx}`}
                       type="button"
-                      onClick={() => setSelectedImage(idx)}
+                      onClick={() => setGallery({ slug, index: idx, zoom: false })}
                       aria-label={`Show product image ${idx + 1} of ${allImages.length}`}
                       aria-current={selectedImage === idx}
                       className={`size-16 sm:size-18 lg:size-20 rounded-xl border-2 overflow-hidden shrink-0 transition-all duration-200 bg-gradient-to-br from-primary/[0.03] to-primary/[0.01] flex items-center justify-center cursor-pointer ${
@@ -672,12 +678,16 @@ export default function ProductDetail() {
                 onMouseEnter={(e) => {
                   if (allImages.length === 0) return;
                   setGalleryOrigin(e.clientX, e.clientY);
-                  setZoomActive(true);
+                  setGallery((g) => ({
+                    slug,
+                    index: g.slug === slug ? g.index : 0,
+                    zoom: true,
+                  }));
                 }}
                 onMouseMove={(e) => {
                   if (zoomActive) setGalleryOrigin(e.clientX, e.clientY);
                 }}
-                onMouseLeave={() => setZoomActive(false)}
+                onMouseLeave={() => setGallery((g) => ({ ...g, zoom: false }))}
               >
                 {allImages.length > 0 ? (
                   <AnimatePresence initial={false}>
