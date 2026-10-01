@@ -55,6 +55,8 @@ export default function NewArrivals() {
         .kc-new-arrival .space-y-2\.5 > :not([hidden]) ~ :not([hidden]) {
           margin-top: 0.375rem;
         }
+        /* the card's bottom action row keeps the compact 6px gap here */
+        .kc-new-arrival [class~="pt-2.5"] { padding-top: 0.375rem; }
         .kc-new-arrival .text-sm { font-size: 0.8125rem; line-height: 1.25rem; }
         .kc-new-arrival .text-lg { font-size: 1rem; line-height: 1.5rem; }
         .kc-new-arrival .h-9 { height: 2rem; }

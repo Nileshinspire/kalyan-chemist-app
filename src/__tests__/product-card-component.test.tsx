@@ -181,3 +181,75 @@ describe("ProductCard component", () => {
     }
   });
 });
+
+/* ─── Uniform outer height ───
+ * A card must be exactly as tall as its row / grid track and never as tall as
+ * its own content, so a product with an extra manufacturer or dosage line, a
+ * two-line name or a portrait packshot cannot render a taller card than a
+ * product without them.
+ */
+describe("ProductCard uniform outer height", () => {
+  const CARD = '[data-slot="card"]';
+  const CONTENT = '[data-slot="card-content"]';
+
+  const cardClasses = (overrides: Record<string, unknown> = {}) => {
+    const { container } = renderCard(overrides);
+    return (container.querySelector(CARD) as HTMLElement).className;
+  };
+
+  it("stretches to the track height and lays out as a flex column", () => {
+    const { container } = renderCard();
+    const card = container.querySelector(CARD) as HTMLElement;
+    expect(card.className).toContain("h-full");
+    expect(card.className).toContain("flex-col");
+  });
+
+  it("keeps the image band at its fixed height and unable to shrink", () => {
+    const { container } = renderCard({ imageUrl: "https://example.com/img.jpg" });
+    const band = container.querySelector(".h-44");
+    expect(band).toBeTruthy();
+    expect(band?.className).toContain("shrink-0");
+  });
+
+  it("lets the content section take the remaining space", () => {
+    const { container } = renderCard();
+    const content = container.querySelector(CONTENT) as HTMLElement;
+    expect(content.className).toContain("flex-1");
+    expect(content.className).toContain("flex-col");
+  });
+
+  it("anchors the action row to the bottom of the content section", () => {
+    const { container } = renderCard();
+    const content = container.querySelector(CONTENT) as HTMLElement;
+    const actions = screen.getByText("Buy Now").closest("div") as HTMLElement;
+    expect(actions.className).toContain("mt-auto");
+    // A sibling of the details block, so the free space of a shorter card is
+    // absorbed above it instead of being left under the buttons.
+    expect(actions.parentElement).toBe(content);
+  });
+
+  it("uses identical outer-height classes for completely different products", () => {
+    const tall = cardClasses({
+      name: "Povidone Iodine Antiseptic Solution For Wounds And Cuts 500ml",
+      manufacturer: "Procter & Gamble Health Ltd",
+      form: "syrup",
+      packSize: "1",
+      imageUrl: "https://example.com/portrait.jpg",
+    });
+    const short = cardClasses({
+      name: "nebulizers",
+      manufacturer: "Auditech",
+      packSize: "",
+      imageUrl: "https://example.com/landscape.jpg",
+    });
+    expect(tall).toBe(short);
+  });
+
+  it("never derives width or height from the product image", () => {
+    const portrait = cardClasses({ imageUrl: "https://example.com/portrait.jpg" });
+    const landscape = cardClasses({ imageUrl: "https://example.com/landscape.jpg" });
+    const none = cardClasses({ imageUrl: undefined });
+    expect(portrait).toBe(landscape);
+    expect(portrait).toBe(none);
+  });
+});

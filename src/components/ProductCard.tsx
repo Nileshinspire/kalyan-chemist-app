@@ -481,8 +481,13 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
   }, [convexClient, product.slug]);
 
   return (
+    /* `h-full` + the flex column below are the ONLY sizing rules here: the
+       card fills whatever height its row/grid track gives it, so every card in
+       a row is exactly as tall as the tallest one. Content can no longer make
+       an individual card taller (an extra manufacturer / dosage line, a longer
+       name, a different image aspect ratio) and all bottom edges line up. */
     <Card
-      className="group relative overflow-hidden border-border/60 bg-card cursor-pointer transition-all duration-500 hover:shadow-card-hover hover:border-primary/20 hover:-translate-y-1"
+      className="group relative h-full overflow-hidden border-border/60 bg-card cursor-pointer transition-all duration-500 hover:shadow-card-hover hover:border-primary/20 hover:-translate-y-1"
       onClick={() => goProduct(navigate, location.pathname + location.search, product.slug)}
       onMouseEnter={warmProductDetail}
       onFocus={warmProductDetail}
@@ -501,7 +506,7 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
       {/* Product image placeholder */}
       <div
         ref={imageAreaRef}
-        className="relative flex items-center justify-center bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] h-44 border-b border-border/40 overflow-hidden"
+        className="relative flex shrink-0 items-center justify-center bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] h-44 border-b border-border/40 overflow-hidden"
       >
         <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.08] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
         {realImage ? (
@@ -542,7 +547,10 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
         )}
       </div>
 
-      <CardContent className="p-4">
+      {/* Fixed-height image band above, content filling the rest, action row
+          pinned to the bottom — the card's outer height never depends on the
+          product data or on the image's aspect ratio. */}
+      <CardContent className="flex flex-1 flex-col p-4">
         <div className="space-y-2.5">
           <div className="flex flex-wrap gap-1.5">
             {product.prescriptionRequired && (
@@ -586,31 +594,37 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
             )}
           </div>
 
-          {/* In the 2-column grids a card is only ~140px wide on a small phone,
-              where "Buy Now" + "Cart" no longer fit side by side. The row wraps
-              so the same two buttons stack instead of colliding; from `sm` up
-              there is room, nothing wraps, and the card is unchanged. */}
-          <div className="flex flex-wrap gap-2">
-            <Button
-              size="sm"
-              className="flex-1 h-9 px-2 sm:px-3 text-xs font-semibold gap-1 gradient-primary text-white shadow-sm hover:shadow-glow transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
-              onClick={handleBuyNow}
-              disabled={product.stockQuantity === 0}
-            >
-              <Zap className="size-3" />
-              {product.stockQuantity === 0 ? "Out of Stock" : "Buy Now"}
-            </Button>
-            <Button
-              size="sm"
-              variant="secondary"
-              className="h-9 px-2 sm:px-3 text-xs font-semibold gap-1 border border-border/60 hover:border-primary/30 hover:bg-primary/[0.03] transition-all duration-300"
-              onClick={handleAddToCart}
-              disabled={product.stockQuantity === 0}
-            >
-              <ShoppingCart className="size-3" />
-              Cart
-            </Button>
-          </div>
+        </div>
+
+        {/* In the 2-column grids a card is only ~140px wide on a small phone,
+            where "Buy Now" + "Cart" no longer fit side by side. The row wraps
+            so the same two buttons stack instead of colliding; from `sm` up
+            there is room, nothing wraps, and the card is unchanged.
+
+            It is a sibling of the details block (not a child of it) and takes
+            `mt-auto`, so the free space of a shorter card is absorbed above it
+            and every card's buttons sit on the same bottom line. `pt-2.5`
+            keeps the gap that the details block's `space-y-2.5` used to give. */}
+        <div className="mt-auto flex flex-wrap gap-2 pt-2.5">
+          <Button
+            size="sm"
+            className="flex-1 h-9 px-2 sm:px-3 text-xs font-semibold gap-1 gradient-primary text-white shadow-sm hover:shadow-glow transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+            onClick={handleBuyNow}
+            disabled={product.stockQuantity === 0}
+          >
+            <Zap className="size-3" />
+            {product.stockQuantity === 0 ? "Out of Stock" : "Buy Now"}
+          </Button>
+          <Button
+            size="sm"
+            variant="secondary"
+            className="h-9 px-2 sm:px-3 text-xs font-semibold gap-1 border border-border/60 hover:border-primary/30 hover:bg-primary/[0.03] transition-all duration-300"
+            onClick={handleAddToCart}
+            disabled={product.stockQuantity === 0}
+          >
+            <ShoppingCart className="size-3" />
+            Cart
+          </Button>
         </div>
       </CardContent>
     </Card>
