@@ -508,8 +508,12 @@ const Navbar = memo(function Navbar() {
         </div>
       </nav>
       )}
+      {/* SubNav carries Row 2 (quick actions) and Row 3 (green category nav) on
+          inner pages. It lives INSIDE the sticky <header> so the whole existing
+          stack (Row 1 → 2 → 3) sticks as one block. On the homepage Row 3 is
+          already rendered above and SubNav is not used. */}
+      {!isHomePage && <SubNav />}
     </header>
-    {!isHomePage && <SubNav />}
     </>);
 });
 
