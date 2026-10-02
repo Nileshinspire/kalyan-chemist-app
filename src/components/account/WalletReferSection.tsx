@@ -18,6 +18,11 @@ import {
   Link2,
   Send,
   MoreHorizontal,
+  Facebook,
+  Twitter,
+  Linkedin,
+  Mail,
+  MessageSquare,
 } from "lucide-react";
 import { toast } from "sonner";
 import { HOW_IT_WORKS_STEPS } from "@/convex/referralWalletCore";
@@ -109,26 +114,19 @@ export default function WalletReferSection() {
 
   // Slightly more professional copy used by the in-app share popover. Both are
   // built from the customer's own generated code/link — nothing is hardcoded.
-  const popoverShareText = `Join Kalyan Chemist using my referral link and get started with easy online pharmacy shopping:\n\n${referralLink}`;
+  const shareMessage =
+    "Join Kalyan Chemist using my referral link and get started with easy online pharmacy shopping:";
+  const popoverShareText = `${shareMessage}\n\n${referralLink}`;
 
   const handleWhatsApp = () => {
     if (!referralLink) return;
     window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`, "_blank", "noopener");
   };
 
-  const handleShareWhatsApp = () => {
+  const openShareUrl = (url: string) => {
     if (!referralLink) return;
     setShareOpen(false);
-    window.open(`https://wa.me/?text=${encodeURIComponent(popoverShareText)}`, "_blank", "noopener");
-  };
-
-  const handleShareTelegram = () => {
-    if (!referralLink) return;
-    setShareOpen(false);
-    const telegramUrl = `https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(
-      "Join Kalyan Chemist using my referral link and get started with easy online pharmacy shopping:",
-    )}`;
-    window.open(telegramUrl, "_blank", "noopener");
+    window.open(url, "_blank", "noopener,noreferrer");
   };
 
   const handleShareCopyLink = async () => {
@@ -137,8 +135,8 @@ export default function WalletReferSection() {
   };
 
   /**
-   * "More / Other apps" — the only place the OS/browser share sheet is used.
-   * It is never the primary desktop Share action.
+   * "More Apps" — the only place the OS/browser share sheet is used, for apps
+   * that have no reliable web share URL. Never the primary desktop action.
    */
   const handleShareMore = async () => {
     setShareOpen(false);
@@ -156,6 +154,83 @@ export default function WalletReferSection() {
       // Customer dismissed the share sheet — nothing to do.
     }
   };
+
+  /**
+   * Every entry shares the customer's real referral link. WhatsApp is
+   * deliberately absent: it has its own dedicated button next to "Share".
+   */
+  const shareTargets = [
+    {
+      key: "telegram",
+      label: "Telegram",
+      icon: Send,
+      iconClass: "text-sky-600",
+      onSelect: () =>
+        openShareUrl(
+          `https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(
+            shareMessage,
+          )}`,
+        ),
+    },
+    {
+      key: "facebook",
+      label: "Facebook",
+      icon: Facebook,
+      iconClass: "text-[#1877F2]",
+      onSelect: () =>
+        openShareUrl(
+          `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(referralLink)}`,
+        ),
+    },
+    {
+      key: "x",
+      label: "X / Twitter",
+      icon: Twitter,
+      iconClass: "text-foreground",
+      onSelect: () =>
+        openShareUrl(
+          `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareMessage)}&url=${encodeURIComponent(
+            referralLink,
+          )}`,
+        ),
+    },
+    {
+      key: "linkedin",
+      label: "LinkedIn",
+      icon: Linkedin,
+      iconClass: "text-[#0A66C2]",
+      onSelect: () =>
+        openShareUrl(
+          `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(referralLink)}`,
+        ),
+    },
+    {
+      key: "email",
+      label: "Email",
+      icon: Mail,
+      iconClass: "text-amber-600",
+      onSelect: () => {
+        if (!referralLink) return;
+        setShareOpen(false);
+        window.location.href = `mailto:?subject=${encodeURIComponent(
+          "Shop medicines online with Kalyan Chemist",
+        )}&body=${encodeURIComponent(`${shareMessage}\n\n${referralLink}`)}`;
+      },
+    },
+    {
+      key: "sms",
+      label: "SMS / Messages",
+      icon: MessageSquare,
+      iconClass: "text-emerald-600",
+      onSelect: () => {
+        if (!referralLink) return;
+        setShareOpen(false);
+        window.location.href = `sms:?&body=${encodeURIComponent(
+          `${shareMessage} ${referralLink}`,
+        )}`;
+      },
+    },
+  ];
 
   if (dashboard === undefined) {
     return (
@@ -283,21 +358,13 @@ export default function WalletReferSection() {
               <PopoverContent
                 align="start"
                 sideOffset={6}
-                className="w-[17rem] max-w-[calc(100vw-2rem)] rounded-xl p-2"
+                className="w-[17.5rem] max-w-[calc(100vw-2rem)] rounded-xl p-2"
               >
                 <div className="px-2 pb-1.5 pt-1">
                   <p className="text-xs font-semibold text-foreground">Share your referral link</p>
                   <p className="truncate text-[11px] text-muted-foreground">{referralLink}</p>
                 </div>
                 <div className="space-y-0.5">
-                  <button
-                    type="button"
-                    onClick={handleShareWhatsApp}
-                    className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    <MessageCircle className="size-4 shrink-0 text-emerald-600" aria-hidden="true" />
-                    WhatsApp
-                  </button>
                   <button
                     type="button"
                     onClick={handleShareCopyLink}
@@ -310,21 +377,27 @@ export default function WalletReferSection() {
                     )}
                     Copy Link
                   </button>
-                  <button
-                    type="button"
-                    onClick={handleShareTelegram}
-                    className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    <Send className="size-4 shrink-0 text-sky-600" aria-hidden="true" />
-                    Telegram
-                  </button>
+                  {shareTargets.map((target) => {
+                    const Icon = target.icon;
+                    return (
+                      <button
+                        key={target.key}
+                        type="button"
+                        onClick={target.onSelect}
+                        className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      >
+                        <Icon className={`size-4 shrink-0 ${target.iconClass}`} aria-hidden="true" />
+                        {target.label}
+                      </button>
+                    );
+                  })}
                   <button
                     type="button"
                     onClick={handleShareMore}
                     className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     <MoreHorizontal className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-                    More / Other apps
+                    More Apps
                   </button>
                 </div>
               </PopoverContent>
