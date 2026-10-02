@@ -152,7 +152,11 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
   const method: Method = preferredMethod;
 
   useEffect(() => {
-    if (authLoading || !isAuthenticated || referralClaimed.current) return;
+    // Wait for the user document as well as the token handshake: the default
+    // destination below depends on `user.role`, so deciding earlier could send
+    // an admin who just signed in to the customer dashboard.
+    if (authLoading || !isAuthenticated || user === undefined) return;
+    if (referralClaimed.current) return;
     referralClaimed.current = true;
 
     let stored: string | null = null;
@@ -181,7 +185,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
     claimReferral({ code: stored })
       .catch(() => undefined)
       .finally(() => navigate(redirect));
-  }, [authLoading, isAuthenticated, navigate, redirect, claimReferral]);
+  }, [authLoading, isAuthenticated, user, navigate, redirect, claimReferral]);
 
   // Resend countdown. Runs only while a code is on screen and ticking down.
   useEffect(() => {

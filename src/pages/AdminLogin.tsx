@@ -1,10 +1,11 @@
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import { useEffect, useRef } from "react";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
 function AdminLoginPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { isAuthenticated, isAdmin, isLoading, user } = useAuth();
 
   // When the admin login page itself becomes authenticated (for example after an
@@ -16,7 +17,10 @@ function AdminLoginPage() {
   // Explicit admin `returnTo` is always honored. Otherwise an admin sign-in
   // always ends up on the admin panel, never on the customer Account page.
   const desiredAdminReturnTo = (() => {
-    const raw = new URLSearchParams(window.location.search).get("returnTo");
+    // Read the query from the router, not `window.location.search`: this app
+    // runs on a HashRouter, so `/admin/login?returnTo=...` lives in the hash
+    // fragment and would otherwise be invisible here.
+    const raw = searchParams.get("returnTo");
     if (raw?.startsWith("/") && !raw.startsWith("//")) {
       return raw;
     }
