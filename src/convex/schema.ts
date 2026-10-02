@@ -278,6 +278,95 @@ const schema = defineSchema(
       .index("by_cacheKey", ["cacheKey"])
       .index("by_updatedAt", ["updatedAt"]),
 
+    // ── Master Product Catalog ──
+    // The verified product layer the Admin Auto Fill reads. One row per exact
+    // product variant imported from the admin's licensed dataset (CSV/XLSX +
+    // image ZIP or a configured provider API). This table is deliberately
+    // separate from `products`: existing product ids, orders and wishlists are
+    // never touched by an import, and a catalog row never becomes a product
+    // until the admin reviews and publishes it through the existing form.
+    masterCatalog: defineTable({
+      /** Stable identifier for this exact variant within the catalog. */
+      catalogProductId: v.string(),
+      canonicalProductName: v.string(),
+      /** Case/punctuation-folded name — the indexed autocomplete search field. */
+      normalizedName: v.string(),
+      /**
+       * Variant identity: name + strength + form + pack + manufacturer. Two
+       * different variants (Dolo 650 vs Dolo 500) can never share a key, and a
+       * re-import of the same dataset lands on the same row.
+       */
+      identityKey: v.string(),
+      brand: v.optional(v.string()),
+      manufacturer: v.optional(v.string()),
+      composition: v.optional(v.string()),
+      /** Folded composition, so salt lookups are an indexed prefix scan. */
+      normalizedComposition: v.optional(v.string()),
+      strength: v.optional(v.string()),
+      dosageForm: v.optional(v.string()),
+      packSize: v.optional(v.string()),
+      sku: v.optional(v.string()),
+      gtin: v.optional(v.string()),
+      category: v.optional(v.string()),
+      prescriptionRequired: v.optional(v.boolean()),
+      description: v.optional(v.string()),
+      benefits: v.optional(v.string()),
+      directions: v.optional(v.string()),
+      safety: v.optional(v.string()),
+      storage: v.optional(v.string()),
+      mrp: v.optional(v.number()),
+      /** Stored Convex-storage URL of the front packshot of THIS record. */
+      primaryImage: v.optional(v.string()),
+      /** Genuine other views of the same record, front → back → side order. */
+      additionalImages: v.optional(v.array(v.string())),
+      imageSource: v.optional(v.string()),
+      /** Where the stored image came from, kept with the image itself. */
+      imageProvenance: v.optional(v.object({
+        source: v.optional(v.string()),
+        sourceProductId: v.optional(v.string()),
+        originalUrl: v.optional(v.string()),
+        filename: v.optional(v.string()),
+        importedAt: v.number(),
+        processedAt: v.optional(v.number()),
+      })),
+      sourceProductId: v.optional(v.string()),
+      sourceUrl: v.optional(v.string()),
+      verificationStatus: v.union(
+        v.literal("VERIFIED"),
+        v.literal("NEEDS_REVIEW"),
+        v.literal("NEEDS_IMAGE"),
+      ),
+      /** Import/version bookkeeping for re-imports. */
+      importBatchId: v.optional(v.string()),
+      importedAt: v.optional(v.number()),
+      createdAt: v.number(),
+      updatedAt: v.number(),
+    })
+      .index("by_catalogProductId", ["catalogProductId"])
+      .index("by_identityKey", ["identityKey"])
+      .index("by_normalizedName", ["normalizedName"])
+      .index("by_normalizedComposition", ["normalizedComposition"])
+      .index("by_brand", ["brand"])
+      .index("by_manufacturer", ["manufacturer"])
+      .index("by_sku", ["sku"])
+      .index("by_gtin", ["gtin"])
+      .index("by_sourceProductId", ["sourceProductId"])
+      .index("by_verificationStatus", ["verificationStatus"]),
+
+    // ── Import batches (audit trail of every dataset/image import) ──
+    masterCatalogImports: defineTable({
+      batchId: v.string(),
+      fileName: v.optional(v.string()),
+      imageFileName: v.optional(v.string()),
+      recordsCreated: v.number(),
+      recordsUpdated: v.number(),
+      imagesStored: v.number(),
+      imagesUnmatched: v.number(),
+      finishedAt: v.number(),
+    })
+      .index("by_finishedAt", ["finishedAt"])
+      .index("by_batchId", ["batchId"]),
+
     // ── Inventory adjustment logs ──
     inventory_logs: defineTable({
       productId: v.id("products"),
