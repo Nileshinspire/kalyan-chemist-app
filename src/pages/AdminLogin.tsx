@@ -1,20 +1,69 @@
 import { useNavigate } from "react-router";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
 function AdminLoginPage() {
   const navigate = useNavigate();
-  const { isAuthenticated, isAdmin, isLoading } = useAuth();
+  const { isAuthenticated, isAdmin, isLoading, user } = useAuth();
+
+  // When the admin login page itself becomes authenticated (for example after an
+  // in-page sign-in flow completes on /admin/login), keep the default landing on
+  // the admin panel and still honor any explicit admin returnTo.
+  const handledRef = useRef(false);
+
+  // Determine the correct post-sign-in destination for an administrator.
+  // Explicit admin `returnTo` is always honored. Otherwise an admin sign-in
+  // always ends up on the admin panel, never on the customer Account page.
+  const desiredAdminReturnTo = (() => {
+    const raw = new URLSearchParams(window.location.search).get("returnTo");
+    if (raw?.startsWith("/") && !raw.startsWith("//")) {
+      return raw;
+    }
+    return "/admin";
+  })();
+
+  // Defer the admin-destination decision until the user document has loaded,
+  // so `isAdmin` is never guessed from an empty user while the auth handshake
+  // is already authenticated. Guessing wrong would send a real admin to the
+  // home page and lock them out of the admin flow for the rest of the visit
+  // because `handledRef.current` would already be true.
+  const isUserReady = user !== undefined && user !== null;
 
   useEffect(() => {
-    if (!isLoading && isAuthenticated && isAdmin) {
-      navigate("/admin", { replace: true });
-    } else if (!isLoading && !isAuthenticated) {
-      // Redirect to /auth page for email OTP sign-in, then to /admin
-      navigate("/auth?returnTo=/admin", { replace: true });
+    if (isLoading || handledRef.current) {
+      return;
     }
-  }, [isLoading, isAuthenticated, isAdmin, navigate]);
+
+    if (!isUserReady) {
+      // User document not loaded yet — wait for it before deciding.
+      return;
+    }
+
+    if (isAuthenticated && isAdmin) {
+      handledRef.current = true;
+      // Already an authenticated admin — send them to the admin panel.
+      // Honor an explicit admin returnTo (e.g. /admin/products) when present,
+      // otherwise land on the admin dashboard by default.
+      navigate(desiredAdminReturnTo, { replace: true });
+      return;
+    }
+
+    if (!isAuthenticated) {
+      // Send the admin to the shared sign-in page first.
+      // Preserve an explicit admin returnTo, otherwise default to /admin.
+      navigate(
+        `/auth?returnTo=${encodeURIComponent(desiredAdminReturnTo)}`,
+        { replace: true },
+      );
+      return;
+    }
+
+    // Authenticated but not an admin: keep them out of the admin flow.
+    // This branch is defensive; RequireAuth already blocks non-admins from
+    // protected admin routes. A normal customer must not be treated as an admin.
+    navigate("/", { replace: true });
+  }, [isLoading, isUserReady, isAuthenticated, isAdmin, navigate, desiredAdminReturnTo]);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-primary/[0.03] to-background">

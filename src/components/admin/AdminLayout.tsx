@@ -33,6 +33,7 @@ import {
   Bot,
   Activity,
   Megaphone,
+  Wallet,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -57,6 +58,7 @@ const NAV_ITEMS = [
   { label: "Medicine Refills", path: "/admin/refills", icon: RefreshCw },
   { label: "AI Chatbot", path: "/admin/chatbot", icon: Bot },
   { label: "Appointments", path: "/admin/appointments", icon: CalendarClock },
+  { label: "Referral & Wallet", path: "/admin/referral-wallet", icon: Wallet },
   { label: "Settings", path: "/admin/settings", icon: Settings },
   { label: "Activity Log", path: "/admin/activity", icon: History },
 ];

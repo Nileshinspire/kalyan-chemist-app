@@ -68,6 +68,7 @@ const AdminPrescriptions = lazy(() => import("./pages/admin/AdminPrescriptions")
 const AdminExpiringMedicines = lazy(() => import("./pages/admin/AdminExpiringMedicines"));
 const AdminSettings = lazy(() => import("./pages/admin/AdminSettings"));
 const AdminActivityLog = lazy(() => import("./pages/admin/AdminActivityLog"));
+const AdminReferralWallet = lazy(() => import("./pages/admin/AdminReferralWalletPage"));
 import CategoriesPage from "./pages/Categories.tsx";
 import BrandsPage from "./pages/Brands.tsx";
 import NotFound from "./pages/NotFound.tsx";
@@ -642,6 +643,17 @@ function AnimatedRoutes() {
             <RequireAuth adminOnly>
                 <Suspense fallback={<RouteLoading />}>
                   <AdminActivityLog />
+                </Suspense>
+              </RequireAuth>
+            
+          }
+        />
+        <Route
+          path="/admin/referral-wallet"
+          element={
+            <RequireAuth adminOnly>
+                <Suspense fallback={<RouteLoading />}>
+                  <AdminReferralWallet />
                 </Suspense>
               </RequireAuth>
             

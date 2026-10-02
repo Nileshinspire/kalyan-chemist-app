@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import AdminLayout from "@/components/admin/AdminLayout";
-import AdminReferralWallet from "@/components/admin/AdminReferralWallet";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -167,8 +166,6 @@ export default function AdminSettings() {
           </div>
         </motion.div>
 
-        {/* Referral & Wallet management (part of the existing admin panel) */}
-        <AdminReferralWallet />
       </div>
     </AdminLayout>
   );

@@ -95,12 +95,17 @@ function friendlyError(
 }
 
 function Auth({ redirectAfterAuth }: AuthProps = {}) {
-  const { isLoading: authLoading, isAuthenticated, signIn } = useAuth();
+  const { isLoading: authLoading, isAuthenticated, user, signIn } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const redirect = resolveRedirectAfterAuth(
     searchParams.get("returnTo"),
-    redirectAfterAuth,
+    // Administrators signing in through the shared sign-in page must never land
+    // on the customer Account page. When no explicit returnTo is present, send
+    // admins to the admin panel and everyone else to the customer dashboard.
+    user?.role === "admin"
+      ? "/admin"
+      : redirectAfterAuth,
   );
 
   // Referral link capture. The ?ref= code is stored locally before signup and
@@ -162,6 +167,11 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
       // ignore
     }
 
+    // Preserve existing customer behavior: once signed in, the shared sign-in
+    // page normally sends people to their account/dashboard by default.
+    // Administrators explicitly signing in through /admin/login are routed
+    // elsewhere by that entry point before this effect runs, so this default
+    // must not pull an admin onto the customer Account page.
     if (!stored) {
       navigate(redirect);
       return;
