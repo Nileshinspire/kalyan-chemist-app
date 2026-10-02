@@ -4,6 +4,7 @@ import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Wallet,
   Users,
@@ -14,6 +15,9 @@ import {
   MessageCircle,
   TrendingUp,
   Clock,
+  Link2,
+  Send,
+  MoreHorizontal,
 } from "lucide-react";
 import { toast } from "sonner";
 import { HOW_IT_WORKS_STEPS } from "@/convex/referralWalletCore";
@@ -71,6 +75,7 @@ export default function WalletReferSection() {
   const dashboard = useQuery(api.referralWallet.getMyReferralDashboard);
   const ensureReferralCode = useMutation(api.referralWallet.ensureReferralCode);
   const [copied, setCopied] = useState<"code" | "link" | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
 
   // Every authenticated customer automatically gets a referral code. The
   // dashboard reads it; if it has not been generated yet, ask the server to
@@ -99,24 +104,57 @@ export default function WalletReferSection() {
     }
   };
 
+  // Message used by the existing "Share on WhatsApp" button — unchanged.
   const shareText = `Get your medicines from Kalyan Chemist. Use my referral code ${referralCode}: ${referralLink}`;
 
-  const handleShare = async () => {
-    const nav = typeof navigator !== "undefined" ? (navigator as Navigator & { share?: (data: ShareData) => Promise<void> }) : undefined;
-    if (nav?.share) {
-      try {
-        await nav.share({ title: "Kalyan Chemist", text: shareText });
-        return;
-      } catch {
-        // User cancelled or share unavailable — fall through to copy.
-      }
-    }
-    await copy(referralLink, "link");
-  };
+  // Slightly more professional copy used by the in-app share popover. Both are
+  // built from the customer's own generated code/link — nothing is hardcoded.
+  const popoverShareText = `Join Kalyan Chemist using my referral link and get started with easy online pharmacy shopping:\n\n${referralLink}`;
 
   const handleWhatsApp = () => {
     if (!referralLink) return;
     window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`, "_blank", "noopener");
+  };
+
+  const handleShareWhatsApp = () => {
+    if (!referralLink) return;
+    setShareOpen(false);
+    window.open(`https://wa.me/?text=${encodeURIComponent(popoverShareText)}`, "_blank", "noopener");
+  };
+
+  const handleShareTelegram = () => {
+    if (!referralLink) return;
+    setShareOpen(false);
+    const telegramUrl = `https://t.me/share/url?url=${encodeURIComponent(referralLink)}&text=${encodeURIComponent(
+      "Join Kalyan Chemist using my referral link and get started with easy online pharmacy shopping:",
+    )}`;
+    window.open(telegramUrl, "_blank", "noopener");
+  };
+
+  const handleShareCopyLink = async () => {
+    setShareOpen(false);
+    await copy(referralLink, "link");
+  };
+
+  /**
+   * "More / Other apps" — the only place the OS/browser share sheet is used.
+   * It is never the primary desktop Share action.
+   */
+  const handleShareMore = async () => {
+    setShareOpen(false);
+    const nav =
+      typeof navigator !== "undefined"
+        ? (navigator as Navigator & { share?: (data: ShareData) => Promise<void> })
+        : undefined;
+    if (!nav?.share) {
+      toast.error("Sharing isn't supported on this device. Please copy the link instead.");
+      return;
+    }
+    try {
+      await nav.share({ title: "Kalyan Chemist", text: popoverShareText, url: referralLink });
+    } catch {
+      // Customer dismissed the share sheet — nothing to do.
+    }
   };
 
   if (dashboard === undefined) {
@@ -233,10 +271,64 @@ export default function WalletReferSection() {
           </div>
 
           <div className="mt-3 flex flex-wrap gap-2">
-            <Button size="sm" className="gap-1.5 rounded-lg" onClick={handleShare} disabled={!referralLink}>
-              <Share2 className="size-3.5" />
-              Share
-            </Button>
+            {/* The primary Share button opens our own compact popover instead of
+                the browser's generic share dialog. */}
+            <Popover open={shareOpen} onOpenChange={setShareOpen}>
+              <PopoverTrigger asChild>
+                <Button size="sm" className="gap-1.5 rounded-lg" disabled={!referralLink}>
+                  <Share2 className="size-3.5" aria-hidden="true" />
+                  Share
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent
+                align="start"
+                sideOffset={6}
+                className="w-[17rem] max-w-[calc(100vw-2rem)] rounded-xl p-2"
+              >
+                <div className="px-2 pb-1.5 pt-1">
+                  <p className="text-xs font-semibold text-foreground">Share your referral link</p>
+                  <p className="truncate text-[11px] text-muted-foreground">{referralLink}</p>
+                </div>
+                <div className="space-y-0.5">
+                  <button
+                    type="button"
+                    onClick={handleShareWhatsApp}
+                    className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <MessageCircle className="size-4 shrink-0 text-emerald-600" aria-hidden="true" />
+                    WhatsApp
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleShareCopyLink}
+                    className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    {copied === "link" ? (
+                      <Check className="size-4 shrink-0 text-primary" aria-hidden="true" />
+                    ) : (
+                      <Link2 className="size-4 shrink-0 text-primary" aria-hidden="true" />
+                    )}
+                    Copy Link
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleShareTelegram}
+                    className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <Send className="size-4 shrink-0 text-sky-600" aria-hidden="true" />
+                    Telegram
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleShareMore}
+                    className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <MoreHorizontal className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                    More / Other apps
+                  </button>
+                </div>
+              </PopoverContent>
+            </Popover>
             <Button
               size="sm"
               variant="outline"
@@ -244,7 +336,7 @@ export default function WalletReferSection() {
               onClick={handleWhatsApp}
               disabled={!referralLink}
             >
-              <MessageCircle className="size-3.5" />
+              <MessageCircle className="size-3.5" aria-hidden="true" />
               Share on WhatsApp
             </Button>
           </div>
