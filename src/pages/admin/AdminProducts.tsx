@@ -5,6 +5,7 @@ import {
   CATALOG_PRODUCT_NOT_FOUND_MESSAGE,
 } from "@/convex/masterCatalogCore";
 import MasterCatalogImportDialog from "./MasterCatalogImportDialog";
+import MasterCatalogBrowser from "./MasterCatalogBrowser";
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import AdminLayout from "@/components/admin/AdminLayout";
@@ -1138,6 +1139,9 @@ export default function AdminProducts() {
         </Card>
 
         <p className="text-xs text-muted-foreground">{products?.length ?? 0} product(s) total</p>
+
+        {/* Read-only window into the verified catalog Auto Fill reads. */}
+        <MasterCatalogBrowser />
 
         {/* Create/Edit Dialog */}
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>

@@ -15,6 +15,7 @@
  * substituted or hotlinked.
  */
 import { getAuthUserId } from "@convex-dev/auth/server";
+import { paginationOptsValidator } from "convex/server";
 import {
   action,
   internalMutation,
@@ -824,6 +825,55 @@ export const stats = query({
       byStatus,
       lastImport: lastBatch[0] ?? null,
     };
+  },
+});
+
+/**
+ * Browser feed for the admin Products page: catalog records filtered by
+ * verification status (and optionally a name search), newest first and
+ * bounded by Convex pagination. Status tabs page over the status index and a
+ * search pages over the normalized-name index, so the full catalog is never
+ * read in one go.
+ */
+export const listRecords = query({
+  args: {
+    status: v.optional(statusValidator),
+    search: v.optional(v.string()),
+    paginationOpts: paginationOptsValidator,
+  },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    const search = normalizeName(args.search ?? "");
+    const status = args.status;
+
+    // Name search: page over the indexed prefix, then apply the status tab to
+    // that page (pages can come back shorter; pagination stays complete).
+    if (search.length >= 2) {
+      const result = await ctx.db
+        .query("masterCatalog")
+        .withIndex("by_normalizedName", (q) =>
+          q.gte("normalizedName", search).lt("normalizedName", `${search}\uffff`),
+        )
+        .paginate(args.paginationOpts);
+      return {
+        ...result,
+        page: status
+          ? result.page.filter((row) => row.verificationStatus === status)
+          : result.page,
+      };
+    }
+
+    if (status) {
+      return await ctx.db
+        .query("masterCatalog")
+        .withIndex("by_verificationStatus", (q) =>
+          q.eq("verificationStatus", status),
+        )
+        .order("desc")
+        .paginate(args.paginationOpts);
+    }
+
+    return await ctx.db.query("masterCatalog").order("desc").paginate(args.paginationOpts);
   },
 });
 
