@@ -27,12 +27,12 @@ function AdminLoginPage() {
     return "/admin";
   })();
 
-  // Defer the admin-destination decision until the user document has loaded,
-  // so `isAdmin` is never guessed from an empty user while the auth handshake
-  // is already authenticated. Guessing wrong would send a real admin to the
-  // home page and lock them out of the admin flow for the rest of the visit
-  // because `handledRef.current` would already be true.
-  const isUserReady = user !== undefined && user !== null;
+  // Wait only until the user document is *known* (`undefined` = still loading).
+  // A resolved `null` means "not signed in" and must redirect to sign-in, so it
+  // must NOT block the decision. Guessing while the document is still loading
+  // would send a real admin to the home page and lock them out of the admin
+  // flow, because `handledRef.current` would already be true.
+  const isUserReady = user !== undefined;
 
   useEffect(() => {
     if (isLoading || handledRef.current) {
@@ -40,7 +40,7 @@ function AdminLoginPage() {
     }
 
     if (!isUserReady) {
-      // User document not loaded yet — wait for it before deciding.
+      // User document still loading — wait for it before deciding.
       return;
     }
 

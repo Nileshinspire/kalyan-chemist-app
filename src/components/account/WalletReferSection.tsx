@@ -16,6 +16,7 @@ import {
   Clock,
 } from "lucide-react";
 import { toast } from "sonner";
+import { HOW_IT_WORKS_STEPS } from "@/convex/referralWalletCore";
 
 function formatRupees(value: number): string {
   return `₹${Math.round(value).toLocaleString("en-IN")}`;
@@ -36,6 +37,7 @@ function statusClass(status: string): string {
       return "bg-emerald-500/10 text-emerald-700 border-emerald-500/20";
     case "REVERSED":
     case "CANCELLED":
+    case "BLOCKED":
       return "bg-red-500/10 text-red-600 border-red-500/20";
     case "QUALIFIED":
       return "bg-blue-500/10 text-blue-600 border-blue-500/20";
@@ -51,6 +53,8 @@ type ReferralRow = {
   statusLabel: string;
   reward: number;
   createdAt: number;
+  rewardedAt?: number;
+  rewardExpiresAt?: number;
 };
 
 type TransactionRow = {
@@ -147,15 +151,43 @@ export default function WalletReferSection() {
                 Available Wallet Balance
               </p>
               <p className="text-3xl font-extrabold tracking-tight text-foreground mt-1">
-                {formatRupees(dashboard.balance)}
+                {formatRupees(dashboard.spendable)}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                Refer &amp; Earn
+              </p>
+              <p className="text-lg font-bold text-foreground">
+                {dashboard.stats.totalRewards > 0
+                  ? formatRupees(dashboard.stats.totalRewards)
+                  : "Refer a friend"}
               </p>
             </div>
           </div>
 
-          <p className="mt-4 text-sm text-muted-foreground">
-            Refer a friend → they place their first eligible order → you earn wallet credit you can
-            use on future orders.
-          </p>
+          {dashboard.expiringSoon.length > 0 && (
+            <p className="mt-2 text-xs text-amber-700">
+              {formatRupees(
+                dashboard.expiringSoon.reduce((sum, credit) => sum + credit.amount, 0),
+              )}{" "}
+              of your wallet balance expires on{" "}
+              {formatDate(Math.min(...dashboard.expiringSoon.map((c) => c.expiresAt ?? Infinity)))}.
+              Use it before then to make the most of it.
+            </p>
+          )}
+
+          {/* How it works — three plain steps, nothing technical. */}
+          <ol className="mt-4 space-y-1.5">
+            {HOW_IT_WORKS_STEPS.map((step, index) => (
+              <li key={step} className="flex items-start gap-2 text-sm text-muted-foreground">
+                <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[11px] font-semibold text-primary">
+                  {index + 1}
+                </span>
+                {step}
+              </li>
+            ))}
+          </ol>
 
           {/* Referral code + link */}
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
@@ -228,6 +260,7 @@ export default function WalletReferSection() {
               <span className="text-xs font-medium">Successful Referrals</span>
             </div>
             <p className="mt-1 text-xl font-bold text-foreground">{dashboard.stats.successful}</p>
+            <p className="text-[11px] text-muted-foreground">reward added to your wallet</p>
           </CardContent>
         </Card>
         <Card className="border-border/60 rounded-2xl">
@@ -237,6 +270,7 @@ export default function WalletReferSection() {
               <span className="text-xs font-medium">Pending Referrals</span>
             </div>
             <p className="mt-1 text-xl font-bold text-foreground">{dashboard.stats.pending}</p>
+            <p className="text-[11px] text-muted-foreground">waiting on their first order</p>
           </CardContent>
         </Card>
         <Card className="border-border/60 rounded-2xl">
@@ -270,6 +304,21 @@ export default function WalletReferSection() {
                     {row.status === "PENDING" && (
                       <p className="text-xs text-muted-foreground">
                         Waiting for the referred customer&apos;s eligible first order.
+                      </p>
+                    )}
+                    {row.status === "QUALIFIED" && (
+                      <p className="text-xs text-muted-foreground">
+                        First qualifying order delivered — your reward is on its way.
+                      </p>
+                    )}
+                    {row.status === "ON_HOLD" && (
+                      <p className="text-xs text-muted-foreground">
+                        Your reward is being confirmed and will be added shortly.
+                      </p>
+                    )}
+                    {row.status === "REWARDED" && row.rewardExpiresAt && (
+                      <p className="text-xs text-muted-foreground">
+                        Reward usable until {formatDate(row.rewardExpiresAt)}.
                       </p>
                     )}
                   </div>
@@ -321,7 +370,8 @@ export default function WalletReferSection() {
           )}
           <p className="mt-3 text-[11px] text-muted-foreground">
             Wallet credit is usable on eligible Kalyan Chemist orders only. It is not cash and cannot
-            be withdrawn or transferred.
+            be withdrawn or transferred. If a reward has an expiry date, we use the credit that
+            expires soonest first.
           </p>
         </CardContent>
       </Card>

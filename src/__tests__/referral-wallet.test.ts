@@ -16,8 +16,17 @@ import {
   REFERRAL_CODE_LENGTH,
   REFERRAL_CODE_PREFIX,
   computeMaxWalletUsage,
+  computeSpendableBalance,
+  allocateSpend,
+  assessReferralRisk,
+  canTransition,
+  creditsExpiringWithin,
   directionForType,
+  eligibleOrderAmount,
+  expiredCredits,
   generateReferralCode,
+  HIGH_RISK_THRESHOLD,
+  isHoldSatisfied,
   isOrderEligibleForReferralReward,
   isSelfReferral,
   isValidReferralCode,
@@ -25,10 +34,17 @@ import {
   normalizeEmail,
   normalizePhone,
   normalizeReferralCode,
+  planReversal,
   referralStatusLabel,
   resolveReferralSettings,
+  resolveRiskLevel,
+  rewardHoldUntil,
   transactionLabel,
+  type ExpirableCredit,
 } from "@/convex/referralWalletCore";
+
+const DAY = 24 * 60 * 60 * 1000;
+const T0 = 1_700_000_000_000;
 
 // ── 1. Unique referral code generation ──
 
@@ -94,6 +110,9 @@ describe("referral settings", () => {
       minQualifyingOrder: 299,
       maxWalletUsagePercent: 20,
       rewardExpiryDays: 0,
+      rewardHoldDays: 3,
+      maxReferralsPerMonth: 15,
+      autoReleaseMediumRisk: false,
     });
   });
 
@@ -107,12 +126,18 @@ describe("referral settings", () => {
       minQualifyingOrder: 499,
       maxWalletUsagePercent: 35,
       rewardExpiryDays: 30,
+      rewardHoldDays: 7,
+      maxReferralsPerMonth: 40,
+      autoReleaseMediumRisk: true,
     });
     expect(resolved).toEqual({
       rewardAmount: 250,
       minQualifyingOrder: 499,
       maxWalletUsagePercent: 35,
       rewardExpiryDays: 30,
+      rewardHoldDays: 7,
+      maxReferralsPerMonth: 40,
+      autoReleaseMediumRisk: true,
     });
   });
 
@@ -125,6 +150,20 @@ describe("referral settings", () => {
     expect(resolved.rewardAmount).toBe(DEFAULT_REFERRAL_SETTINGS.rewardAmount);
     expect(resolved.minQualifyingOrder).toBe(DEFAULT_REFERRAL_SETTINGS.minQualifyingOrder);
     expect(resolved.maxWalletUsagePercent).toBe(100);
+  });
+
+  it("fills in missing settings on rows written before they existed", () => {
+    // A row stored before rewardHoldDays existed must still resolve cleanly,
+    // which is what keeps existing deployments working.
+    const resolved = resolveReferralSettings({
+      rewardAmount: 150,
+      minQualifyingOrder: 500,
+      maxWalletUsagePercent: 10,
+      rewardExpiryDays: 0,
+    });
+    expect(resolved.rewardAmount).toBe(150);
+    expect(resolved.rewardHoldDays).toBe(DEFAULT_REFERRAL_SETTINGS.rewardHoldDays);
+    expect(resolved.autoReleaseMediumRisk).toBe(false);
   });
 });
 
@@ -227,6 +266,46 @@ describe("referral reward eligibility", () => {
       expect(isOrderEligibleForReferralReward({ totalAmount: 999, status }, 299)).toBe(false);
     }
   });
+
+  it("measures the minimum on item value after discounts, ignoring delivery", () => {
+    // ₹500 of goods plus ₹60 delivery should not qualify a ₹500 minimum on the
+    // strength of the delivery charge.
+    expect(
+      isOrderEligibleForReferralReward(
+        { totalAmount: 560, subtotal: 500, discount: 0, status: "delivered" },
+        500,
+      ),
+    ).toBe(true);
+    expect(
+      isOrderEligibleForReferralReward(
+        { totalAmount: 560, subtotal: 480, discount: 0, status: "delivered" },
+        500,
+      ),
+    ).toBe(false);
+  });
+
+  it("counts the discount against the qualifying amount", () => {
+    expect(
+      isOrderEligibleForReferralReward(
+        { totalAmount: 500, subtotal: 800, discount: 320, status: "delivered" },
+        500,
+      ),
+    ).toBe(false);
+    expect(
+      isOrderEligibleForReferralReward(
+        { totalAmount: 800, subtotal: 800, discount: 250, status: "delivered" },
+        500,
+      ),
+    ).toBe(true);
+  });
+
+  it("falls back to the grand total when the order has no itemised fields", () => {
+    expect(eligibleOrderAmount({ totalAmount: 400, status: "delivered" })).toBe(400);
+  });
+
+  it("never returns a negative eligible amount", () => {
+    expect(eligibleOrderAmount({ totalAmount: 100, subtotal: 100, discount: 500, status: "delivered" })).toBe(0);
+  });
 });
 
 // ── 7. Ledger presentation helpers ──
@@ -280,5 +359,246 @@ describe("empty states", () => {
     expect(EMPTY_WALLET_MESSAGE).toBe("Your wallet is empty.");
     expect(EMPTY_REFERRALS_MESSAGE).toBe("You haven't referred anyone yet.");
     expect(PENDING_REFERRAL_MESSAGE).toBe("Waiting for the referred customer's eligible first order.");
+  });
+});
+
+// ── 10. Referral risk scoring ──
+
+describe("referral risk scoring", () => {
+  it("scores an ordinary referral as LOW", () => {
+    const risk = assessReferralRisk({});
+    expect(risk.level).toBe("LOW");
+    expect(risk.score).toBe(0);
+    expect(risk.reasons).toEqual([]);
+  });
+
+  it("blocks automatic reward when the referred phone matches the referrer", () => {
+    const risk = assessReferralRisk({ samePhone: true });
+    expect(risk.score).toBeGreaterThanOrEqual(HIGH_RISK_THRESHOLD);
+    expect(risk.level).toBe("HIGH");
+  });
+
+  it("treats a shared email as high risk", () => {
+    expect(assessReferralRisk({ sameEmail: true }).level).toBe("HIGH");
+  });
+
+  it("flags a customer who ordered before joining", () => {
+    const risk = assessReferralRisk({ priorOrderBeforeAttribution: true });
+    expect(risk.level).toBe("MEDIUM");
+  });
+
+  it("flags referral velocity above the configured limit", () => {
+    const risk = assessReferralRisk({ referralsInWindow: 15, velocityLimit: 15 });
+    expect(risk.level).toBe("MEDIUM");
+    expect(risk.reasons.join(" ")).toContain("unusually high");
+  });
+
+  it("ignores velocity when no limit is configured", () => {
+    expect(assessReferralRisk({ referralsInWindow: 500, velocityLimit: 0 }).level).toBe("LOW");
+  });
+
+  it("flags a referrer with repeatedly reversed rewards", () => {
+    expect(assessReferralRisk({ reversedRewards: 3 }).level).toBe("HIGH");
+  });
+
+  it("flags repeated cancelled or refunded orders", () => {
+    expect(assessReferralRisk({ cancelledQualifyingOrders: 4 }).level).toBe("HIGH");
+  });
+
+  it("keeps supporting signals below MEDIUM on their own", () => {
+    // A shared delivery address is normal in a household and must never, by
+    // itself, escalate a referral.
+    const risk = assessReferralRisk({ sameDeliveryAddressCount: 4, paymentRetryCount: 9 });
+    expect(risk.level).toBe("LOW");
+  });
+
+  it("treats pre-risk referrals as LOW rather than crashing", () => {
+    expect(resolveRiskLevel(undefined)).toBe("LOW");
+    expect(resolveRiskLevel("nonsense")).toBe("LOW");
+    expect(resolveRiskLevel("high")).toBe("HIGH");
+  });
+
+  it("never uses fraud wording", () => {
+    const risk = assessReferralRisk({ samePhone: true, priorOrderBeforeAttribution: true });
+    expect(risk.reasons.join(" ").toLowerCase()).not.toContain("fraud");
+  });
+});
+
+// ── 11. Referral lifecycle ──
+
+describe("referral lifecycle", () => {
+  it("allows the normal path through qualification and hold", () => {
+    expect(canTransition("PENDING", "QUALIFIED")).toBe(true);
+    expect(canTransition("QUALIFIED", "ON_HOLD")).toBe(true);
+    expect(canTransition("ON_HOLD", "REWARDED")).toBe(true);
+    expect(canTransition("REWARDED", "REVERSED")).toBe(true);
+  });
+
+  it("refuses to skip qualification", () => {
+    expect(canTransition("PENDING", "REWARDED")).toBe(false);
+  });
+
+  it("refuses to revive a blocked referral automatically", () => {
+    expect(canTransition("BLOCKED", "REWARDED")).toBe(false);
+    expect(canTransition("BLOCKED", "QUALIFIED")).toBe(false);
+  });
+
+  it("keeps a reversed referral from being rewarded again", () => {
+    expect(canTransition("REVERSED", "REWARDED")).toBe(false);
+  });
+
+  it("rejects unknown statuses", () => {
+    expect(canTransition("PENDING", "WHATEVER")).toBe(false);
+    expect(canTransition("NOT_A_STATUS", "REWARDED")).toBe(false);
+  });
+});
+
+// ── 12. Reward hold window ──
+
+describe("reward hold", () => {
+  it("starts the hold at delivery, not at signup", () => {
+    expect(rewardHoldUntil(T0, 3)).toBe(T0 + 3 * DAY);
+  });
+
+  it("treats a zero-day hold as immediately satisfied", () => {
+    expect(rewardHoldUntil(T0, 0)).toBe(T0);
+    expect(isHoldSatisfied(T0, T0)).toBe(true);
+  });
+
+  it("is not satisfied before the window elapses", () => {
+    expect(isHoldSatisfied(T0 + 3 * DAY, T0 + 2 * DAY)).toBe(false);
+  });
+
+  it("is satisfied after the window elapses", () => {
+    expect(isHoldSatisfied(T0 + 3 * DAY, T0 + 4 * DAY)).toBe(true);
+  });
+
+  it("treats a missing hold as satisfied", () => {
+    expect(isHoldSatisfied(undefined, T0)).toBe(true);
+  });
+});
+
+// ── 13. Expiring credits ──
+
+describe("expirable wallet credits", () => {
+  const credits: ExpirableCredit[] = [
+    { id: "lot-soon", amount: 100, remaining: 100, expiresAt: T0 + 2 * DAY },
+    { id: "lot-later", amount: 200, remaining: 200, expiresAt: T0 + 10 * DAY },
+    { id: "lot-forever", amount: 50, remaining: 50, expiresAt: null },
+  ];
+
+  it("counts only unexpired value as spendable", () => {
+    const expired = computeSpendableBalance(
+      [{ id: "a", amount: 100, remaining: 100, expiresAt: T0 - 1 }],
+      T0,
+    );
+    expect(expired).toBe(0);
+  });
+
+  it("keeps never-expiring credits spendable forever", () => {
+    expect(computeSpendableBalance(credits, T0 + 999 * DAY)).toBe(50);
+  });
+
+  it("spends the earliest-expiring credit first", () => {
+    const { allocation, allocated } = allocateSpend(credits, 150, T0);
+    expect(allocation).toEqual([
+      { creditId: "lot-soon", amount: 100 },
+      { creditId: "lot-later", amount: 50 },
+    ]);
+    expect(allocated).toBe(150);
+  });
+
+  it("falls through to never-expiring credit last", () => {
+    const { allocation } = allocateSpend(credits, 350, T0);
+    expect(allocation.map((a) => a.creditId)).toEqual([
+      "lot-soon",
+      "lot-later",
+      "lot-forever",
+    ]);
+  });
+
+  it("never allocates more than the live balance and reports the shortfall", () => {
+    const { allocated, shortfall } = allocateSpend(credits, 500, T0);
+    expect(allocated).toBe(350);
+    expect(shortfall).toBe(150);
+  });
+
+  it("does not spend expired value even when asked", () => {
+    const { allocation } = allocateSpend(
+      [{ id: "gone", amount: 100, remaining: 100, expiresAt: T0 - 1 }],
+      100,
+      T0,
+    );
+    expect(allocation).toEqual([]);
+  });
+
+  it("lists credits that have lapsed for sweeping", () => {
+    expect(expiredCredits(credits, T0 + 5 * DAY).map((c) => c.id)).toEqual(["lot-soon"]);
+  });
+
+  it("lists credits expiring soon for the customer notice", () => {
+    expect(creditsExpiringWithin(credits, T0, 7).map((c) => c.id)).toEqual(["lot-soon"]);
+  });
+});
+
+// ── 14. Truthful reversal accounting ──
+
+describe("reward reversal", () => {
+  it("recovers the full amount when the balance is there", () => {
+    const plan = planReversal({ rewardAmount: 100, availableBalance: 500 });
+    expect(plan).toEqual({
+      requested: 100,
+      recoveredBefore: 0,
+      recovered: 100,
+      outstanding: 0,
+    });
+  });
+
+  it("recovers only what is left and reports the rest as outstanding", () => {
+    const plan = planReversal({ rewardAmount: 100, availableBalance: 30 });
+    expect(plan.recovered).toBe(30);
+    expect(plan.outstanding).toBe(70);
+  });
+
+  it("never drives the wallet negative", () => {
+    const plan = planReversal({ rewardAmount: 100, availableBalance: 0 });
+    expect(plan.recovered).toBe(0);
+    expect(plan.outstanding).toBe(100);
+  });
+
+  it("does not claw back more than was already recovered", () => {
+    const plan = planReversal({ rewardAmount: 100, recoveredBefore: 100, availableBalance: 900 });
+    expect(plan.recovered).toBe(0);
+    expect(plan.outstanding).toBe(0);
+  });
+
+  it("tops up only the remaining amount on a second attempt", () => {
+    const first = planReversal({ rewardAmount: 100, availableBalance: 30 });
+    const second = planReversal({
+      rewardAmount: 100,
+      recoveredBefore: first.recovered,
+      availableBalance: 80,
+    });
+    expect(second.recovered).toBe(70);
+    expect(second.outstanding).toBe(0);
+  });
+});
+
+// ── 15. Presentation ──
+
+describe("customer-facing labels", () => {
+  it("never exposes risk wording to customers", () => {
+    expect(referralStatusLabel("ON_HOLD")).toBe("In review");
+    expect(referralStatusLabel("BLOCKED")).toBe("Not approved");
+  });
+
+  it("labels a new transaction type", () => {
+    expect(transactionLabel("REWARD_EXPIRY")).toBe("Reward Expired");
+    expect(transactionLabel("REWARD_RECOVERY")).toBe("Reversal Amount Recovered");
+  });
+
+  it("treats expiry as a debit", () => {
+    expect(directionForType("REWARD_EXPIRY")).toBe("debit");
+    expect(directionForType("REWARD_RECOVERY")).toBe("credit");
   });
 });

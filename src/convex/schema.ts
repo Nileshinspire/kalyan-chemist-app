@@ -1230,9 +1230,13 @@ const schema = defineSchema(
 
     // ── Referral programme ──
     // One row per (referrer, referred customer) relationship. The status moves
-    // PENDING → QUALIFIED → REWARDED (or CANCELLED / REVERSED) and drives
-    // whether a wallet reward is owed. A referred customer has at most one
-    // referral record, so a reward can never be earned twice from them.
+    // PENDING → QUALIFIED → ON_HOLD → REWARDED (or CANCELLED / REVERSED /
+    // BLOCKED) and drives whether a wallet reward is owed. A referred customer
+    // has at most one referral record, so a reward can never be earned twice
+    // from them, and the record is never deleted.
+    //
+    // Every field below the original set is optional: referrals stored before
+    // the risk/hold lifecycle existed keep resolving to their old behaviour.
     referrals: defineTable({
       /** The referrer's shareable code at the moment of attribution. */
       referralCode: v.string(),
@@ -1241,18 +1245,66 @@ const schema = defineSchema(
       status: v.union(
         v.literal("PENDING"),
         v.literal("QUALIFIED"),
+        v.literal("ON_HOLD"),
         v.literal("REWARDED"),
         v.literal("CANCELLED"),
         v.literal("REVERSED"),
+        v.literal("BLOCKED"),
       ),
       /** The referred customer's first eligible delivered order. */
       qualifyingOrderId: v.optional(v.id("orders")),
+      /** Net merchandise value of that order, after discounts. */
+      qualifyingOrderAmount: v.optional(v.number()),
       rewardAmount: v.optional(v.number()),
       rewardTransactionId: v.optional(v.id("walletTransactions")),
       reversalTransactionId: v.optional(v.id("walletTransactions")),
       rewardedAt: v.optional(v.number()),
       cancelledAt: v.optional(v.number()),
       reversedAt: v.optional(v.number()),
+
+      // ── Risk assessment (added after the first release) ──
+      /** Absent on referrals created before risk scoring; treated as LOW. */
+      riskLevel: v.optional(v.union(
+        v.literal("LOW"),
+        v.literal("MEDIUM"),
+        v.literal("HIGH"),
+      )),
+      riskScore: v.optional(v.number()),
+      /** Neutral admin-facing explanations for the score. */
+      riskReasons: v.optional(v.array(v.string())),
+      riskCheckedAt: v.optional(v.number()),
+
+      // ── Qualification + hold timeline ──
+      /** The referred customer's first order of any kind, for context. */
+      firstOrderId: v.optional(v.id("orders")),
+      firstOrderAmount: v.optional(v.number()),
+      firstOrderAt: v.optional(v.number()),
+      /** When the qualifying order reached DELIVERED. */
+      deliveredAt: v.optional(v.number()),
+      /** Post-delivery protection window; reward releases at/after this time. */
+      holdUntil: v.optional(v.number()),
+      heldAt: v.optional(v.number()),
+      holdReason: v.optional(v.string()),
+      releasedAt: v.optional(v.number()),
+
+      // ── Admin decisions ──
+      reviewedBy: v.optional(v.id("users")),
+      reviewedAt: v.optional(v.number()),
+      reviewNote: v.optional(v.string()),
+      blockedReason: v.optional(v.string()),
+
+      /** When the issued reward stops being usable (0/absence = never). */
+      rewardExpiresAt: v.optional(v.number()),
+      /** Wallet credit lot created for this reward, when it is expirable. */
+      rewardCreditId: v.optional(v.id("walletCredits")),
+
+      // ── Truthful reversal accounting ──
+      /** Amount actually clawed back so far. */
+      reversedAmount: v.optional(v.number()),
+      /** Reward value that could not be recovered yet (already spent). */
+      reversalOutstanding: v.optional(v.number()),
+      recoveryTransactionId: v.optional(v.id("walletTransactions")),
+
       createdAt: v.number(),
       updatedAt: v.number(),
     })
@@ -1262,6 +1314,7 @@ const schema = defineSchema(
       .index("by_qualifyingOrder", ["qualifyingOrderId"])
       .index("by_referrer_status", ["referrerId", "status"])
       .index("by_status", ["status"])
+      .index("by_riskLevel", ["riskLevel"])
       .index("by_createdAt", ["createdAt"]),
 
     // ── Wallet account (running balance per customer) ──
@@ -1289,6 +1342,8 @@ const schema = defineSchema(
         v.literal("ADMIN_CREDIT"),
         v.literal("ADMIN_DEBIT"),
         v.literal("REWARD_REVERSAL"),
+        v.literal("REWARD_RECOVERY"),
+        v.literal("REWARD_EXPIRY"),
       ),
       /** Always a positive magnitude; direction says which way it moved. */
       amount: v.number(),
@@ -1303,6 +1358,15 @@ const schema = defineSchema(
         v.literal("reversed"),
       ),
       balanceAfter: v.number(),
+      /**
+       * Temporary hold bookkeeping. A `reserved` WALLET_USAGE row is a hold, not
+       * a completed spend: `holdUntil` lets an abandoned checkout be swept back
+       * to the customer, and `settledAt` records when payment made it final.
+       */
+      holdUntil: v.optional(v.number()),
+      reservedAt: v.optional(v.number()),
+      settledAt: v.optional(v.number()),
+      releasedAt: v.optional(v.number()),
       metadata: v.optional(v.string()),
       createdBy: v.optional(v.id("users")),
       createdAt: v.number(),
@@ -1313,6 +1377,34 @@ const schema = defineSchema(
       .index("by_type", ["type"])
       .index("by_customer_reference", ["customerId", "referenceId"]),
 
+    // ── Expirable wallet credits ──
+    // Each referral reward (or manual credit, when configured) is tracked as a
+    // lot with its own issue date, expiry date and remaining usable amount, so
+    // expiring value can be spent first and can never be silently resurrected.
+    walletCredits: defineTable({
+      customerId: v.id("users"),
+      sourceType: v.union(
+        v.literal("REFERRAL_REWARD"),
+        v.literal("ADMIN_CREDIT"),
+        v.literal("WALLET_REFUND"),
+      ),
+      /** Idempotency key for the credit: e.g. the referral document id. */
+      sourceId: v.string(),
+      /** The ledger transaction that originally created this value. */
+      transactionId: v.id("walletTransactions"),
+      originalAmount: v.number(),
+      /** Value still spendable; reduced by spends and by expiry sweeps. */
+      remainingAmount: v.number(),
+      issuedAt: v.number(),
+      /** Absent/null = this credit never expires. */
+      expiresAt: v.optional(v.number()),
+      /** Set once the remaining value has been swept out as expired. */
+      expiredAt: v.optional(v.number()),
+      createdAt: v.number(),
+    })
+      .index("by_customer", ["customerId"])
+      .index("by_source", ["sourceType", "sourceId"]),
+
     // ── Referral / wallet settings (singleton) ──
     referralSettings: defineTable({
       rewardAmount: v.number(),
@@ -1320,6 +1412,12 @@ const schema = defineSchema(
       maxWalletUsagePercent: v.number(),
       /** 0 = rewards never expire (the current default). */
       rewardExpiryDays: v.number(),
+      /** Days a delivered reward waits before release. 0 = instant. */
+      rewardHoldDays: v.optional(v.number()),
+      /** Referrals per referrer per 30-day window. 0 = unlimited. */
+      maxReferralsPerMonth: v.optional(v.number()),
+      /** Release MEDIUM-risk referrals automatically once the hold elapses. */
+      autoReleaseMediumRisk: v.optional(v.boolean()),
       updatedBy: v.optional(v.id("users")),
       updatedAt: v.number(),
     }),

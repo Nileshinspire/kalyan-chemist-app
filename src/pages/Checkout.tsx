@@ -689,7 +689,8 @@ export default function Checkout() {
                           <Wallet className="size-4 text-primary" /> Use Wallet Balance
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          Apply {formatCurrency(walletAllowed)} from your wallet. Balance: {formatCurrency(walletBalance ?? 0)}
+                          Wallet balance {formatCurrency(walletBalance ?? 0)} · you can use{" "}
+                          {formatCurrency(walletAllowed)} on this order
                         </p>
                       </div>
                     </label>
@@ -760,12 +761,12 @@ export default function Checkout() {
                     <>
                       <div className="flex justify-between text-green-600">
                         <span className="flex items-center gap-1">
-                          <Wallet className="size-3" /> Wallet applied
+                          <Wallet className="size-3" /> Wallet amount used
                         </span>
                         <span className="font-medium">-{formatCurrency(walletApplied)}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="font-bold text-foreground">To Pay</span>
+                        <span className="font-bold text-foreground">Remaining amount to pay</span>
                         <span className="font-extrabold text-lg text-primary">{formatCurrency(payableNow)}</span>
                       </div>
                     </>
