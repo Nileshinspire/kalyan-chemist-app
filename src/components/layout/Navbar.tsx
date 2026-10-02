@@ -72,13 +72,25 @@ const Navbar = memo(function Navbar() {
   const [searchFocused, setSearchFocused] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
-  // Track scroll for navbar background enhancement
+  // Track scroll for navbar background enhancement. The listener is throttled to
+  // one read per animation frame: a raw scroll handler runs on every event the
+  // browser emits (often several per frame) and each `setScrolled` re-renders
+  // the entire header stack. The value is a boolean, so it only re-renders when
+  // the customer actually crosses the 10px threshold.
   useEffect(() => {
+    let frame = 0;
     const handleScroll = () => {
-      setScrolled(window.scrollY > 10);
+      if (frame) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        setScrolled(window.scrollY > 10);
+      });
     };
     window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
+    return () => {
+      if (frame) window.cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", handleScroll);
+    };
   }, []);
 
   const handleSearch = useCallback((e: React.FormEvent) => {

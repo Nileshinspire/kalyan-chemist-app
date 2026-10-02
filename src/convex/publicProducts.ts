@@ -32,7 +32,54 @@ type SearchFilters = {
   sortBy?: "relevance" | "price_asc" | "price_desc" | "discount" | "newest";
 };
 
-// ── Full search across name, composition, manufacturer, brand ──
+/**
+ * Resolve the category/brand documents a product needs, memoised per query.
+ *
+ * A catalogue page draws dozens of products that share a handful of categories
+ * and brands, so without this the same document is re-read once per product.
+ */
+async function createEnricher(ctx: QueryCtx) {
+  const categoryCache = new Map<string, { name: string; slug: string } | null>();
+  const brandCache = new Map<string, { name: string; slug: string } | null>();
+
+  return async function enrich<T extends { categoryId: Id<"categories">; brandId?: Id<"brands"> }>(
+    product: T
+  ) {
+    const categoryKey = product.categoryId as string;
+    let category = categoryCache.get(categoryKey);
+    if (category === undefined) {
+      const doc = await ctx.db.get(product.categoryId);
+      category = doc ? { name: doc.name, slug: doc.slug } : null;
+      categoryCache.set(categoryKey, category);
+    }
+
+    let brand: { name: string; slug: string } | null = null;
+    if (product.brandId) {
+      const brandKey = product.brandId as string;
+      const cached = brandCache.get(brandKey);
+      if (cached === undefined) {
+        const doc = await ctx.db.get(product.brandId);
+        brand = doc ? { name: doc.name, slug: doc.slug } : null;
+        brandCache.set(brandKey, brand);
+      } else {
+        brand = cached;
+      }
+    }
+
+    return {
+      ...product,
+      categoryName: category?.name ?? "Uncategorized",
+      categorySlug: category?.slug ?? "",
+      brandName: brand?.name ?? null,
+      brandSlug: brand?.slug ?? null,
+    };
+  };
+}
+
+// ── Filter + sort across name, composition, manufacturer, brand ──
+// Returns the matching products in final order WITHOUT the category/brand
+// enrichment, so callers that only need one page never pay for the joins on
+// rows the client will not receive.
 async function runProductSearch(ctx: QueryCtx, args: SearchFilters) {
     const searchTerm = args.query.toLowerCase().trim();
 
@@ -87,24 +134,12 @@ async function runProductSearch(ctx: QueryCtx, args: SearchFilters) {
       products = products.filter((p) => p.stockQuantity > 0);
     }
 
-    // Enrich with category and brand names
-    const enriched = await Promise.all(
-      products.map(async (p) => {
-        const category = await ctx.db.get(p.categoryId);
-        const brand = p.brandId ? await ctx.db.get(p.brandId) : null;
-        return {
-          ...p,
-          categoryName: category?.name ?? "Uncategorized",
-          categorySlug: category?.slug ?? "",
-          brandName: brand?.name ?? null,
-          brandSlug: brand?.slug ?? null,
-        };
-      })
-    );
-
-    // Sort
+    // Sort before enriching. Every sort key below (price, discountPrice,
+    // createdAt, name) lives on the product document itself, so the ordering is
+    // identical — but doing it here means the category/brand reads below only
+    // run for the rows this query actually returns.
     const sortBy = args.sortBy ?? "relevance";
-    enriched.sort((a, b) => {
+    products.sort((a, b) => {
       switch (sortBy) {
         case "price_asc":
           return (a.discountPrice ?? a.price) - (b.discountPrice ?? b.price);
@@ -130,12 +165,18 @@ async function runProductSearch(ctx: QueryCtx, args: SearchFilters) {
       }
     });
 
-  return enriched;
+  return products;
+}
+
+/** Apply the category/brand joins to a set of already-sorted products. */
+async function enrichProducts(ctx: QueryCtx, products: Awaited<ReturnType<typeof runProductSearch>>) {
+  const enrich = await createEnricher(ctx);
+  return Promise.all(products.map(enrich));
 }
 
 export const search = query({
   args: searchFilterArgs,
-  handler: (ctx, args) => runProductSearch(ctx, args),
+  handler: async (ctx, args) => enrichProducts(ctx, await runProductSearch(ctx, args)),
 });
 
 // ── Paginated search: returns only the requested page plus the total count
@@ -148,11 +189,16 @@ export const searchPage = query({
   },
   handler: async (ctx, args) => {
     const { offset, limit, ...filters } = args;
-    const items = await runProductSearch(ctx, filters);
-    const total = items.length;
+    const matched = await runProductSearch(ctx, filters);
+    const total = matched.length;
     const safeOffset = Math.max(0, Math.floor(offset));
     const safeLimit = Math.max(1, Math.floor(limit));
-    return { items: items.slice(safeOffset, safeOffset + safeLimit), total };
+    // `matched` is already in final sort order and `total` is the size of the
+    // full matching set, so slicing first returns exactly the same page as
+    // slicing after — but the category/brand documents are only read for the
+    // rows the client actually receives, instead of for every match.
+    const items = await enrichProducts(ctx, matched.slice(safeOffset, safeOffset + safeLimit));
+    return { items, total };
   },
 });
 
@@ -235,19 +281,12 @@ export const popular = query({
       }
     }
 
-    // Enrich and sort by order count, then by newest
+    const enrich = await createEnricher(ctx);
     const enriched = await Promise.all(
-      products.map(async (p) => {
-        const category = await ctx.db.get(p.categoryId);
-        const brand = p.brandId ? await ctx.db.get(p.brandId) : null;
-        return {
-          ...p,
-          categoryName: category?.name ?? "Uncategorized",
-          categorySlug: category?.slug ?? "",
-          brandName: brand?.name ?? null,
-          orderCount: productOrderCount.get(p._id as string) ?? 0,
-        };
-      })
+      products.map(async (p) => ({
+        ...(await enrich(p)),
+        orderCount: productOrderCount.get(p._id as string) ?? 0,
+      }))
     );
 
     enriched.sort((a, b) => b.orderCount - a.orderCount || b.createdAt - a.createdAt);
@@ -279,19 +318,13 @@ export const hotSellers = query({
       }
     }
 
+    const enrich = await createEnricher(ctx);
     const enriched = await Promise.all(
-      products.map(async (p) => {
-        const category = await ctx.db.get(p.categoryId);
-        const brand = p.brandId ? await ctx.db.get(p.brandId) : null;
-        return {
-          ...p,
-          categoryName: category?.name ?? "Uncategorized",
-          categorySlug: category?.slug ?? "",
-          brandName: brand?.name ?? null,
-          totalSold: productSales.get(p._id as string) ?? 0,
-          lastSoldAt: productLastSale.get(p._id as string) ?? 0,
-        };
-      })
+      products.map(async (p) => ({
+        ...(await enrich(p)),
+        totalSold: productSales.get(p._id as string) ?? 0,
+        lastSoldAt: productLastSale.get(p._id as string) ?? 0,
+      }))
     );
 
     // Rank by total units sold descending, then most recent sale as tiebreaker.
@@ -316,17 +349,9 @@ export const newArrivals = query({
       .sort((a, b) => b.createdAt - a.createdAt);
 
     // Enrich with category and brand names (same shape the product cards use)
+    const enrich = await createEnricher(ctx);
     const enriched = await Promise.all(
-      recent.slice(0, args.limit ?? 10).map(async (p) => {
-        const category = await ctx.db.get(p.categoryId);
-        const brand = p.brandId ? await ctx.db.get(p.brandId) : null;
-        return {
-          ...p,
-          categoryName: category?.name ?? "Uncategorized",
-          categorySlug: category?.slug ?? "",
-          brandName: brand?.name ?? null,
-        };
-      })
+      recent.slice(0, args.limit ?? 10).map(enrich)
     );
 
     return enriched;
@@ -392,18 +417,12 @@ export const valueDeals = query({
     // Enrich with category/brand names so we can classify by category slug
     // (the existing reliable medicine/non-medicine classification) and render
     // the shared product card.
+    const enrich = await createEnricher(ctx);
     const enriched = await Promise.all(
-      candidates.map(async (p) => {
-        const category = await ctx.db.get(p.categoryId);
-        const brand = p.brandId ? await ctx.db.get(p.brandId) : null;
-        return {
-          ...p,
-          categoryName: category?.name ?? "Uncategorized",
-          categorySlug: category?.slug ?? "",
-          brandName: brand?.name ?? null,
-          orderCount: orderCount.get(p._id as string) ?? 0,
-        };
-      })
+      candidates.map(async (p) => ({
+        ...(await enrich(p)),
+        orderCount: orderCount.get(p._id as string) ?? 0,
+      }))
     );
 
     // Exclude pharmaceutical medicines (by their existing category).
@@ -437,18 +456,12 @@ export const featured = query({
       }))
       .sort((a, b) => b.discountPercent - a.discountPercent);
 
+    const enrich = await createEnricher(ctx);
     const enriched = await Promise.all(
-      withDiscount.slice(0, args.limit ?? 8).map(async (item) => {
-        const category = await ctx.db.get(item.product.categoryId);
-        const brand = item.product.brandId ? await ctx.db.get(item.product.brandId) : null;
-        return {
-          ...item.product,
-          categoryName: category?.name ?? "Uncategorized",
-          categorySlug: category?.slug ?? "",
-          brandName: brand?.name ?? null,
-          discountPercent: item.discountPercent,
-        };
-      })
+      withDiscount.slice(0, args.limit ?? 8).map(async (item) => ({
+        ...(await enrich(item.product)),
+        discountPercent: item.discountPercent,
+      }))
     );
 
     return enriched;

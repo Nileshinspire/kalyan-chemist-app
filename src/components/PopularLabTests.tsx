@@ -201,16 +201,26 @@ export default function PopularLabTests() {
   const [canPrev, setCanPrev] = useState(false);
   const [canNext, setCanNext] = useState(false);
 
+  // `update` reads layout, so it is collapsed to one measurement per frame
+  // instead of running on every resize event.
   useEffect(() => {
     const el = trackRef.current;
     if (!el) return;
+    let frame = 0;
     const update = () => {
-      setCanPrev(el.scrollLeft > 4);
-      setCanNext(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+      if (frame) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        setCanPrev(el.scrollLeft > 4);
+        setCanNext(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+      });
     };
     update();
     window.addEventListener("resize", update);
-    return () => window.removeEventListener("resize", update);
+    return () => {
+      if (frame) window.cancelAnimationFrame(frame);
+      window.removeEventListener("resize", update);
+    };
   }, [tests]);
 
   if (!tests || tests.length === 0) return null;

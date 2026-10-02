@@ -1,6 +1,8 @@
 import {
   createContext,
+  useCallback,
   useContext,
+  useMemo,
   type ReactNode,
 } from "react";
 import { useAuth as useConvexAuth } from "@/hooks/use-auth";
@@ -48,50 +50,67 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const user = convexUser as User | null;
   const isLoading = convexLoading;
 
-  const login = async (_email: string, _password: string) => {
+  const login = useCallback(async (_email: string, _password: string) => {
     // Password-based login is not supported in Convex Auth.
     // Users should sign in via the /auth page using email OTP.
     throw new Error(
       "Please use the sign-in page to authenticate with email verification."
     );
-  };
+  }, []);
 
-  const register = async (_data: {
-    name: string;
-    email: string;
-    password: string;
-    phone?: string;
-  }) => {
-    // Registration is handled via email OTP on the /auth page.
-    throw new Error(
-      "Please use the sign-in page to create an account with email verification."
-    );
-  };
+  const register = useCallback(
+    async (_data: {
+      name: string;
+      email: string;
+      password: string;
+      phone?: string;
+    }) => {
+      // Registration is handled via email OTP on the /auth page.
+      throw new Error(
+        "Please use the sign-in page to create an account with email verification."
+      );
+    },
+    []
+  );
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     await signOut();
-  };
+  }, [signOut]);
 
-  const refreshUser = async () => {
+  const refreshUser = useCallback(async () => {
     // Convex handles this reactively — nothing to do here.
-  };
+  }, []);
+
+  // This provider sits above the whole app, so a fresh context object on every
+  // render would re-render every `useAuth()` consumer in the tree (navbar, every
+  // product card, account pages…) on any auth tick. The value only changes when
+  // one of these fields actually changes.
+  const value = useMemo(
+    () => ({
+      user,
+      isAuthLoading,
+      isLoading,
+      isAuthenticated,
+      isAdmin: user?.role === "admin",
+      login,
+      register,
+      logout,
+      refreshUser,
+    }),
+    [
+      user,
+      isAuthLoading,
+      isLoading,
+      isAuthenticated,
+      login,
+      register,
+      logout,
+      refreshUser,
+    ]
+  );
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isAuthLoading,
-        isLoading,
-        isAuthenticated,
-        isAdmin: user?.role === "admin",
-        login,
-        register,
-        logout,
-        refreshUser,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+    <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
   );
 }
 

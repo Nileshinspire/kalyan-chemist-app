@@ -1,4 +1,11 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useMemo,
+  useState,
+  useCallback,
+  type ReactNode,
+} from "react";
 import type { BreadcrumbItem } from "@/components/ui/breadcrumb";
 
 export interface BreadcrumbTrail {
@@ -45,9 +52,14 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
     setTrailState((prev) => [...prev, item]);
   }, []);
 
+  // Stable across renders that do not change the trail, so breadcrumb
+  // consumers are not re-rendered on unrelated provider work.
+  const value = useMemo(
+    () => ({ trail, setTrail, pushItem }),
+    [trail, setTrail, pushItem]
+  );
+
   return (
-    <NavigationContext.Provider value={{ trail, setTrail, pushItem }}>
-      {children}
-    </NavigationContext.Provider>
+    <NavigationContext.Provider value={value}>{children}</NavigationContext.Provider>
   );
 }

@@ -53,18 +53,27 @@ export default function ShopByBrand() {
 
   // Measured rather than hardcoded, so the arrows reflect the real overflow at
   // any viewport. Runs once the list has rendered and on every scroll/resize.
+  // Each `measure` reads layout (scrollLeft/clientWidth/scrollWidth), so the
+  // handler is collapsed to one measurement per animation frame — scroll and
+  // resize both fire far more often than that.
   useEffect(() => {
     if (!brands || brands.length === 0) return;
     const el = trackRef.current;
     if (!el) return;
+    let frame = 0;
     const measure = () => {
-      setCanPrev(el.scrollLeft > 4);
-      setCanNext(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+      if (frame) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        setCanPrev(el.scrollLeft > 4);
+        setCanNext(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+      });
     };
     measure();
     el.addEventListener("scroll", measure, { passive: true });
     window.addEventListener("resize", measure);
     return () => {
+      if (frame) window.cancelAnimationFrame(frame);
       el.removeEventListener("scroll", measure);
       window.removeEventListener("resize", measure);
     };
