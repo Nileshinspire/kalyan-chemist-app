@@ -22,8 +22,9 @@ import {
   mutation,
   query,
 } from "./_generated/server";
-import type { ActionCtx, DatabaseReader, Doc, MutationCtx } from "./_generated/server";
+import type { ActionCtx, DatabaseReader, MutationCtx } from "./_generated/server";
 import type { DatabaseWriter } from "./_generated/server";
+import type { Doc } from "./_generated/dataModel";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import {
@@ -328,7 +329,7 @@ async function searchCatalog(
     await db
       .query("masterCatalog")
       .withIndex("by_normalizedName", (q) =>
-        q.gte(folded).lt(`${folded}\uffff`),
+        q.gte("normalizedName", folded).lt("normalizedName", `${folded}\uffff`),
       )
       .take(120),
   );
@@ -343,7 +344,7 @@ async function searchCatalog(
         await db
           .query("masterCatalog")
           .withIndex("by_normalizedName", (q) =>
-            q.gte(token).lt(`${token}\uffff`),
+            q.gte("normalizedName", token).lt("normalizedName", `${token}\uffff`),
           )
           .take(60),
       );
@@ -357,7 +358,7 @@ async function searchCatalog(
       await db
         .query("masterCatalog")
         .withIndex("by_normalizedComposition", (q) =>
-          q.gte(folded).lt(`${folded}\uffff`),
+          q.gte("normalizedComposition", folded).lt("normalizedComposition", `${folded}\uffff`),
         )
         .take(40),
     );
@@ -1054,6 +1055,26 @@ export const storeImportedImages = action({
   },
 });
 
+type AutoFillResult =
+  | {
+      found: true;
+      record: ReturnType<typeof toFillRecord>;
+      suggestions: Suggestion[];
+      sources: SourceReport[];
+    }
+  | {
+      found: true;
+      record: null;
+      suggestions: Suggestion[];
+      sources: SourceReport[];
+    }
+  | {
+      found: false;
+      message: string;
+      suggestions: Suggestion[];
+      sources: SourceReport[];
+    };
+
 /**
  * ADMIN AUTO FILL — catalog first, licensed provider second, never a guess.
  *
@@ -1069,7 +1090,7 @@ export const autoFill = action({
     productName: v.string(),
     hints: identityHintsValidator,
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<AutoFillResult> => {
     await requireAdminAction(ctx);
     const name = args.productName.trim();
     const hints: IdentityHints = args.hints ?? {};
@@ -1083,12 +1104,15 @@ export const autoFill = action({
       };
     }
 
-    let hits = await ctx.runQuery(internal.masterCatalog.searchRecords, {
-      query: name,
-      take: 12,
-      hints,
-      partial: false,
-    });
+    let hits: SearchHit[] = await ctx.runQuery(
+      internal.masterCatalog.searchRecords,
+      {
+        query: name,
+        take: 12,
+        hints,
+        partial: false,
+      },
+    );
     // A stable code typed into the SKU field is an exact lookup of its own.
     if (hits.length === 0 && hints.sku) {
       hits = await ctx.runQuery(internal.masterCatalog.searchRecords, {
@@ -1275,6 +1299,19 @@ export const autoFill = action({
   },
 });
 
+type LookupImageResult = {
+  found: boolean;
+  ambiguous: boolean;
+  hasImage: boolean;
+  message: string | null;
+  imageUrl: string | null;
+  additionalImages: string[];
+  imageSource: string | null;
+  imageUrlSource: string | null;
+  matchedName: string | null;
+  suggestions: Suggestion[];
+};
+
 /**
  * Catalog image lookup for the dialog's Fetch image button. Same exact-match
  * rules as Auto Fill; only images of the matched record are ever returned,
@@ -1286,7 +1323,7 @@ export const lookupImage = action({
     productName: v.string(),
     hints: identityHintsValidator,
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<LookupImageResult> => {
     await requireAdminAction(ctx);
     const name = args.productName.trim();
     const hints: IdentityHints = args.hints ?? {};
@@ -1304,13 +1341,16 @@ export const lookupImage = action({
     };
     if (!name) return empty;
 
-    const hits = await ctx.runQuery(internal.masterCatalog.searchRecords, {
-      query: name,
-      take: 12,
-      hints,
-      partial: false,
-    });
-    const exact = hits.filter((hit) => hit.verdict === "exact");
+    const hits: SearchHit[] = await ctx.runQuery(
+      internal.masterCatalog.searchRecords,
+      {
+        query: name,
+        take: 12,
+        hints,
+        partial: false,
+      },
+    );
+    const exact: SearchHit[] = hits.filter((hit) => hit.verdict === "exact");
 
     if (exact.length !== 1) {
       if (exact.length > 1 || hits.length > 0) {

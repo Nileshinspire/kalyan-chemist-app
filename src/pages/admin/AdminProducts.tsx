@@ -1,5 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { NO_CONFIDENT_MATCH_MESSAGE } from "@/convex/productInfo";
+import {
+  CATALOG_IMAGE_NOT_FOUND_MESSAGE,
+  CATALOG_PRODUCT_NOT_FOUND_MESSAGE,
+} from "@/convex/masterCatalogCore";
+import MasterCatalogImportDialog from "./MasterCatalogImportDialog";
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import AdminLayout from "@/components/admin/AdminLayout";
@@ -44,14 +49,13 @@ import {
   Pencil,
   Trash2,
   Package,
-  Filter,
   ArrowUpDown,
   X,
   Loader2,
-  Image,
   Wand2,
   ShieldAlert,
   CheckCircle2,
+  Database,
 } from "lucide-react";
 
 function slugify(text: string) {
@@ -178,6 +182,33 @@ const AUDIT_REASON_COPY: Record<string, string> = {
     "Two thumbnails are the same picture stored twice — re-resolve to get genuinely different views.",
 };
 
+/** One autocomplete result from the verified master catalog. */
+type CatalogSuggestion = {
+  catalogProductId: string;
+  name: string;
+  brand: string | null;
+  manufacturer: string | null;
+  strength: string | null;
+  form: string | null;
+  packSize: string | null;
+  verificationStatus: "VERIFIED" | "NEEDS_REVIEW" | "NEEDS_IMAGE";
+  hasImage: boolean;
+  verdict: "exact" | "related";
+  reason: string;
+};
+
+/** Catalog suggestion → the compact “pick the exact product” row. */
+function toCandidate(suggestion: CatalogSuggestion) {
+  return {
+    name: suggestion.name,
+    manufacturer: suggestion.brand ?? suggestion.manufacturer ?? "",
+    composition: [suggestion.strength, suggestion.packSize]
+      .filter(Boolean)
+      .join(" · "),
+    form: suggestion.form,
+  };
+}
+
 export default function AdminProducts() {
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState<string>("all");
@@ -190,12 +221,14 @@ export default function AdminProducts() {
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [autoFilling, setAutoFilling] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [nameQuery, setNameQuery] = useState("");
 
-  const enrichProductAction = useAction(api.productBackfill.enrichProduct);
-  const findProductCandidatesAction = useAction(api.productBackfill.findProductCandidates);
-  // Product images come from their own verified pipeline, never from the
-  // metadata action (which can return a generated placeholder or a diagram).
-  const resolveProductImageAction = useAction(api.productImageResolver.resolveProductImage);
+  // Auto Fill and its image step read ONLY the verified master catalog — the
+  // licensed-dataset layer the admin imported. The old external resolvers stay
+  // for the row-level repair/audit tools, but are disconnected from this flow.
+  const catalogAutoFillAction = useAction(api.masterCatalog.autoFill);
+  const lookupCatalogImageAction = useAction(api.masterCatalog.lookupImage);
   const repairProductImageAction = useAction(api.productImageRepair.repairProductImage);
   // The rerunnable image audit: it reports every stored image that cannot be
   // trusted, and re-resolves exactly those products in the same run.
@@ -217,8 +250,13 @@ export default function AdminProducts() {
     /** Where the verified record came from, so the admin knows what to trust. */
     matchSource: string | null;
     sourceUrl: string | null;
-    /** Every source the resolver asked, and what it answered. */
+    /** Every source the catalog asked, and what it answered. */
     sources: Array<{ id: string; label: string; status: string; detail: string }>;
+    /**
+     * The exact message to show when nothing was matched (the mandated
+     * catalog wording), instead of the legacy all-sources message.
+     */
+    notice?: string | null;
   } | null>(null);
   const [candidates, setCandidates] = useState<
     Array<{ name: string; manufacturer: string; composition: string; form: string | null }> | null
@@ -237,6 +275,20 @@ export default function AdminProducts() {
   const updateProduct = useMutation(api.adminProducts.update);
   const deleteProduct = useMutation(api.adminProducts.remove);
   const toggleActive = useMutation(api.adminProducts.toggleActive);
+
+  // Master-catalog autocomplete: a debounced, indexed prefix search — never a
+  // full-catalog scan, and skipped entirely while the dialog is closed.
+  useEffect(() => {
+    const handle = setTimeout(
+      () => setNameQuery(dialogOpen ? form.name.trim() : ""),
+      250,
+    );
+    return () => clearTimeout(handle);
+  }, [form.name, dialogOpen]);
+  const catalogSuggestions = useQuery(
+    api.masterCatalog.searchProducts,
+    dialogOpen && nameQuery.length >= 2 ? { query: nameQuery, take: 6 } : "skip",
+  );
 
   const openCreate = () => {
     setEditingProduct(null);
@@ -353,326 +405,346 @@ export default function AdminProducts() {
   };
 
   /**
-   * Resolve the exact product image through the verified pipeline. It never
-   * returns a placeholder: on failure the form keeps no image and the reason is
-   * surfaced, so the admin can correct the name or retry.
+   * Apply one verified catalog record's images to the form. This is the only
+   * place the dialog writes an image: the packshot and every extra view belong
+   * to the exact record that was matched, so the metadata and the photo always
+   * describe the same product. Nothing is mirrored, duplicated or found by a
+   * second search.
    */
-  const fetchVerifiedImage = async (
-    source: ProductForm,
-  ): Promise<{
-    imageUrl: string;
-    additionalImages: string[];
-    imageSource: string;
-    imageUrlSource: string;
-    complete: boolean;
-    message?: string;
-  } | null> => {
+  const applyCatalogRecordImages = (
+    target: ProductForm,
+    record: {
+      hasImage: boolean;
+      imageUrl: string | null;
+      additionalImages: string[];
+      imageSource: string | null;
+      imageUrlSource: string | null;
+      canonicalProductName: string;
+    },
+  ): string[] => {
+    const filled: string[] = [];
+    if (record.hasImage && record.imageUrl) {
+      target.imageUrl = record.imageUrl;
+      target.additionalImages = record.additionalImages;
+      target.imageSource = record.imageSource ?? undefined;
+      target.imageUrlSource = record.imageUrlSource ?? undefined;
+      filled.push("Image");
+      if (record.additionalImages.length > 0) {
+        filled.push(
+          `${record.additionalImages.length} more view${record.additionalImages.length === 1 ? "" : "s"}`,
+        );
+      }
+      const views = 1 + record.additionalImages.length;
+      setImageStatus({
+        state: "verified",
+        matchedName: record.canonicalProductName,
+        views: record.additionalImages.length,
+        source: record.imageSource ?? "master product catalog",
+        complete: views >= TARGET_GALLERY_IMAGES,
+        message:
+          views >= TARGET_GALLERY_IMAGES
+            ? undefined
+            : `The verified catalog record ships ${views} image view${views === 1 ? "" : "s"} — no other view exists for this exact product.`,
+      });
+    } else {
+      // The record exists but has no verified image: say exactly that, and
+      // never substitute a placeholder or another product's picture.
+      setImageStatus({ state: "unverified", message: CATALOG_IMAGE_NOT_FOUND_MESSAGE });
+    }
+    return filled;
+  };
+
+  /**
+   * Fetch image — catalog only. Same exact-match rules as Auto Fill: the image
+   * comes from the matched record's own stored assets, or the mandated
+   * missing-image message is shown. No external image search runs any more.
+   */
+  const handleImageRetry = async () => {
+    if (!form.name.trim()) {
+      toast.error("Enter the product name first.");
+      return;
+    }
     setImageStatus({ state: "loading" });
     try {
-      const brand = brands?.find((b) => b._id === source.brandId)?.name;
-      const result = await resolveProductImageAction({
-        productName: source.name,
-        brand: brand || undefined,
-        manufacturer: source.manufacturer || undefined,
-        composition: source.composition || undefined,
-        form: source.form || undefined,
-        strength: source.strength || undefined,
-        dosage: source.dosage || undefined,
-        packSize: source.packSize || undefined,
-        sku: source.sku || undefined,
+      const result = await lookupCatalogImageAction({
+        productName: form.name,
+        hints: { sku: form.sku || undefined },
       });
-      if (result.ok) {
-        setImageStatus({
-          state: "verified",
-          matchedName: result.matchedName,
-          views: result.additionalImages.length,
-          source: result.source,
-          complete: result.complete,
-          message: result.message,
-        });
-        return {
-          imageUrl: result.imageUrl,
-          additionalImages: result.additionalImages,
-          imageSource: result.source,
-          imageUrlSource: result.imageUrlSource,
-          complete: result.complete,
-          message: result.message,
-        };
+      if (!result.found) {
+        const message = result.message ?? CATALOG_PRODUCT_NOT_FOUND_MESSAGE;
+        setImageStatus({ state: "unverified", message });
+        toast.error(message, { duration: 9000 });
+        return;
       }
-      setImageStatus({ state: "unverified", message: result.message });
-      return null;
+      if (result.ambiguous) {
+        setCandidates(
+          result.suggestions.map((suggestion) => ({
+            name: suggestion.name,
+            manufacturer: suggestion.brand ?? suggestion.manufacturer ?? "",
+            composition: [suggestion.strength, suggestion.packSize]
+              .filter(Boolean)
+              .join(" · "),
+            form: suggestion.form,
+          })),
+        );
+        setImageStatus({ state: "idle" });
+        toast.info(
+          "Several exact variants match this name. Select the exact product, then fetch its image.",
+        );
+        return;
+      }
+      if (!result.hasImage || !result.imageUrl) {
+        const message = result.message ?? CATALOG_IMAGE_NOT_FOUND_MESSAGE;
+        setImageStatus({ state: "unverified", message });
+        toast.error(message, { duration: 9000 });
+        return;
+      }
+      setForm({
+        ...form,
+        imageUrl: result.imageUrl,
+        additionalImages: result.additionalImages,
+        imageSource: result.imageSource ?? undefined,
+        imageUrlSource: result.imageUrlSource ?? undefined,
+      });
+      const views = 1 + result.additionalImages.length;
+      setImageStatus({
+        state: "verified",
+        matchedName: result.matchedName ?? form.name,
+        views: result.additionalImages.length,
+        source: result.imageSource ?? "master product catalog",
+        complete: views >= TARGET_GALLERY_IMAGES,
+        message:
+          views >= TARGET_GALLERY_IMAGES
+            ? undefined
+            : `The verified catalog record ships ${views} image view${views === 1 ? "" : "s"}.`,
+      });
+      toast.success(
+        result.additionalImages.length > 0
+          ? `Verified catalog packshot + ${result.additionalImages.length} product view${result.additionalImages.length === 1 ? "" : "s"}`
+          : "Verified catalog packshot applied",
+      );
     } catch (error) {
       setImageStatus({
         state: "unverified",
         message:
           error instanceof Error && error.message
             ? error.message
-            : "Product image lookup failed.",
+            : "Catalog image lookup failed.",
       });
-      return null;
     }
   };
 
-  const handleImageRetry = async () => {
-    if (!form.name.trim()) {
-      toast.error("Enter the product name first.");
-      return;
-    }
-    const found = await fetchVerifiedImage(form);
-    if (found) {
-      setForm({
-        ...form,
-        imageUrl: found.imageUrl,
-        additionalImages:
-          found.additionalImages.length > 0
-            ? found.additionalImages
-            : form.additionalImages,
-        // Provenance travels with the image so a later audit can tell where the
-        // stored packshot actually came from.
-        imageSource: found.imageSource,
-        imageUrlSource: found.imageUrlSource,
-      });
-      toast.success(
-        found.additionalImages.length > 0
-          ? `Verified packshot + ${found.additionalImages.length} product view${found.additionalImages.length === 1 ? "" : "s"}`
-          : "Product image verified",
-      );
-      if (!found.complete) {
-        // Never reported as a completed enrichment: the product simply does not
-        // have that many genuine views published anywhere.
-        toast.warning(found.message ?? `${TARGET_GALLERY_IMAGES} verified product images could not be found for this exact product.`);
-      }
-    } else {
-      toast.error("Exact product packshot could not be verified.");
-    }
-  };
-
-  const handleAutoFillAll = async () => {
-    if (!form.name.trim()) {
+  /**
+   * ADMIN AUTO FILL — the verified master catalog is the only source.
+   *
+   * The admin types the product name; the catalog answers with the exact
+   * variant (or the honest not-found / pick-the-variant response); that
+   * record's own metadata and its own stored images fill the existing form.
+   * Nothing is guessed, nothing is published here — the admin reviews and
+   * saves through the normal flow.
+   */
+  const runCatalogAutoFill = async (typedName: string) => {
+    const name = typedName.trim();
+    if (!name) {
       toast.error("Please enter a product name first");
       return;
     }
     setAutoFilling(true);
     try {
-      const brand = brands?.find((b) => b._id === form.brandId)?.name;
-      const categoryName = hierarchicalCategories
-        ?.flatMap((parent: any) => [parent, ...(parent.children ?? [])])
-        .find((c: any) => c._id === form.categoryId)?.name;
-      const result = await enrichProductAction({
-        productName: form.name,
-        manufacturer: form.manufacturer || undefined,
-        brand: brand || undefined,
-        composition: form.composition || undefined,
-        form: form.form || undefined,
-        strength: form.strength || undefined,
-        dosage: form.dosage || undefined,
-        packSize: form.packSize || undefined,
-        sku: form.sku || undefined,
-        categoryName: categoryName || undefined,
+      const result = await catalogAutoFillAction({
+        productName: name,
+        // The SKU is the only hint passed: a stable code is an exact lookup of
+        // its own. Everything else comes from the name the admin typed.
+        hints: { sku: form.sku || undefined },
       });
 
+      if (!result.found) {
+        const message = result.message ?? CATALOG_PRODUCT_NOT_FOUND_MESSAGE;
+        setCandidates(null);
+        setMatchInfo({
+          productKind: "unknown",
+          kindConfident: false,
+          kindReason: "",
+          matchFound: false,
+          matchSource: null,
+          sourceUrl: null,
+          sources: result.sources,
+          notice: message,
+        });
+        toast.error(message, { duration: 9000 });
+        return;
+      }
+
+      if (!result.record) {
+        // Several exact variants share this name: offer them, apply nothing.
+        setCandidates(result.suggestions.map(toCandidate));
+        setMatchInfo({
+          productKind: "unknown",
+          kindConfident: false,
+          kindReason: "",
+          matchFound: false,
+          matchSource: null,
+          sourceUrl: null,
+          sources: result.sources,
+          notice:
+            "Several exact variants match this name. Select the exact product below, then click Auto Fill again.",
+        });
+        toast.info("Select the exact product variant, then Auto Fill again.");
+        return;
+      }
+
+      const record = result.record;
       const newForm = { ...form };
       const filled: string[] = [];
       // A placeholder left over from an earlier auto-fill is never kept.
       if (/^data:/i.test(newForm.imageUrl ?? "")) newForm.imageUrl = undefined;
 
-      // The image is resolved further down, from the very same product record
-      // the metadata above came from.
-      // Description — always overwrite with product-specific description
-      if (result.description) {
-        newForm.description = result.description;
-        filled.push("Description");
+      // Product name — the canonical spelling of the exact catalog record.
+      newForm.name = record.canonicalProductName;
+      if (!newForm.slug || newForm.slug === slugify(name)) {
+        newForm.slug = slugify(record.canonicalProductName);
       }
-      // Benefits — always overwrite with fresh generation
-      if (result.benefits) {
-        newForm.benefits = result.benefits;
-        filled.push("Benefits");
-      }
-      // Consume Type — always overwrite
-      if ((result as any).consumeType) {
-        newForm.consumeType = (result as any).consumeType;
-        filled.push("Consume Type");
-      }
-      // Safety Note — always overwrite
-      if ((result as any).safetyNote) {
-        newForm.safetyNote = (result as any).safetyNote;
-        filled.push("Safety Note");
-      }
-      // Manufacturer — always overwrite with product-specific manufacturer
-      if (result.manufacturer) {
-        newForm.manufacturer = result.manufacturer;
+      filled.push("Name");
+      if (record.manufacturer) {
+        newForm.manufacturer = record.manufacturer;
         filled.push("Manufacturer");
       }
-      // Composition — always overwrite with exact product composition
-      if ((result as any).composition) {
-        newForm.composition = (result as any).composition;
-        filled.push("Composition");
-      }
-      // Form — always overwrite with correct product form (e.g. cream, gel, spray)
-      if ((result as any).form) {
-        newForm.form = (result as any).form;
-        filled.push("Form");
-      }
-      // Strength / Pack Size — resolved for the exact variant, so the admin does
-      // not have to type what the product source already states.
-      if ((result as any).strength) {
-        newForm.strength = (result as any).strength;
-        filled.push("Strength");
-      }
-      if ((result as any).packSize) {
-        newForm.packSize = (result as any).packSize;
-        filled.push("Pack Size");
-      }
-      // Brand — only ever linked to a brand that already exists in this store;
-      // the Auto Fill never creates catalogue entries of its own.
-      if ((result as any).brand && !newForm.brandId && brands) {
-        const brand = brands.find(
-          (b: any) => b.name.toLowerCase() === String((result as any).brand).toLowerCase(),
+      if (record.brand && !newForm.brandId && brands) {
+        const matchedBrand = brands.find(
+          (b) => b.name.toLowerCase() === record.brand?.toLowerCase(),
         );
-        if (brand) {
-          newForm.brandId = brand._id;
+        if (matchedBrand) {
+          newForm.brandId = matchedBrand._id;
           filled.push("Brand");
         }
       }
-      // Expiry Date — fill if available (never calculated)
-      if ((result as any).expiryDate) {
-        newForm.expiryDate = (result as any).expiryDate;
-        filled.push("Expiry Date");
+      if (record.composition) {
+        newForm.composition = record.composition;
+        filled.push("Composition");
       }
-      // Storage Information — always overwrite with product-specific storage
-      if ((result as any).storageInformation) {
-        newForm.storageInformation = (result as any).storageInformation;
+      if (record.form) {
+        newForm.form = record.form;
+        filled.push("Form");
+      }
+      if (record.strength) {
+        newForm.strength = record.strength;
+        if (!newForm.dosage) newForm.dosage = record.strength;
+        filled.push("Strength");
+      }
+      if (record.packSize) {
+        newForm.packSize = record.packSize;
+        filled.push("Pack Size");
+      }
+      if (record.sku) {
+        newForm.sku = record.sku;
+        filled.push("SKU");
+      }
+      if (record.mrp !== null && record.mrp > 0) {
+        newForm.price = record.mrp;
+        filled.push("MRP");
+      }
+      if (record.prescriptionRequired !== null) {
+        newForm.prescriptionRequired = record.prescriptionRequired;
+        filled.push("Prescription");
+      }
+      if (record.description) {
+        newForm.description = record.description;
+        filled.push("Description");
+      }
+      if (record.benefits) {
+        newForm.benefits = record.benefits;
+        filled.push("Benefits");
+      }
+      if (record.directions) {
+        newForm.consumeType = record.directions;
+        filled.push("Directions");
+      }
+      if (record.safety) {
+        newForm.safetyNote = record.safety;
+        filled.push("Safety");
+      }
+      if (record.storage) {
+        newForm.storageInformation = record.storage;
         filled.push("Storage Information");
       }
-      // Category — fill if the enrichment returned a suggested subcategory
-      // The enrichment action returns category as { category: string, subcategory: string }
-      const categoryInfo = (result as any).category;
-      const suggestedSubcategory: string | null = categoryInfo && typeof categoryInfo === "object" ? categoryInfo.subcategory : null;
-      const suggestedParentName: string | null = categoryInfo && typeof categoryInfo === "object" ? categoryInfo.category : (typeof categoryInfo === "string" ? categoryInfo : null);
-      if (!newForm.categoryId && hierarchicalCategories) {
-        // Priority 1: Match subcategory name within hierarchical categories
-        if (suggestedSubcategory) {
+      // Category — matched to the store's own category tree when the record
+      // names one and the form does not have a choice yet.
+      if (!newForm.categoryId && record.category && hierarchicalCategories) {
+        const wanted = record.category.toLowerCase();
+        for (const parent of hierarchicalCategories) {
+          const child = parent.children?.find(
+            (c) => c.name.toLowerCase() === wanted,
+          );
+          if (child) {
+            newForm.categoryId = child._id;
+            filled.push("Category");
+            break;
+          }
+        }
+        if (!newForm.categoryId) {
           for (const parent of hierarchicalCategories) {
-            const child = parent.children?.find((c: any) => c.name.toLowerCase() === suggestedSubcategory.toLowerCase());
-            if (child) {
-              newForm.categoryId = child._id;
+            if (
+              parent.name.toLowerCase() === wanted &&
+              parent.children.length === 0
+            ) {
+              newForm.categoryId = parent._id;
               filled.push("Category");
               break;
             }
           }
         }
-        // Priority 2: If no subcategory match, match parent category name (only for standalone/leaf categories)
-        if (!newForm.categoryId && suggestedParentName) {
-          for (const parent of hierarchicalCategories) {
-            if (parent.name.toLowerCase() === suggestedParentName.toLowerCase()) {
-              // Only assign directly if the parent has no children (is a standalone/leaf category)
-              if (parent.children.length === 0) {
-                newForm.categoryId = parent._id;
-                filled.push("Category");
-              }
-              break;
-            }
-          }
-        }
       }
 
-      // Image: the Auto Fill already resolved the exact product record and
-      // stored THAT record's own packshot together with the metadata above, so
-      // the product's fields and its photo always describe one product. The
-      // image is applied here because it still goes through the admin's own
-      // save path, but nothing is searched a second time.
-      let recordImageApplied = false;
-      if (result.imageUrl) {
-        const recordImages: string[] = result.additionalImages ?? [];
-        newForm.imageUrl = result.imageUrl;
-        newForm.additionalImages = recordImages;
-        // Provenance travels with the image so a later audit can tell exactly
-        // which record's asset was stored.
-        newForm.imageSource = result.imageSource ?? undefined;
-        newForm.imageUrlSource = result.imageUrlSource ?? undefined;
-        filled.push("Image");
-        if (recordImages.length > 0) {
-          filled.push(
-            `${recordImages.length} more view${recordImages.length === 1 ? "" : "s"}`,
-          );
-        }
-        setImageStatus({
-          state: "verified",
-          matchedName: result.imageMatchedName ?? newForm.name,
-          views: recordImages.length,
-          source: result.imageSource ?? "",
-          complete: result.imageComplete ?? false,
-          message: result.imageMessage ?? undefined,
-        });
-        recordImageApplied = true;
-        if (!result.imageComplete) {
-          toast.warning(
-            result.imageMessage ??
-              `${TARGET_GALLERY_IMAGES} verified product images could not be found for this exact product.`,
-            { duration: 9000 },
-          );
-        }
-      }
-      if (!recordImageApplied) {
-        // Either no catalogue record was found for this product, or the record's
-        // own assets could not be downloaded. The full resolver is asked for
-        // this exact product, which searches the same catalogue again and can
-        // also repair an image that is already stored.
-        const verifiedImage = await fetchVerifiedImage(newForm);
-        if (verifiedImage) {
-          newForm.imageUrl = verifiedImage.imageUrl;
-          newForm.imageSource = verifiedImage.imageSource;
-          newForm.imageUrlSource = verifiedImage.imageUrlSource;
-          filled.push("Image");
-          if (verifiedImage.additionalImages.length > 0) {
-            newForm.additionalImages = verifiedImage.additionalImages;
-            filled.push(
-              `${verifiedImage.additionalImages.length} more view${verifiedImage.additionalImages.length === 1 ? "" : "s"}`,
-            );
-          }
-          if (!verifiedImage.complete) {
-            toast.warning(
-              verifiedImage.message ??
-                `${TARGET_GALLERY_IMAGES} verified product images could not be found for this exact product.`,
-              { duration: 9000 },
-            );
-          }
-        } else if (result.imageMessage) {
-          // The exact product record was found, only its images failed: say so
-          // plainly instead of implying the product has no packshot.
-          toast.error(result.imageMessage, { duration: 9000 });
-        }
-      }
+      // Images: the SAME record's own verified assets (or the exact
+      // missing-image message — never a substitute).
+      filled.push(...applyCatalogRecordImages(newForm, record));
 
       setForm(newForm);
-
-      // Surface what kind of product was identified, and be explicit when the
-      // exact product could not be matched so the admin knows the clinical
-      // fields were NOT filled from a verified record.
+      setCandidates(null);
       setMatchInfo({
-        productKind: (result as any).productKind ?? "unknown",
-        kindConfident: (result as any).kindConfident ?? false,
-        kindReason: (result as any).kindReason ?? "",
-        matchFound: (result as any).matchFound ?? false,
-        matchSource: (result as any).matchSource ?? null,
-        sourceUrl: (result as any).sourceUrl ?? null,
-        sources: (result as any).sources ?? [],
+        productKind: record.form ?? "unknown",
+        kindConfident: record.verificationStatus === "VERIFIED",
+        kindReason: "Matched the exact record in the verified product catalog.",
+        matchFound: true,
+        matchSource: "catalog",
+        sourceUrl: record.sourceUrl,
+        sources: result.sources,
+        notice: null,
       });
 
-      if (!(result as any).matchFound) {
-        // No verified reference record: clinical fields were deliberately left
-        // alone rather than guessed.
-        toast.warning(NO_CONFIDENT_MATCH_MESSAGE, { duration: 8000 });
-      } else if (filled.length > 0) {
-        toast.success(`Auto-filled: ${filled.join(", ")} for "${form.name}"`);
+      if (!record.hasImage) {
+        toast.error(CATALOG_IMAGE_NOT_FOUND_MESSAGE, { duration: 9000 });
+      }
+      if (record.verificationStatus === "NEEDS_REVIEW") {
+        toast.warning(
+          "This catalog record is marked NEEDS_REVIEW — check the identity before publishing.",
+          { duration: 9000 },
+        );
+      }
+      if (filled.length > 0) {
+        toast.success(
+          `Auto-filled from the verified catalog record: ${filled.join(", ")}`,
+        );
       } else {
-        toast.info(`No new details to fill for "${form.name}". Please review the existing information.`);
+        toast.info(
+          `No catalog fields to apply for "${record.canonicalProductName}". Review the form before saving.`,
+        );
       }
     } catch (err: any) {
-      toast.error(err.message || "Failed to auto-fill product information");
+      toast.error(err.message || "Failed to auto-fill from the product catalog");
     } finally {
       setAutoFilling(false);
     }
+  };
+
+  const handleAutoFillAll = async () => {
+    await runCatalogAutoFill(form.name);
+  };
+
+  /** Picking an autocomplete row applies that exact record immediately. */
+  const handleCatalogSelect = async (suggestion: CatalogSuggestion) => {
+    setForm((previous) => ({ ...previous, name: suggestion.name }));
+    await runCatalogAutoFill(suggestion.name);
   };
 
   const handleBackfillAll = async () => {
@@ -763,6 +835,14 @@ export default function AdminProducts() {
             <p className="text-sm text-muted-foreground">Manage your medicine catalogue</p>
           </div>
           <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setImportOpen(true)}
+              className="gap-2"
+            >
+              <Database className="size-4" />
+              Import catalog
+            </Button>
             <Button
               variant="outline"
               onClick={handleImageAudit}
@@ -1088,6 +1168,45 @@ export default function AdminProducts() {
                 <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value, slug: slugify(e.target.value) })} placeholder="e.g. Crocin Advance 500mg" />
                 <p className="text-[11px] text-muted-foreground">Enter the exact product name, then click Auto Fill to auto-populate the details for that product.</p>
 
+                {/* Autocomplete from the verified master catalog: every row is
+                    an exact variant imported from the licensed dataset, with
+                    its strength, form and pack shown so the admin picks the
+                    exact record before anything is filled in. */}
+                {catalogSuggestions && catalogSuggestions.length > 0 && (
+                  <div className="rounded-lg border border-border bg-muted/30 p-2 space-y-1.5">
+                    <p className="text-[11px] font-semibold">
+                      Verified catalog records — select the exact product:
+                    </p>
+                    {catalogSuggestions.map((suggestion) => (
+                      <button
+                        key={suggestion.catalogProductId}
+                        type="button"
+                        className="w-full text-left rounded-md border border-border/60 bg-card px-2 py-1.5 text-[11px] hover:border-primary/40 transition-colors"
+                        onClick={() => handleCatalogSelect(suggestion)}
+                        disabled={autoFilling}
+                      >
+                        <span className="font-medium text-foreground">{suggestion.name}</span>
+                        <span className="text-muted-foreground">
+                          {" "}—{" "}
+                          {[suggestion.brand, suggestion.strength, suggestion.form, suggestion.packSize]
+                            .filter(Boolean)
+                            .join(" · ") || "no further variant details"}
+                        </span>
+                        {suggestion.verificationStatus !== "VERIFIED" && (
+                          <span className="ml-1 text-amber-600">
+                            {suggestion.verificationStatus === "NEEDS_IMAGE"
+                              ? "· needs image"
+                              : "· needs review"}
+                          </span>
+                        )}
+                        {!suggestion.hasImage && (
+                          <span className="ml-1 text-muted-foreground">· no verified image yet</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
                 {/* Review panel: the admin confirms WHAT was matched before
                     publishing, rather than trusting a silent overwrite. */}
                 {matchInfo && (
@@ -1104,7 +1223,11 @@ export default function AdminProducts() {
                     {matchInfo.matchFound && (
                       <p className="text-muted-foreground">
                         Verified from:{" "}
-                        {matchInfo.matchSource === "online" ? "online product source" : "reference catalogue"}
+                        {matchInfo.matchSource === "catalog"
+                          ? "verified product catalog"
+                          : matchInfo.matchSource === "online"
+                            ? "online product source"
+                            : "reference catalogue"}
                         {matchInfo.sourceUrl && (
                           <>
                             {" · "}
@@ -1125,7 +1248,7 @@ export default function AdminProducts() {
                     )}
                     {!matchInfo.matchFound && (
                       <p className="text-amber-800 font-medium leading-relaxed">
-                        {NO_CONFIDENT_MATCH_MESSAGE}
+                        {matchInfo.notice ?? NO_CONFIDENT_MATCH_MESSAGE}
                       </p>
                     )}
                     {/* Which sources were asked, and what each one answered. A
@@ -1163,15 +1286,35 @@ export default function AdminProducts() {
                       if (!form.name.trim()) return;
                       setFindingCandidates(true);
                       try {
-                        const found = await findProductCandidatesAction({
+                        // Same catalog query as Auto Fill, but it only ever
+                        // OFFERS the exact variants — it applies nothing.
+                        const found = await catalogAutoFillAction({
                           productName: form.name,
+                          hints: { sku: form.sku || undefined },
                         });
-                        setCandidates(found.length ? found : null);
-                        if (!found.length) {
-                          toast.info(`No reference product matched "${form.name}".`);
+                        if (!found.found) {
+                          setCandidates(null);
+                          toast.error(
+                            found.message ?? CATALOG_PRODUCT_NOT_FOUND_MESSAGE,
+                            { duration: 9000 },
+                          );
+                        } else if (!found.record) {
+                          setCandidates(found.suggestions.map(toCandidate));
+                          toast.info("Select the exact product.");
+                        } else {
+                          setCandidates(null);
+                          const canonical = found.record.canonicalProductName;
+                          setForm((previous) => ({ ...previous, name: canonical }));
+                          toast.info(
+                            `Exact product found: "${canonical}". Click Auto Fill to apply it.`,
+                          );
                         }
-                      } catch (err: any) {
-                        toast.error(err.message || "Lookup failed");
+                      } catch (err) {
+                        toast.error(
+                          err instanceof Error && err.message
+                            ? err.message
+                            : "Lookup failed",
+                        );
                       } finally {
                         setFindingCandidates(false);
                       }
@@ -1465,6 +1608,10 @@ export default function AdminProducts() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Licensed catalog import (CSV/XLSX + optional image ZIP). The
+            importer fills the master catalog; Auto Fill reads it. */}
+        <MasterCatalogImportDialog open={importOpen} onOpenChange={setImportOpen} />
 
         {/* Delete Confirmation */}
         <Dialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>

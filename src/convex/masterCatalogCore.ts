@@ -213,8 +213,9 @@ function scanName(rawName: string): NameScan {
   consume(/\b(\d+)\s*['’]s\b/, (m) => {
     packs.push(m[1]);
   });
-  // 7. Volumes: "100 ml", "60ml".
-  consume(/(\d+(?:\.\d+)?)\s*(ml|l)\b/, (m) => {
+  // 7. Volumes and weights: "100 ml", "60ml", "30g" (a gel's 30 g tube is a
+  //    pack, not a dose — mg/ml doses were already consumed above).
+  consume(/(\d+(?:\.\d+)?)\s*(ml|l|gm|g)\b/, (m) => {
     packs.push(`${trimNumber(m[1])}${m[2]}`);
   });
   // 8. Remaining bare numbers. The first one not already explained by an
@@ -268,7 +269,7 @@ function packKeyOf(values: string[]): string {
 export function statedPack(value: string): string | null {
   const text = (value ?? "").trim().toLowerCase();
   if (!text) return null;
-  const volume = text.match(/(\d+(?:\.\d+)?)\s*(ml|l)\b/);
+  const volume = text.match(/(\d+(?:\.\d+)?)\s*(ml|l|gm|g)\b/);
   if (volume) return `${trimNumber(volume[1])}${volume[2]}`;
   const combo = text.match(/\b(\d+)\s*[x*]\s*(\d+)\b/);
   if (combo) return combo[2];
@@ -536,7 +537,7 @@ const CONTAINS_RULES: Array<[CatalogField, string[]]> = [
   ["sku", ["sku", "item code", "product code", "pack code"]],
   ["productId", ["product id", "item id", "reference id", "catalog id"]],
   ["prescription", ["prescription", "rx required"]],
-  ["manufacturer", ["manufacturer", "marketed by", "manufactured by", "packed by"]],
+  ["manufacturer", ["manufacturer", "marketed by", "manufactured by", "packed by", "maker"]],
   ["composition", ["composition", "ingredient", "generic name"]],
   ["strength", ["strength", "potency"]],
   ["form", ["dosage form", "product form"]],
@@ -690,7 +691,10 @@ function text(value: string | undefined): string | undefined {
 }
 
 export function parseMoney(value: string | undefined): number | undefined {
-  const match = (value ?? "").match(/\d+(?:\.\d+)?/);
+  // Strip currency symbols, thousands separators and spaces first, so
+  // "₹1,234.50" never becomes 1.
+  const cleaned = (value ?? "").replace(/[^0-9.]/g, "");
+  const match = cleaned.match(/\d+(?:\.\d+)?/);
   if (!match) return undefined;
   const num = Number(match[0]);
   return Number.isFinite(num) && num > 0 ? num : undefined;
@@ -726,6 +730,25 @@ function isHttpUrl(value: string): boolean {
 export function imageStem(value: string): string {
   const base = (value ?? "").trim().split(/[?#]/)[0].split("/").pop() ?? "";
   return base.replace(/\.[a-z0-9]{2,5}$/i, "").toLowerCase();
+}
+
+/** Face markers a filename may carry after the product name. */
+const FACE_SUFFIX =
+  /[-_ ](front|back|side|label|rear|left|right|top|bottom|alt|alternate|view|detail|zoom|closeup|close-up)$/;
+
+/**
+ * Exact-name candidates for one image filename: the stem itself, and the
+ * stem with a face marker or an index suffix removed ("dolo-650-tablet-1",
+ * "dolo 650 tablet front"). Still an EXACT name comparison — no fuzzy,
+ * substring or salt matching happens here.
+ */
+function nameStemVariants(stem: string): string[] {
+  const variants = [stem];
+  const face = stem.match(FACE_SUFFIX);
+  if (face) variants.push(stem.slice(0, stem.length - face[0].length));
+  const index = stem.match(/[-_ ]\d{1,2}$/);
+  if (index) variants.push(stem.slice(0, stem.length - index[0].length));
+  return [...new Set(variants.filter((variant) => variant.length > 0))];
 }
 
 /**
@@ -922,6 +945,32 @@ export function planZipImages(
     });
   };
 
+  /**
+   * Resolve a code map for one stem: an exact id wins; otherwise a stem that
+   * starts with the id plus a separator ("dp-1-extra") is still that id. More
+   * than one candidate means a guess, and a guess is never attached.
+   */
+  const resolveById = (
+    map: Map<string, RecordForImages[]>,
+    stemValue: string,
+  ): RecordForImages | null => {
+    const exact = unique(map.get(stemValue));
+    if (exact.length === 1) return exact[0];
+    if (exact.length > 1) return null;
+    const prefixed: RecordForImages[] = [];
+    for (const [key, list] of map) {
+      if (
+        stemValue.startsWith(`${key}-`) ||
+        stemValue.startsWith(`${key}_`) ||
+        stemValue.startsWith(`${key}.`)
+      ) {
+        prefixed.push(...list);
+      }
+    }
+    const deduped = unique(prefixed);
+    return deduped.length === 1 ? deduped[0] : null;
+  };
+
   const attachments = new Map<string, ImageAttachment>();
   const unmatched: string[] = [];
 
@@ -934,40 +983,48 @@ export function planZipImages(
     let hit: RecordForImages | null = null;
     let matchedBy: ImageAttachment["matchedBy"] | null = null;
 
-    // 1. Source Product ID.
-    let candidates = unique(bySourceId.get(stem)).concat(
-      unique(bySourceId.get(stemUpper)),
-    );
-    if (candidates.length === 1) {
-      hit = candidates[0];
-      matchedBy = "sourceProductId";
-    }
+    // 1. Source Product ID (exact, or id + separator + index/extra).
+    hit = resolveById(bySourceId, stem) ?? resolveById(bySourceId, stemUpper);
+    if (hit) matchedBy = "sourceProductId";
     // 2. SKU / GTIN.
     if (!hit) {
-      candidates = unique(byCode.get(stem)).concat(unique(byCode.get(stemUpper)));
-      if (candidates.length === 1) {
-        hit = candidates[0];
-        matchedBy = "sku-gtin";
-      }
+      hit = resolveById(byCode, stem) ?? resolveById(byCode, stemUpper);
+      if (hit) matchedBy = "sku-gtin";
     }
     // 3. The exact filename the dataset row declared for its image.
     if (!hit) {
-      candidates = unique(byDeclared.get(base)).concat(unique(byDeclared.get(stem)));
+      const candidates = unique(byDeclared.get(base)).concat(
+        unique(byDeclared.get(stem)),
+      );
       if (candidates.length === 1) {
         hit = candidates[0];
         matchedBy = "filename";
+      } else if (candidates.length > 1) {
+        unmatched.push(filename);
+        continue;
       }
     }
-    // 4. Exact normalized product name (name, or name + this record's form).
+    // 4. Exact normalized product name (name, or name + this record's form),
+    //    allowing only a face or index suffix on the filename.
     if (!hit) {
-      const byExactName = unique(byName.get(stem));
-      if (byExactName.length === 1) {
-        hit = byExactName[0];
-        matchedBy = "name";
-      } else if (byExactName.length > 1) {
+      const nameHits = new Set<string>();
+      let ambiguous = false;
+      for (const variant of nameStemVariants(stem)) {
+        const byExactName = unique(byName.get(variant));
+        if (byExactName.length > 1) {
+          ambiguous = true;
+          break;
+        }
+        if (byExactName.length === 1) nameHits.add(byExactName[0].catalogProductId);
+      }
+      if (ambiguous || nameHits.size > 1) {
         // Two records share the name: attaching would be a guess.
         unmatched.push(filename);
         continue;
+      }
+      if (nameHits.size === 1) {
+        hit = records.find((r) => r.catalogProductId === [...nameHits][0]) ?? null;
+        if (hit) matchedBy = "name";
       }
     }
 
