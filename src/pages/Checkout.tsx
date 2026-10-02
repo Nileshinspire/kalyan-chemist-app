@@ -34,7 +34,10 @@ import {
   Lock,
   Tag,
   X,
+  Wallet,
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { computeMaxWalletUsage } from "@/convex/referralWalletCore";
 import { formatCurrency } from "@/lib/auth-utils";
 import { geocodeAddress } from "@/lib/geocode";
 import { toast } from "sonner";
@@ -72,6 +75,7 @@ export default function Checkout() {
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [selectedPrescriptionId, setSelectedPrescriptionId] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<"cod" | "online">("cod");
+  const [useWallet, setUseWallet] = useState(false);
   const [notes, setNotes] = useState("");
   const [placing, setPlacing] = useState(false);
   const [paymentProcessing, setPaymentProcessing] = useState(false);
@@ -110,6 +114,8 @@ export default function Checkout() {
   const getRazorpayKeyId = useAction(api.razorpayActions.getKeyId);
   const markPaymentFailed = useMutation(api.razorpay.markPaymentFailed);
   const deliveryConfig = useQuery(api.deliveryConfig.getPublic);
+  const walletBalance = useQuery(api.referralWallet.getWalletBalance);
+  const walletSettings = useQuery(api.referralWallet.getWalletSettings);
 
   // Calculate totals
   const { subtotal, totalDiscount, deliveryFee, tax, total, totalItems, hasRxItems } = useMemo(() => {
@@ -143,6 +149,19 @@ export default function Checkout() {
   const finalTotal = useMemo(() => {
     return Math.max(0, total - (appliedCoupon?.discount || 0));
   }, [total, appliedCoupon]);
+
+  // Wallet can cover part of the payable: capped by balance, the configured
+  // percentage and the payable itself. The server re-clamps this at order time.
+  const walletAllowed = useMemo(() => {
+    if (!walletBalance || !walletSettings) return 0;
+    return computeMaxWalletUsage({
+      balance: walletBalance,
+      payable: finalTotal,
+      percent: walletSettings.maxWalletUsagePercent,
+    });
+  }, [walletBalance, walletSettings, finalTotal]);
+  const walletApplied = useWallet ? walletAllowed : 0;
+  const payableNow = Math.max(0, finalTotal - walletApplied);
 
   const selectedAddress = addresses?.find((a: any) => a._id === selectedAddressId);
 
@@ -356,6 +375,7 @@ export default function Checkout() {
           couponDiscount: appliedCoupon?.discount,
           deliveryLatitude,
           deliveryLongitude,
+          walletAmount: useWallet ? walletAllowed : 0,
         });
       } else {
         result = await createOrder({
@@ -369,13 +389,14 @@ export default function Checkout() {
           couponDiscount: appliedCoupon?.discount,
           deliveryLatitude,
           deliveryLongitude,
+          walletAmount: useWallet ? walletAllowed : 0,
         });
       }
 
       if (paymentMethod === "online") {
-        // Open Razorpay checkout for this order
+        // Charge only the remaining payable after the server-side wallet hold.
         setPlacing(false);
-        await openRazorpayCheckout(result.orderId, result.invoiceNumber, finalTotal);
+        await openRazorpayCheckout(result.orderId, result.invoiceNumber, result.payableAmount);
       } else {
         // COD — order placed directly
         toast.success(`Order placed! Invoice: ${result.invoiceNumber}`);
@@ -660,6 +681,20 @@ export default function Checkout() {
                     </label>
                   </RadioGroup>
 
+                  {walletAllowed > 0 && (
+                    <label className={`flex items-center gap-4 p-4 rounded-xl border cursor-pointer transition-all ${useWallet ? "border-primary bg-primary/[0.03]" : "border-border/60 hover:border-border"}`}>
+                      <Checkbox checked={useWallet} onCheckedChange={(v) => setUseWallet(v === true)} />
+                      <div className="flex-1">
+                        <p className="text-sm font-semibold flex items-center gap-1.5">
+                          <Wallet className="size-4 text-primary" /> Use Wallet Balance
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Apply {formatCurrency(walletAllowed)} from your wallet. Balance: {formatCurrency(walletBalance ?? 0)}
+                        </p>
+                      </div>
+                    </label>
+                  )}
+
                   {paymentMethod === "cod" && (
                     <div className="rounded-xl bg-blue-50 border border-blue-200 p-3 text-xs text-blue-800">
                       <p className="font-semibold">Payment on delivery</p>
@@ -721,6 +756,20 @@ export default function Checkout() {
                     <span className="font-bold text-foreground">Total</span>
                     <span className="font-extrabold text-lg text-foreground">{formatCurrency(finalTotal)}</span>
                   </div>
+                  {walletApplied > 0 && (
+                    <>
+                      <div className="flex justify-between text-green-600">
+                        <span className="flex items-center gap-1">
+                          <Wallet className="size-3" /> Wallet applied
+                        </span>
+                        <span className="font-medium">-{formatCurrency(walletApplied)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="font-bold text-foreground">To Pay</span>
+                        <span className="font-extrabold text-lg text-primary">{formatCurrency(payableNow)}</span>
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 {deliveryFee > 0 && (
@@ -782,8 +831,8 @@ export default function Checkout() {
                     {isProcessing ? <Loader2 className="size-4 animate-spin mr-2" /> : <CheckCircle2 className="size-4 mr-2" />}
                     {paymentProcessing ? "Processing Payment..." :
                      placing ? "Placing Order..." :
-                     paymentMethod === "online" ? `Pay ${formatCurrency(finalTotal)} Securely` :
-                     `Place Order · ${formatCurrency(finalTotal)}`}
+                     paymentMethod === "online" ? `Pay ${formatCurrency(payableNow)} Securely` :
+                     `Place Order · ${formatCurrency(payableNow)}`}
                   </Button>
                 )}
 

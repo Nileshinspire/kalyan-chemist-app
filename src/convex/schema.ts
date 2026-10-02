@@ -143,9 +143,19 @@ const schema = defineSchema(
       city: v.optional(v.string()),
       state: v.optional(v.string()),
       pincode: v.optional(v.string()),
+      // ── Referral programme (server-managed) ──
+      // `referralCode` is the customer's unique, shareable code. `referredBy`
+      // records who referred them; it is written once by the server and never
+      // changed afterwards. These live on the existing customer record rather
+      // than a second customer table.
+      referralCode: v.optional(v.string()),
+      referredBy: v.optional(v.id("users")),
+      referredByCode: v.optional(v.string()),
+      referredAt: v.optional(v.number()),
     })
       .index("email", ["email"])
-      .index("phone", ["phone"]),
+      .index("phone", ["phone"])
+      .index("by_referralCode", ["referralCode"]),
 
     // ── Brands ──
     brands: defineTable({
@@ -425,6 +435,12 @@ const schema = defineSchema(
       notes: v.optional(v.string()),
       couponCode: v.optional(v.string()),
       couponDiscount: v.optional(v.number()),
+      /**
+       * Portion of this order paid from the customer's wallet. The remaining
+       * payable is settled through the existing payment flow. The value is a
+       * reservation until payment succeeds (online) or delivered (COD).
+       */
+      walletAmountUsed: v.optional(v.number()),
       deliveryLatitude: v.optional(v.number()),
       deliveryLongitude: v.optional(v.number()),
       // Audit trail of status changes
@@ -1211,6 +1227,102 @@ const schema = defineSchema(
       })),
     })
       .index("by_date", ["date"]),
+
+    // ── Referral programme ──
+    // One row per (referrer, referred customer) relationship. The status moves
+    // PENDING → QUALIFIED → REWARDED (or CANCELLED / REVERSED) and drives
+    // whether a wallet reward is owed. A referred customer has at most one
+    // referral record, so a reward can never be earned twice from them.
+    referrals: defineTable({
+      /** The referrer's shareable code at the moment of attribution. */
+      referralCode: v.string(),
+      referrerId: v.id("users"),
+      referredCustomerId: v.id("users"),
+      status: v.union(
+        v.literal("PENDING"),
+        v.literal("QUALIFIED"),
+        v.literal("REWARDED"),
+        v.literal("CANCELLED"),
+        v.literal("REVERSED"),
+      ),
+      /** The referred customer's first eligible delivered order. */
+      qualifyingOrderId: v.optional(v.id("orders")),
+      rewardAmount: v.optional(v.number()),
+      rewardTransactionId: v.optional(v.id("walletTransactions")),
+      reversalTransactionId: v.optional(v.id("walletTransactions")),
+      rewardedAt: v.optional(v.number()),
+      cancelledAt: v.optional(v.number()),
+      reversedAt: v.optional(v.number()),
+      createdAt: v.number(),
+      updatedAt: v.number(),
+    })
+      .index("by_referralCode", ["referralCode"])
+      .index("by_referrer", ["referrerId"])
+      .index("by_referred", ["referredCustomerId"])
+      .index("by_qualifyingOrder", ["qualifyingOrderId"])
+      .index("by_referrer_status", ["referrerId", "status"])
+      .index("by_status", ["status"])
+      .index("by_createdAt", ["createdAt"]),
+
+    // ── Wallet account (running balance per customer) ──
+    // The balance is a cached projection of the immutable walletTransactions
+    // ledger; every change goes through the server ledger helper so it can
+    // never be edited from the client.
+    walletAccounts: defineTable({
+      customerId: v.id("users"),
+      balance: v.number(),
+      createdAt: v.number(),
+      updatedAt: v.number(),
+    })
+      .index("by_customer", ["customerId"]),
+
+    // ── Immutable wallet ledger ──
+    // Append-only. Completed transactions are never deleted; corrections are
+    // posted as new transactions (WALLET_REFUND / REWARD_REVERSAL).
+    walletTransactions: defineTable({
+      transactionId: v.string(),
+      customerId: v.id("users"),
+      type: v.union(
+        v.literal("REFERRAL_REWARD"),
+        v.literal("WALLET_USAGE"),
+        v.literal("WALLET_REFUND"),
+        v.literal("ADMIN_CREDIT"),
+        v.literal("ADMIN_DEBIT"),
+        v.literal("REWARD_REVERSAL"),
+      ),
+      /** Always a positive magnitude; direction says which way it moved. */
+      amount: v.number(),
+      direction: v.union(v.literal("credit"), v.literal("debit")),
+      reason: v.string(),
+      referenceType: v.optional(v.string()),
+      referenceId: v.optional(v.string()),
+      status: v.union(
+        v.literal("completed"),
+        v.literal("reserved"),
+        v.literal("released"),
+        v.literal("reversed"),
+      ),
+      balanceAfter: v.number(),
+      metadata: v.optional(v.string()),
+      createdBy: v.optional(v.id("users")),
+      createdAt: v.number(),
+    })
+      .index("by_customer", ["customerId"])
+      .index("by_customer_created", ["customerId", "createdAt"])
+      .index("by_reference", ["referenceId"])
+      .index("by_type", ["type"])
+      .index("by_customer_reference", ["customerId", "referenceId"]),
+
+    // ── Referral / wallet settings (singleton) ──
+    referralSettings: defineTable({
+      rewardAmount: v.number(),
+      minQualifyingOrder: v.number(),
+      maxWalletUsagePercent: v.number(),
+      /** 0 = rewards never expire (the current default). */
+      rewardExpiryDays: v.number(),
+      updatedBy: v.optional(v.id("users")),
+      updatedAt: v.number(),
+    }),
   },
   {
     schemaValidation: false,

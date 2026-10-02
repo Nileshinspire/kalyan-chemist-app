@@ -2,6 +2,7 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { query, mutation } from "./_generated/server";
 import { api } from "./_generated/api";
 import { v } from "convex/values";
+import { handleOrderStatusChange } from "./referralWallet";
 
 // ── Helper: verify admin ──
 async function requireAdmin(ctx: { db: any; auth: any }) {
@@ -321,6 +322,10 @@ export const updateOrderStatus = mutation({
       statusHistory: [...existingHistory, { status: args.status, timestamp: now }],
       updatedAt: now,
     });
+
+    // Referral reward on DELIVERED; wallet refund / reward reversal on
+    // cancellation or refund. Idempotent, and never trusts the frontend.
+    await handleOrderStatusChange(ctx, args.orderId, args.status);
 
     // Delegate notification to the centralized order notification service.
     // This determines available channels (email/SMS/WhatsApp) based on the

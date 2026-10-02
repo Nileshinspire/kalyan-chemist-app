@@ -2,6 +2,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import WalletReferSection from "@/components/account/WalletReferSection";
 import { motion } from "framer-motion";
 import {
   User,
@@ -50,6 +51,9 @@ export default function AccountOverview() {
           </div>
         </div>
       </div>
+
+      {/* Wallet & Refer — part of the existing account dashboard */}
+      <WalletReferSection />
 
       {/* Quick Links Grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

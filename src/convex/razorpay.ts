@@ -1,6 +1,11 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import {
+  reReserveWallet,
+  releaseWalletReservation,
+  settleWalletReservation,
+} from "./referralWallet";
 
 /**
  * Razorpay payment mutations and queries.
@@ -49,6 +54,9 @@ export const confirmPayment = mutation({
       updatedAt: Date.now(),
     });
 
+    // Wallet reservation becomes final now that payment succeeded.
+    await settleWalletReservation(ctx, args.orderId);
+
     await ctx.db.insert("notifications", {
       userId,
       type: "order_status",
@@ -87,6 +95,9 @@ export const markPaymentFailed = mutation({
       updatedAt: Date.now(),
     });
 
+    // Payment failed — return any reserved wallet amount to the customer.
+    await releaseWalletReservation(ctx, args.orderId);
+
     return { success: true };
   },
 });
@@ -116,10 +127,14 @@ export const resetForRetry = mutation({
       updatedAt: Date.now(),
     });
 
-    // Return order details needed to create a new Razorpay order
+    // Re-apply the wallet amount for the retry (no-op if still reserved), then
+    // charge only the remaining payable so the customer is never double-debited.
+    const walletAmount = order.walletAmountUsed ?? 0;
+    const reReserved = walletAmount > 0 ? await reReserveWallet(ctx, args.orderId) : 0;
+
     return {
       success: true,
-      amount: order.totalAmount,
+      amount: Math.max(0, order.totalAmount - reReserved),
       receipt: order.invoiceNumber || args.orderId,
     };
   },

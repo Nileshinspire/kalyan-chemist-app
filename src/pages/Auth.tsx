@@ -3,6 +3,8 @@ import { Input } from "@/components/ui/input";
 import { OtpInput } from "@/components/auth/OtpInput";
 import { SegmentedToggle } from "@/components/SegmentedToggle";
 import { useAuth } from "@/hooks/use-auth";
+import { useMutation } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -101,6 +103,23 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
     redirectAfterAuth,
   );
 
+  // Referral link capture. The ?ref= code is stored locally before signup and
+  // claimed server-side once the customer is authenticated. The server decides
+  // whether the attribution is valid — this is only a hand-off.
+  const refCode = searchParams.get("ref");
+  const claimReferral = useMutation(api.referralWallet.claimReferral);
+  const referralClaimed = useRef(false);
+  const REFERRAL_STORAGE_KEY = "kc_referral_code";
+
+  useEffect(() => {
+    if (!refCode) return;
+    try {
+      window.localStorage.setItem(REFERRAL_STORAGE_KEY, refCode.trim().toUpperCase());
+    } catch {
+      // Storage unavailable — the link simply won't be attributed.
+    }
+  }, [refCode]);
+
   // Real SMS availability, reported by the server. `undefined` while loading.
   const [preferredMethod, setPreferredMethod] = useState<Method>("email");
   const [stage, setStage] = useState<Stage>("identifier");
@@ -128,10 +147,31 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
   const method: Method = preferredMethod;
 
   useEffect(() => {
-    if (!authLoading && isAuthenticated) {
-      navigate(redirect);
+    if (authLoading || !isAuthenticated || referralClaimed.current) return;
+    referralClaimed.current = true;
+
+    let stored: string | null = null;
+    try {
+      stored = window.localStorage.getItem(REFERRAL_STORAGE_KEY);
+    } catch {
+      stored = null;
     }
-  }, [authLoading, isAuthenticated, navigate, redirect]);
+    try {
+      window.localStorage.removeItem(REFERRAL_STORAGE_KEY);
+    } catch {
+      // ignore
+    }
+
+    if (!stored) {
+      navigate(redirect);
+      return;
+    }
+
+    // Persist the attribution server-side, then continue to the destination.
+    claimReferral({ code: stored })
+      .catch(() => undefined)
+      .finally(() => navigate(redirect));
+  }, [authLoading, isAuthenticated, navigate, redirect, claimReferral]);
 
   // Resend countdown. Runs only while a code is on screen and ticking down.
   useEffect(() => {

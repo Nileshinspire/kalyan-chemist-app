@@ -1,6 +1,7 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { handleOrderStatusChange, reserveWalletForOrder } from "./referralWallet";
 
 // ── List orders for current user (newest first) ──
 export const list = query({
@@ -57,6 +58,8 @@ export const create = mutation({
     couponDiscount: v.optional(v.number()),
     deliveryLatitude: v.optional(v.number()),
     deliveryLongitude: v.optional(v.number()),
+    /** Rupees to pay from the wallet. Server re-clamps; never trusted as-is. */
+    walletAmount: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -235,6 +238,23 @@ export const create = mutation({
       updatedAt: now,
     });
 
+    // Apply wallet balance. The requested amount is re-clamped server-side
+    // against the live balance, the configured cap and the payable amount.
+    let walletAmountUsed = 0;
+    if (args.walletAmount && args.walletAmount > 0) {
+      const reservation = await reserveWalletForOrder(ctx, {
+        userId,
+        orderId,
+        requestedAmount: args.walletAmount,
+        payableAmount: totalAmount,
+        settleImmediately: args.paymentMethod === "cod",
+      });
+      walletAmountUsed = reservation.amount;
+      if (walletAmountUsed > 0) {
+        await ctx.db.patch(orderId, { walletAmountUsed });
+      }
+    }
+
     // Create order notification
     await ctx.db.insert("notifications", {
       userId,
@@ -251,7 +271,14 @@ export const create = mutation({
       await ctx.db.delete(ci._id);
     }
 
-    return { success: true, orderId, invoiceNumber, totalAmount };
+    return {
+      success: true,
+      orderId,
+      invoiceNumber,
+      totalAmount,
+      walletAmountUsed,
+      payableAmount: Math.max(0, totalAmount - walletAmountUsed),
+    };
   },
 });
 
@@ -336,6 +363,9 @@ export const cancel = mutation({
       status: "cancelled",
       updatedAt: Date.now(),
     });
+
+    // Restore any wallet amount tied to this order and reverse an earned reward.
+    await handleOrderStatusChange(ctx, args.orderId, "cancelled");
 
     await ctx.db.insert("notifications", {
       userId,
@@ -455,6 +485,8 @@ export const createDirectOrder = mutation({
     couponDiscount: v.optional(v.number()),
     deliveryLatitude: v.optional(v.number()),
     deliveryLongitude: v.optional(v.number()),
+    /** Rupees to pay from the wallet. Server re-clamps; never trusted as-is. */
+    walletAmount: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -577,6 +609,22 @@ export const createDirectOrder = mutation({
       updatedAt: now,
     });
 
+    // Apply wallet balance (server-clamped; never trust the browser value).
+    let walletAmountUsed = 0;
+    if (args.walletAmount && args.walletAmount > 0) {
+      const reservation = await reserveWalletForOrder(ctx, {
+        userId,
+        orderId,
+        requestedAmount: args.walletAmount,
+        payableAmount: totalAmount,
+        settleImmediately: args.paymentMethod === "cod",
+      });
+      walletAmountUsed = reservation.amount;
+      if (walletAmountUsed > 0) {
+        await ctx.db.patch(orderId, { walletAmountUsed });
+      }
+    }
+
     // Notification
     await ctx.db.insert("notifications", {
       userId,
@@ -589,6 +637,13 @@ export const createDirectOrder = mutation({
     });
 
     // Do NOT clear cart — this is a direct buy, cart stays untouched
-    return { success: true, orderId, invoiceNumber, totalAmount };
+    return {
+      success: true,
+      orderId,
+      invoiceNumber,
+      totalAmount,
+      walletAmountUsed,
+      payableAmount: Math.max(0, totalAmount - walletAmountUsed),
+    };
   },
 });

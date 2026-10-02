@@ -17,6 +17,12 @@ vi.mock("lucide-react", () => ({
   Sparkles: () => null,
 }));
 
+// Referral attribution uses a Convex mutation; mock the hook so the page can
+// render outside a ConvexProvider in these tests.
+vi.mock("convex/react", () => ({
+  useMutation: () => vi.fn().mockResolvedValue({ success: true }),
+}));
+
 // Mock use-auth hook (Convex auth)
 const mockSignIn = vi.fn();
 vi.mock("@/hooks/use-auth", () => ({
