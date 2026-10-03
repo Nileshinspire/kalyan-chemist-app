@@ -311,7 +311,7 @@ export default function LabTestCategory() {
   const categoryName = category?.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ") || "Category";
   useSetBreadcrumb(
     { label: categoryName },
-    [{ label: "Lab Tests", href: "/lab-tests" }, { label: categoryName }]
+    [{ label: "Home", href: "/" }, { label: "Lab Tests", href: "/lab-tests" }, { label: categoryName }]
   );
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -597,6 +597,7 @@ export default function LabTestCategory() {
     <div className="min-h-screen bg-gray-50">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8 sm:py-10">
         <Breadcrumb items={[
+          { label: "Home", href: "/" },
           { label: "Lab Tests", href: "/lab-tests" },
           { label: effectiveCategoryData.name },
         ]} />

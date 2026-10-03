@@ -161,6 +161,7 @@ export default function LabTestDetail() {
   useSetBreadcrumb(
     { label: test?.name || "Test Detail" },
     [
+      { label: "Home", href: "/" },
       { label: "Lab Tests", href: "/lab-tests" },
       { label: test?.categoryName || "Category", href: test ? `/lab-tests/${test.categorySlug}` : undefined },
       { label: test?.name || "Test Detail" },
@@ -327,6 +328,7 @@ export default function LabTestDetail() {
       <div className="mx-auto max-w-6xl px-4 sm:px-6 py-6 sm:py-10">
         {/* ── Breadcrumb ── */}
         <Breadcrumb items={[
+          { label: "Home", href: "/" },
           { label: "Lab Tests", href: "/lab-tests" },
           { label: String(test.categoryName), href: `/lab-tests/${test.categorySlug}` },
           { label: test.name },

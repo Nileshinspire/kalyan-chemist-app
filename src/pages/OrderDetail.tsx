@@ -1,8 +1,7 @@
-import { useParams, useNavigate, useLocation } from "react-router";
+import { useParams, useNavigate } from "react-router";
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useIsInsideAccountLayout } from "@/context/AccountLayoutContext";
-import { useSetBreadcrumb } from "@/hooks/useBreadcrumb";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
@@ -11,7 +10,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { motion } from "framer-motion";
 import { loadRazorpayScript } from "@/lib/razorpay";
-import { Breadcrumb } from "@/components/ui/breadcrumb";
 import {
   Package,
   Loader2,
@@ -52,15 +50,6 @@ const STATUS_LABELS: Record<string, string> = {
 export default function OrderDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
-  const isAccountContextForBc = location.pathname.startsWith("/account/orders/");
-  useSetBreadcrumb(
-    { label: "Order Details" },
-    isAccountContextForBc
-      ? [{ label: "Account", href: "/account" }, { label: "My Orders", href: "/account/orders" }, { label: "Order Details" }]
-      : [{ label: "Home", href: "/" }, { label: "My Orders", href: "/orders" }, { label: "Order Details" }]
-  );
-  const isAccountContext = location.pathname.startsWith("/account/orders/");
   const insideAccountLayout = useIsInsideAccountLayout();
   const showChrome = !insideAccountLayout;
 
@@ -190,15 +179,6 @@ export default function OrderDetail() {
     <div className="min-h-screen flex flex-col bg-background">
       {showChrome && <Navbar />}
       <main className="flex-1 mx-auto max-w-4xl w-full px-4 sm:px-6 py-8">
-        <Breadcrumb items={isAccountContext ? [
-          { label: "Account", href: "/account" },
-          { label: "My Orders", href: "/account/orders" },
-          { label: `Order #${order.invoiceNumber || order._id.slice(-6).toUpperCase()}` },
-        ] : [
-          { label: "My Orders", href: "/orders" },
-          { label: `Order #${order.invoiceNumber || order._id.slice(-6).toUpperCase()}` },
-        ]} />
-
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
           <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
             <div>

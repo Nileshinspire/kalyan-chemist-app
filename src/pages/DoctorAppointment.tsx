@@ -553,6 +553,7 @@ export default function DoctorAppointment() {
       <div className="min-h-screen bg-background">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8 sm:py-12">
           <Breadcrumb items={[
+            { label: "Home", href: "/" },
             { label: "Find Doctors", href: "/doctor-appointment" },
             { label: specialtyLabel },
           ]} />

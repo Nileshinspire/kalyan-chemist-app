@@ -50,11 +50,17 @@ export default function DoctorDetails() {
   const doctor = useQuery(api.doctors.getDoctor, id ? { doctorId: id as any } : "skip");
 
   /* ── Breadcrumb trail ── */
+  const doctorSpecialty = doctor?.specialty
+    ? doctor.specialty.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")
+    : null;
   useSetBreadcrumb(
     { label: doctor?.name || "Doctor Details" },
     [
+      { label: "Home", href: "/" },
       { label: "Find Doctors", href: "/doctor-appointment" },
-      { label: doctor?.specialty || "Specialty", href: "/doctor-appointment" },
+      ...(doctorSpecialty
+        ? [{ label: doctorSpecialty, href: `/doctor-appointment?specialty=${encodeURIComponent(doctor!.specialty)}&view=doctors` }]
+        : []),
       { label: doctor?.name || "Doctor Details" },
     ]
   );
@@ -124,7 +130,11 @@ export default function DoctorDetails() {
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-4xl px-4 sm:px-6 py-8 sm:py-12">
         <Breadcrumb items={[
+          { label: "Home", href: "/" },
           { label: "Find Doctors", href: "/doctor-appointment" },
+          ...(doctorSpecialty
+            ? [{ label: doctorSpecialty, href: `/doctor-appointment?specialty=${encodeURIComponent(doctor.specialty)}&view=doctors` }]
+            : []),
           { label: doctor.name },
         ]} />
 

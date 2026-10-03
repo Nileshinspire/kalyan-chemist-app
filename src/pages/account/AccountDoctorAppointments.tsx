@@ -2,8 +2,7 @@ import { useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useNavigate } from "react-router";
-import { Breadcrumb } from "@/components/ui/breadcrumb";
-import { useSetBreadcrumb } from "@/hooks/useBreadcrumb";
+
 import {
   Stethoscope,
   Calendar,
@@ -112,10 +111,6 @@ function StatusTracker({ status }: { status: string }) {
 
 export default function AccountDoctorAppointments() {
   const navigate = useNavigate();
-  useSetBreadcrumb(
-    { label: "My Appointments" },
-    [{ label: "Account", href: "/account" }, { label: "My Appointments" }]
-  );
   const appointments = useQuery(api.appointments.myAppointments);
   const [selectedApt, setSelectedApt] = useState<any>(null);
 
@@ -240,12 +235,6 @@ function AppointmentCard({ appointment, onClick }: { appointment: any; onClick: 
 function AppointmentDetail({ appointment, onBack }: { appointment: any; onBack: () => void }) {
   return (
     <div className="space-y-4">
-      <Breadcrumb items={[
-        { label: "Account", href: "/account" },
-        { label: "My Appointments", href: "/account/my-appointments" },
-        { label: String(appointment.doctorName) },
-      ]} />
-
       {/* Header */}
       <div className="rounded-xl border border-border/60 bg-card p-5">
         <div className="flex items-start gap-4 mb-4">

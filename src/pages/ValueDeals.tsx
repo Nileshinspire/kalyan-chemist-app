@@ -6,6 +6,7 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import ProductCard from "@/components/ProductCard";
 import { Button } from "@/components/ui/button";
+import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { useNavigate } from "react-router";
 
 /* ─── Value Deals Under ₹100 — View All ───
@@ -32,6 +33,7 @@ export default function ValueDealsPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
             >
+              <Breadcrumb items={[{ label: "Home", href: "/" }, { label: "Value Deals" }]} />
               <div className="inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary mb-3">
                 <BadgePercent className="size-3" />
                 Pocket-Friendly

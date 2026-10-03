@@ -4,8 +4,7 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useNavigate } from "react-router";
 import { loadRazorpayScript } from "@/lib/razorpay";
-import { Breadcrumb } from "@/components/ui/breadcrumb";
-import { useSetBreadcrumb } from "@/hooks/useBreadcrumb";
+
 import {
   FlaskConical,
   Calendar,
@@ -360,10 +359,6 @@ function PayNowButton({ booking, amount }: { booking: any; amount: number }) {
 
 export default function AccountLabTests() {
   const navigate = useNavigate();
-  useSetBreadcrumb(
-    { label: "My Lab Tests" },
-    [{ label: "Account", href: "/account" }, { label: "My Lab Tests" }]
-  );
   const bookings = useQuery(api.labTests.myBookingsWithReports);
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
 
@@ -488,12 +483,6 @@ function BookingCard({ booking, onClick }: { booking: any; onClick: () => void }
 function BookingDetail({ booking, onBack }: { booking: any; onBack: () => void }) {
   return (
     <div className="space-y-4">
-      <Breadcrumb items={[
-        { label: "Account", href: "/account" },
-        { label: "My Lab Tests", href: "/account/my-lab-tests" },
-        { label: String(booking.testName) },
-      ]} />
-
       {/* Header */}
       <div className="rounded-xl border border-border/60 bg-card p-5">
         <div className="flex items-start justify-between mb-4">

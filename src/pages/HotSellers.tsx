@@ -7,6 +7,7 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import ProductCard from "@/components/ProductCard";
 import { Button } from "@/components/ui/button";
+import { Breadcrumb } from "@/components/ui/breadcrumb";
 
 /* ─── Hot Sellers — View All ───
  * Dedicated listing of the products ranked highest by real completed sales,
@@ -32,6 +33,7 @@ export default function HotSellers() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
             >
+              <Breadcrumb items={[{ label: "Home", href: "/" }, { label: "Hot Sellers" }]} />
               <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-primary/10 bg-primary/5 px-3 py-1 text-xs font-medium text-primary">
                 <TrendingUp className="size-3" aria-hidden="true" />
                 Bestselling

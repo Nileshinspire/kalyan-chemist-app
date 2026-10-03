@@ -4,6 +4,7 @@ import { api } from "@/convex/_generated/api";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { Badge } from "@/components/ui/badge";
+import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { motion } from "framer-motion";
 import { Sparkles, ArrowUpRight, Building2 } from "lucide-react";
 
@@ -18,6 +19,7 @@ export default function Brands() {
         <div className="bg-gradient-to-b from-primary/[0.03] to-transparent border-b border-border/30">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8">
             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
+              <Breadcrumb items={[{ label: "Home", href: "/" }, { label: "Brands" }]} />
               <div className="inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary mb-3">
                 <Sparkles className="size-3" />
                 All Brands

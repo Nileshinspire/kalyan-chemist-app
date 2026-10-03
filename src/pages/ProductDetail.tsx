@@ -69,8 +69,7 @@ import {
   Scale,
 } from "lucide-react";
 import { useState, useCallback, useRef } from "react";
-import { useSetBreadcrumb, getBreadcrumbState } from "@/hooks/useBreadcrumb";
-import { useNavigation } from "@/context/NavigationContext";
+import { useSetBreadcrumb } from "@/hooks/useBreadcrumb";
 import {
   Dialog,
   DialogContent,
@@ -302,15 +301,33 @@ export default function ProductDetail() {
     slug ? { slug } : "skip"
   );
 
+  // Breadcrumb hierarchy is derived from THIS product's own data: the real
+  // category (and, when the catalogue nests it, its parent category) that the
+  // product belongs to. No category is hardcoded, and nothing is invented for
+  // a product that has none.
+  const allCategories = useQuery(api.categories.list);
+  const productCategory = product?.category;
+  const parentCategory = productCategory?.parentId
+    ? allCategories?.find((c) => c._id === productCategory.parentId)
+    : undefined;
+  const productTrail = product
+    ? [
+        { label: "Home", href: "/" },
+        { label: "Products", href: "/products" },
+        ...(parentCategory
+          ? [
+              { label: parentCategory.name, href: `/products?category=${parentCategory.slug}` },
+              { label: productCategory!.name, href: `/products?category=${productCategory!.slug}` },
+            ]
+          : productCategory
+            ? [{ label: productCategory.name, href: `/products?category=${productCategory.slug}` }]
+            : []),
+        { label: product.name },
+      ]
+    : [{ label: "Home", href: "/" }, { label: "Products", href: "/products" }, { label: "Product" }];
+
   /* ── Breadcrumb trail ── */
-  useSetBreadcrumb(
-    { label: product?.name || "Product" },
-    [
-      { label: "Home", href: "/" },
-      { label: "Products", href: "/products" },
-      { label: product?.name || "Product" },
-    ]
-  );
+  useSetBreadcrumb({ label: product?.name || "Product" }, productTrail);
 
   const boughtCount = useQuery(
     api.products.boughtInLast7Days,
@@ -685,11 +702,7 @@ export default function ProductDetail() {
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
       <main className="flex-1 mx-auto max-w-7xl w-full px-4 sm:px-6 py-8">
-        <Breadcrumb items={[
-          { label: "Home", href: "/" },
-          { label: "Products", href: "/products" },
-          { label: product?.name || "Product" },
-        ]} />
+        <Breadcrumb items={productTrail} />
 
         {/* Bought recently indicator — real sales data only, with an honest zero state */}
         {boughtCount !== undefined && (

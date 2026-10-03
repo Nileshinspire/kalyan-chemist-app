@@ -1,7 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useAuth } from "@/context/AuthContext";
-import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import Navbar from "@/components/layout/Navbar";
@@ -449,11 +448,6 @@ export default function Checkout() {
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
       <main className="flex-1 mx-auto max-w-6xl w-full px-4 sm:px-6 py-8">
-        <Breadcrumb items={[
-          { label: "Home", href: "/" },
-          { label: "Shopping Cart", href: "/cart" },
-          { label: "Checkout" },
-        ]} />
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
           <h1 className="text-2xl font-bold tracking-tight text-foreground mb-6">Checkout</h1>
         </motion.div>

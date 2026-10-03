@@ -24,25 +24,25 @@ export function Breadcrumb({ items }: { items: BreadcrumbItem[] }) {
 
   return (
     <nav aria-label="Breadcrumb" className="mb-4 sm:mb-6">
-      <ol className="flex items-center flex-wrap gap-x-1 gap-y-0.5 text-sm">
+      <ol className="flex min-w-0 items-center flex-wrap gap-x-1 gap-y-0.5 text-sm">
         {displayItems.map((item, i) => {
           const isLast = i === displayItems.length - 1;
           return (
-            <li key={i} className="flex items-center gap-x-1">
+            <li key={i} className="flex min-w-0 items-center gap-x-1">
               {i > 0 && (
                 <ChevronRight className="size-3.5 text-gray-300 shrink-0" />
               )}
               {isLast || !item.href ? (
                 <span
                   aria-current="page"
-                  className="font-medium text-gray-800 truncate max-w-[200px] sm:max-w-none"
+                  className="font-medium text-gray-800 truncate max-w-[150px] sm:max-w-none"
                 >
                   {item.label}
                 </span>
               ) : (
                 <Link
                   to={item.href}
-                  className="text-gray-400 hover:text-gray-700 transition-colors truncate max-w-[160px] sm:max-w-none"
+                  className="text-gray-400 hover:text-gray-700 transition-colors truncate max-w-[110px] sm:max-w-none"
                 >
                   {item.label}
                 </Link>

@@ -1,8 +1,6 @@
 import { useNavigate, useLocation } from "react-router";
 import { beginProductTransition } from "@/lib/product-transition";
 import { useAuth } from "@/context/AuthContext";
-import { Breadcrumb } from "@/components/ui/breadcrumb";
-import { useSetBreadcrumb } from "@/hooks/useBreadcrumb";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import Navbar from "@/components/layout/Navbar";
@@ -38,12 +36,6 @@ import { generateCartMessage, openWhatsApp } from "@/lib/whatsapp";
 export default function Cart() {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
-
-  // Context-aware breadcrumb: reads incoming trail from location.state
-  useSetBreadcrumb(
-    { label: "Shopping Cart" },
-    [{ label: "Home", href: "/" }, { label: "Shopping Cart" }]
-  );
 
   const cartItems = useQuery(api.cart.list);
   const updateQuantity = useMutation(api.cart.updateQuantity);
@@ -203,10 +195,6 @@ export default function Cart() {
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
       <main className="flex-1 mx-auto max-w-7xl w-full px-4 sm:px-6 py-8">
-        <Breadcrumb items={[
-          { label: "Home", href: "/" },
-          { label: "Shopping Cart" },
-        ]} />
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
           <div className="flex items-center justify-between mb-6">
             <div>

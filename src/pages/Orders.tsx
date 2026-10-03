@@ -6,10 +6,8 @@ import Footer from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { useSetBreadcrumb } from "@/hooks/useBreadcrumb";
 import { motion } from "framer-motion";
 import { ClipboardList, Package, Loader2, ArrowRight, RefreshCw } from "lucide-react";
-import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { formatCurrency, getStatusColor } from "@/lib/auth-utils";
 import { toast } from "sonner";
 
@@ -27,10 +25,6 @@ const STATUS_LABELS: Record<string, string> = {
 
 export default function Orders() {
   const navigate = useNavigate();
-  useSetBreadcrumb(
-    { label: "My Orders" },
-    [{ label: "Home", href: "/" }, { label: "My Orders" }]
-  );
   const orders = useQuery(api.orders.list);
   const reorder = useMutation(api.orders.reorder);
 
@@ -61,10 +55,6 @@ export default function Orders() {
       <Navbar />
       <main className="flex-1 mx-auto max-w-4xl w-full px-4 sm:px-6 py-8">
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-          <Breadcrumb items={[
-            { label: "Account", href: "/account" },
-            { label: "My Orders" },
-          ]} />
           <div className="inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary mb-3">
             <ClipboardList className="size-3" /> Order History
           </div>
