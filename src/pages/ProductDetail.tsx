@@ -95,28 +95,68 @@ function StarRating({
   size?: string;
 }) {
   const [hovered, setHovered] = useState(0);
+  // Interactive stars snap to whole stars as the customer hovers. Display-only
+  // stars show the true value, including a partial final star, so a 4.1 average
+  // is never misrepresented as 4.0 nor rounded up to 5.
+  const value = interactive ? hovered || rating : rating;
   return (
-    <div className="flex items-center gap-0.5">
-      {[1, 2, 3, 4, 5].map((s) => (
-        <button
-          key={s}
-          type="button"
-          className={interactive ? "focus:outline-none transition-transform hover:scale-110" : "cursor-default"}
-          onMouseEnter={() => interactive && setHovered(s)}
-          onMouseLeave={() => interactive && setHovered(0)}
-          onClick={() => interactive && onRate?.(s)}
-        >
-          <Star
-            className={`${size} transition-colors ${
-              s <= (interactive ? hovered || rating : rating)
-                ? "text-amber-400 fill-amber-400"
-                : "text-muted-foreground/30"
-            }`}
-          />
-        </button>
-      ))}
+    <div className="flex items-center gap-0.5" aria-label={`${rating} out of 5 stars`}>
+      {[1, 2, 3, 4, 5].map((s) => {
+        const fill = interactive
+          ? s <= value
+            ? 1
+            : 0
+          : Math.max(0, Math.min(1, value - (s - 1)));
+        return (
+          <button
+            key={s}
+            type="button"
+            className={interactive ? "focus:outline-none transition-transform hover:scale-110" : "cursor-default"}
+            onMouseEnter={() => interactive && setHovered(s)}
+            onMouseLeave={() => interactive && setHovered(0)}
+            onClick={() => interactive && onRate?.(s)}
+            aria-label={interactive ? `Rate ${s} star${s > 1 ? "s" : ""}` : undefined}
+          >
+            <span className="relative inline-flex">
+              <Star className={`${size} text-muted-foreground/30`} />
+              <span
+                className="absolute inset-0 overflow-hidden"
+                style={{ width: `${fill * 100}%` }}
+                aria-hidden="true"
+              >
+                <Star className={`${size} text-amber-400 fill-amber-400`} />
+              </span>
+            </span>
+          </button>
+        );
+      })}
     </div>
   );
+}
+
+// Split a verified benefit statement into a short headline and a supporting
+// line. This only ever reformats this product's own recorded text — it never
+// invents a claim.
+function splitBenefitText(text: string): { headline: string; support: string } {
+  const clean = text.trim().replace(/\s+/g, " ");
+  if (!clean) return { headline: "", support: "" };
+  const colon = clean.indexOf(":");
+  if (colon > 0 && colon <= 48 && colon < clean.length - 1) {
+    const headline = clean.slice(0, colon).trim();
+    const support = clean.slice(colon + 1).trim();
+    if (headline && support) return { headline, support };
+  }
+  const sentence = clean.match(/^(.{0,64}?[.!?])\s+(.*)$/s);
+  if (sentence && sentence[2].trim()) {
+    return { headline: sentence[1].trim(), support: sentence[2].trim() };
+  }
+  if (clean.length > 64) {
+    const words = clean.split(" ");
+    const headline = words.slice(0, 8).join(" ").replace(/[,;:.!?]$/, "");
+    const support = words.slice(8).join(" ");
+    if (headline && support) return { headline, support };
+  }
+  return { headline: clean, support: "" };
 }
 
 function ReviewSheet({
@@ -574,6 +614,30 @@ export default function ProductDetail() {
     .map((image, i) => ({ image, text: highlightTexts[i] }));
   const promoExtras = highlightTexts.slice(promoCardCount);
 
+  // Each promotional card pairs this product's own image with this product's own
+  // verified benefit text, split into a short bold headline and a supporting
+  // line. Nothing is invented: when a benefit has no natural split, the
+  // supporting line falls back to this product's recorded composition, strength
+  // or pack size, and if none of those exist the card simply shows its headline.
+  const promoSupportFallbacks = [p.composition, p.strength, p.packSize]
+    .map((v) => (v == null ? "" : String(v).trim()))
+    .filter((v) => v.length > 0);
+  const promoPanels = promoCards.map((card, i) => {
+    const { headline, support } = splitBenefitText(card.text);
+    const fallback = promoSupportFallbacks.length
+      ? promoSupportFallbacks[i % promoSupportFallbacks.length]
+      : "";
+    return { image: card.image, headline, support: support || fallback };
+  });
+  const promoGridClass =
+    promoPanels.length >= 4
+      ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
+      : promoPanels.length === 3
+        ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+        : promoPanels.length === 2
+          ? "grid grid-cols-1 sm:grid-cols-2 gap-4"
+          : "grid grid-cols-1 gap-4";
+
   // ── Features — concise points from this product's recorded facts only ──
   const productTypeFact = content.facts.find((f) => f.label === "Product type")?.value;
   const featurePoints: string[] = [];
@@ -671,24 +735,31 @@ export default function ProductDetail() {
           { label: product?.name || "Product" },
         ]} />
 
-        {/* Bought recently indicator — clickable */}
-        {totalSold > 0 && (
+        {/* Bought recently indicator — real sales data only, with an honest zero state */}
+        {boughtCount !== undefined && (
           <motion.div
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: 1, y: 0 }}
             className="mb-4"
           >
-            <button
-              type="button"
-              onClick={() => setPurchasersOpen(true)}
-              className="flex items-center gap-2 text-sm text-primary font-medium hover:text-primary/80 transition-colors cursor-pointer group"
-            >
-              <TrendingUp className="size-4" />
-              <span>
-                <strong className="text-foreground group-hover:text-primary transition-colors">{totalSold.toLocaleString("en-IN")}</strong> people bought this in the last 7 days
-              </span>
-              <span className="text-xs text-muted-foreground group-hover:text-primary/60">(view)</span>
-            </button>
+            {totalSold > 0 ? (
+              <button
+                type="button"
+                onClick={() => setPurchasersOpen(true)}
+                className="flex items-center gap-2 text-sm text-primary font-medium hover:text-primary/80 transition-colors cursor-pointer group"
+              >
+                <TrendingUp className="size-4" />
+                <span>
+                  <strong className="text-foreground group-hover:text-primary transition-colors">{totalSold.toLocaleString("en-IN")}</strong> people bought this in the last 7 days
+                </span>
+                <span className="text-xs text-muted-foreground group-hover:text-primary/60">(view)</span>
+              </button>
+            ) : (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <TrendingUp className="size-4 text-muted-foreground/50" />
+                <span>Be the first to buy this product</span>
+              </div>
+            )}
           </motion.div>
         )}
 
@@ -930,26 +1001,6 @@ export default function ProductDetail() {
             transition={{ duration: 0.5, delay: 0.1 }}
             className="space-y-5"
           >
-            {/* Write a Review — near product name */}
-            <div className="flex items-center gap-3">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="gap-1.5 text-sm text-primary hover:text-primary/80 hover:bg-primary/5 rounded-xl"
-                onClick={handleWriteReview}
-              >
-                <PenLine className="size-3.5" />
-                Write a Review
-              </Button>
-              {avgRating && avgRating.count > 0 && (
-                <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                  <StarRating rating={Math.round(avgRating.average)} size="size-3.5" />
-                  <span className="font-medium text-foreground">{avgRating.average}</span>
-                  <span>({avgRating.count} {avgRating.count === 1 ? "review" : "reviews"})</span>
-                </div>
-              )}
-            </div>
-
             <div className="flex flex-wrap gap-2">
               {p.prescriptionRequired ? (
                 <Badge variant="destructive" className="gap-1">
@@ -980,6 +1031,37 @@ export default function ProductDetail() {
                 title="Share this product"
               >
                 <Share2 className="size-5" />
+              </Button>
+            </div>
+
+            {/* Rating + review activity — real values only, placed near the name */}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              {avgRating && avgRating.count > 0 ? (
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-2 py-0.5">
+                    <span className="text-sm font-bold text-amber-700">{avgRating.average.toFixed(1)}</span>
+                    <Star className="size-3.5 text-amber-400 fill-amber-400" />
+                  </span>
+                  <StarRating rating={avgRating.average} size="size-4" />
+                  <span className="text-sm text-muted-foreground">
+                    {avgRating.count.toLocaleString("en-IN")} {avgRating.count === 1 ? "Rating" : "Ratings"}
+                  </span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Star className="size-4 text-muted-foreground/40" />
+                  <span>No ratings yet</span>
+                </div>
+              )}
+              <span className="hidden sm:block h-4 w-px bg-border" />
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 gap-1.5 px-2.5 text-sm text-primary hover:text-primary/80 hover:bg-primary/5 rounded-lg"
+                onClick={handleWriteReview}
+              >
+                <PenLine className="size-3.5" />
+                Write a Review
               </Button>
             </div>
 
@@ -1229,36 +1311,46 @@ export default function ProductDetail() {
           transition={{ duration: 0.45, ease: [0.25, 0.46, 0.45, 0.94] }}
           className="mt-10"
         >
-          <div className="flex items-center gap-2.5 mb-4">
-            <div className="size-8 rounded-lg bg-emerald-100 flex items-center justify-center">
-              <Sparkles className="size-4 text-emerald-600" strokeWidth={1.5} />
+          <div className="mb-4">
+            <div className="flex items-center gap-2.5">
+              <div className="size-8 rounded-lg bg-emerald-100 flex items-center justify-center">
+                <Sparkles className="size-4 text-emerald-600" strokeWidth={1.5} />
+              </div>
+              <h3 className="text-lg font-bold">Product Highlights</h3>
             </div>
-            <h3 className="text-lg font-bold">Product Highlights</h3>
+            <p className="mt-1.5 text-sm text-muted-foreground">
+              Verified benefits and imagery recorded for this exact product.
+            </p>
           </div>
 
-          {promoCards.length > 0 ? (
+          {promoPanels.length > 0 ? (
             <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {promoCards.map((card, i) => (
+              <div className={promoGridClass}>
+                {promoPanels.map((panel, i) => (
                   <div
-                    key={`${card.image}-${i}`}
-                    className="group rounded-2xl border border-border/60 bg-card overflow-hidden transition-all duration-300 hover:shadow-md hover:border-primary/20"
+                    key={`${panel.image}-${i}`}
+                    className="group flex flex-col rounded-2xl border border-border/60 bg-card overflow-hidden transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg hover:border-emerald-200"
                   >
-                    <div className="h-40 sm:h-44 bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] flex items-center justify-center overflow-hidden">
+                    <div className="relative h-44 sm:h-48 bg-gradient-to-br from-emerald-50/70 via-primary/[0.03] to-transparent flex items-center justify-center overflow-hidden">
                       <img
-                        src={card.image}
-                        alt={p.name}
+                        src={panel.image}
+                        alt={panel.headline ? `${p.name} — ${panel.headline}` : p.name}
                         loading="lazy"
                         decoding="async"
                         draggable={false}
-                        className="max-h-full max-w-full object-contain p-4 transition-transform duration-500 group-hover:scale-105"
+                        className="max-h-full max-w-full object-contain p-5 transition-transform duration-500 group-hover:scale-105"
                         onError={(e) => {
                           (e.target as HTMLImageElement).style.display = "none";
                         }}
                       />
                     </div>
-                    <div className="p-4">
-                      <p className="text-sm leading-relaxed text-muted-foreground">{card.text}</p>
+                    <div className="flex flex-1 flex-col gap-1 p-4">
+                      {panel.headline && (
+                        <p className="text-sm font-bold leading-snug text-foreground">{panel.headline}</p>
+                      )}
+                      {panel.support && (
+                        <p className="text-xs leading-relaxed text-muted-foreground">{panel.support}</p>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -1683,7 +1775,7 @@ export default function ProductDetail() {
                   <div className="text-center">
                     <div className="text-4xl font-extrabold">{overallRating.toFixed(1)}</div>
                     <div className="flex justify-center mt-1.5">
-                      <StarRating rating={Math.round(overallRating)} size="size-4" />
+                      <StarRating rating={overallRating} size="size-4" />
                     </div>
                     <p className="text-xs text-muted-foreground mt-1.5">
                       {reviewTotal} {reviewTotal === 1 ? "Rating" : "Ratings"}
