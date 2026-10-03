@@ -64,6 +64,9 @@ import {
   HelpCircle,
   Search,
   Lock,
+  Check,
+  Sparkles,
+  Scale,
 } from "lucide-react";
 import { useState, useCallback, useRef } from "react";
 import { useSetBreadcrumb, getBreadcrumbState } from "@/hooks/useBreadcrumb";
@@ -275,6 +278,9 @@ export default function ProductDetail() {
   const galleryImgRef = useRef<HTMLImageElement | null>(null);
   const [selectedVariantIndex, setSelectedVariantIndex] = useState(0);
   const [activeTab, setActiveTab] = useState("product-info");
+  // Customer Reviews shows the three most recent reviews by default; the rest
+  // are revealed in place. No extra query — the full list is already loaded.
+  const [showAllReviews, setShowAllReviews] = useState(false);
 
   const product = useQuery(
     api.products.getBySlug,
@@ -388,6 +394,17 @@ export default function ProductDetail() {
     } catch (error: any) {
       toast.error(error.message || "Failed to update wishlist");
     }
+  };
+
+  // Shared by the "Write a Review" buttons near the product name and in the
+  // Customer Reviews section, so both go through the same auth gate.
+  const handleWriteReview = () => {
+    if (!isAuthenticated) {
+      toast.error("Please sign in to write a review");
+      navigate(`/auth?returnTo=${encodeURIComponent(window.location.pathname)}`);
+      return;
+    }
+    setReviewOpen(true);
   };
 
   const handleWhatsApp = () => {
@@ -519,6 +536,117 @@ export default function ProductDetail() {
     ...(p.imageUrl ? [p.imageUrl] : []),
     ...((p as any).additionalImages || []).filter((img: string) => img && img !== p.imageUrl),
   ];
+
+  // ── Product highlights — same-product promotional / benefit visuals ──
+  // The only visuals allowed here are this product's own stored images, and the
+  // only copy is this product's verified benefits (falling back to its recorded
+  // facts). Nothing is invented: when no verified visual or highlight exists,
+  // the section says so rather than filling the gap with stock content.
+  const promoImages: string[] = Array.from(
+    new Set<string>(
+      [
+        ...(p.imageUrl ? [p.imageUrl] : []),
+        ...(((p as any).additionalImages || []) as string[]),
+      ].filter(
+        (img): img is string => Boolean(img) && img !== "/placeholder-medicine.svg"
+      )
+    )
+  );
+  const highlightTexts: string[] =
+    content.benefits && content.benefits.length > 0
+      ? content.benefits
+      : content.facts
+          .filter((f) =>
+            [
+              "Product type",
+              "Pack size",
+              "Strength",
+              "Composition",
+              "Prescription status",
+              "Storage",
+              "Expiry",
+            ].includes(f.label)
+          )
+          .map((f) => `${f.label}: ${f.value}`);
+  const promoCardCount = Math.min(promoImages.length, highlightTexts.length, 4);
+  const promoCards = promoImages
+    .slice(0, promoCardCount)
+    .map((image, i) => ({ image, text: highlightTexts[i] }));
+  const promoExtras = highlightTexts.slice(promoCardCount);
+
+  // ── Features — concise points from this product's recorded facts only ──
+  const productTypeFact = content.facts.find((f) => f.label === "Product type")?.value;
+  const featurePoints: string[] = [];
+  if (productTypeFact && productTypeFact !== "Not specified")
+    featurePoints.push(`Product type: ${productTypeFact}`);
+  if (p.packSize) featurePoints.push(`Pack size: ${p.packSize}`);
+  if (p.strength) featurePoints.push(`Strength: ${p.strength}`);
+  if (p.composition) featurePoints.push(`Composition: ${p.composition}`);
+  featurePoints.push(
+    p.prescriptionRequired ? "Prescription required" : "Available over the counter"
+  );
+  if (p.storageInformation) featurePoints.push(`Storage: ${p.storageInformation}`);
+  if (p.expiryDate)
+    featurePoints.push(
+      `Expires on or after ${new Date(p.expiryDate).toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })}`
+    );
+
+  // ── Customer reviews — real recorded data only ──
+  const reviewList = reviews ?? [];
+  const reviewTotal = reviewList.length;
+  // Prefer the server's average; fall back to the loaded reviews only while
+  // that separate query is still resolving, so the summary never flashes 0.0.
+  const overallRating =
+    avgRating && avgRating.count > 0
+      ? avgRating.average
+      : reviewTotal > 0
+        ? Math.round((reviewList.reduce((sum, r) => sum + r.rating, 0) / reviewTotal) * 10) / 10
+        : 0;
+  const ratingBuckets = [5, 4, 3, 2, 1].map((stars) => {
+    const count = reviewList.filter((r) => Math.round(r.rating) === stars).length;
+    return {
+      stars,
+      count,
+      pct: reviewTotal ? Math.round((count / reviewTotal) * 100) : 0,
+    };
+  });
+  const visibleReviews = showAllReviews ? reviewList : reviewList.slice(0, 3);
+
+  // ── Comparison — only where every compared column has a real value ──
+  const comparisonColumns: any[] = [p, ...(relatedProducts ?? [])].slice(0, 4);
+  const compareAttributes: Array<{ label: string; get: (x: any) => string | null }> = [
+    { label: "Pack size", get: (x) => (x.packSize ? String(x.packSize) : null) },
+    { label: "Product type", get: (x) => (x.form ? String(x.form) : null) },
+    { label: "Manufacturer", get: (x) => (x.manufacturer ? String(x.manufacturer) : null) },
+    {
+      label: "Prescription",
+      get: (x) =>
+        typeof x.prescriptionRequired === "boolean"
+          ? x.prescriptionRequired
+            ? "Required"
+            : "Not required"
+          : null,
+    },
+    {
+      label: "Price",
+      get: (x) =>
+        typeof x.price === "number"
+          ? formatCurrency(
+              x.discountPrice && x.discountPrice < x.price ? x.discountPrice : x.price
+            )
+          : null,
+    },
+  ];
+  const compareRows =
+    comparisonColumns.length >= 3
+      ? compareAttributes
+          .map((attr) => ({ label: attr.label, values: comparisonColumns.map(attr.get) }))
+          .filter((row) => row.values.every((value) => value))
+      : [];
 
   // Magnifier focus point: map the pointer to a percentage of the rendered
   // (object-contain) image box and write it straight to the DOM. Keeping this
@@ -808,14 +936,7 @@ export default function ProductDetail() {
                 variant="ghost"
                 size="sm"
                 className="gap-1.5 text-sm text-primary hover:text-primary/80 hover:bg-primary/5 rounded-xl"
-                onClick={() => {
-                  if (!isAuthenticated) {
-                    toast.error("Please sign in to write a review");
-                    navigate(`/auth?returnTo=${encodeURIComponent(window.location.pathname)}`);
-                    return;
-                  }
-                  setReviewOpen(true);
-                }}
+                onClick={handleWriteReview}
               >
                 <PenLine className="size-3.5" />
                 Write a Review
@@ -1101,6 +1222,85 @@ export default function ProductDetail() {
           </motion.div>
         </div>
 
+        {/* ── Product Highlights — same-product promotional / benefit visuals ── */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, ease: [0.25, 0.46, 0.45, 0.94] }}
+          className="mt-10"
+        >
+          <div className="flex items-center gap-2.5 mb-4">
+            <div className="size-8 rounded-lg bg-emerald-100 flex items-center justify-center">
+              <Sparkles className="size-4 text-emerald-600" strokeWidth={1.5} />
+            </div>
+            <h3 className="text-lg font-bold">Product Highlights</h3>
+          </div>
+
+          {promoCards.length > 0 ? (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {promoCards.map((card, i) => (
+                  <div
+                    key={`${card.image}-${i}`}
+                    className="group rounded-2xl border border-border/60 bg-card overflow-hidden transition-all duration-300 hover:shadow-md hover:border-primary/20"
+                  >
+                    <div className="h-40 sm:h-44 bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] flex items-center justify-center overflow-hidden">
+                      <img
+                        src={card.image}
+                        alt={p.name}
+                        loading="lazy"
+                        decoding="async"
+                        draggable={false}
+                        className="max-h-full max-w-full object-contain p-4 transition-transform duration-500 group-hover:scale-105"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).style.display = "none";
+                        }}
+                      />
+                    </div>
+                    <div className="p-4">
+                      <p className="text-sm leading-relaxed text-muted-foreground">{card.text}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {promoExtras.length > 0 && (
+                <ul className="mt-4 grid sm:grid-cols-2 gap-2">
+                  {promoExtras.map((text) => (
+                    <li key={text} className="flex items-start gap-2 text-sm text-muted-foreground">
+                      <Check className="size-4 text-emerald-600 shrink-0 mt-0.5" strokeWidth={2} />
+                      <span>{text}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          ) : highlightTexts.length > 0 ? (
+            <Card className="border-border/60">
+              <CardContent className="p-6 space-y-3">
+                <p className="text-xs text-muted-foreground italic">
+                  No promotional images are recorded for this product. Its verified highlights are listed below.
+                </p>
+                <ul className="grid sm:grid-cols-2 gap-2">
+                  {highlightTexts.slice(0, 4).map((text) => (
+                    <li key={text} className="flex items-start gap-2 text-sm text-muted-foreground">
+                      <Check className="size-4 text-emerald-600 shrink-0 mt-0.5" strokeWidth={2} />
+                      <span>{text}</span>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="border-border/60">
+              <CardContent className="p-6">
+                <p className="text-sm text-muted-foreground italic">
+                  No verified promotional or benefit information is recorded for this product.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </motion.div>
+
         {/* Section Navigation Tabs — Premium Design */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
@@ -1248,6 +1448,36 @@ export default function ProductDetail() {
             <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center"><BookOpen className="size-4 text-primary" strokeWidth={1.5} /></div>
             <h3 className="text-lg font-bold">Product Information</h3>
           </div>
+
+          {/* Description — this product's own recorded description */}
+          {p.description && p.description.trim().length > 0 && (
+            <Card className="border-border/60 mb-4">
+              <CardContent className="p-6 space-y-2">
+                <h4 className="text-sm font-bold tracking-tight">Description</h4>
+                <p className="text-sm leading-relaxed text-muted-foreground whitespace-pre-line">
+                  {p.description}
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Features — concise points built from verified product facts */}
+          {featurePoints.length > 0 && (
+            <Card className="border-border/60 mb-4">
+              <CardContent className="p-6 space-y-3">
+                <h4 className="text-sm font-bold tracking-tight">Features</h4>
+                <ul className="space-y-2">
+                  {featurePoints.map((point) => (
+                    <li key={point} className="flex items-start gap-2 text-sm text-muted-foreground">
+                      <Check className="size-4 text-green-600 shrink-0 mt-0.5" strokeWidth={2} />
+                      <span>{point}</span>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
+
           <Card className="border-border/60 transition-all duration-300 hover:shadow-md hover:border-primary/15">
             <CardContent className="p-6 space-y-4">
               <p className="text-sm leading-relaxed text-muted-foreground">
@@ -1403,6 +1633,117 @@ export default function ProductDetail() {
           </Card>
         </motion.div>
 
+        {/* ── Customer Reviews ── */}
+        <motion.div id="customer-reviews" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: [0.25, 0.46, 0.45, 0.94] }} className="mt-8 scroll-mt-24">
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <div className="flex items-center gap-2.5">
+              <div className="size-8 rounded-lg bg-amber-100 flex items-center justify-center"><Star className="size-4 text-amber-600" strokeWidth={1.5} /></div>
+              <h3 className="text-lg font-bold">Customer Reviews</h3>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1.5 text-sm text-primary hover:text-primary/80 hover:bg-primary/5 rounded-xl"
+              onClick={handleWriteReview}
+            >
+              <PenLine className="size-3.5" />
+              Write a Review
+            </Button>
+          </div>
+
+          {reviews === undefined ? (
+            <Card className="border-border/60">
+              <CardContent className="p-10 flex items-center justify-center">
+                <Loader2 className="size-5 animate-spin text-muted-foreground" />
+              </CardContent>
+            </Card>
+          ) : reviewTotal === 0 ? (
+            <Card className="border-dashed border-border/60">
+              <CardContent className="p-10 flex flex-col items-center text-center">
+                <Star className="size-8 text-muted-foreground/30 mb-3" />
+                <p className="text-sm font-semibold">No reviews yet</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Be the first to share your experience with {p.name}.
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-4 gap-1.5 rounded-xl text-xs"
+                  onClick={handleWriteReview}
+                >
+                  <PenLine className="size-3.5" />
+                  Write a Review
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="border-border/60">
+              <CardContent className="p-6 space-y-6">
+                <div className="grid md:grid-cols-[minmax(0,220px)_1fr] gap-6 items-center">
+                  <div className="text-center">
+                    <div className="text-4xl font-extrabold">{overallRating.toFixed(1)}</div>
+                    <div className="flex justify-center mt-1.5">
+                      <StarRating rating={Math.round(overallRating)} size="size-4" />
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1.5">
+                      {reviewTotal} {reviewTotal === 1 ? "Rating" : "Ratings"}
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    {ratingBuckets.map((bucket) => (
+                      <div key={bucket.stars} className="flex items-center gap-3">
+                        <span className="text-xs w-12 shrink-0 text-muted-foreground">{bucket.stars} star</span>
+                        <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                          <div className="h-full rounded-full bg-amber-400" style={{ width: `${bucket.pct}%` }} />
+                        </div>
+                        <span className="text-xs w-20 text-right text-muted-foreground shrink-0">
+                          {bucket.count} ({bucket.pct}%)
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {visibleReviews.map((review) => (
+                    <div key={review._id} className="rounded-2xl border border-border/60 bg-muted/20 p-4 space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="size-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0">
+                            {review.userInitial}
+                          </div>
+                          <span className="text-sm font-semibold truncate">{review.userName}</span>
+                        </div>
+                        <StarRating rating={review.rating} size="size-3.5" />
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">
+                        {new Date(review.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                      </p>
+                      {review.title && <p className="text-sm font-medium text-foreground">{review.title}</p>}
+                      {review.body && (
+                        <p className="text-xs text-muted-foreground leading-relaxed">{review.body}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {reviewTotal > 3 && (
+                  <div className="flex justify-center">
+                    <Button
+                      variant="outline"
+                      className="rounded-xl gap-1.5 text-sm"
+                      onClick={() => setShowAllReviews((v) => !v)}
+                    >
+                      {showAllReviews ? "Show Fewer Reviews" : `View All Reviews (${reviewTotal})`}
+                      <ExternalLink className="size-3.5" />
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </motion.div>
+
         {/* ── Information ── */}
         <motion.div id="information" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: [0.25, 0.46, 0.45, 0.94] }} className="mt-8 scroll-mt-24">
           <div className="flex items-center gap-2.5 mb-4">
@@ -1486,6 +1827,44 @@ export default function ProductDetail() {
             <p className="text-sm text-muted-foreground italic">No related products available.</p>
           )}
         </motion.div>
+
+        {/* ── Compare with Similar Products — only where verified data exists ── */}
+        {comparisonColumns.length >= 3 && compareRows.length >= 2 && (
+          <motion.div id="comparison" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: [0.25, 0.46, 0.45, 0.94] }} className="mt-8 scroll-mt-24">
+            <div className="flex items-center gap-2.5 mb-4">
+              <div className="size-8 rounded-lg bg-teal-100 flex items-center justify-center"><Scale className="size-4 text-teal-600" strokeWidth={1.5} /></div>
+              <h3 className="text-lg font-bold">Compare with Similar Products</h3>
+            </div>
+            <Card className="border-border/60">
+              <CardContent className="p-0 overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="min-w-[120px]">Attribute</TableHead>
+                      {comparisonColumns.map((col) => (
+                        <TableHead key={col._id} className="min-w-[160px]">
+                          <span className="line-clamp-2">{col.name}</span>
+                        </TableHead>
+                      ))}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {compareRows.map((row) => (
+                      <TableRow key={row.label}>
+                        <TableCell className="font-medium text-muted-foreground">{row.label}</TableCell>
+                        {row.values.map((value, i) => (
+                          <TableCell key={`${row.label}-${i}`} className="capitalize">
+                            {value}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
 
         {/* ── Other Links ── */}
         <motion.div id="other-links" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: [0.25, 0.46, 0.45, 0.94] }} className="mt-8 mb-8 scroll-mt-24">
