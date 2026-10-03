@@ -65,50 +65,21 @@ function KCShield({ size = 200, opacity = 1 }: { size?: number | string; opacity
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   MUSIC — generated ambient pad + real HTMLAudioElement
+   MUSIC — "Indie Corporate" by Fretbound (a.k.a. Music for Creators)
+
+   Source: Free Music Archive, "Music for Creators — Corporate Background
+   Music", track 38. Licensed under Creative Commons Attribution 4.0
+   International (CC BY 4.0) — free to use and redistribute with
+   attribution. Served locally from /public/audio (see
+   public/audio/indie-corporate.CREDITS.txt). No YouTube embed, player,
+   branding or external request is involved.
    ═══════════════════════════════════════════════════════════════════ */
-async function generateAmbientWav(): Promise<string> {
-  const sr = 22050, dur = 10;
-  const OC = window.OfflineAudioContext ||
-    (window as unknown as { webkitOfflineAudioContext?: typeof OfflineAudioContext }).webkitOfflineAudioContext;
-  if (!OC) throw new Error("OfflineAudioContext not supported");
-  const ctx = new OC(1, sr * dur, sr);
-  [
-    { f: 73.42, g: 0.24 }, { f: 110.0, g: 0.19 }, { f: 146.83, g: 0.15 },
-    { f: 174.61, g: 0.12 }, { f: 220.0, g: 0.10 }, { f: 293.66, g: 0.08 },
-    { f: 349.23, g: 0.06 },
-  ].forEach(({ f, g }) => {
-    const o = ctx.createOscillator(); o.type = "sine"; o.frequency.value = f;
-    const gn = ctx.createGain(); gn.gain.value = g;
-    o.connect(gn); gn.connect(ctx.destination); o.start(0); o.stop(dur);
-  });
-  const lfo = ctx.createOscillator(); lfo.type = "sine"; lfo.frequency.value = 0.15;
-  const lG = ctx.createGain(); lG.gain.value = 0.04;
-  lfo.connect(lG); lG.connect(ctx.destination); lfo.start(0); lfo.stop(dur);
-  const buf = await ctx.startRendering();
-  const ch = buf.numberOfChannels, len = buf.length;
-  const ab = new ArrayBuffer(44 + len * ch * 2);
-  const dv = new DataView(ab);
-  const ws = (o: number, s: string) => { for (let i = 0; i < s.length; i++) dv.setUint8(o + i, s.charCodeAt(i)); };
-  ws(0, "RIFF"); dv.setUint32(4, 36 + len * ch * 2, true); ws(8, "WAVE");
-  ws(12, "fmt "); dv.setUint32(16, 16, true); dv.setUint16(20, 1, true);
-  dv.setUint16(22, ch, true); dv.setUint32(24, sr, true);
-  dv.setUint32(28, sr * ch * 2, true); dv.setUint16(32, ch * 2, true); dv.setUint16(34, 16, true);
-  ws(36, "data"); dv.setUint32(40, len * ch * 2, true);
-  const d = buf.getChannelData(0);
-  let off = 44;
-  for (let i = 0; i < len; i++) {
-    const s = Math.max(-1, Math.min(1, d[i]));
-    dv.setInt16(off, s < 0 ? s * 0x8000 : s * 0x7fff, true); off += 2;
-  }
-  return URL.createObjectURL(new Blob([ab], { type: "audio/wav" }));
-}
+const MUSIC_SRC = "/audio/indie-corporate.mp3";
 
 function MusicControl() {
   const [playing, setPlaying] = useState(false);
   const [ready, setReady] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const urlRef = useRef<string | null>(null);
   const triedRef = useRef(false);
   const wantRef = useRef(false);
   const fadeRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -142,20 +113,13 @@ function MusicControl() {
   }, [fadeTo]);
 
   useEffect(() => {
-    let dead = false;
-    generateAmbientWav().then((url) => {
-      if (dead) { URL.revokeObjectURL(url); return; }
-      urlRef.current = url;
-      const a = new Audio(url); a.loop = true; a.preload = "auto"; a.volume = 0;
-      audioRef.current = a; setReady(true);
-      if (wantRef.current) doPlay();
-    }).catch((e) => console.error("[Music]", e));
+    const a = new Audio(MUSIC_SRC); a.loop = true; a.preload = "auto"; a.volume = 0;
+    audioRef.current = a; setReady(true);
+    if (wantRef.current) doPlay();
     return () => {
-      dead = true;
       if (fadeRef.current) clearInterval(fadeRef.current);
       if (audioRef.current) { audioRef.current.pause(); audioRef.current.src = ""; }
       audioRef.current = null;
-      if (urlRef.current) { URL.revokeObjectURL(urlRef.current); urlRef.current = null; }
     };
   }, [doPlay]);
 
