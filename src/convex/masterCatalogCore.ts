@@ -30,6 +30,16 @@ export const CATALOG_IMAGE_NOT_FOUND_MESSAGE =
 /** A product gallery holds one front packshot plus up to four more views. */
 export const MAX_CATALOG_IMAGES = 5;
 
+/** How many promotional creatives one product may display. */
+export const MAX_PROMOTION_MEDIA = 4;
+
+/**
+ * The approved source a catalog dataset represents. Every promotional creative
+ * carries this label so the admin always knows which approved source a
+ * customer-facing banner came from.
+ */
+export const CATALOG_PROMOTION_SOURCE_LABEL = "Approved Product Media Catalog";
+
 // ── Text normalisation ───────────────────────────────────────────────────────
 
 /** Lower-case, fold punctuation to spaces, keep digits/`.`/`%` (doses). */
@@ -506,6 +516,27 @@ export type ColumnMapping = {
   columns: Record<CatalogField, number | null>;
   /** Every column that holds an image URL for its row (first is primary). */
   imageUrlColumns: number[];
+  /**
+   * Columns that hold a PROMOTIONAL creative rather than a product view.
+   * Kept apart from `imageUrlColumns` so a manufacturer banner can never end
+   * up in the product gallery.
+   */
+  promotionalImageUrlColumns: number[];
+};
+
+/**
+ * One approved promotional creative for an exact catalog record. This is
+ * marketing artwork from the licensed dataset — never a product pack view.
+ */
+export type CatalogPromotionMedia = {
+  imageUrl: string;
+  /** Which approved source published this creative. */
+  source: string;
+  /** That source's own id for the exact product, for provenance. */
+  sourceProductId?: string;
+  heading?: string;
+  description?: string;
+  order: number;
 };
 
 /** Folded header → field. Order decides which field claims a header first. */
@@ -574,6 +605,40 @@ function isImageUrlHeader(folded: string): boolean {
   return hasImage && hasUrl;
 }
 
+/** Words that mark a column as marketing artwork, not a product view. */
+const PROMOTIONAL_TOKENS = [
+  "promo",
+  "promotion",
+  "banner",
+  "creative",
+  "marketing",
+  "campaign",
+];
+
+const PROMOTIONAL_ASSET_TOKENS = [
+  ...IMAGE_TOKENS,
+  ...URL_TOKENS,
+  ...PROMOTIONAL_TOKENS,
+];
+
+/**
+ * Is this folded header a PROMOTIONAL creative column?
+ *
+ * A dataset may ship manufacturer banners next to the product views. They are
+ * marketing artwork and must never be stored as a gallery image, so they are
+ * recognised by their own header words and routed to their own field.
+ */
+function isPromotionalImageHeader(folded: string): boolean {
+  const tokens = folded.split(" ").filter(Boolean);
+  const isPromotional = PROMOTIONAL_TOKENS.some((marker) =>
+    tokens.some((token) => token.includes(marker)),
+  );
+  if (!isPromotional) return false;
+  return PROMOTIONAL_ASSET_TOKENS.some((marker) =>
+    tokens.some((token) => token.includes(marker)),
+  );
+}
+
 /**
  * Map dataset headers onto catalog fields automatically. Recognisable column
  * names ("Product Name", "MRP", "Image URL", "SKU / GTIN" …) are claimed
@@ -616,7 +681,16 @@ export function mapColumns(headers: string[]): ColumnMapping {
       }
     }
   }
-  // 3. Image URL columns (all of them — a dataset may ship several).
+  // 3. Promotional creative columns, claimed BEFORE the generic image scan so
+  //    a manufacturer banner is never mistaken for a product gallery view.
+  const promotionalImageUrlColumns: number[] = [];
+  folded.forEach((h, i) => {
+    if (!claimed[i] && isPromotionalImageHeader(h)) {
+      promotionalImageUrlColumns.push(i);
+      claimed[i] = true;
+    }
+  });
+  // 4. Image URL columns (all of them — a dataset may ship several).
   const imageUrlColumns: number[] = [];
   folded.forEach((h, i) => {
     if (!claimed[i] && isImageUrlHeader(h)) {
@@ -624,7 +698,7 @@ export function mapColumns(headers: string[]): ColumnMapping {
       claimed[i] = true;
     }
   });
-  // 4. Fallbacks: any remaining "* name" column is the product name; any
+  // 5. Fallbacks: any remaining "* name" column is the product name; any
   //    remaining image-ish column is an image URL.
   if (columns.productName === null) {
     const index = folded.findIndex(
@@ -644,7 +718,7 @@ export function mapColumns(headers: string[]): ColumnMapping {
     }
   });
 
-  return { columns, imageUrlColumns };
+  return { columns, imageUrlColumns, promotionalImageUrlColumns };
 }
 
 // ── Row → catalog record ─────────────────────────────────────────────────────
@@ -674,6 +748,8 @@ export type CatalogSeedRecord = {
   mrp?: number;
   sourceProductId?: string;
   sourceUrl?: string;
+  /** Approved promotional creatives for this exact record, if the dataset has any. */
+  promotionalMedia?: CatalogPromotionMedia[];
   verificationStatus: VerificationStatus;
 };
 
@@ -824,6 +900,19 @@ export function rowToRecord(cells: string[], mapping: ColumnMapping): ParsedRow 
   const imageUrls = mapping.imageUrlColumns
     .map((index) => (cells[index] ?? "").trim())
     .filter((value) => isHttpUrl(value));
+
+  // Promotional creatives are collected from their own columns and stored on
+  // the record's promotionalMedia field — never in the gallery.
+  const promotionalMedia = mapping.promotionalImageUrlColumns
+    .map((index) => (cells[index] ?? "").trim())
+    .filter((value) => isHttpUrl(value))
+    .map((imageUrl, index) => ({
+      imageUrl,
+      source: CATALOG_PROMOTION_SOURCE_LABEL,
+      sourceProductId,
+      order: index,
+    }));
+  if (promotionalMedia.length > 0) record.promotionalMedia = promotionalMedia;
 
   return {
     record,

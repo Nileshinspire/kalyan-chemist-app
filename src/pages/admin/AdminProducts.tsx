@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { NO_CONFIDENT_MATCH_MESSAGE } from "@/convex/productInfo";
 import {
   CATALOG_IMAGE_NOT_FOUND_MESSAGE,
@@ -106,12 +106,35 @@ interface ProductForm {
   productPromotion: {
     enabled: boolean;
     title: string;
+    /**
+     * "automatic" means the creatives came from the approved media catalog and
+     * the server re-derives them on save from the exact catalog record. Any
+     * admin edit switches to "manual" so their change is what gets stored.
+     */
+    mode: "automatic" | "manual";
+    /** The exact catalog record Auto Fill matched / promotion resolved against. */
+    catalogProductId?: string;
+    matchProductName?: string;
+    resolvedFrom?: string;
+    status:
+      | "idle"
+      | "resolving"
+      | "resolved"
+      | "no-media"
+      | "not-found"
+      | "ambiguous"
+      | "mismatch"
+      | "error";
+    statusMessage?: string;
+    suggestions?: Array<{ productName: string; manufacturer?: string | null }>;
     creatives: Array<{
       imageUrl: string;
       storageId?: string;
       url?: string;
       heading: string;
       description: string;
+      source?: string;
+      origin?: "manual" | "automatic";
     }>;
   };
   isActive: boolean;
@@ -145,6 +168,8 @@ const EMPTY_FORM: ProductForm = {
   productPromotion: {
     enabled: false,
     title: "From the Manufacturer",
+    mode: "manual" as const,
+    status: "idle" as const,
     creatives: [],
   },
   isActive: true,
@@ -251,11 +276,13 @@ export default function AdminProducts() {
   const [nameQuery, setNameQuery] = useState("");
   // Which promotion creative slot is currently uploading (for the spinner).
   const [promoUploading, setPromoUploading] = useState<number | null>(null);
+  const [resolvingPromotion, setResolvingPromotion] = useState(false);
 
   // Auto Fill and its image step read ONLY the verified master catalog — the
   // licensed-dataset layer the admin imported. The old external resolvers stay
   // for the row-level repair/audit tools, but are disconnected from this flow.
   const catalogAutoFillAction = useAction(api.masterCatalog.autoFill);
+  const resolvePromotionAction = useAction(api.productPromotion.resolve);
   const lookupCatalogImageAction = useAction(api.masterCatalog.lookupImage);
   const repairProductImageAction = useAction(api.productImageRepair.repairProductImage);
   // The rerunnable image audit: it reports every stored image that cannot be
@@ -359,12 +386,23 @@ export default function AdminProducts() {
       productPromotion: {
         enabled: !!product.productPromotion?.enabled,
         title: product.productPromotion?.title || "From the Manufacturer",
+        mode: product.productPromotion?.matchCatalogProductId
+          ? "automatic"
+          : "manual",
+        catalogProductId: product.productPromotion?.matchCatalogProductId || undefined,
+        matchProductName: product.productPromotion?.matchProductName || undefined,
+        resolvedFrom: product.productPromotion?.resolvedFrom || undefined,
+        status: product.productPromotion?.matchCatalogProductId
+          ? "resolved"
+          : "idle",
         creatives: (product.productPromotion?.creatives || []).map((c: any) => ({
           imageUrl: c.imageUrl || "",
           storageId: c.storageId || undefined,
           url: c.storageId ? undefined : c.imageUrl || undefined,
           heading: c.heading || "",
           description: c.description || "",
+          source: c.source || undefined,
+          origin: c.origin || "manual",
         })),
       },
       isActive: product.isActive,
@@ -392,19 +430,28 @@ export default function AdminProducts() {
     setSaving(true);
     try {
       const slug = form.slug || slugify(form.name);
-      // Product promotion — this product only. Creatives without any usable
-      // image (and temporary object-URL previews) are dropped server-side too.
+      // Product promotion — this product only.
+      //
+      // In "automatic" mode no creative is sent: the server re-reads the named
+      // catalog record and stores its own approved media, so a creative can
+      // never be reassigned to the wrong product by the browser. Manual mode
+      // (an admin upload or a URL they supplied) is stored as supplied.
+      const promo = form.productPromotion;
+      const useAutomatic = promo.mode === "automatic" && Boolean(promo.catalogProductId);
       const productPromotion = {
-        enabled: form.productPromotion.enabled,
-        title: form.productPromotion.title.trim() || undefined,
-        creatives: form.productPromotion.creatives
-          .map((c) => ({
-            storageId: (c.storageId || undefined) as any,
-            url: c.storageId ? undefined : c.url?.trim() || undefined,
-            heading: c.heading.trim() || undefined,
-            description: c.description.trim() || undefined,
-          }))
-          .filter((c) => c.storageId || c.url),
+        enabled: promo.enabled,
+        title: promo.title.trim() || undefined,
+        catalogProductId: useAutomatic ? promo.catalogProductId : undefined,
+        creatives: useAutomatic
+          ? []
+          : promo.creatives
+              .map((c) => ({
+                storageId: (c.storageId || undefined) as any,
+                url: c.storageId ? undefined : c.url?.trim() || undefined,
+                heading: c.heading.trim() || undefined,
+                description: c.description.trim() || undefined,
+              }))
+              .filter((c) => c.storageId || c.url),
       };
       const data = {
         name: form.name,
@@ -452,6 +499,83 @@ export default function AdminProducts() {
   };
 
   // ── Product promotion creative helpers (admin, this product only) ──
+  /**
+   * Ask the server to resolve verified promotional media for THIS exact
+   * product. The browser never picks the media: it only renders the preview
+   * the resolver returns, and the save re-derives the same creatives from the
+   * catalog record itself.
+   */
+  const resolvePromotionMedia = useCallback(async () => {
+    setResolvingPromotion(true);
+    setForm((f) => ({
+      ...f,
+      productPromotion: { ...f.productPromotion, status: "resolving" },
+    }));
+    try {
+      const result = await resolvePromotionAction({
+        identity: {
+          catalogProductId: form.productPromotion.catalogProductId,
+          name: form.name,
+          sku: form.sku || undefined,
+          manufacturer: form.manufacturer || undefined,
+          strength: form.strength || form.dosage || undefined,
+          form: form.form || undefined,
+          packSize: form.packSize || undefined,
+        },
+      });
+      setForm((f) => ({
+        ...f,
+        productPromotion: {
+          ...f.productPromotion,
+          status: result.status,
+          statusMessage: result.message,
+          matchProductName: result.match?.productName ?? undefined,
+          resolvedFrom: result.match?.source ?? undefined,
+          catalogProductId:
+            result.match?.catalogProductId ?? f.productPromotion.catalogProductId,
+          suggestions: result.suggestions,
+          // A successful resolve hands the promotion to the server; any
+          // further admin edit below switches it back to manual.
+          mode: result.status === "resolved" ? "automatic" : f.productPromotion.mode,
+          creatives:
+            result.status === "resolved"
+              ? result.creatives.map((c) => ({
+                  imageUrl: c.imageUrl,
+                  heading: c.heading ?? "",
+                  description: c.description ?? "",
+                  source: c.source,
+                  origin: "automatic" as const,
+                }))
+              : result.status === "no-media"
+                ? []
+                : f.productPromotion.creatives,
+        },
+      }));
+    } catch (error: any) {
+      setForm((f) => ({
+        ...f,
+        productPromotion: {
+          ...f.productPromotion,
+          status: "error",
+          statusMessage:
+            error?.message || "Could not resolve promotional media for this product.",
+        },
+      }));
+    } finally {
+      setResolvingPromotion(false);
+    }
+  }, [
+    form.name,
+    form.sku,
+    form.manufacturer,
+    form.strength,
+    form.dosage,
+    form.form,
+    form.packSize,
+    form.productPromotion.catalogProductId,
+    resolvePromotionAction,
+  ]);
+
   const handlePromoUpload = async (index: number, file: File) => {
     try {
       setPromoUploading(index);
@@ -473,8 +597,18 @@ export default function AdminProducts() {
           storageId,
           url: undefined,
           imageUrl: objectUrl,
+          origin: "manual",
         };
-        return { ...f, productPromotion: { ...f.productPromotion, creatives } };
+        // An admin upload means the promotion is now their own set.
+        return {
+          ...f,
+          productPromotion: {
+            ...f.productPromotion,
+            creatives,
+            mode: "manual",
+            catalogProductId: undefined,
+          },
+        };
       });
       toast.success("Promotional image uploaded");
     } catch (error: any) {
@@ -498,7 +632,16 @@ export default function AdminProducts() {
       const creatives = [...f.productPromotion.creatives];
       if (!creatives[index]) return f;
       creatives[index] = { ...creatives[index], ...patch };
-      return { ...f, productPromotion: { ...f.productPromotion, creatives } };
+      return {
+        ...f,
+        productPromotion: {
+          ...f.productPromotion,
+          creatives,
+          // Editing a resolved creative makes this an admin-curated set.
+          mode: "manual",
+          catalogProductId: undefined,
+        },
+      };
     });
   };
 
@@ -508,7 +651,15 @@ export default function AdminProducts() {
       const target = index + direction;
       if (target < 0 || target >= creatives.length) return f;
       [creatives[index], creatives[target]] = [creatives[target], creatives[index]];
-      return { ...f, productPromotion: { ...f.productPromotion, creatives } };
+      return {
+        ...f,
+        productPromotion: {
+          ...f.productPromotion,
+          creatives,
+          mode: "manual",
+          catalogProductId: undefined,
+        },
+      };
     });
   };
 
@@ -518,6 +669,8 @@ export default function AdminProducts() {
       productPromotion: {
         ...f.productPromotion,
         creatives: f.productPromotion.creatives.filter((_, i) => i !== index),
+        mode: "manual" as const,
+        catalogProductId: undefined,
       },
     }));
   };
@@ -530,6 +683,8 @@ export default function AdminProducts() {
             ...f,
             productPromotion: {
               ...f.productPromotion,
+              mode: "manual" as const,
+              catalogProductId: undefined,
               creatives: [
                 ...f.productPromotion.creatives,
                 { imageUrl: "", heading: "", description: "" },
@@ -843,6 +998,14 @@ export default function AdminProducts() {
       // Images: the SAME record's own verified assets (or the exact
       // missing-image message — never a substitute).
       filled.push(...applyCatalogRecordImages(newForm, record));
+
+      // The exact record Auto Fill just matched is the identity the promotion
+      // resolver reuses — no second, independent product-matching system.
+      newForm.productPromotion = {
+        ...newForm.productPromotion,
+        catalogProductId: record.catalogProductId,
+        matchProductName: record.canonicalProductName,
+      };
 
       setForm(newForm);
       setCandidates(null);
@@ -1749,15 +1912,19 @@ export default function AdminProducts() {
                     <input
                       type="checkbox"
                       checked={form.productPromotion.enabled}
-                      onChange={(e) =>
+                      onChange={(e) => {
+                        const enabled = e.target.checked;
                         setForm({
                           ...form,
                           productPromotion: {
                             ...form.productPromotion,
-                            enabled: e.target.checked,
+                            enabled,
                           },
-                        })
-                      }
+                        });
+                        // Switching it on triggers the automatic lookup, so the
+                        // admin never has to hunt for banner images.
+                        if (enabled) void resolvePromotionMedia();
+                      }}
                       className="rounded"
                     />
                     Enable Product Promotion
@@ -1766,6 +1933,91 @@ export default function AdminProducts() {
 
                 {form.productPromotion.enabled && (
                   <div className="space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-[11px] text-muted-foreground">
+                        Creatives are resolved automatically for the exact product from the approved product media catalog. Manual upload is optional.
+                      </p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="text-xs gap-1"
+                        onClick={() => void resolvePromotionMedia()}
+                        disabled={resolvingPromotion}
+                      >
+                        {resolvingPromotion ? (
+                          <Loader2 className="size-3 animate-spin" />
+                        ) : (
+                          <RefreshCw className="size-3" />
+                        )}
+                        Refresh Promotional Media
+                      </Button>
+                    </div>
+
+                    {form.productPromotion.status === "resolving" && (
+                      <p className="text-xs text-muted-foreground">
+                        Looking up verified promotional media for this exact product…
+                      </p>
+                    )}
+
+                    {form.productPromotion.status === "ambiguous" &&
+                      form.productPromotion.suggestions &&
+                      form.productPromotion.suggestions.length > 0 && (
+                        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 space-y-1">
+                          <p className="text-xs font-semibold text-amber-800">
+                            Multiple possible product matches found. Please select
+                            the exact product.
+                          </p>
+                          <ul className="space-y-0.5">
+                            {form.productPromotion.suggestions.map((s) => (
+                              <li key={s.productName} className="text-xs text-amber-900/80">
+                                {s.productName}
+                                {s.manufacturer ? ` · ${s.manufacturer}` : ""}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                    {(form.productPromotion.status === "no-media" ||
+                      form.productPromotion.status === "not-found" ||
+                      form.productPromotion.status === "mismatch" ||
+                      form.productPromotion.status === "error") && (
+                      <div className="rounded-lg border border-border/60 bg-background p-3">
+                        <p className="text-xs text-muted-foreground">
+                          {form.productPromotion.statusMessage ??
+                            "No verified promotional media could be resolved."}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground mt-1">
+                          No promotional section will be shown on the product page until valid creatives exist. Nothing is ever substituted.
+                        </p>
+                      </div>
+                    )}
+
+                    {form.productPromotion.status === "resolved" && (
+                      <div className="rounded-lg border border-border/60 bg-background p-3 space-y-1">
+                        <p className="text-xs font-semibold">
+                          Promotional creatives found:{" "}
+                          {form.productPromotion.creatives.length}
+                        </p>
+                        {form.productPromotion.matchProductName && (
+                          <p className="text-[11px] text-muted-foreground">
+                            Exact product: {form.productPromotion.matchProductName}
+                          </p>
+                        )}
+                        {form.productPromotion.resolvedFrom && (
+                          <p className="text-[11px] text-muted-foreground">
+                            Source: {form.productPromotion.resolvedFrom}
+                          </p>
+                        )}
+                        <p className="text-[11px] text-muted-foreground">
+                          {form.productPromotion.mode === "automatic"
+                            ? "Saved automatically from the catalog. Editing a creative below switches to your own set."
+                            : "Admin-curated set — saved as provided."}
+                        </p>
+                      </div>
+                    )}
+
                     <div className="space-y-2">
                       <Label>Promotion Section Title</Label>
                       <Input
@@ -1788,10 +2040,17 @@ export default function AdminProducts() {
                         key={i}
                         className="rounded-lg border border-border/60 bg-background p-3 space-y-3"
                       >
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-semibold text-muted-foreground">
-                            Creative {i + 1} of {form.productPromotion.creatives.length}
-                          </span>
+                        <div className="flex items-center justify-between gap-2">
+                          <div>
+                            <p className="text-xs font-semibold text-muted-foreground">
+                              Creative {i + 1} of {form.productPromotion.creatives.length}
+                            </p>
+                            {creative.source && (
+                              <p className="text-[10px] text-muted-foreground">
+                                Source: {creative.source}
+                              </p>
+                            )}
+                          </div>
                           <div className="flex items-center gap-1">
                             <Button
                               type="button"
@@ -1910,7 +2169,7 @@ export default function AdminProducts() {
                       </Button>
                     )}
                     <p className="text-[11px] text-muted-foreground">
-                      Up to 4 creatives, shown on the product page in this order with their size and ratio preserved.
+                      Up to 4 creatives, shown on the product page in this order with their size and ratio preserved. Resolved creatives stay separate from the product gallery.
                     </p>
                   </div>
                 )}

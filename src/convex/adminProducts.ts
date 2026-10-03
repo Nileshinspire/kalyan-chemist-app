@@ -3,6 +3,12 @@ import { query, mutation, internalQuery, internalMutation } from "./_generated/s
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { isVerifiedProductImage } from "./productImageResolver";
+import {
+  CATALOG_PROMOTION_SOURCE_LABEL,
+  MAX_PROMOTION_MEDIA,
+  assessCatalogMatch,
+  type IdentityInput,
+} from "./masterCatalogCore";
 
 // ── Helper: verify caller is admin ──
 async function requireAdmin(ctx: { db: any; auth: any }) {
@@ -72,15 +78,44 @@ const promotionCreativeInput = v.object({
 const productPromotionInput = v.object({
   enabled: v.boolean(),
   title: v.optional(v.string()),
+  /**
+   * Set when the creatives were resolved automatically. The server then reads
+   * the approved catalog record ITSELF and ignores any creative the browser
+   * sent, so promotional media can never be reassigned to the wrong product.
+   */
+  catalogProductId: v.optional(v.string()),
   creatives: v.array(promotionCreativeInput),
 });
 
+/** The exact catalog record a promotion was resolved against. */
+async function findCatalogRow(db: any, catalogProductId: string): Promise<any> {
+  return await db
+    .query("masterCatalog")
+    .withIndex("by_catalogProductId", (q: any) =>
+      q.eq("catalogProductId", catalogProductId),
+    )
+    .first();
+}
+
+/**
+ * Turn the admin form's promotion into what is actually stored.
+ *
+ * Two sources, and the browser is never trusted for either:
+ *
+ *   • Automatic — the form names the catalog record, and this function re-reads
+ *     that record, re-checks it against THIS product with the same strict
+ *     matcher Auto Fill uses, and takes its own approved creatives. A variant
+ *     that does not match yields no creatives rather than the wrong ones.
+ *   • Manual — an admin upload (a Convex storage id) or a URL they supplied.
+ *     Temporary `blob:` previews are never persisted.
+ */
 async function normalizeProductPromotion(
-  ctx: { storage: any },
+  ctx: { db: any; storage: any },
   input:
     | {
         enabled: boolean;
         title?: string;
+        catalogProductId?: string;
         creatives: Array<{
           storageId?: any;
           url?: string;
@@ -89,13 +124,70 @@ async function normalizeProductPromotion(
         }>;
       }
     | undefined,
+  identity?: IdentityInput,
 ) {
   if (!input) return undefined;
+  const title = input.title?.trim() || undefined;
+
+  if (input.catalogProductId) {
+    const row = await findCatalogRow(ctx.db, input.catalogProductId);
+    if (!row) {
+      return { enabled: input.enabled, title, creatives: [] };
+    }
+    const verdict = assessCatalogMatch(
+      {
+        name: row.canonicalProductName,
+        strength: row.strength ?? null,
+        form: row.dosageForm ?? null,
+        packSize: row.packSize ?? null,
+        manufacturer: row.manufacturer ?? null,
+        brand: row.brand ?? null,
+      },
+      identity ?? { name: row.canonicalProductName },
+    );
+    if (verdict.verdict === "reject") {
+      return { enabled: input.enabled, title, creatives: [] };
+    }
+    const media = Array.isArray(row.promotionalMedia) ? row.promotionalMedia : [];
+    const creatives = media
+      .filter(
+        (item: any) =>
+          item &&
+          typeof item.imageUrl === "string" &&
+          item.imageUrl.trim().length > 0 &&
+          !/^(blob|data):/i.test(item.imageUrl.trim()),
+      )
+      .map((item: any, index: number) => ({
+        imageUrl: item.imageUrl.trim(),
+        heading: item.heading?.trim() || undefined,
+        description: item.description?.trim() || undefined,
+        source: item.source?.trim() || CATALOG_PROMOTION_SOURCE_LABEL,
+        sourceProductId:
+          item.sourceProductId?.trim() || row.sourceProductId?.trim() || undefined,
+        origin: "automatic" as const,
+        order: typeof item.order === "number" ? item.order : index,
+      }))
+      .sort((a: any, b: any) => a.order - b.order)
+      .slice(0, MAX_PROMOTION_MEDIA)
+      .map(({ order, ...creative }: any) => creative);
+
+    return {
+      enabled: input.enabled,
+      title,
+      catalogProductId: row.catalogProductId,
+      matchProductName: row.canonicalProductName,
+      resolvedFrom: media[0]?.source?.trim() || CATALOG_PROMOTION_SOURCE_LABEL,
+      resolvedAt: Date.now(),
+      creatives,
+    };
+  }
+
   const creatives: Array<{
     imageUrl: string;
     storageId?: any;
     heading?: string;
     description?: string;
+    origin?: "manual";
   }> = [];
   for (const raw of input.creatives ?? []) {
     let imageUrl = (raw.url ?? "").trim();
@@ -113,13 +205,10 @@ async function normalizeProductPromotion(
       storageId: raw.storageId ?? undefined,
       heading: raw.heading?.trim() || undefined,
       description: raw.description?.trim() || undefined,
+      origin: "manual",
     });
   }
-  return {
-    enabled: input.enabled,
-    title: input.title?.trim() || undefined,
-    creatives,
-  };
+  return { enabled: input.enabled, title, creatives };
 }
 
 /**
@@ -380,7 +469,13 @@ export const create = mutation({
     if (existing) throw new Error("A product with this slug already exists");
 
     const { productPromotion: promoInput, ...rest } = args;
-    const productPromotion = await normalizeProductPromotion(ctx, promoInput);
+    const productPromotion = await normalizeProductPromotion(ctx, promoInput, {
+      name: args.name,
+      strength: args.strength ?? null,
+      form: args.form ?? null,
+      packSize: args.packSize ?? null,
+      manufacturer: args.manufacturer ?? null,
+    });
 
     const now = Date.now();
     const doc: any = { ...rest, createdAt: now, updatedAt: now };
@@ -457,7 +552,13 @@ export const update = mutation({
     }
 
     const { productId, productPromotion: promoInput, ...updates } = args;
-    const productPromotion = await normalizeProductPromotion(ctx, promoInput);
+    const productPromotion = await normalizeProductPromotion(ctx, promoInput, {
+      name: args.name,
+      strength: args.strength ?? null,
+      form: args.form ?? null,
+      packSize: args.packSize ?? null,
+      manufacturer: args.manufacturer ?? null,
+    });
 
     // Check slug uniqueness (excluding this product)
     const existing = await ctx.db

@@ -261,11 +261,25 @@ const schema = defineSchema(
       productPromotion: v.optional(v.object({
         enabled: v.boolean(),
         title: v.optional(v.string()),
+        /** Approved source the creatives were automatically resolved from. */
+        resolvedFrom: v.optional(v.string()),
+        /** The exact catalog product those creatives were matched to. */
+        matchProductName: v.optional(v.string()),
+        matchCatalogProductId: v.optional(v.string()),
+        resolvedAt: v.optional(v.number()),
         creatives: v.array(v.object({
           imageUrl: v.string(),
           storageId: v.optional(v.id("_storage")),
           heading: v.optional(v.string()),
           description: v.optional(v.string()),
+          /** Which approved source published this creative. */
+          source: v.optional(v.string()),
+          /** That source's own id for the exact product. */
+          sourceProductId: v.optional(v.string()),
+          /** Admin-supplied vs resolver-found, so a refresh can spare manual work. */
+          origin: v.optional(
+            v.union(v.literal("manual"), v.literal("automatic")),
+          ),
         })),
       })),
       isActive: v.boolean(),
@@ -364,6 +378,25 @@ const schema = defineSchema(
         importedAt: v.number(),
         processedAt: v.optional(v.number()),
       })),
+      /**
+       * APPROVED PROMOTIONAL MEDIA for this exact record, supplied by the
+       * project's licensed catalog dataset.
+       *
+       * Deliberately kept separate from `primaryImage`/`additionalImages`,
+       * which are the product gallery: a manufacturer banner must never appear
+       * in the gallery thumbnails, and a gallery view must never be served as
+       * a promotional creative.
+       */
+      promotionalMedia: v.optional(v.array(v.object({
+        imageUrl: v.string(),
+        /** Which approved source published this creative. */
+        source: v.string(),
+        /** That source's own id for the exact product, for provenance. */
+        sourceProductId: v.optional(v.string()),
+        heading: v.optional(v.string()),
+        description: v.optional(v.string()),
+        order: v.number(),
+      }))),
       sourceProductId: v.optional(v.string()),
       sourceUrl: v.optional(v.string()),
       verificationStatus: v.union(

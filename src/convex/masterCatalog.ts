@@ -142,6 +142,18 @@ const seedRecordValidator = v.object({
   mrp: v.optional(v.number()),
   sourceProductId: v.optional(v.string()),
   sourceUrl: v.optional(v.string()),
+  /**
+   * Approved promotional media for this exact record, carried in from the
+   * licensed dataset. Never mixed with the product gallery images.
+   */
+  promotionalMedia: v.optional(v.array(v.object({
+    imageUrl: v.string(),
+    source: v.string(),
+    sourceProductId: v.optional(v.string()),
+    heading: v.optional(v.string()),
+    description: v.optional(v.string()),
+    order: v.number(),
+  }))),
   verificationStatus: statusValidator,
 });
 
@@ -419,6 +431,7 @@ const UPDATABLE_FIELDS = [
   "mrp",
   "sourceProductId",
   "sourceUrl",
+  "promotionalMedia",
 ] as const;
 
 /**
@@ -922,6 +935,27 @@ export const recordByProductId = internalQuery({
   args: { catalogProductId: v.string() },
   handler: async (ctx, args) => {
     return await findByCatalogProductId(ctx.db, args.catalogProductId);
+  },
+});
+
+/** Exact-record lookups by the stable codes the promotion resolver prefers. */
+export const recordsByGtin = internalQuery({
+  args: { gtin: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("masterCatalog")
+      .withIndex("by_gtin", (q) => q.eq("gtin", args.gtin))
+      .collect();
+  },
+});
+
+export const recordsBySku = internalQuery({
+  args: { sku: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("masterCatalog")
+      .withIndex("by_sku", (q) => q.eq("sku", args.sku))
+      .collect();
   },
 });
 
