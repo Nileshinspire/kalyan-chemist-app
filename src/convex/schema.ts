@@ -243,6 +243,31 @@ const schema = defineSchema(
        * by the page.
        */
       productContent: v.optional(productContentValidator),
+      /**
+       * ADMIN-CONTROLLED PRODUCT PROMOTION.
+       *
+       * Optional and backward compatible: products saved before this existed
+       * simply have no field and render no promotion section. It is separate
+       * from the product gallery and belongs to exactly this product.
+       *
+       *   enabled  — whether the promotion section should render on this
+       *              product's detail page.
+       *   title    — the section heading (defaults to "From the Manufacturer").
+       *   creatives— up to four large manufacturer creatives, in the admin's
+       *              chosen order. Each stores the resolved image URL, the
+       *              Convex storage id when it was uploaded here (for
+       *              provenance/cleanup), and optional heading/description copy.
+       */
+      productPromotion: v.optional(v.object({
+        enabled: v.boolean(),
+        title: v.optional(v.string()),
+        creatives: v.array(v.object({
+          imageUrl: v.string(),
+          storageId: v.optional(v.id("_storage")),
+          heading: v.optional(v.string()),
+          description: v.optional(v.string()),
+        })),
+      })),
       isActive: v.boolean(),
       createdAt: v.number(),
       updatedAt: v.number(),

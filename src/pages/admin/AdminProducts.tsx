@@ -57,6 +57,9 @@ import {
   ShieldAlert,
   CheckCircle2,
   Database,
+  ChevronUp,
+  ChevronDown,
+  Image as ImageIcon,
 } from "lucide-react";
 
 function slugify(text: string) {
@@ -94,6 +97,23 @@ interface ProductForm {
   /** Provenance of the verified packshot, saved with the product. */
   imageSource?: string;
   imageUrlSource?: string;
+  /**
+   * Optional, admin-controlled promotion for THIS product only. Separate from
+   * the gallery. `imageUrl` is the display value (a real URL, or a temporary
+   * object URL while editing); `storageId` is set for creatives uploaded to
+   * Convex storage; `url` is the pasted external URL either way.
+   */
+  productPromotion: {
+    enabled: boolean;
+    title: string;
+    creatives: Array<{
+      imageUrl: string;
+      storageId?: string;
+      url?: string;
+      heading: string;
+      description: string;
+    }>;
+  };
   isActive: boolean;
 }
 
@@ -122,6 +142,11 @@ const EMPTY_FORM: ProductForm = {
   safetyNote: "",
   expiryDate: "",
   additionalImages: [],
+  productPromotion: {
+    enabled: false,
+    title: "From the Manufacturer",
+    creatives: [],
+  },
   isActive: true,
 };
 
@@ -224,6 +249,8 @@ export default function AdminProducts() {
   const [autoFilling, setAutoFilling] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [nameQuery, setNameQuery] = useState("");
+  // Which promotion creative slot is currently uploading (for the spinner).
+  const [promoUploading, setPromoUploading] = useState<number | null>(null);
 
   // Auto Fill and its image step read ONLY the verified master catalog — the
   // licensed-dataset layer the admin imported. The old external resolvers stay
@@ -273,6 +300,9 @@ export default function AdminProducts() {
   });
 
   const createProduct = useMutation(api.adminProducts.create);
+  const generatePromotionUploadUrl = useMutation(
+    api.adminProducts.generatePromotionUploadUrl,
+  );
   const updateProduct = useMutation(api.adminProducts.update);
   const deleteProduct = useMutation(api.adminProducts.remove);
   const toggleActive = useMutation(api.adminProducts.toggleActive);
@@ -326,6 +356,17 @@ export default function AdminProducts() {
       additionalImages: product.additionalImages || [],
       imageSource: product.imageSource,
       imageUrlSource: product.imageUrlSource,
+      productPromotion: {
+        enabled: !!product.productPromotion?.enabled,
+        title: product.productPromotion?.title || "From the Manufacturer",
+        creatives: (product.productPromotion?.creatives || []).map((c: any) => ({
+          imageUrl: c.imageUrl || "",
+          storageId: c.storageId || undefined,
+          url: c.storageId ? undefined : c.imageUrl || undefined,
+          heading: c.heading || "",
+          description: c.description || "",
+        })),
+      },
       isActive: product.isActive,
     });
     setDialogOpen(true);
@@ -351,6 +392,20 @@ export default function AdminProducts() {
     setSaving(true);
     try {
       const slug = form.slug || slugify(form.name);
+      // Product promotion — this product only. Creatives without any usable
+      // image (and temporary object-URL previews) are dropped server-side too.
+      const productPromotion = {
+        enabled: form.productPromotion.enabled,
+        title: form.productPromotion.title.trim() || undefined,
+        creatives: form.productPromotion.creatives
+          .map((c) => ({
+            storageId: (c.storageId || undefined) as any,
+            url: c.storageId ? undefined : c.url?.trim() || undefined,
+            heading: c.heading.trim() || undefined,
+            description: c.description.trim() || undefined,
+          }))
+          .filter((c) => c.storageId || c.url),
+      };
       const data = {
         name: form.name,
         slug,
@@ -377,6 +432,7 @@ export default function AdminProducts() {
         benefits: form.benefits || undefined,      consumeType: form.consumeType || undefined,
       safetyNote: form.safetyNote || undefined,
       expiryDate: form.expiryDate ? new Date(form.expiryDate).getTime() : undefined,
+      productPromotion,
       isActive: form.isActive,
       };
 
@@ -393,6 +449,94 @@ export default function AdminProducts() {
     } finally {
       setSaving(false);
     }
+  };
+
+  // ── Product promotion creative helpers (admin, this product only) ──
+  const handlePromoUpload = async (index: number, file: File) => {
+    try {
+      setPromoUploading(index);
+      const uploadUrl = await generatePromotionUploadUrl();
+      const res = await fetch(uploadUrl, {
+        method: "POST",
+        headers: file.type ? { "Content-Type": file.type } : undefined,
+        body: file,
+      });
+      if (!res.ok) throw new Error("Image upload failed");
+      const { storageId } = (await res.json()) as { storageId?: string };
+      if (!storageId) throw new Error("Image upload failed");
+      const objectUrl = URL.createObjectURL(file);
+      setForm((f) => {
+        const creatives = [...f.productPromotion.creatives];
+        if (!creatives[index]) return f;
+        creatives[index] = {
+          ...creatives[index],
+          storageId,
+          url: undefined,
+          imageUrl: objectUrl,
+        };
+        return { ...f, productPromotion: { ...f.productPromotion, creatives } };
+      });
+      toast.success("Promotional image uploaded");
+    } catch (error: any) {
+      toast.error(error?.message || "Failed to upload promotional image");
+    } finally {
+      setPromoUploading(null);
+    }
+  };
+
+  const updatePromoCreative = (
+    index: number,
+    patch: Partial<{
+      url?: string;
+      imageUrl?: string;
+      storageId?: string;
+      heading?: string;
+      description?: string;
+    }>,
+  ) => {
+    setForm((f) => {
+      const creatives = [...f.productPromotion.creatives];
+      if (!creatives[index]) return f;
+      creatives[index] = { ...creatives[index], ...patch };
+      return { ...f, productPromotion: { ...f.productPromotion, creatives } };
+    });
+  };
+
+  const movePromoCreative = (index: number, direction: -1 | 1) => {
+    setForm((f) => {
+      const creatives = [...f.productPromotion.creatives];
+      const target = index + direction;
+      if (target < 0 || target >= creatives.length) return f;
+      [creatives[index], creatives[target]] = [creatives[target], creatives[index]];
+      return { ...f, productPromotion: { ...f.productPromotion, creatives } };
+    });
+  };
+
+  const removePromoCreative = (index: number) => {
+    setForm((f) => ({
+      ...f,
+      productPromotion: {
+        ...f.productPromotion,
+        creatives: f.productPromotion.creatives.filter((_, i) => i !== index),
+      },
+    }));
+  };
+
+  const addPromoCreative = () => {
+    setForm((f) =>
+      f.productPromotion.creatives.length >= 4
+        ? f
+        : {
+            ...f,
+            productPromotion: {
+              ...f.productPromotion,
+              creatives: [
+                ...f.productPromotion.creatives,
+                { imageUrl: "", heading: "", description: "" },
+              ],
+            },
+          },
+    );
   };
 
   const handleDelete = async (productId: string) => {
@@ -1592,6 +1736,186 @@ export default function AdminProducts() {
                 <Label>Storage Information</Label>
                 <Input value={form.storageInformation} onChange={(e) => setForm({ ...form, storageInformation: e.target.value })} placeholder="e.g. Store in a cool, dry place" />
               </div>
+              {/* ── Product Promotion (optional, this product only) ── */}
+              <div className="sm:col-span-2 space-y-3 rounded-xl border border-border/60 bg-muted/20 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <Label className="text-sm font-semibold">Product Promotion</Label>
+                    <p className="text-[11px] text-muted-foreground">
+                      Optional manufacturer/promo creatives shown only on this product's page. Kept separate from the product gallery.
+                    </p>
+                  </div>
+                  <label className="flex items-center gap-2 text-sm font-medium">
+                    <input
+                      type="checkbox"
+                      checked={form.productPromotion.enabled}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          productPromotion: {
+                            ...form.productPromotion,
+                            enabled: e.target.checked,
+                          },
+                        })
+                      }
+                      className="rounded"
+                    />
+                    Enable Product Promotion
+                  </label>
+                </div>
+
+                {form.productPromotion.enabled && (
+                  <div className="space-y-3">
+                    <div className="space-y-2">
+                      <Label>Promotion Section Title</Label>
+                      <Input
+                        value={form.productPromotion.title}
+                        onChange={(e) =>
+                          setForm({
+                            ...form,
+                            productPromotion: {
+                              ...form.productPromotion,
+                              title: e.target.value,
+                            },
+                          })
+                        }
+                        placeholder="From the Manufacturer"
+                      />
+                    </div>
+
+                    {form.productPromotion.creatives.map((creative, i) => (
+                      <div
+                        key={i}
+                        className="rounded-lg border border-border/60 bg-background p-3 space-y-3"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-semibold text-muted-foreground">
+                            Creative {i + 1} of {form.productPromotion.creatives.length}
+                          </span>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="size-7"
+                              disabled={i === 0}
+                              onClick={() => movePromoCreative(i, -1)}
+                              title="Move up"
+                            >
+                              <ChevronUp className="size-3.5" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="size-7"
+                              disabled={i === form.productPromotion.creatives.length - 1}
+                              onClick={() => movePromoCreative(i, 1)}
+                              title="Move down"
+                            >
+                              <ChevronDown className="size-3.5" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="size-7 text-destructive"
+                              onClick={() => removePromoCreative(i)}
+                              title="Remove"
+                            >
+                              <X className="size-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row gap-3">
+                          <div className="size-24 rounded-lg border border-border/60 bg-muted/30 flex items-center justify-center overflow-hidden shrink-0">
+                            {creative.imageUrl ? (
+                              <img
+                                src={creative.imageUrl}
+                                alt={`Promotion creative ${i + 1}`}
+                                className="size-full object-contain p-1"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).style.display = "none";
+                                }}
+                              />
+                            ) : (
+                              <ImageIcon className="size-6 text-muted-foreground/40" />
+                            )}
+                          </div>
+                          <div className="flex-1 space-y-2">
+                            <div className="flex items-center gap-2">
+                              <label className="cursor-pointer shrink-0">
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    e.target.value = "";
+                                    if (file) handlePromoUpload(i, file);
+                                  }}
+                                />
+                                <span className="inline-flex items-center gap-1 rounded-md border border-border/60 px-2 py-1 text-xs hover:bg-muted/40">
+                                  {promoUploading === i ? (
+                                    <Loader2 className="size-3 animate-spin" />
+                                  ) : (
+                                    <ImageIcon className="size-3" />
+                                  )}
+                                  Upload image
+                                </span>
+                              </label>
+                              <Input
+                                value={creative.url || ""}
+                                onChange={(e) =>
+                                  updatePromoCreative(i, {
+                                    url: e.target.value,
+                                    imageUrl: e.target.value,
+                                    storageId: undefined,
+                                  })
+                                }
+                                placeholder="or paste an image URL"
+                                className="h-8 text-xs flex-1"
+                              />
+                            </div>
+                            <Input
+                              value={creative.heading}
+                              onChange={(e) => updatePromoCreative(i, { heading: e.target.value })}
+                              placeholder="Optional heading (e.g. Long-Lasting Protection)"
+                              className="h-8 text-xs"
+                            />
+                            <Input
+                              value={creative.description}
+                              onChange={(e) =>
+                                updatePromoCreative(i, { description: e.target.value })
+                              }
+                              placeholder="Optional supporting text"
+                              className="h-8 text-xs"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+
+                    {form.productPromotion.creatives.length < 4 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="text-xs gap-1"
+                        onClick={addPromoCreative}
+                      >
+                        <Plus className="size-3" />
+                        Add Creative
+                      </Button>
+                    )}
+                    <p className="text-[11px] text-muted-foreground">
+                      Up to 4 creatives, shown on the product page in this order with their size and ratio preserved.
+                    </p>
+                  </div>
+                )}
+              </div>
+
               <div className="sm:col-span-2 flex items-center gap-4">
                 <label className="flex items-center gap-2 text-sm">
                   <input type="checkbox" checked={form.prescriptionRequired} onChange={(e) => setForm({ ...form, prescriptionRequired: e.target.checked })} className="rounded" />

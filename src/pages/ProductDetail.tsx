@@ -134,31 +134,6 @@ function StarRating({
   );
 }
 
-// Split a verified benefit statement into a short headline and a supporting
-// line. This only ever reformats this product's own recorded text — it never
-// invents a claim.
-function splitBenefitText(text: string): { headline: string; support: string } {
-  const clean = text.trim().replace(/\s+/g, " ");
-  if (!clean) return { headline: "", support: "" };
-  const colon = clean.indexOf(":");
-  if (colon > 0 && colon <= 48 && colon < clean.length - 1) {
-    const headline = clean.slice(0, colon).trim();
-    const support = clean.slice(colon + 1).trim();
-    if (headline && support) return { headline, support };
-  }
-  const sentence = clean.match(/^(.{0,64}?[.!?])\s+(.*)$/s);
-  if (sentence && sentence[2].trim()) {
-    return { headline: sentence[1].trim(), support: sentence[2].trim() };
-  }
-  if (clean.length > 64) {
-    const words = clean.split(" ");
-    const headline = words.slice(0, 8).join(" ").replace(/[,;:.!?]$/, "");
-    const support = words.slice(8).join(" ");
-    if (headline && support) return { headline, support };
-  }
-  return { headline: clean, support: "" };
-}
-
 function ReviewSheet({
   open,
   onOpenChange,
@@ -577,66 +552,47 @@ export default function ProductDetail() {
     ...((p as any).additionalImages || []).filter((img: string) => img && img !== p.imageUrl),
   ];
 
-  // ── Product highlights — same-product promotional / benefit visuals ──
-  // The only visuals allowed here are this product's own stored images, and the
-  // only copy is this product's verified benefits (falling back to its recorded
-  // facts). Nothing is invented: when no verified visual or highlight exists,
-  // the section says so rather than filling the gap with stock content.
-  const promoImages: string[] = Array.from(
-    new Set<string>(
-      [
-        ...(p.imageUrl ? [p.imageUrl] : []),
-        ...(((p as any).additionalImages || []) as string[]),
-      ].filter(
-        (img): img is string => Boolean(img) && img !== "/placeholder-medicine.svg"
-      )
-    )
-  );
-  const highlightTexts: string[] =
-    content.benefits && content.benefits.length > 0
-      ? content.benefits
-      : content.facts
-          .filter((f) =>
-            [
-              "Product type",
-              "Pack size",
-              "Strength",
-              "Composition",
-              "Prescription status",
-              "Storage",
-              "Expiry",
-            ].includes(f.label)
+  // ── Admin-controlled product promotion ──
+  // Only THIS exact product's own admin-entered promotion is shown, and only
+  // when the admin enabled it and supplied at least one real creative. Nothing
+  // is generated or borrowed: a disabled promotion — or one with no usable
+  // images — renders nothing at all, so no empty block is left behind.
+  const promotionRaw = (p as any).productPromotion as
+    | {
+        enabled?: boolean;
+        title?: string;
+        creatives?: Array<{
+          imageUrl?: string;
+          heading?: string;
+          description?: string;
+        }>;
+      }
+    | undefined;
+  const promoCreatives: Array<{
+    imageUrl: string;
+    heading?: string;
+    description?: string;
+  }> =
+    promotionRaw?.enabled && Array.isArray(promotionRaw.creatives)
+      ? promotionRaw.creatives
+          .filter(
+            (
+              c,
+            ): c is {
+              imageUrl: string;
+              heading?: string;
+              description?: string;
+            } =>
+              Boolean(
+                c &&
+                  typeof c.imageUrl === "string" &&
+                  c.imageUrl.trim().length > 0,
+              ),
           )
-          .map((f) => `${f.label}: ${f.value}`);
-  const promoCardCount = Math.min(promoImages.length, highlightTexts.length, 4);
-  const promoCards = promoImages
-    .slice(0, promoCardCount)
-    .map((image, i) => ({ image, text: highlightTexts[i] }));
-  const promoExtras = highlightTexts.slice(promoCardCount);
-
-  // Each promotional card pairs this product's own image with this product's own
-  // verified benefit text, split into a short bold headline and a supporting
-  // line. Nothing is invented: when a benefit has no natural split, the
-  // supporting line falls back to this product's recorded composition, strength
-  // or pack size, and if none of those exist the card simply shows its headline.
-  const promoSupportFallbacks = [p.composition, p.strength, p.packSize]
-    .map((v) => (v == null ? "" : String(v).trim()))
-    .filter((v) => v.length > 0);
-  const promoPanels = promoCards.map((card, i) => {
-    const { headline, support } = splitBenefitText(card.text);
-    const fallback = promoSupportFallbacks.length
-      ? promoSupportFallbacks[i % promoSupportFallbacks.length]
-      : "";
-    return { image: card.image, headline, support: support || fallback };
-  });
-  const promoGridClass =
-    promoPanels.length >= 4
-      ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
-      : promoPanels.length === 3
-        ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
-        : promoPanels.length === 2
-          ? "grid grid-cols-1 sm:grid-cols-2 gap-4"
-          : "grid grid-cols-1 gap-4";
+          .slice(0, 4)
+      : [];
+  const promotionTitle =
+    (promotionRaw?.title ?? "").trim() || "From the Manufacturer";
 
   // ── Features — concise points from this product's recorded facts only ──
   const productTypeFact = content.facts.find((f) => f.label === "Product type")?.value;
@@ -1304,95 +1260,6 @@ export default function ProductDetail() {
           </motion.div>
         </div>
 
-        {/* ── Product Highlights — same-product promotional / benefit visuals ── */}
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.45, ease: [0.25, 0.46, 0.45, 0.94] }}
-          className="mt-10"
-        >
-          <div className="mb-4">
-            <div className="flex items-center gap-2.5">
-              <div className="size-8 rounded-lg bg-emerald-100 flex items-center justify-center">
-                <Sparkles className="size-4 text-emerald-600" strokeWidth={1.5} />
-              </div>
-              <h3 className="text-lg font-bold">Product Highlights</h3>
-            </div>
-            <p className="mt-1.5 text-sm text-muted-foreground">
-              Verified benefits and imagery recorded for this exact product.
-            </p>
-          </div>
-
-          {promoPanels.length > 0 ? (
-            <>
-              <div className={promoGridClass}>
-                {promoPanels.map((panel, i) => (
-                  <div
-                    key={`${panel.image}-${i}`}
-                    className="group flex flex-col rounded-2xl border border-border/60 bg-card overflow-hidden transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg hover:border-emerald-200"
-                  >
-                    <div className="relative h-44 sm:h-48 bg-gradient-to-br from-emerald-50/70 via-primary/[0.03] to-transparent flex items-center justify-center overflow-hidden">
-                      <img
-                        src={panel.image}
-                        alt={panel.headline ? `${p.name} — ${panel.headline}` : p.name}
-                        loading="lazy"
-                        decoding="async"
-                        draggable={false}
-                        className="max-h-full max-w-full object-contain p-5 transition-transform duration-500 group-hover:scale-105"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).style.display = "none";
-                        }}
-                      />
-                    </div>
-                    <div className="flex flex-1 flex-col gap-1 p-4">
-                      {panel.headline && (
-                        <p className="text-sm font-bold leading-snug text-foreground">{panel.headline}</p>
-                      )}
-                      {panel.support && (
-                        <p className="text-xs leading-relaxed text-muted-foreground">{panel.support}</p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              {promoExtras.length > 0 && (
-                <ul className="mt-4 grid sm:grid-cols-2 gap-2">
-                  {promoExtras.map((text) => (
-                    <li key={text} className="flex items-start gap-2 text-sm text-muted-foreground">
-                      <Check className="size-4 text-emerald-600 shrink-0 mt-0.5" strokeWidth={2} />
-                      <span>{text}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </>
-          ) : highlightTexts.length > 0 ? (
-            <Card className="border-border/60">
-              <CardContent className="p-6 space-y-3">
-                <p className="text-xs text-muted-foreground italic">
-                  No promotional images are recorded for this product. Its verified highlights are listed below.
-                </p>
-                <ul className="grid sm:grid-cols-2 gap-2">
-                  {highlightTexts.slice(0, 4).map((text) => (
-                    <li key={text} className="flex items-start gap-2 text-sm text-muted-foreground">
-                      <Check className="size-4 text-emerald-600 shrink-0 mt-0.5" strokeWidth={2} />
-                      <span>{text}</span>
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card className="border-border/60">
-              <CardContent className="p-6">
-                <p className="text-sm text-muted-foreground italic">
-                  No verified promotional or benefit information is recorded for this product.
-                </p>
-              </CardContent>
-            </Card>
-          )}
-        </motion.div>
-
         {/* Section Navigation Tabs — Premium Design */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
@@ -1665,6 +1532,60 @@ export default function ProductDetail() {
             </CardContent>
           </Card>
         </motion.div>
+
+        {/* ── Product Promotion — admin-controlled manufacturer creatives ── */}
+        {promoCreatives.length > 0 && (
+          <motion.div
+            id="product-promotion"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45, ease: [0.25, 0.46, 0.45, 0.94] }}
+            className="mt-8 scroll-mt-24"
+          >
+            <div className="flex items-center gap-2.5 mb-4">
+              <div className="size-8 rounded-lg bg-indigo-100 flex items-center justify-center">
+                <Sparkles className="size-4 text-indigo-600" strokeWidth={1.5} />
+              </div>
+              <h3 className="text-lg font-bold">{promotionTitle}</h3>
+            </div>
+            <div className="space-y-5">
+              {promoCreatives.map((creative, i) => (
+                <figure
+                  key={`${creative.imageUrl}-${i}`}
+                  className="overflow-hidden rounded-2xl border border-border/60 bg-card shadow-[0_1px_4px_-1px_rgba(0,0,0,0.06)]"
+                >
+                  <img
+                    src={creative.imageUrl}
+                    alt={
+                      creative.heading?.trim() ||
+                      `${p.name} promotional creative ${i + 1}`
+                    }
+                    loading="lazy"
+                    decoding="async"
+                    className="block w-full h-auto"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = "none";
+                    }}
+                  />
+                  {(creative.heading?.trim() || creative.description?.trim()) && (
+                    <figcaption className="space-y-1 px-5 py-4">
+                      {creative.heading?.trim() && (
+                        <p className="text-base font-bold leading-snug text-foreground">
+                          {creative.heading.trim()}
+                        </p>
+                      )}
+                      {creative.description?.trim() && (
+                        <p className="text-sm leading-relaxed text-muted-foreground">
+                          {creative.description.trim()}
+                        </p>
+                      )}
+                    </figcaption>
+                  )}
+                </figure>
+              ))}
+            </div>
+          </motion.div>
+        )}
 
         {/* ── Directions for Use ── */}
         <motion.div id="directions-for-use" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: [0.25, 0.46, 0.45, 0.94] }} className="mt-8 scroll-mt-24">

@@ -55,6 +55,86 @@ function assertVerifiedImageForNewProduct(imageUrl: string | undefined) {
   }
 }
 
+/**
+ * Product promotion exactly as the admin form sends it. An image arrives
+ * either as a fresh Convex storage upload (`storageId`) or as a pasted external
+ * URL (`url`); the server resolves the storage upload to a durable URL. Any
+ * creative with no usable image — including a temporary `blob:` preview URL —
+ * is dropped, so a stored promotion never holds an empty or made-up slot.
+ */
+const promotionCreativeInput = v.object({
+  storageId: v.optional(v.id("_storage")),
+  url: v.optional(v.string()),
+  heading: v.optional(v.string()),
+  description: v.optional(v.string()),
+});
+
+const productPromotionInput = v.object({
+  enabled: v.boolean(),
+  title: v.optional(v.string()),
+  creatives: v.array(promotionCreativeInput),
+});
+
+async function normalizeProductPromotion(
+  ctx: { storage: any },
+  input:
+    | {
+        enabled: boolean;
+        title?: string;
+        creatives: Array<{
+          storageId?: any;
+          url?: string;
+          heading?: string;
+          description?: string;
+        }>;
+      }
+    | undefined,
+) {
+  if (!input) return undefined;
+  const creatives: Array<{
+    imageUrl: string;
+    storageId?: any;
+    heading?: string;
+    description?: string;
+  }> = [];
+  for (const raw of input.creatives ?? []) {
+    let imageUrl = (raw.url ?? "").trim();
+    if (raw.storageId) {
+      try {
+        const resolved = await ctx.storage.getUrl(raw.storageId);
+        if (resolved) imageUrl = resolved;
+      } catch {
+        // Fall back to any pasted URL when the upload can no longer be read.
+      }
+    }
+    if (!imageUrl || /^blob:/i.test(imageUrl)) continue;
+    creatives.push({
+      imageUrl,
+      storageId: raw.storageId ?? undefined,
+      heading: raw.heading?.trim() || undefined,
+      description: raw.description?.trim() || undefined,
+    });
+  }
+  return {
+    enabled: input.enabled,
+    title: input.title?.trim() || undefined,
+    creatives,
+  };
+}
+
+/**
+ * A short-lived, admin-only upload URL for a promotion creative. Convex storage
+ * is this project's own secure store, so no separate image service is added.
+ * Customers can never call this — it is gated on the admin role.
+ */
+export const generatePromotionUploadUrl = mutation({
+  args: {},
+  handler: async (ctx) => {
+    await requireAdmin(ctx);
+    return await ctx.storage.generateUploadUrl();
+  },
+});
+
 /** Admin check usable from actions (which cannot read the database directly). */
 export const isAdminUser = internalQuery({
   args: {},
@@ -284,6 +364,8 @@ export const create = mutation({
     consumeType: v.optional(v.string()),
     safetyNote: v.optional(v.string()),
     expiryDate: v.optional(v.number()),
+    /** Optional admin-controlled promotion; omitted means no promotion. */
+    productPromotion: v.optional(productPromotionInput),
     isActive: v.boolean(),
   },
   handler: async (ctx, args) => {
@@ -297,12 +379,13 @@ export const create = mutation({
       .first();
     if (existing) throw new Error("A product with this slug already exists");
 
+    const { productPromotion: promoInput, ...rest } = args;
+    const productPromotion = await normalizeProductPromotion(ctx, promoInput);
+
     const now = Date.now();
-    const productId: Id<"products"> = await ctx.db.insert("products", {
-      ...args,
-      createdAt: now,
-      updatedAt: now,
-    });
+    const doc: any = { ...rest, createdAt: now, updatedAt: now };
+    if (productPromotion) doc.productPromotion = productPromotion;
+    const productId: Id<"products"> = await ctx.db.insert("products", doc);
     return productId;
   },
 });
@@ -344,6 +427,8 @@ export const update = mutation({
     consumeType: v.optional(v.string()),
     safetyNote: v.optional(v.string()),
     expiryDate: v.optional(v.number()),
+    /** Optional admin-controlled promotion; omitted means no promotion. */
+    productPromotion: v.optional(productPromotionInput),
     isActive: v.boolean(),
   },
   handler: async (ctx, args) => {
@@ -371,7 +456,8 @@ export const update = mutation({
       };
     }
 
-    const { productId, ...updates } = args;
+    const { productId, productPromotion: promoInput, ...updates } = args;
+    const productPromotion = await normalizeProductPromotion(ctx, promoInput);
 
     // Check slug uniqueness (excluding this product)
     const existing = await ctx.db
@@ -382,10 +468,9 @@ export const update = mutation({
       throw new Error("A product with this slug already exists");
     }
 
-    await ctx.db.patch(productId, {
-      ...updates,
-      updatedAt: Date.now(),
-    });
+    const patch: any = { ...updates, updatedAt: Date.now() };
+    if (productPromotion) patch.productPromotion = productPromotion;
+    await ctx.db.patch(productId, patch);
     return productId;
   },
 });
