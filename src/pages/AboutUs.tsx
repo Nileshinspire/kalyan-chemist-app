@@ -65,16 +65,15 @@ function KCShield({ size = 200, opacity = 1 }: { size?: number | string; opacity
 }
 
 /* ═══════════════════════════════════════════════════════════════════
-   MUSIC — "Indie Corporate" by Fretbound (a.k.a. Music for Creators)
+   MUSIC — "Bright New Day" by Sascha Ende
 
-   Source: Free Music Archive, "Music for Creators — Corporate Background
-   Music", track 38. Licensed under Creative Commons Attribution 4.0
-   International (CC BY 4.0) — free to use and redistribute with
-   attribution. Served locally from /public/audio (see
-   public/audio/indie-corporate.CREDITS.txt). No YouTube embed, player,
-   branding or external request is involved.
+   Freely licensed substitute: Creative Commons Attribution 4.0
+   International (CC BY 4.0) — free for commercial use with attribution.
+   Obtained from Wikimedia Commons and served locally from /public/audio
+   (see public/audio/bright-new-day.CREDITS.txt). No YouTube embed,
+   player, branding or external request is involved.
    ═══════════════════════════════════════════════════════════════════ */
-const MUSIC_SRC = "/audio/indie-corporate.mp3";
+const MUSIC_SRC = "/audio/bright-new-day.mp3";
 
 function MusicControl() {
   const [playing, setPlaying] = useState(false);

@@ -1,0 +1,19 @@
+"Bright New Day"
+By Sascha Ende
+
+License: Creative Commons Attribution 4.0 International (CC BY 4.0)
+License text: https://creativecommons.org/licenses/by/4.0/
+Source file: https://commons.wikimedia.org/wiki/File:Bright_New_Day_by_Sascha_Ende.mp3
+Artist link: https://ende.app
+Original track link: https://ende.app/fr/song/12282-bright-new-day
+
+Used as the About Us page background music (src/pages/AboutUs.tsx), as a
+freely licensed (CC BY 4.0) substitute in place of a reference track whose
+web/embed rights are sold as a paid license by its publisher.
+
+Transcoded from the original 320 kb/s master to 112 kb/s CBR for web
+delivery; no creative processing (no trimming, looping, gain or effects)
+was applied.
+
+CC BY 4.0 requires attribution wherever the work is distributed. This file
+satisfies that requirement for the bundled copy.
