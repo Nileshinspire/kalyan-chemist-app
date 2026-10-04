@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useAuth } from "@/context/AuthContext";
+import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { toast } from "sonner";
 import {
   Image,
@@ -115,6 +116,10 @@ export default function UploadPrescription() {
       {/* ── Page Title ── */}
       <div className="bg-white border-b border-border/60">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 py-5">
+          <Breadcrumb items={[
+            { label: "Home", href: "/" },
+            { label: "Upload Prescription" },
+          ]} />
           <h1 className="text-xl sm:text-2xl font-bold text-[#0a3d2e] tracking-tight">
             UPLOAD PRESCRIPTION
           </h1>

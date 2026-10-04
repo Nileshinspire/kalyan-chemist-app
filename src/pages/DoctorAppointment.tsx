@@ -604,6 +604,10 @@ export default function DoctorAppointment() {
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8 sm:py-12">
+        <Breadcrumb items={[
+          { label: "Home", href: "/" },
+          { label: "Find Doctors" },
+        ]} />
         {/* Browse by Specialties */}
         <section>
           <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-1">
