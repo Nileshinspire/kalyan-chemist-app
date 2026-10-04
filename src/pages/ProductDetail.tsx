@@ -69,7 +69,6 @@ import {
   Scale,
 } from "lucide-react";
 import { useState, useCallback, useRef } from "react";
-import { useSetBreadcrumb } from "@/hooks/useBreadcrumb";
 import {
   Dialog,
   DialogContent,
@@ -325,9 +324,6 @@ export default function ProductDetail() {
         { label: product.name },
       ]
     : [{ label: "Home", href: "/" }, { label: "Products", href: "/products" }, { label: "Product" }];
-
-  /* ── Breadcrumb trail ── */
-  useSetBreadcrumb({ label: product?.name || "Product" }, productTrail);
 
   const boughtCount = useQuery(
     api.products.boughtInLast7Days,

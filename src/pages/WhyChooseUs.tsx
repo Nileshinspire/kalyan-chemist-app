@@ -112,6 +112,7 @@ export default function WhyChooseUs() {
       badge="Trust & Values"
       badgeIcon={<Sparkles className="size-3" aria-hidden="true" />}
       heroIcon={Sparkles}
+      breadcrumb="Why Choose Us"
       title="Healthcare you can rely on, delivered"
       subtitle="Kalyan Chemist brings your neighbourhood pharmacy online — genuine medicines, pharmacist-reviewed prescriptions and essential health services, with the same care you expect at the counter."
       heroExtra={

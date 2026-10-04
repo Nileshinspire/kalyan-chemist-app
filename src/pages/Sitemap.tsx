@@ -127,6 +127,7 @@ export default function Sitemap() {
       badge="Sitemap"
       badgeIcon={<MapIcon className="size-3" aria-hidden="true" />}
       heroIcon={MapIcon}
+      breadcrumb="Sitemap"
       title="Sitemap"
       subtitle="Every customer-facing page on Kalyan Chemist, organised by section."
       heroExtra={

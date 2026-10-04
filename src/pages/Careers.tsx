@@ -88,6 +88,7 @@ export default function Careers() {
       badge="Careers"
       badgeIcon={<Briefcase className="size-3" aria-hidden="true" />}
       heroIcon={Briefcase}
+      breadcrumb="Careers"
       title="Careers at Kalyan Chemist"
       subtitle="We are a pharmacy first and a technology platform second. If you care about getting healthcare right for people, we would like to hear from you."
       heroExtra={

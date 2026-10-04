@@ -107,6 +107,7 @@ export default function ContactUs() {
       badge="Customer Support"
       badgeIcon={<HelpCircle className="size-3" aria-hidden="true" />}
       heroIcon={Headset}
+      breadcrumb="Contact Us"
       title="Contact Kalyan Chemist"
       subtitle="Questions about an order, a prescription, a lab test or a delivery? Reach our team through any of the channels below — or use the quick actions to manage it yourself."
       heroExtra={

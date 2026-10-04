@@ -245,6 +245,7 @@ export default function Faqs() {
       badge="Help Centre"
       badgeIcon={<HelpCircle className="size-3" aria-hidden="true" />}
       heroIcon={HelpCircle}
+      breadcrumb="FAQs"
       title="Frequently Asked Questions"
       subtitle="Answers about orders, prescriptions, payments, lab tests, appointments, refills and returns at Kalyan Chemist."
       heroExtra={

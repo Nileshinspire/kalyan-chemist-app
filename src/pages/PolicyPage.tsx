@@ -83,6 +83,7 @@ export default function PolicyPage({ policyId }: { policyId: PolicyId }) {
       badge="Policies & Legal"
       badgeIcon={<PolicyIcon className="size-3" aria-hidden="true" />}
       heroIcon={PolicyIcon}
+      breadcrumb={policy.title}
       title={policy.title}
       subtitle={policy.subtitle}
       heroExtra={

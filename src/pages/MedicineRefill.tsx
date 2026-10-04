@@ -5,6 +5,7 @@ import { api } from "@/convex/_generated/api";
 import { useAuth } from "@/context/AuthContext";
 import type { Id } from "@/convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
+import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -229,14 +230,7 @@ export default function MedicineRefill() {
       if (added) {
         // Navigate to Cart immediately — no intermediate toast or delay.
         // The Cart page itself confirms the item is present.
-        navigateRef.current("/cart", {
-          state: {
-            breadcrumbTrail: [
-              { label: "Medicine Refill", href: "/refill" },
-              { label: "Shopping Cart" },
-            ],
-          },
-        });
+        navigateRef.current("/cart");
       } else {
         const failed = results.find((r: any) => !r.success);
         toast.error(failed?.error || "Unable to add this medicine to your cart. Please try again.");
@@ -292,14 +286,7 @@ export default function MedicineRefill() {
 
         await createRefillRequest({ medicines, totalAmount });
         setSelectedForRefill(new Set());
-        navigate("/cart", {
-          state: {
-            breadcrumbTrail: [
-              { label: "Medicine Refill", href: "/refill" },
-              { label: "Shopping Cart" },
-            ],
-          },
-        });
+        navigate("/cart");
       }
     } catch (error: any) {
       toast.error(error.message || "Failed to add to cart");
@@ -338,14 +325,7 @@ export default function MedicineRefill() {
         );
 
         await createRefillRequest({ medicines, totalAmount });
-        navigate("/cart", {
-          state: {
-            breadcrumbTrail: [
-              { label: "Medicine Refill", href: "/refill" },
-              { label: "Shopping Cart" },
-            ],
-          },
-        });
+        navigate("/cart");
       }
     } catch (error: any) {
       toast.error(error.message || "Failed to add to cart");
@@ -382,6 +362,7 @@ export default function MedicineRefill() {
   return (
     <div className="min-h-screen bg-background">
       <main className="mx-auto max-w-7xl px-4 sm:px-6 py-8">
+        <Breadcrumb items={[{ label: "Home", href: "/" }, { label: "Medicine Refill" }]} />
         {/* Page Header */}
         <div className="mt-6 mb-8">
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground">

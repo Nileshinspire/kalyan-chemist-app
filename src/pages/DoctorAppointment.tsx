@@ -15,7 +15,6 @@ import {
   Stethoscope,
 } from "lucide-react";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
-import { useSetBreadcrumb } from "@/hooks/useBreadcrumb";
 
 /* ─── Shared Specialties Data (same as Admin) ─── */
 const SPECIALTIES = [
@@ -489,10 +488,6 @@ function toDateStr(d: Date) {
 /* ─── Main Component ─── */
 export default function DoctorAppointment() {
   const navigate = useNavigate();
-  useSetBreadcrumb(
-    { label: "Find Doctors" },
-    [{ label: "Home", href: "/" }, { label: "Find Doctors" }]
-  );
   const [searchParams] = useSearchParams();
 
   const today = new Date();

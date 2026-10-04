@@ -4,6 +4,7 @@ import type { LucideIcon } from "lucide-react";
 import { HeartPulse } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
+import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { cn } from "@/lib/utils";
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -43,6 +44,9 @@ interface InfoPageProps {
   /** Render the top title area as a compact full-width banner instead of
    *  the tall hero (footer-dedicated legal / directory pages). */
   compact?: boolean;
+  /** Label for this page's breadcrumb ("Home → <label>"). When omitted no
+   *  breadcrumb is rendered. Derived from the current page only. */
+  breadcrumb?: string;
   children: ReactNode;
 }
 
@@ -54,6 +58,7 @@ export default function InfoPage({
   heroExtra,
   heroIcon: HeroIcon = HeartPulse,
   compact = false,
+  breadcrumb,
   children,
 }: InfoPageProps) {
   return (
@@ -274,6 +279,9 @@ export default function InfoPage({
         )}
 
         <div className="relative mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-10">
+          {breadcrumb && (
+            <Breadcrumb items={[{ label: "Home", href: "/" }, { label: breadcrumb }]} />
+          )}
           {children}
         </div>
       </main>
