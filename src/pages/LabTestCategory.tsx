@@ -4,6 +4,7 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { X, SlidersHorizontal, ShoppingCart, Check, FlaskConical, Beaker, Heart, Shield, Stethoscope, Pill, Activity, Calendar, MapPin, Clock, AlertTriangle, Loader2 } from "lucide-react";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
+import { usePageBreadcrumbs } from "@/hooks/usePageBreadcrumbs";
 
 /* ── Types ── */
 interface IncludedTest {
@@ -344,6 +345,11 @@ export default function LabTestCategory() {
     return { ...categoryData, items: dbItems };
   }, [categoryData, dbTests]);
 
+  /* ── Breadcrumb resolved from the current route + this category ── */
+  const breadcrumbItems = usePageBreadcrumbs({
+    labTestCategoryName: effectiveCategoryData?.name ?? categoryName,
+  });
+
   /* Filters */
   const [typeFilters, setTypeFilters] = useState<Set<string>>(new Set());
   const [testFilters, setTestFilters] = useState<Set<string>>(new Set());
@@ -591,11 +597,7 @@ export default function LabTestCategory() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8 sm:py-10">
-        <Breadcrumb items={[
-          { label: "Home", href: "/" },
-          { label: "Lab Tests", href: "/lab-tests" },
-          { label: effectiveCategoryData.name },
-        ]} />
+        <Breadcrumb items={breadcrumbItems} />
 
         {/* Title */}
         <div className="flex items-center justify-between mb-6">

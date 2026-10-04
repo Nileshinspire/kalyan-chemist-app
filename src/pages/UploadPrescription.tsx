@@ -4,6 +4,7 @@ import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useAuth } from "@/context/AuthContext";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
+import { usePageBreadcrumbs } from "@/hooks/usePageBreadcrumbs";
 import { toast } from "sonner";
 import {
   Image,
@@ -29,6 +30,7 @@ const REQUIREMENTS = [
 
 export default function UploadPrescription() {
   const navigate = useNavigate();
+  const breadcrumbItems = usePageBreadcrumbs();
   const { user } = useAuth();
   const generateUploadUrl = useMutation(api.prescriptions.generateUploadUrl);
   const uploadPrescription = useMutation(api.prescriptions.upload);
@@ -116,10 +118,7 @@ export default function UploadPrescription() {
       {/* ── Page Title ── */}
       <div className="bg-white border-b border-border/60">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 py-5">
-          <Breadcrumb items={[
-            { label: "Home", href: "/" },
-            { label: "Upload Prescription" },
-          ]} />
+          <Breadcrumb items={breadcrumbItems} />
           <h1 className="text-xl sm:text-2xl font-bold text-[#0a3d2e] tracking-tight">
             UPLOAD PRESCRIPTION
           </h1>

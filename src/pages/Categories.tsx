@@ -5,6 +5,7 @@ import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { Badge } from "@/components/ui/badge";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
+import { usePageBreadcrumbs } from "@/hooks/usePageBreadcrumbs";
 import { motion } from "framer-motion";
 import {
   Sparkles,
@@ -48,6 +49,7 @@ const CATEGORY_STYLES: Record<string, { icon: typeof Pill; color: string; hoverB
 const DEFAULT_STYLE = { icon: Tag, color: "from-primary/15 to-primary/10", hoverBg: "hover:from-primary/20 hover:to-primary/15" };
 
 export default function Categories() {
+  const breadcrumbItems = usePageBreadcrumbs();
   const navigate = useNavigate();
   const categories = useQuery(api.categories.list);
 
@@ -58,7 +60,7 @@ export default function Categories() {
         <div className="bg-gradient-to-b from-primary/[0.03] to-transparent border-b border-border/30">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8">
             <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
-              <Breadcrumb items={[{ label: "Home", href: "/" }, { label: "Categories" }]} />
+              <Breadcrumb items={breadcrumbItems} />
               <div className="inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary mb-3">
                 <Sparkles className="size-3" />
                 All Categories

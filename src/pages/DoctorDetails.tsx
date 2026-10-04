@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
+import { usePageBreadcrumbs } from "@/hooks/usePageBreadcrumbs";
 import {
   MapPin,
   Clock,
@@ -48,10 +49,13 @@ export default function DoctorDetails() {
 
   const doctor = useQuery(api.doctors.getDoctor, id ? { doctorId: id as any } : "skip");
 
-  /* ── Breadcrumb hierarchy ── */
-  const doctorSpecialty = doctor?.specialty
-    ? doctor.specialty.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")
-    : null;
+  /* ── Breadcrumb resolved from the current route + this doctor ──
+     The doctor record stores a specialty key, which the resolver title-cases
+     (same as this page already displayed it). The specialty parent links to
+     the real filtered doctor list. */
+  const breadcrumbItems = usePageBreadcrumbs({
+    doctor: doctor ? { name: doctor.name, specialty: doctor.specialty } : null,
+  });
 
   const slots = useQuery(
     api.doctors.getAvailableSlots,
@@ -117,14 +121,7 @@ export default function DoctorDetails() {
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-4xl px-4 sm:px-6 py-8 sm:py-12">
-        <Breadcrumb items={[
-          { label: "Home", href: "/" },
-          { label: "Find Doctors", href: "/doctor-appointment" },
-          ...(doctorSpecialty
-            ? [{ label: doctorSpecialty, href: `/doctor-appointment?specialty=${encodeURIComponent(doctor.specialty)}&view=doctors` }]
-            : []),
-          { label: doctor.name },
-        ]} />
+        <Breadcrumb items={breadcrumbItems} />
 
         {/* Doctor Profile Card */}
         <Card className="border-border/60 overflow-hidden">

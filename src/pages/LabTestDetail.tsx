@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
+import { usePageBreadcrumbs } from "@/hooks/usePageBreadcrumbs";
 
 /* ── FAQ item ── */
 interface FAQ {
@@ -155,6 +156,17 @@ export default function LabTestDetail() {
     api.labTests.get,
     testId ? { id: testId as Id<"lab_tests"> } : "skip",
   );
+
+  /* ── Breadcrumb from the current route + this test's own data ── */
+  const breadcrumbItems = usePageBreadcrumbs({
+    labTest: test
+      ? {
+          name: test.name,
+          categoryName: test.categoryName,
+          categorySlug: test.categorySlug,
+        }
+      : null,
+  });
 
 
   /* ── Fetch related packages in same category ── */
@@ -315,13 +327,8 @@ export default function LabTestDetail() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 py-6 sm:py-10">
-        {/* ── Breadcrumb ── */}
-        <Breadcrumb items={[
-          { label: "Home", href: "/" },
-          { label: "Lab Tests", href: "/lab-tests" },
-          { label: String(test.categoryName), href: `/lab-tests/${test.categorySlug}` },
-          { label: test.name },
-        ]} />
+        {/* ── Breadcrumb (resolved from the current route + this test) ── */}
+        <Breadcrumb items={breadcrumbItems} />
 
         {/* ── Two-Column Layout ── */}
         <div className="flex flex-col lg:flex-row gap-6 lg:gap-8">

@@ -1,52 +1,95 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync, existsSync } from "fs";
+import { execSync } from "child_process";
 import { resolve } from "path";
-import { render, screen } from "@testing-library/react";
+import { render, screen, cleanup } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
-import { Breadcrumb } from "@/components/ui/breadcrumb";
+import { Breadcrumb, type BreadcrumbItem } from "@/components/ui/breadcrumb";
+import { usePageBreadcrumbs, type BreadcrumbData } from "@/hooks/usePageBreadcrumbs";
 
 const read = (p: string) =>
   readFileSync(resolve(__dirname, "../", p), "utf-8");
 
-const breadcrumbSrc = read("components/ui/breadcrumb.tsx");
 const mainSrc = read("main.tsx");
-const productDetailSrc = read("pages/ProductDetail.tsx");
-const productsSrc = read("pages/Products.tsx");
-const uploadPrescriptionSrc = read("pages/UploadPrescription.tsx");
+const breadcrumbSrc = read("components/ui/breadcrumb.tsx");
 
-function renderBreadcrumb(items: { label: string; href?: string }[]) {
+/* ═══════════════════════════════════════════════════════════════════════════
+   Test harness — drives the real resolver at a real URL
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+function Probe({ data }: { data?: BreadcrumbData }) {
+  const items = usePageBreadcrumbs(data);
+  return <Breadcrumb items={items} />;
+}
+
+/**
+ * Renders the resolver at `path`. Repeated calls in one test simulate SPA
+ * navigation between pages: the previous render is unmounted first so the DOM
+ * reflects ONLY the newly active route (exactly what a real page swap does).
+ */
+function renderAt(path: string, data?: BreadcrumbData) {
+  cleanup();
   return render(
-    <MemoryRouter>
-      <Breadcrumb items={items} />
+    <MemoryRouter initialEntries={[path]}>
+      <Probe data={data} />
     </MemoryRouter>
   );
 }
 
+/** The visible trail as plain labels, e.g. ["Home","Pain Relief"]. */
+function trailLabels(): string[] {
+  const nav = screen.getByLabelText("Breadcrumb");
+  return Array.from(nav.querySelectorAll("li")).map(
+    (li) => li.textContent?.trim() ?? ""
+  );
+}
+
+/** The hrefs of the clickable parent items. */
+function parentHrefs(): (string | null)[] {
+  const nav = screen.getByLabelText("Breadcrumb");
+  return Array.from(nav.querySelectorAll("li")).map(
+    (li) => li.querySelector("a")?.getAttribute("href") ?? null
+  );
+}
+
+/* Real catalogue fixtures mirroring the nested-category schema. */
+const CATEGORIES = [
+  { _id: "cat_med", name: "Medicines", slug: "medicines", parentId: null },
+  { _id: "cat_pain", name: "Pain Relief", slug: "pain-relief", parentId: "cat_med" },
+  { _id: "cat_diab", name: "Diabetes Care", slug: "diabetes-care", parentId: null },
+  { _id: "cat_gluc", name: "Blood Glucose", slug: "blood-glucose", parentId: "cat_diab" },
+];
+const BRANDS = [
+  { name: "Cipla", slug: "cipla" },
+  { name: "Sun Pharma", slug: "sun-pharma" },
+];
+
+const DOLO = {
+  name: "Dolo 650",
+  category: CATEGORIES[1],
+};
+const GLUCOMETER = {
+  name: "Glucometer",
+  category: CATEGORIES[3],
+};
+
 /* ═══════════════════════════════════════════════════════════════════════════
-   The breadcrumb component itself
+   The presentational component
    ═══════════════════════════════════════════════════════════════════════════ */
 describe("Breadcrumb component", () => {
-  it("renders exactly the items it is given (no other source)", () => {
-    renderBreadcrumb([
-      { label: "Home", href: "/" },
-      { label: "Medicines", href: "/products?category=medicines" },
-      { label: "Dolo 650" },
-    ]);
-
-    const nav = screen.getByLabelText("Breadcrumb");
-    expect(nav).toBeInTheDocument();
-    expect(screen.getByText("Home")).toBeInTheDocument();
-    expect(screen.getByText("Medicines")).toBeInTheDocument();
-    expect(screen.getByText("Dolo 650")).toBeInTheDocument();
-  });
-
-  it("renders every parent as a real React Router link", () => {
-    renderBreadcrumb([
-      { label: "Home", href: "/" },
-      { label: "Medicines", href: "/products?category=medicines" },
-      { label: "Pain Relief", href: "/products?category=pain-relief" },
-      { label: "Dolo 650" },
-    ]);
+  it("renders parents as real links and the current page as plain text", () => {
+    render(
+      <MemoryRouter>
+        <Breadcrumb
+          items={[
+            { label: "Home", href: "/" },
+            { label: "Medicines", href: "/products?category=medicines" },
+            { label: "Pain Relief", href: "/products?category=pain-relief" },
+            { label: "Dolo 650" },
+          ]}
+        />
+      </MemoryRouter>
+    );
 
     expect(screen.getByText("Home").closest("a")).toHaveAttribute("href", "/");
     expect(screen.getByText("Medicines").closest("a")).toHaveAttribute(
@@ -57,13 +100,6 @@ describe("Breadcrumb component", () => {
       "href",
       "/products?category=pain-relief"
     );
-  });
-
-  it("renders the current page as non-clickable text marked aria-current", () => {
-    renderBreadcrumb([
-      { label: "Home", href: "/" },
-      { label: "Dolo 650" },
-    ]);
 
     const current = screen.getByText("Dolo 650");
     expect(current.tagName).toBe("SPAN");
@@ -71,61 +107,314 @@ describe("Breadcrumb component", () => {
     expect(current.closest("a")).toBeNull();
   });
 
-  it("shows only the current page's trail — a different page's items never leak in", () => {
-    // Simulates the "navigated somewhere unrelated" case: the new page renders
-    // its own items, and nothing from the previous product flow survives.
-    renderBreadcrumb([
-      { label: "Home", href: "/" },
-      { label: "Upload Prescription" },
-    ]);
-
-    expect(screen.getByText("Upload Prescription")).toBeInTheDocument();
-    expect(screen.queryByText("Dolo 650")).not.toBeInTheDocument();
-    expect(screen.queryByText("Pain Relief")).not.toBeInTheDocument();
-    expect(screen.queryByText("Medicines")).not.toBeInTheDocument();
-  });
-
-  it("renders nothing when a page has no real hierarchy", () => {
-    const { container } = renderBreadcrumb([]);
+  it("shows no trail when a page has no hierarchy (e.g. Home)", () => {
+    const { container } = renderAt("/");
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("wraps on small screens instead of overflowing horizontally", () => {
-    renderBreadcrumb([
-      { label: "Home", href: "/" },
-      { label: "Find Doctors", href: "/doctor-appointment" },
-      { label: "Cardiology" },
-    ]);
-
+  it("wraps instead of overflowing horizontally on mobile", () => {
+    renderAt("/lab-tests", { labTestCategoryName: "A Very Long Category Name" });
     const list = screen.getByLabelText("Breadcrumb").querySelector("ol");
-    // flex-wrap + min-w-0 keeps long trails inside the viewport on mobile.
     expect(list?.className).toContain("flex-wrap");
     expect(list?.className).toContain("min-w-0");
   });
 });
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   No history-based / global breadcrumb state may remain
+   Route hierarchy
    ═══════════════════════════════════════════════════════════════════════════ */
-describe("Breadcrumbs are not history-based", () => {
-  it("the component does not read any global trail", () => {
-    expect(breadcrumbSrc).not.toContain("useNavigation");
-    expect(breadcrumbSrc).not.toContain("NavigationContext");
-    expect(breadcrumbSrc).not.toContain("trail.length");
-    expect(breadcrumbSrc).not.toContain("location.state");
+describe("route-based hierarchy", () => {
+  const cases: [string, string[], (data?: BreadcrumbData) => void][] = [
+    ["/products", ["Home", "Products"], () => {}],
+    ["/categories", ["Home", "Categories"], () => {}],
+    ["/brands", ["Home", "Brands"], () => {}],
+    ["/upload-prescription", ["Home", "Upload Prescription"], () => {}],
+    ["/refill", ["Home", "Medicine Refill"], () => {}],
+    ["/lab-tests", ["Home", "Lab Tests"], () => {}],
+    ["/doctor-appointment", ["Home", "Find Doctors"], () => {}],
+    ["/value-deals", ["Home", "Value Deals"], () => {}],
+    ["/hot-sellers", ["Home", "Hot Sellers"], () => {}],
+  ];
+
+  for (const [path, expected] of cases) {
+    it(`${path} resolves to ${expected.join(" → ")}`, () => {
+      renderAt(path);
+      expect(trailLabels()).toEqual(expected);
+    });
+  }
+});
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Categories
+   ═══════════════════════════════════════════════════════════════════════════ */
+describe("category breadcrumbs come from the current URL", () => {
+  it("top-level category → Home → Category", () => {
+    renderAt("/products?category=medicines", { categories: CATEGORIES });
+    expect(trailLabels()).toEqual(["Home", "Medicines"]);
   });
 
-  it("the global navigation context and breadcrumb-state hook are gone", () => {
+  it("child category → Home → Parent → Child", () => {
+    renderAt("/products?category=pain-relief", { categories: CATEGORIES });
+    expect(trailLabels()).toEqual(["Home", "Medicines", "Pain Relief"]);
+  });
+
+  it("the parent category is a real clickable link", () => {
+    renderAt("/products?category=pain-relief", { categories: CATEGORIES });
+    expect(parentHrefs()).toEqual(["/", "/products?category=medicines", null]);
+  });
+});
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Brands and search
+   ═══════════════════════════════════════════════════════════════════════════ */
+describe("brand and search breadcrumbs", () => {
+  it("brand → Home → Brands → Brand", () => {
+    renderAt("/products?brand=cipla", { brands: BRANDS });
+    expect(trailLabels()).toEqual(["Home", "Brands", "Cipla"]);
+  });
+
+  it("a different brand replaces the previous one (no stale brand)", () => {
+    renderAt("/products?brand=sun-pharma", { brands: BRANDS });
+    const labels = trailLabels();
+    expect(labels).toEqual(["Home", "Brands", "Sun Pharma"]);
+    expect(labels).not.toContain("Cipla");
+  });
+
+  it("free-text search invents no category hierarchy", () => {
+    renderAt("/products?search=paracetamol", { categories: CATEGORIES, brands: BRANDS });
+    const labels = trailLabels();
+    expect(labels).toEqual(["Home", "Search"]);
+    expect(labels.join(" ")).not.toContain("Pain Relief");
+    expect(labels.join(" ")).not.toContain("Cipla");
+  });
+
+  it("a real category filter beats a stale brand/search param", () => {
+    renderAt("/products?category=pain-relief&search=x&brand=cipla", {
+      categories: CATEGORIES,
+      brands: BRANDS,
+    });
+    const labels = trailLabels();
+    expect(labels).toEqual(["Home", "Medicines", "Pain Relief"]);
+    expect(labels.join(" ")).not.toContain("Cipla");
+  });
+});
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Products
+   ═══════════════════════════════════════════════════════════════════════════ */
+describe("product breadcrumbs are built from the current product", () => {
+  it("child-category product → Home → Parent → Child → Product", () => {
+    renderAt("/products/dolo-650", { categories: CATEGORIES, product: DOLO });
+    expect(trailLabels()).toEqual([
+      "Home",
+      "Medicines",
+      "Pain Relief",
+      "Dolo 650",
+    ]);
+  });
+
+  it("each category ancestor is a real link; the product is not", () => {
+    renderAt("/products/dolo-650", { categories: CATEGORIES, product: DOLO });
+    expect(parentHrefs()).toEqual([
+      "/",
+      "/products?category=medicines",
+      "/products?category=pain-relief",
+      null,
+    ]);
+  });
+
+  it("a different product yields a completely different hierarchy (ACCEPTANCE 5)", () => {
+    renderAt("/products/glucometer", {
+      categories: CATEGORIES,
+      product: GLUCOMETER,
+    });
+    const labels = trailLabels();
+    expect(labels).toEqual([
+      "Home",
+      "Diabetes Care",
+      "Blood Glucose",
+      "Glucometer",
+    ]);
+    expect(labels.join(" ")).not.toContain("Dolo");
+    expect(labels.join(" ")).not.toContain("Pain Relief");
+  });
+
+  it("a product with no category falls back to Home → Products → Name (no invented category)", () => {
+    renderAt("/products/mystery", {
+      categories: CATEGORIES,
+      product: { name: "Mystery Item", category: null },
+    });
+    expect(trailLabels()).toEqual(["Home", "Products", "Mystery Item"]);
+  });
+
+  it("direct URL load with data not yet fetched never shows a stale hierarchy", () => {
+    // Loading state: truthy fallback only, never another product's category.
+    renderAt("/products/dolo-650", { categories: CATEGORIES, product: null });
+    const labels = trailLabels();
+    expect(labels).toEqual(["Home", "Products", "Product"]);
+    expect(labels.join(" ")).not.toContain("Pain Relief");
+  });
+});
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Lab tests & doctors
+   ═══════════════════════════════════════════════════════════════════════════ */
+describe("lab test breadcrumbs", () => {
+  it("test detail → Home → Lab Tests → Category → Test", () => {
+    renderAt("/lab-tests/test/t1", {
+      labTest: {
+        name: "Full Body Checkup",
+        categoryName: "Full Body",
+        categorySlug: "full-body",
+      },
+    });
+    expect(trailLabels()).toEqual([
+      "Home",
+      "Lab Tests",
+      "Full Body",
+      "Full Body Checkup",
+    ]);
+    expect(parentHrefs()).toEqual([
+      "/",
+      "/lab-tests",
+      "/lab-tests/full-body",
+      null,
+    ]);
+  });
+
+  it("lab test category → Home → Lab Tests → Category", () => {
+    renderAt("/lab-tests/diabetes", {
+      labTestCategoryName: "Diabetes",
+    });
+    expect(trailLabels()).toEqual(["Home", "Lab Tests", "Diabetes"]);
+  });
+});
+
+describe("doctor breadcrumbs", () => {
+  it("doctor detail → Home → Find Doctors → Specialty → Doctor", () => {
+    renderAt("/doctors/d1", {
+      doctor: { name: "Dr. Asha Verma", specialty: "cardiology" },
+    });
+    expect(trailLabels()).toEqual([
+      "Home",
+      "Find Doctors",
+      "Cardiology",
+      "Dr. Asha Verma",
+    ]);
+  });
+
+  it("the specialty links back to the real filtered doctor list", () => {
+    renderAt("/doctors/d1", {
+      doctor: { name: "Dr. Asha Verma", specialty: "cardiology" },
+    });
+    expect(parentHrefs()[2]).toBe(
+      "/doctor-appointment?specialty=cardiology&view=doctors"
+    );
+  });
+
+  it("specialty listing → Home → Find Doctors → Specialty", () => {
+    renderAt("/doctor-appointment?specialty=cardiology&view=doctors");
+    expect(trailLabels()).toEqual(["Home", "Find Doctors", "Cardiology"]);
+  });
+
+  it("uses the canonical specialty label instead of a mangled title-case", () => {
+    // "ent" would title-case to "Ent"; the real label is "ENT".
+    renderAt("/doctor-appointment?specialty=ent&view=doctors", {
+      specialtyLabel: "ENT",
+    });
+    expect(trailLabels()).toEqual(["Home", "Find Doctors", "ENT"]);
+
+    cleanup();
+    renderAt("/doctor-appointment?specialty=obstetrics-gynaecology&view=doctors", {
+      specialtyLabel: "Obstetrics & Gynaecology",
+    });
+    expect(trailLabels()).toEqual([
+      "Home",
+      "Find Doctors",
+      "Obstetrics & Gynaecology",
+    ]);
+  });
+
+  it("falls back to title-casing when no canonical label is supplied", () => {
+    renderAt("/doctor-appointment?specialty=general-physician&view=doctors");
+    expect(trailLabels()).toEqual([
+      "Home",
+      "Find Doctors",
+      "General Physician",
+    ]);
+  });
+
+  it("without view=doctors the specialty param alone does not add a level", () => {
+    renderAt("/doctor-appointment?specialty=cardiology", {
+      specialtyLabel: "Cardiology",
+    });
+    expect(trailLabels()).toEqual(["Home", "Find Doctors"]);
+  });
+});
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Determinism — the core guarantee
+   ═══════════════════════════════════════════════════════════════════════════ */
+describe("trails are deterministic and history-free", () => {
+  it("same URL + same data always yields the same trail", () => {
+    for (let i = 0; i < 3; i++) {
+      renderAt("/products/dolo-650", { categories: CATEGORIES, product: DOLO });
+      expect(trailLabels()).toEqual([
+        "Home",
+        "Medicines",
+        "Pain Relief",
+        "Dolo 650",
+      ]);
+    }
+  });
+
+  it("a different route never reuses the previous page's trail", () => {
+    // Product flow, then an unrelated inner page (ACCEPTANCE 3 & 4).
+    renderAt("/products/dolo-650", { categories: CATEGORIES, product: DOLO });
+    expect(trailLabels().join(" ")).toContain("Dolo 650");
+
+    renderAt("/upload-prescription");
+    const labels = trailLabels();
+    expect(labels).toEqual(["Home", "Upload Prescription"]);
+    expect(labels.join(" ")).not.toContain("Dolo");
+    expect(labels.join(" ")).not.toContain("Pain Relief");
+    expect(labels.join(" ")).not.toContain("Medicines");
+  });
+
+  it("ACCEPTANCE 2: product then back to category drops the product entirely", () => {
+    renderAt("/products/dolo-650", { categories: CATEGORIES, product: DOLO });
+    renderAt("/products?category=pain-relief", { categories: CATEGORIES });
+    const labels = trailLabels();
+    expect(labels).toEqual(["Home", "Medicines", "Pain Relief"]);
+    expect(labels.join(" ")).not.toContain("Dolo");
+  });
+
+  it("ACCEPTANCE 6: switching categories leaves no trace of the old one", () => {
+    renderAt("/products?category=pain-relief", { categories: CATEGORIES });
+    renderAt("/products?category=blood-glucose", { categories: CATEGORIES });
+    const labels = trailLabels();
+    expect(labels).toEqual(["Home", "Diabetes Care", "Blood Glucose"]);
+    expect(labels.join(" ")).not.toContain("Pain Relief");
+  });
+});
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   No persistent trail anywhere in the system
+   ═══════════════════════════════════════════════════════════════════════════ */
+describe("no persistent breadcrumb trail exists", () => {
+  it("the component is purely presentational", () => {
+    expect(breadcrumbSrc).not.toContain("useNavigation");
+    expect(breadcrumbSrc).not.toContain("location.state");
+    expect(breadcrumbSrc).not.toContain("trail.length");
+  });
+
+  it("no global breadcrumb context or history hook remains", () => {
     expect(existsSync(resolve(__dirname, "../context/NavigationContext.tsx"))).toBe(false);
     expect(existsSync(resolve(__dirname, "../hooks/useBreadcrumb.ts"))).toBe(false);
-  });
-
-  it("the app is no longer wrapped in a breadcrumb provider", () => {
     expect(mainSrc).not.toContain("NavigationProvider");
   });
 
-  it("no page pushes or reads a breadcrumb trail through route state", () => {
-    const { execSync } = require("child_process");
+  it("no source pushes, appends or stores breadcrumb items", () => {
     const hits = execSync(
       `grep -rn "breadcrumbTrail\\|useSetBreadcrumb\\|getBreadcrumbState\\|pushItem\\|setTrail" src --include=*.ts --include=*.tsx || true`,
       { cwd: resolve(__dirname, ".."), encoding: "utf-8" }
@@ -133,96 +422,69 @@ describe("Breadcrumbs are not history-based", () => {
     expect(hits).toBe("");
   });
 
-  it("breadcrumbs are never persisted to web storage", () => {
-    const { execSync } = require("child_process");
+  it("no breadcrumb state is persisted to web storage", () => {
     const hits = execSync(
-      `grep -rln "localStorage\\|sessionStorage" src/pages src/components/ui/breadcrumb.tsx src/context 2>/dev/null || true`,
+      `grep -rln "localStorage\\|sessionStorage" src/lib/breadcrumbs.ts src/hooks/usePageBreadcrumbs.ts src/components/ui/breadcrumb.tsx 2>/dev/null || true`,
       { cwd: resolve(__dirname, ".."), encoding: "utf-8" }
-    )
-      .trim()
-      .split("\n")
-      .filter(Boolean);
-    expect(hits).toEqual([]);
+    ).trim();
+    expect(hits).toBe("");
+  });
+
+  it("the resolver holds no state of its own", () => {
+    const src = read("hooks/usePageBreadcrumbs.ts");
+    expect(src).not.toContain("useState");
+    expect(src).not.toContain("useRef");
+    expect(src).not.toContain("useEffect");
+  });
+
+  it("the resolver memo is not invalidated by values rebuilt during render", () => {
+    // The dependency list must contain only primitives/strings and
+    // caller-provided arrays — never a segment array or fallback `[]` created
+    // inside the hook, which would make the memo recompute on every render.
+    const src = read("hooks/usePageBreadcrumbs.ts");
+    const deps = src.slice(src.lastIndexOf("}, ["));
+    expect(deps).toContain("pathname");
+    expect(deps).toContain("search");
+    // `segs` must be computed INSIDE the memo, not listed as a dependency.
+    expect(deps).not.toMatch(/\bsegs\b/);
+  });
+
+  it("no page reloads the browser for navigation", () => {
+    const hits = execSync(
+      `grep -rn "window.location.reload\\|window.location.href" src/pages src/lib/breadcrumbs.ts src/hooks/usePageBreadcrumbs.ts 2>/dev/null || true`,
+      { cwd: resolve(__dirname, ".."), encoding: "utf-8" }
+    ).trim();
+    expect(hits).toBe("");
   });
 });
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   Product hierarchy is derived from the current product's own data
+   Every customer page renders the resolver's output, not its own trail
    ═══════════════════════════════════════════════════════════════════════════ */
-describe("Product Detail breadcrumb is derived from current product data", () => {
-  it("uses the fetched product's own category and its parent", () => {
-    expect(productDetailSrc).toContain("product?.category");
-    expect(productDetailSrc).toContain("parentId");
-    expect(productDetailSrc).toContain("<Breadcrumb items={productTrail} />");
-  });
+describe("pages consume the shared resolver", () => {
+  const pages = [
+    "ProductDetail",
+    "Products",
+    "Categories",
+    "Brands",
+    "ValueDeals",
+    "HotSellers",
+    "LabTests",
+    "LabTestCategory",
+    "LabTestDetail",
+    "DoctorAppointment",
+    "DoctorDetails",
+    "MedicineRefill",
+    "UploadPrescription",
+  ];
 
-  it("recomputes the trail for each product instead of hardcoding one", () => {
-    // The trail is built from the product's category, so navigating to a
-    // different product necessarily produces a different trail.
-    expect(productDetailSrc).toMatch(/const productTrail = product\b/);
-    expect(productDetailSrc).toContain("{ label: product.name }");
-  });
-
-  it("does not render any trail captured from navigation history", () => {
-    expect(productDetailSrc).not.toContain("breadcrumbTrail");
-    expect(productDetailSrc).not.toContain("useSetBreadcrumb");
-  });
-});
-
-describe("Category listing breadcrumb is derived from the current URL filter", () => {
-  it("builds the category trail from the active category in the URL", () => {
-    expect(productsSrc).toContain('searchParams.get("category")');
-    expect(productsSrc).toContain("activeCategoryParent");
-    expect(productsSrc).toContain("<Breadcrumb items={breadcrumbItems} />");
-  });
-
-  it("shows no breadcrumb for a free-text search with no real parent", () => {
-    // The trail is `null` when neither a real category nor a real brand is
-    // selected, and the render is guarded on it — so a plain keyword search
-    // shows no breadcrumb rather than a fabricated one.
-    expect(productsSrc).toMatch(/const breadcrumbItems[\s\S]*?: null;/);
-    expect(productsSrc).toContain(
-      "{breadcrumbItems && <Breadcrumb items={breadcrumbItems} />}"
-    );
-  });
-});
-
-/* ═══════════════════════════════════════════════════════════════════════════
-   Acceptance flows
-   ═══════════════════════════════════════════════════════════════════════════ */
-describe("Upload Prescription has a clear way back", () => {
-  it("renders a Home → Upload Prescription breadcrumb", () => {
-    expect(uploadPrescriptionSrc).toContain("<Breadcrumb");
-    expect(uploadPrescriptionSrc).toContain('{ label: "Home", href: "/" }');
-    expect(uploadPrescriptionSrc).toContain('{ label: "Upload Prescription" }');
-  });
-
-  it("does not reload the page or hard-redirect", () => {
-    expect(uploadPrescriptionSrc).not.toContain("window.location.reload");
-  });
-});
-
-describe("Every audited customer-facing inner page shows only its own trail", () => {
-  const pagesWithTrail: Record<string, string[]> = {
-    "pages/UploadPrescription.tsx": ["Upload Prescription"],
-    "pages/MedicineRefill.tsx": ["Medicine Refill"],
-    "pages/DoctorAppointment.tsx": ["Find Doctors"],
-    "pages/LabTests.tsx": ["Lab Tests"],
-    "pages/Products.tsx": ["Home"],
-    "pages/ProductDetail.tsx": ["Home", "Products"],
-    "pages/Categories.tsx": ["Categories"],
-    "pages/Brands.tsx": ["Brands"],
-    "pages/ValueDeals.tsx": ["Value Deals"],
-    "pages/HotSellers.tsx": ["Hot Sellers"],
-  };
-
-  for (const [path, labels] of Object.entries(pagesWithTrail)) {
-    it(`${path} renders a breadcrumb from its own page data`, () => {
-      const src = read(path);
-      expect(src).toContain("<Breadcrumb");
-      for (const label of labels) {
-        expect(src).toContain(`label: "${label}"`);
-      }
+  for (const page of pages) {
+    it(`${page}.tsx renders <Breadcrumb items={breadcrumbItems} /> from the resolver`, () => {
+      const src = read(`pages/${page}.tsx`);
+      expect(src).toContain("usePageBreadcrumbs");
+      expect(src).toContain("items={breadcrumbItems}");
+      // No page may re-declare its own trail.
+      expect(src).not.toMatch(/label:\s*"Home"/);
     });
   }
 });

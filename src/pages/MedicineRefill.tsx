@@ -6,6 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import type { Id } from "@/convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
+import { usePageBreadcrumbs } from "@/hooks/usePageBreadcrumbs";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -32,6 +33,7 @@ import {
 export default function MedicineRefill() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const breadcrumbItems = usePageBreadcrumbs();
 
 
   // Backend data
@@ -362,7 +364,7 @@ export default function MedicineRefill() {
   return (
     <div className="min-h-screen bg-background">
       <main className="mx-auto max-w-7xl px-4 sm:px-6 py-8">
-        <Breadcrumb items={[{ label: "Home", href: "/" }, { label: "Medicine Refill" }]} />
+        <Breadcrumb items={breadcrumbItems} />
         {/* Page Header */}
         <div className="mt-6 mb-8">
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground">

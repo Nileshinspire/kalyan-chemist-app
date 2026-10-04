@@ -5,6 +5,7 @@ import { HeartPulse } from "lucide-react";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
+import { usePageBreadcrumbs } from "@/hooks/usePageBreadcrumbs";
 import { cn } from "@/lib/utils";
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -44,8 +45,9 @@ interface InfoPageProps {
   /** Render the top title area as a compact full-width banner instead of
    *  the tall hero (footer-dedicated legal / directory pages). */
   compact?: boolean;
-  /** Label for this page's breadcrumb ("Home → <label>"). When omitted no
-   *  breadcrumb is rendered. Derived from the current page only. */
+  /** Label for this page's breadcrumb ("Home → <label>"). When omitted the
+   *  resolver resolves the trail from the current route instead. Informational
+   *  and policy pages are single-level, so their only real parent is Home. */
   breadcrumb?: string;
   children: ReactNode;
 }
@@ -61,6 +63,16 @@ export default function InfoPage({
   breadcrumb,
   children,
 }: InfoPageProps) {
+  // Informational/policy routes have exactly one real parent (Home). The
+  // resolver yields an empty trail for unmapped routes, so fall back to the
+  // page's own label — still derived from the current page only.
+  const resolved = usePageBreadcrumbs();
+  const breadcrumbItems =
+    resolved.length > 0
+      ? resolved
+      : breadcrumb
+        ? [{ label: "Home", href: "/" }, { label: breadcrumb }]
+        : [];
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <Navbar />
@@ -279,8 +291,8 @@ export default function InfoPage({
         )}
 
         <div className="relative mx-auto max-w-5xl px-4 py-8 sm:px-6 sm:py-10">
-          {breadcrumb && (
-            <Breadcrumb items={[{ label: "Home", href: "/" }, { label: breadcrumb }]} />
+          {breadcrumbItems.length > 0 && (
+            <Breadcrumb items={breadcrumbItems} />
           )}
           {children}
         </div>

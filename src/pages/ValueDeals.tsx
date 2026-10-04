@@ -7,6 +7,7 @@ import Footer from "@/components/layout/Footer";
 import ProductCard from "@/components/ProductCard";
 import { Button } from "@/components/ui/button";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
+import { usePageBreadcrumbs } from "@/hooks/usePageBreadcrumbs";
 import { useNavigate } from "react-router";
 
 /* ─── Value Deals Under ₹100 — View All ───
@@ -16,6 +17,7 @@ import { useNavigate } from "react-router";
  * product-card infrastructure — no duplicate product system.
  */
 export default function ValueDealsPage() {
+  const breadcrumbItems = usePageBreadcrumbs();
   const navigate = useNavigate();
   const deals = useQuery(api.publicProducts.valueDeals, {});
 
@@ -33,7 +35,7 @@ export default function ValueDealsPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
             >
-              <Breadcrumb items={[{ label: "Home", href: "/" }, { label: "Value Deals" }]} />
+              <Breadcrumb items={breadcrumbItems} />
               <div className="inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary mb-3">
                 <BadgePercent className="size-3" />
                 Pocket-Friendly

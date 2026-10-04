@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/sheet";
 import { motion, AnimatePresence } from "framer-motion";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
+import { usePageBreadcrumbs } from "@/hooks/usePageBreadcrumbs";
 import {
   ArrowLeft,
   ShoppingCart,
@@ -300,30 +301,14 @@ export default function ProductDetail() {
     slug ? { slug } : "skip"
   );
 
-  // Breadcrumb hierarchy is derived from THIS product's own data: the real
-  // category (and, when the catalogue nests it, its parent category) that the
-  // product belongs to. No category is hardcoded, and nothing is invented for
-  // a product that has none.
+  // Breadcrumb trail is resolved by the single route-aware resolver from the
+  // CURRENT route + THIS product's own category chain. No category is
+  // hardcoded, and nothing is invented for a product that has none.
   const allCategories = useQuery(api.categories.list);
-  const productCategory = product?.category;
-  const parentCategory = productCategory?.parentId
-    ? allCategories?.find((c) => c._id === productCategory.parentId)
-    : undefined;
-  const productTrail = product
-    ? [
-        { label: "Home", href: "/" },
-        { label: "Products", href: "/products" },
-        ...(parentCategory
-          ? [
-              { label: parentCategory.name, href: `/products?category=${parentCategory.slug}` },
-              { label: productCategory!.name, href: `/products?category=${productCategory!.slug}` },
-            ]
-          : productCategory
-            ? [{ label: productCategory.name, href: `/products?category=${productCategory.slug}` }]
-            : []),
-        { label: product.name },
-      ]
-    : [{ label: "Home", href: "/" }, { label: "Products", href: "/products" }, { label: "Product" }];
+  const breadcrumbItems = usePageBreadcrumbs({
+    categories: allCategories,
+    product: product ? { name: product.name, category: product.category } : null,
+  });
 
   const boughtCount = useQuery(
     api.products.boughtInLast7Days,
@@ -698,7 +683,7 @@ export default function ProductDetail() {
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
       <main className="flex-1 mx-auto max-w-7xl w-full px-4 sm:px-6 py-8">
-        <Breadcrumb items={productTrail} />
+        <Breadcrumb items={breadcrumbItems} />
 
         {/* Bought recently indicator — real sales data only, with an honest zero state */}
         {boughtCount !== undefined && (

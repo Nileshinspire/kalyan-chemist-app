@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router";
 import { X, Check } from "lucide-react";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
+import { usePageBreadcrumbs } from "@/hooks/usePageBreadcrumbs";
 
 /* ── Category Data ── */
 interface LabTest {
@@ -948,6 +949,7 @@ function CategoryModal({
 export default function LabTests() {
   const navigate = useNavigate();
   const [selectedCategory, setSelectedCategory] = useState<HealthCategory | null>(null);
+  const breadcrumbItems = usePageBreadcrumbs();
 
   const handleClose = useCallback(() => setSelectedCategory(null), []);
 
@@ -958,7 +960,7 @@ export default function LabTests() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 py-10 sm:py-14">
-        <Breadcrumb items={[{ label: "Home", href: "/" }, { label: "Lab Tests" }]} />
+        <Breadcrumb items={breadcrumbItems} />
         {/* Title */}
         <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-gray-900 mb-2">
           Doctor Created Health Check

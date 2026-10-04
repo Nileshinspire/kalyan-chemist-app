@@ -8,6 +8,7 @@ import Footer from "@/components/layout/Footer";
 import ProductCard from "@/components/ProductCard";
 import { Button } from "@/components/ui/button";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
+import { usePageBreadcrumbs } from "@/hooks/usePageBreadcrumbs";
 
 /* ─── Hot Sellers — View All ───
  * Dedicated listing of the products ranked highest by real completed sales,
@@ -16,6 +17,7 @@ import { Breadcrumb } from "@/components/ui/breadcrumb";
  * duplicate product or ranking system.
  */
 export default function HotSellers() {
+  const breadcrumbItems = usePageBreadcrumbs();
   const navigate = useNavigate();
   const products = useQuery(api.publicProducts.hotSellers, {});
 
@@ -33,7 +35,7 @@ export default function HotSellers() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
             >
-              <Breadcrumb items={[{ label: "Home", href: "/" }, { label: "Hot Sellers" }]} />
+              <Breadcrumb items={breadcrumbItems} />
               <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-primary/10 bg-primary/5 px-3 py-1 text-xs font-medium text-primary">
                 <TrendingUp className="size-3" aria-hidden="true" />
                 Bestselling

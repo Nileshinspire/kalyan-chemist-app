@@ -38,6 +38,7 @@ import {
 } from "lucide-react";
 import { beginProductTransition } from "@/lib/product-transition";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
+import { usePageBreadcrumbs } from "@/hooks/usePageBreadcrumbs";
 
 /**
  * Extract URL search-param values OUTSIDE the component so they are stable
@@ -294,31 +295,13 @@ export default function Products() {
     }
   };
 
-  // Breadcrumb — only for a genuine hierarchy: a real category or brand the
-  // shopper selected. A free-text search with no category context has no real
-  // parent, so it shows no breadcrumb at all.
-  const activeCategory = allCategories?.find((c) => c.slug === selectedCategorySlug);
-  const activeCategoryParent = activeCategory?.parentId
-    ? allCategories?.find((c) => c._id === activeCategory.parentId)
-    : undefined;
-  const activeBrand = allBrands?.find((b) => b.slug === selectedBrandSlug);
-  const breadcrumbItems = selectedCategorySlug && activeCategory
-    ? [
-        { label: "Home", href: "/" },
-        ...(activeCategoryParent
-          ? [
-              { label: activeCategoryParent.name, href: `/products?category=${activeCategoryParent.slug}` },
-              { label: activeCategory.name },
-            ]
-          : [{ label: activeCategory.name }]),
-      ]
-    : selectedBrandSlug && activeBrand
-      ? [
-          { label: "Home", href: "/" },
-          { label: "Brands", href: "/brands" },
-          { label: activeBrand.name },
-        ]
-      : null;
+  // Breadcrumb trail is resolved by the single route-aware resolver from the
+  // CURRENT URL filters + current category/brand data, so switching category
+  // or brand immediately replaces the whole trail.
+  const breadcrumbItems = usePageBreadcrumbs({
+    categories: allCategories,
+    brands: allBrands,
+  });
 
   const clearFilters = () => {
     setSearchQuery("");
@@ -369,7 +352,7 @@ export default function Products() {
         </div>
 
         <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8">
-          {breadcrumbItems && <Breadcrumb items={breadcrumbItems} />}
+          {breadcrumbItems.length > 0 && <Breadcrumb items={breadcrumbItems} />}
           <div className="flex gap-8">
             {/* Desktop sidebar filters */}
             <aside className="hidden lg:block w-64 shrink-0">

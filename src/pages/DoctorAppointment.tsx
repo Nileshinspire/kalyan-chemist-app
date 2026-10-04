@@ -15,6 +15,7 @@ import {
   Stethoscope,
 } from "lucide-react";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
+import { usePageBreadcrumbs } from "@/hooks/usePageBreadcrumbs";
 
 /* ─── Shared Specialties Data (same as Admin) ─── */
 const SPECIALTIES = [
@@ -490,6 +491,12 @@ export default function DoctorAppointment() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
+  // One resolver call covers both views: the specialties list and the
+  // specialty→doctor listing differ only by the current search params.
+  const breadcrumbItems = usePageBreadcrumbs({
+    specialtyLabel: SPECIALTIES.find((s) => s.key === searchParams.get("specialty"))?.label,
+  });
+
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -547,11 +554,7 @@ export default function DoctorAppointment() {
     return (
       <div className="min-h-screen bg-background">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8 sm:py-12">
-          <Breadcrumb items={[
-            { label: "Home", href: "/" },
-            { label: "Find Doctors", href: "/doctor-appointment" },
-            { label: specialtyLabel },
-          ]} />
+          <Breadcrumb items={breadcrumbItems} />
 
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
             <div>
@@ -604,10 +607,7 @@ export default function DoctorAppointment() {
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8 sm:py-12">
-        <Breadcrumb items={[
-          { label: "Home", href: "/" },
-          { label: "Find Doctors" },
-        ]} />
+        <Breadcrumb items={breadcrumbItems} />
         {/* Browse by Specialties */}
         <section>
           <h2 className="text-xl sm:text-2xl font-bold text-foreground mb-1">
