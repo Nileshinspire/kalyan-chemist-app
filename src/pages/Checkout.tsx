@@ -39,6 +39,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { computeMaxWalletUsage } from "@/convex/referralWalletCore";
 import { formatCurrency } from "@/lib/auth-utils";
 import { geocodeAddress } from "@/lib/geocode";
+import { computeDeliveryFee } from "@/lib/deliveryFee";
 import { toast } from "sonner";
 import { openWhatsApp } from "@/lib/whatsapp";
 import { loadRazorpayScript } from "@/lib/razorpay";
@@ -116,6 +117,10 @@ export default function Checkout() {
   const walletBalance = useQuery(api.referralWallet.getWalletBalance);
   const walletSettings = useQuery(api.referralWallet.getWalletSettings);
 
+  // Chosen delivery address — feeds the fee calculation below (the server
+  // extracts the pincode from the same address string at order time).
+  const selectedAddress = addresses?.find((a: any) => a._id === selectedAddressId);
+
   // Calculate totals
   const { subtotal, totalDiscount, deliveryFee, tax, total, totalItems, hasRxItems } = useMemo(() => {
     if (!cartItems) return { subtotal: 0, totalDiscount: 0, deliveryFee: 0, tax: 0, total: 0, totalItems: 0, hasRxItems: false };
@@ -131,7 +136,13 @@ export default function Checkout() {
       sub += unitPrice * item.quantity;
       disc += (p.price - unitPrice) * item.quantity;
     }
-    const delivery = sub >= 500 ? 0 : 49;
+    // Configuration-driven fee — identical to what src/convex/orders.ts
+    // charges on the server, so the displayed total always matches the order.
+    const delivery = computeDeliveryFee(
+      deliveryConfig,
+      sub,
+      selectedAddress ? addressToString(selectedAddress) : undefined
+    );
     const taxAmount = Math.round(sub * 0.12);
     return {
       subtotal: sub,
@@ -142,7 +153,7 @@ export default function Checkout() {
       totalItems: cartItems.reduce((s, i) => s + i.quantity, 0),
       hasRxItems: rx,
     };
-  }, [cartItems]);
+  }, [cartItems, deliveryConfig, selectedAddress]);
 
   // Final total with coupon discount
   const finalTotal = useMemo(() => {
@@ -161,8 +172,6 @@ export default function Checkout() {
   }, [walletBalance, walletSettings, finalTotal]);
   const walletApplied = useWallet ? walletAllowed : 0;
   const payableNow = Math.max(0, finalTotal - walletApplied);
-
-  const selectedAddress = addresses?.find((a: any) => a._id === selectedAddressId);
 
   // Extract pincode from selected address for serviceability check
   const pincodeFromAddr = selectedAddress?.pincode || "";
@@ -850,7 +859,9 @@ export default function Checkout() {
                   </div>
                   <div className="flex items-center gap-2">
                     <Truck className="size-3.5 text-primary shrink-0" />
-                    Free delivery on orders above ₹500
+                    {deliveryConfig && deliveryConfig.defaultDeliveryFee > 0
+                      ? `Free delivery on orders above ${formatCurrency(deliveryConfig.freeDeliveryThreshold)}`
+                      : "Free delivery on all orders"}
                   </div>
                   {paymentMethod === "online" && (
                     <div className="flex items-center gap-2">

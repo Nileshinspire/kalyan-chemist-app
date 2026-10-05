@@ -30,6 +30,7 @@ import {
   MessageCircle,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/auth-utils";
+import { computeDeliveryFee } from "@/lib/deliveryFee";
 import { toast } from "sonner";
 import { generateCartMessage, openWhatsApp } from "@/lib/whatsapp";
 
@@ -162,6 +163,11 @@ export default function Cart() {
 
   const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
   const hasPrescriptionItems = cartItems.some((item) => item.product?.prescriptionRequired);
+
+  // One source of truth with Checkout and the server (src/convex/orders.ts).
+  // Cart has no address yet, so the default configured fee applies until the
+  // customer picks an address in Checkout.
+  const deliveryFee = computeDeliveryFee(deliveryConfig, subtotal);
 
   const handleWhatsApp = () => {
     const phone = deliveryConfig?.storeWhatsApp || deliveryConfig?.storePhone || "";
@@ -328,11 +334,13 @@ export default function Cart() {
                     )}
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Delivery</span>
-                      <span className="font-medium text-green-600">Free</span>
+                      <span className={`font-medium ${deliveryFee === 0 ? "text-green-600" : ""}`}>
+                        {deliveryFee === 0 ? "Free" : formatCurrency(deliveryFee)}
+                      </span>
                     </div>
                     <div className="border-t border-border/60 pt-3 flex justify-between">
                       <span className="font-bold">Total</span>
-                      <span className="font-extrabold text-lg">{formatCurrency(subtotal)}</span>
+                      <span className="font-extrabold text-lg">{formatCurrency(subtotal + deliveryFee)}</span>
                     </div>
                   </div>
 
@@ -375,7 +383,9 @@ export default function Cart() {
                     </div>
                     <div className="flex items-center gap-2">
                       <Truck className="size-3.5 text-primary shrink-0" />
-                      Free delivery on all orders
+                      {deliveryConfig && deliveryConfig.defaultDeliveryFee > 0
+                        ? `Free delivery on orders above ${formatCurrency(deliveryConfig.freeDeliveryThreshold)}`
+                        : "Free delivery on all orders"}
                     </div>
                   </div>
                 </CardContent>
