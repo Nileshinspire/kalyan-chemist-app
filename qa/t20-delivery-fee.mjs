@@ -96,38 +96,27 @@ const rupee = (s) => {
   return /\bFree\b/.test(s) ? 0 : null;
 };
 
-async function addCheapestProduct() {
-  await go(page, "#/products?nav=all&sort=price_asc");
-  await page.waitForTimeout(800);
-  const href = await page.evaluate(() => {
-    const a = [...document.querySelectorAll('a[href*="#/products/"]')].find((x) => /\/products\/.+/.test(x.getAttribute("href") || ""));
-    return a ? a.getAttribute("href") : null;
+async function fetchProducts(sortBy, limit = 25) {
+  const res = await fetch(`${convexUrl}/api/query`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      path: "publicProducts:searchPage",
+      args: { query: "", sortBy, offset: 0, limit },
+    }),
   });
-  if (!href) { fail("no product link found (price_asc)"); return null; }
-  await go(page, href.replace(/^#/, ""));
-  const name = await page.locator("h1").first().innerText().catch(() => "?");
-  const addBtn = page.locator("button", { hasText: /Add to Cart/i }).first();
-  if (!(await addBtn.count())) { fail(`no Add to Cart button on ${name}`); return null; }
-  await addBtn.click().catch(() => {});
-  await page.waitForTimeout(1500);
-  return { name: name.trim(), href };
+  const json = await res.json().catch(() => null);
+  return json?.value?.items ?? [];
 }
 
-async function addMostExpensiveProduct() {
-  await go(page, "#/products?nav=all&sort=price_desc");
-  await page.waitForTimeout(800);
-  const href = await page.evaluate(() => {
-    const a = [...document.querySelectorAll('a[href*="#/products/"]')].find((x) => /\/products\/.+/.test(x.getAttribute("href") || ""));
-    return a ? a.getAttribute("href") : null;
-  });
-  if (!href) { fail("no product link found (price_desc)"); return null; }
-  await go(page, href.replace(/^#/, ""));
+async function addProductBySlug(product) {
+  await go(page, `#/products/${product.slug}`);
   const name = await page.locator("h1").first().innerText().catch(() => "?");
   const addBtn = page.locator("button", { hasText: /Add to Cart/i }).first();
   if (!(await addBtn.count())) { fail(`no Add to Cart button on ${name}`); return null; }
   await addBtn.click().catch(() => {});
   await page.waitForTimeout(1500);
-  return { name: name.trim(), href };
+  return { name: name.trim(), slug: product.slug, price: product.price };
 }
 
 async function bumpQtyUntil(minSubtotal) {
@@ -196,7 +185,12 @@ async function captureScenario(label) {
 }
 
 // ── 2. Below threshold ──
-results.added1 = await addCheapestProduct();
+const threshold = cfg?.freeDeliveryThreshold ?? 500;
+const effective = (p) => (p.discountPrice && p.discountPrice < p.price ? p.discountPrice : p.price);
+const asc = await fetchProducts("price_asc");
+const cheapest = asc.find((p) => effective(p) > 0 && effective(p) < threshold);
+results.added1 = cheapest ? await addProductBySlug(cheapest) : null;
+if (!cheapest) fail("no in-stock product below the free-delivery threshold");
 await go(page, "#/cart");
 results.belowSubtotal = await page.evaluate(() => {
   const spans = [...document.querySelectorAll("span")];
@@ -210,7 +204,10 @@ if (results.belowSubtotal != null && results.belowSubtotal >= (cfg?.freeDelivery
 results.below = await captureScenario("below");
 
 // ── 3. Above threshold ──
-results.added2 = await addMostExpensiveProduct();
+const desc = await fetchProducts("price_desc");
+const priciest = desc.find((p) => effective(p) >= threshold);
+results.added2 = priciest ? await addProductBySlug(priciest) : null;
+if (!priciest) results.noExpensiveProduct = true;
 await go(page, "#/cart");
 const bumpedTo = await bumpQtyUntil((cfg?.freeDeliveryThreshold ?? 500));
 results.aboveSubtotal = bumpedTo;
