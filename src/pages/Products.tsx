@@ -97,7 +97,17 @@ export default function Products() {
   const setSearchQuery = (value: string) => { setSearchQueryState(value); resetPage(); };
   const setSelectedCategorySlug = (value: string) => { setSelectedCategorySlugState(value); resetPage(); };
   const setSelectedBrandSlug = (value: string) => { setSelectedBrandSlugState(value); resetPage(); };
-  const setSortBy = (value: string) => { setSortByState(value); resetPage(); };
+  const setSortBy = (value: string) => {
+    setSortByState(value);
+    // Sorting redefines the result set, so it belongs in the URL like the other
+    // filters (otherwise a refresh or a shared link silently resets the order)
+    // and pagination restarts at page 1.
+    const next = new URLSearchParams(searchParams);
+    if (value === "relevance") next.delete("sort");
+    else next.set("sort", value);
+    next.delete("page");
+    setSearchParams(next, { replace: true });
+  };
   const setPrescriptionFilter = (value: string) => { setPrescriptionFilterState(value); resetPage(); };
   const setStockFilter = (value: string) => { setStockFilterState(value); resetPage(); };
 

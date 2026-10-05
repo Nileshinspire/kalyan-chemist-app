@@ -90,7 +90,7 @@ export default function Cart() {
             </p>
             <Button
               className="mt-6 font-semibold gradient-primary text-white rounded-xl"
-              onClick={() => navigate("/auth")}
+              onClick={() => navigate("/auth?returnTo=/cart")}
             >
               Sign In
             </Button>

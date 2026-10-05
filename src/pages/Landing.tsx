@@ -227,9 +227,11 @@ export default function Landing() {
       await addToCart({ productId: productId as any, quantity: 1 });
       toast.success("Added to cart");
     } catch (error: any) {
-      if (error.message === "Not authenticated") {
+      // Convex prefixes the thrown message, so an exact comparison never
+      // matches and the raw server error is shown to the customer instead.
+      if (/not authenticated/i.test(error.message ?? "")) {
         toast.error("Please sign in to add items to cart");
-        navigate("/auth");
+        navigate(`/auth?returnTo=${encodeURIComponent(location.pathname + location.search)}`);
       } else {
         toast.error(error.message || "Failed to add to cart");
       }

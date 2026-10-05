@@ -17,6 +17,17 @@ function goProduct(
   beginProductTransition();
   navigate(`/products/${slug}`, { state: { from } });
 }
+
+/**
+ * Convex prefixes thrown messages ("[CONVEX M(cart:addItem)] ... Not
+ * authenticated ..."), so auth failures must be matched loosely — an exact
+ * comparison falls through to the generic branch and shows the raw server
+ * error, complete with source path and request id, to the customer.
+ */
+function isAuthError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  return /not authenticated/i.test(message);
+}
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Heart, ShoppingCart, Pill, Zap } from "lucide-react";
@@ -428,13 +439,21 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
 
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.stopPropagation();
+    const signInUrl = `/auth?returnTo=${encodeURIComponent(`/products/${product.slug}`)}`;
+    if (!user) {
+      toast.error("Please sign in to add items to cart");
+      navigate(signInUrl);
+      return;
+    }
     try {
       await addToCart({ productId: product._id as any, quantity: 1 });
       toast.success(`${product.name} added to cart`);
     } catch (error: any) {
-      if (error.message === "Not authenticated") {
+      // Convex prefixes thrown messages ("[CONVEX M(...)] ... Not authenticated"),
+      // so an exact match leaks the raw server error to the customer.
+      if (isAuthError(error)) {
         toast.error("Please sign in to add items to cart");
-        navigate("/auth");
+        navigate(signInUrl);
       } else {
         toast.error(error.message || "Failed to add to cart");
       }
@@ -456,7 +475,7 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
     try {
       await toggleWishlist({ productId: product._id as any });
     } catch (error: any) {
-      if (error.message === "Not authenticated") {
+      if (isAuthError(error)) {
         toast.error("Please sign in to use wishlist");
       } else {
         toast.error(error.message || "Failed to update wishlist");

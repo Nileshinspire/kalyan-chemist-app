@@ -352,7 +352,10 @@ export default function ProductDetail() {
     if (!product) return;
     if (!isAuthenticated) {
       toast.error("Please sign in to add items to cart");
-      navigate(`/auth?returnTo=${encodeURIComponent(window.location.pathname)}`);
+      // HashRouter keeps the real route in the hash, so window.location.pathname
+      // is always "/" — use the router location or the customer is sent back to
+      // the home page after signing in instead of this product.
+      navigate(`/auth?returnTo=${encodeURIComponent(location.pathname + location.search)}`);
       return;
     }
     try {
@@ -367,7 +370,10 @@ export default function ProductDetail() {
     if (!product) return;
     if (!isAuthenticated) {
       toast.error("Please sign in to buy now");
-      navigate(`/auth?returnTo=${encodeURIComponent(window.location.pathname)}`);
+      // HashRouter keeps the real route in the hash, so window.location.pathname
+      // is always "/" — use the router location or the customer is sent back to
+      // the home page after signing in instead of this product.
+      navigate(`/auth?returnTo=${encodeURIComponent(location.pathname + location.search)}`);
       return;
     }
     navigate(`/checkout?buyNow=${product._id}${activeVariant ? `&variant=${selectedVariantIndex}` : ""}`);
@@ -414,7 +420,10 @@ export default function ProductDetail() {
   const handleWriteReview = () => {
     if (!isAuthenticated) {
       toast.error("Please sign in to write a review");
-      navigate(`/auth?returnTo=${encodeURIComponent(window.location.pathname)}`);
+      // HashRouter keeps the real route in the hash, so window.location.pathname
+      // is always "/" — use the router location or the customer is sent back to
+      // the home page after signing in instead of this product.
+      navigate(`/auth?returnTo=${encodeURIComponent(location.pathname + location.search)}`);
       return;
     }
     setReviewOpen(true);
@@ -788,6 +797,7 @@ export default function ProductDetail() {
             initial={{ opacity: 0, x: -16 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5 }}
+            className="min-w-0"
           >
             <div className="flex flex-col-reverse gap-3 items-start lg:flex-row">
               {/* Thumbnails — vertical rail beside the image on desktop, a
@@ -949,7 +959,7 @@ export default function ProductDetail() {
             initial={{ opacity: 0, x: 16 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
-            className="space-y-5"
+            className="space-y-5 min-w-0"
           >
             <div className="flex flex-wrap gap-2">
               {p.prescriptionRequired ? (
