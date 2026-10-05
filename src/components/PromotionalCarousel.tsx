@@ -266,7 +266,7 @@ export default function PromotionalCarousel() {
                 aria-hidden={!active}
               >
                 {/* Banner image */}
-                <div className="relative aspect-[21/9] sm:aspect-[21/8] overflow-hidden">
+                <div className="relative aspect-[21/9] sm:aspect-[21/8] overflow-hidden bg-gradient-to-r from-emerald-900 to-teal-700">
                   {/* Mobile image (shown on small screens if available) */}
                   {s.mobileBannerImage && (
                     <img
@@ -280,12 +280,20 @@ export default function PromotionalCarousel() {
                       }}
                       onError={(e) => {
                         const img = e.currentTarget as HTMLImageElement;
-                        if (img.dataset.fallbackTried) return;
-                        img.dataset.fallbackTried = "1";
                         const fallback = s.bannerImage || s.publicUrl;
-                        if (fallback && fallback !== img.src) {
+                        if (
+                          !img.dataset.fallbackTried &&
+                          fallback &&
+                          fallback !== img.src
+                        ) {
+                          img.dataset.fallbackTried = "1";
                           img.src = fallback;
+                          return;
                         }
+                        // No distinct fallback left — hide the broken image so the
+                        // slide degrades to its gradient background + text overlay
+                        // instead of showing a broken-image icon.
+                        img.style.display = "none";
                       }}
                     />
                   )}
@@ -305,13 +313,21 @@ export default function PromotionalCarousel() {
                     }}
                     onError={(e) => {
                       const img = e.currentTarget as HTMLImageElement;
-                      if (img.dataset.fallbackTried) return;
-                      img.dataset.fallbackTried = "1";
                       // If the desktop asset failed, fall back to the primary public URL.
                       const fallback = s.bannerImage || s.publicUrl;
-                      if (fallback && fallback !== img.src) {
+                      if (
+                        !img.dataset.fallbackTried &&
+                        fallback &&
+                        fallback !== img.src
+                      ) {
+                        img.dataset.fallbackTried = "1";
                         img.src = fallback;
+                        return;
                       }
+                      // No distinct fallback left — hide the broken image so the
+                      // slide degrades to its gradient background + text overlay
+                      // instead of showing a broken-image icon.
+                      img.style.display = "none";
                     }}
                   />
 
