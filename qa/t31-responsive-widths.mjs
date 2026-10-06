@@ -3,7 +3,7 @@
 //
 // Exit codes: 0 = all checks pass · 1 = failures · 78 = preview unavailable (env).
 import { launch, go, report, interesting, assertPreview } from "./harness.mjs";
-import { anonymousSignIn, injectSession, hash, pageSummary } from "./authSession.mjs";
+import { anonymousSignIn, injectSession } from "./authSession.mjs";
 
 await assertPreview();
 
@@ -36,9 +36,17 @@ const check = (name, ok, detail) => {
   if (!ok) R.failures.push(`${name}${detail ? ` :: ${detail}` : ""}`);
 };
 
-/** In-page overflow measurement + tap-target scan. */
-const layout = () =>
-  page.evaluate(() => {
+/** Fast navigation for the width sweep (layout is CSS-driven; 700ms settles it). */
+const nav = async (page, hash, ms = 700) => {
+  await page.goto(`${"https://sunny-baths-help.freebuff.dev"}/${hash}`, {
+    waitUntil: "domcontentloaded",
+  });
+  await page.waitForTimeout(ms);
+};
+
+/** In-page overflow measurement + clipped-text/image scan. */
+const layout = (pg = page) =>
+  pg.evaluate(() => {
     const vw = document.documentElement.clientWidth;
     const over = [];
     for (const el of document.querySelectorAll("body *")) {
@@ -47,14 +55,16 @@ const layout = () =>
       if (r.right > vw + 2 || r.left < -2) {
         const cs = getComputedStyle(el);
         if (cs.position === "fixed") continue;
-        // Ignore children of intentionally horizontally-scrollable rails.
-        let p = el.parentElement, scrollable = false;
+        // Ignore anything an ancestor clips or scrolls (overflow hidden/clip/
+        // auto/scroll): those elements are not visible outside the viewport and
+        // do not create page overflow — e.g. decorative background orbs.
+        let p = el.parentElement, clipped = false;
         while (p && p !== document.body) {
           const pcs = getComputedStyle(p);
-          if (/auto|scroll/.test(pcs.overflowX) && p.scrollWidth > p.clientWidth + 2) { scrollable = true; break; }
+          if (/(hidden|clip|auto|scroll)/.test(pcs.overflowX)) { clipped = true; break; }
           p = p.parentElement;
         }
-        if (scrollable) continue;
+        if (clipped) continue;
         over.push({
           tag: el.tagName,
           cls: String(el.className || "").slice(0, 70),
@@ -65,7 +75,7 @@ const layout = () =>
       if (over.length >= 6) break;
     }
     // Cut-off content: elements whose text is clipped without an intentional
-    // line-clamp / nowrap handling.
+    // line-clamp / truncate handling.
     const clipped = [];
     for (const el of document.querySelectorAll("main h1, main h2, main h3, main p, main button, main a")) {
       if (clipped.length >= 5) break;
@@ -91,15 +101,28 @@ const layout = () =>
 
 const session = await anonymousSignIn();
 
+// injectSession can race an in-flight navigation on first load — retry briefly.
+const injectSafe = async () => {
+  for (let i = 0; i < 3; i++) {
+    try { await injectSession(page, session); return; }
+    catch { await page.waitForTimeout(900); }
+  }
+  throw new Error("injectSession failed after retries");
+};
+
+// One browser for the whole mobile sweep; resize the viewport per width.
+// Session lives in localStorage, so a single injection covers every width.
+const { browser, page, consoleErrors, pageErrors } = await launch({ mobile: true });
+await nav(page, "#/", 1200);
+await injectSafe();
+
 for (const width of WIDTHS) {
-  const { browser, context, page, consoleErrors, pageErrors } = await launch({ mobile: true });
-  await context.setViewportSize({ width, height: 844 });
-  await go(page, "#/");
-  await injectSession(page, session);
+  await page.setViewportSize({ width, height: 844 });
+  await nav(page, "#/");
 
   const perWidth = {};
   for (const [route, label] of ROUTES) {
-    await go(page, `#${route}`);
+    await nav(page, `#${route}`);
     const l = await layout();
     perWidth[route] = { scrollWidth: l.scrollWidth, vw: l.vw, overflow: l.overflow };
     check(`[${width}px] ${label}: no horizontal page overflow`, l.scrollWidth <= l.vw + 2, `scrollW=${l.scrollWidth} vw=${l.vw}`);
@@ -109,7 +132,7 @@ for (const width of WIDTHS) {
   }
 
   // Product detail (needs a real product) + its CTA row.
-  await go(page, "#/products");
+  await nav(page, "#/products");
   const cards = page.locator("main [data-slot='card']").filter({ hasText: /₹/ });
   if (await cards.count()) {
     await cards.first().click().catch(() => {});
@@ -134,41 +157,43 @@ for (const width of WIDTHS) {
         check(`[${width}px] Product detail: ${nm} tap target >= 32px tall`, !!b && b.height >= 32, JSON.stringify(b && { h: Math.round(b.height) }));
       }
     }
-    // Search reachable from the header on an inner page.
-    await go(page, "#/products");
-    const search = page.locator("header input[placeholder*='Search']").first();
-    check(`[${width}px] Header search visible on inner pages`, (await search.count()) > 0 && await search.isVisible(), `count=${await search.count()}`);
-    if (await search.count()) {
+    // Search reachable from the header on an inner page (visible instance only:
+    // the desktop nav search exists in the DOM but is display:none on mobile).
+    await nav(page, "#/products");
+    const search = page.locator("header input[placeholder*='Search']").locator("visible=true").first();
+    const sc = await search.count();
+    check(`[${width}px] Header search visible on inner pages`, sc > 0 && await search.isVisible(), `count=${sc}`);
+    if (sc) {
       const sb = await search.boundingBox();
       check(`[${width}px] Header search spans most of the width`, !!sb && sb.width >= width * 0.6, JSON.stringify(sb && { w: Math.round(sb.width) }));
     }
   }
 
-  // Cart with an item (if any) — verify the row layout.
-  await go(page, "#/cart");
+  // Cart — verify the row layout stays inside the viewport.
+  await nav(page, "#/cart");
   const cartL = await layout();
   check(`[${width}px] Cart: no horizontal overflow`, cartL.scrollWidth <= cartL.vw + 2, `scrollW=${cartL.scrollWidth}`);
 
   R.widths[width] = perWidth;
-  R[`console_${width}`] = interesting(consoleErrors).filter((e) => !/pngtree|wikimedia|mankind|web-share|403/i.test(e)).slice(0, 5);
-  R[`pageErrors_${width}`] = pageErrors;
-  await browser.close();
+  R[`console_${width}`] = interesting(consoleErrors).filter((e) => !/pngtree|wikimedia|mankind|web-share|403/i.test(e)).slice(-5);
+  R[`pageErrors_${width}`] = [...pageErrors];
 }
+await browser.close();
 
 // ── Desktop sanity pass (1440): the desktop layout must stay healthy ──
 {
-  const { browser, page } = await launch();
-  await go(page, "#/");
+  const { browser: dB, page: dPage } = await launch();
+  await go(dPage, "#/");
   for (const [route, label] of ROUTES) {
-    await go(page, `#${route}`);
-    const l = await layout();
+    await go(dPage, `#${route}`);
+    const l = await layout(dPage);
     check(`[1440px] ${label}: no horizontal overflow`, l.scrollWidth <= l.vw + 2, `scrollW=${l.scrollWidth} vw=${l.vw}`);
     check(`[1440px] ${label}: no elements outside viewport`, l.overflow.length === 0, JSON.stringify(l.overflow));
   }
-  await browser.close();
+  await dB.close();
 }
 
-report("Test 31: multi-width responsive QA (320/375/390/430 + 1440)", R);
+report("Test 31: multi-width responsive QA (320/375/390/430 + 1440)", { counts: { checks: R.checks.length, failures: R.failures.length }, failures: R.failures });
 console.log(`\nchecks=${R.checks.length} ${R.failures.length ? "FAILURES:" : "ALL CHECKS PASSED"}`);
 for (const f of R.failures) console.log(" - " + f);
 if (R.failures.length) process.exit(1);

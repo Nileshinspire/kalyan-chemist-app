@@ -2,11 +2,19 @@
 // detail journeys (product / lab test / doctor), plus product-image safety.
 // Run: node qa/t27-routes-journeys.mjs
 import { launch, go, report, interesting, assertPreview, EXIT_ENV_BLOCKED } from "./harness.mjs";
-import { pageSummary, hash } from "./authSession.mjs";
+import { pageSummary, hash, anonymousSignIn, injectSession } from "./authSession.mjs";
 
 await assertPreview();
 
 const { browser, page, consoleErrors, pageErrors, badResponses } = await launch();
+
+// Several customer routes (upload-prescription, refill, lab tests, wishlist,
+// chatbot, doctor appointment) are auth-gated; sweep them as a signed-in user.
+const session = await anonymousSignIn();
+await go(page, "#/");
+for (let i = 0; i < 3; i++) {
+  try { await injectSession(page, session); break; } catch { await page.waitForTimeout(900); }
+}
 const R = { checks: [], failures: [] };
 const check = (name, ok, detail) => {
   R.checks.push({ name, ok, detail });
@@ -116,6 +124,7 @@ check("category flow shows products", /₹/.test(await page.evaluate(() => docum
 // ── Lab tests → detail ──
 await go(page, "#/lab-tests");
 const testCard = page.locator("main a[href*='lab-tests'], main [data-slot='card']").first();
+await testCard.waitFor({ state: "visible", timeout: 9000 }).catch(() => {});
 check("lab tests listing renders", (await testCard.count()) > 0);
 await testCard.click().catch(() => {});
 await page.waitForTimeout(2200);
@@ -126,6 +135,7 @@ check("lab detail renders content", R.labDetail.bodyLen > 400, `body=${R.labDeta
 // ── Doctor appointment → detail ──
 await go(page, "#/doctor-appointment");
 const docCard = page.locator("main a[href*='doctors/'], main [data-slot='card']").first();
+await docCard.waitFor({ state: "visible", timeout: 9000 }).catch(() => {});
 check("doctor listing renders", (await docCard.count()) > 0);
 await docCard.click().catch(() => {});
 await page.waitForTimeout(2200);

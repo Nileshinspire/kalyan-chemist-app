@@ -303,7 +303,10 @@ export default function WalletReferSection() {
           </ol>
 
           {/* Referral code + link */}
-          <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          {/* [&>*]:min-w-0 lets the grid tracks shrink on narrow screens (and
+              mid-size tablets) so the Copy buttons stay inside the card; at
+              ≥lg the tracks already size to content, so nothing changes. */}
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 [&>*]:min-w-0">
             <div className="rounded-xl border border-border/60 bg-muted/30 p-3">
               <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                 Your Referral Code
