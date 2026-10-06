@@ -323,7 +323,7 @@ export default function Cart() {
 
                   <div className="space-y-3 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Subtotal ({totalItems} items)</span>
+                      <span className="text-muted-foreground">Subtotal ({totalItems} {totalItems === 1 ? "item" : "items"})</span>
                       <span className="font-medium">{formatCurrency(subtotal + savings)}</span>
                     </div>
                     {savings > 0 && (

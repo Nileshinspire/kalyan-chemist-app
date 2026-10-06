@@ -27,6 +27,10 @@ export default function Wishlist() {
   const { isAuthenticated } = useAuth();
   const insideAccountLayout = useIsInsideAccountLayout();
   const showChrome = !insideAccountLayout;
+  // The Account Layout already renders the page's <main> landmark. Render the
+  // same wrapper as a plain <div> when nested there so only one main landmark
+  // exists; the standalone /wishlist route still supplies its own <main>.
+  const MainTag = insideAccountLayout ? "div" : "main";
 
   const wishlistItems = useQuery(api.wishlist.list);
   const toggleWishlist = useMutation(api.wishlist.toggle);
@@ -65,7 +69,7 @@ export default function Wishlist() {
     return (
       <div className="min-h-screen flex flex-col bg-background">
         {showChrome && <Navbar />}
-        <main className="flex-1 flex flex-col items-center justify-center text-center px-4">
+        <MainTag className="flex-1 flex flex-col items-center justify-center text-center px-4">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -85,7 +89,7 @@ export default function Wishlist() {
               Sign In
             </Button>
           </motion.div>
-        </main>
+        </MainTag>
         {showChrome && <Footer />}
       </div>
     );
@@ -96,9 +100,9 @@ export default function Wishlist() {
     return (
       <div className="min-h-screen flex flex-col bg-background">
         {showChrome && <Navbar />}
-        <main className="flex-1 flex items-center justify-center">
+        <MainTag className="flex-1 flex items-center justify-center">
           <Loader2 className="size-6 animate-spin text-muted-foreground" />
-        </main>
+        </MainTag>
         {showChrome && <Footer />}
       </div>
     );
@@ -109,7 +113,7 @@ export default function Wishlist() {
     return (
       <div className="min-h-screen flex flex-col bg-background">
         {showChrome && <Navbar />}
-        <main className="flex-1 flex flex-col items-center justify-center text-center px-4">
+        <MainTag className="flex-1 flex flex-col items-center justify-center text-center px-4">
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -129,7 +133,7 @@ export default function Wishlist() {
               Browse Medicines
             </Button>
           </motion.div>
-        </main>
+        </MainTag>
         {showChrome && <Footer />}
       </div>
     );
@@ -138,7 +142,7 @@ export default function Wishlist() {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       {showChrome && <Navbar />}
-      <main className="flex-1 mx-auto max-w-7xl w-full px-4 sm:px-6 py-8">
+      <MainTag className="flex-1 mx-auto max-w-7xl w-full px-4 sm:px-6 py-8">
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
           <div className="mb-6">
             <h1 className="text-2xl font-bold tracking-tight">My Wishlist</h1>
@@ -277,7 +281,7 @@ export default function Wishlist() {
             })}
           </div>
         </motion.div>
-      </main>
+      </MainTag>
       {showChrome && <Footer />}
     </div>
   );
