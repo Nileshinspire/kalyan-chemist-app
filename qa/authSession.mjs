@@ -99,6 +99,12 @@ export const pageSummary = (page) =>
         placeholder: e.placeholder || "", label: (e.closest("label")?.innerText || "").replace(/\s+/g, " ").trim().slice(0, 40),
       })).slice(0, 14),
       bodyLen: document.body.innerText.length,
-      breadcrumb: t("nav[aria-label='breadcrumb']") || [...document.querySelectorAll("nav")].map((n) => n.innerText.replace(/\s+/g, " ").trim()).find((x) => /Home/.test(x)) || null,
+      breadcrumb:
+        t("nav[aria-label='Breadcrumb']") ||
+        t("nav[aria-label='breadcrumb']") ||
+        // last-resort fallback: a nav whose last item is a current-page span
+        [...document.querySelectorAll("nav")]
+          .map((n) => n.innerText.replace(/\s+/g, " ").trim())
+          .find((x) => x.includes("›") || /\bHome\b\s*[›>]/.test(x)) || null,
     };
   });

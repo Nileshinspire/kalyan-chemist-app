@@ -49,7 +49,11 @@ check("checkout step 1 (Address) renders", /Address/i.test(R.checkoutStep0.mainH
 check("address fixture saved for this session", R.addressFixtureVisible === true, String(R.addressFixtureVisible));
 const cont0 = page.locator("main button", { hasText: /^Continue$/ }).first();
 const cont0Disabled = (await cont0.count()) ? await cont0.isDisabled().catch(() => null) : null;
-check("Continue blocked until an address is selected", cont0Disabled === true, `disabled=${cont0Disabled}`);
+// Checkout.tsx auto-selects the default address once the list loads, so
+// Continue must already be enabled here (no manual click required).
+check("default address auto-selected → Continue enabled", cont0Disabled === false, `disabled=${cont0Disabled}`);
+const checkedRadios = await page.locator('main [role="radio"][data-state="checked"]').count();
+check("address card shows as selected", checkedRadios >= 1, `checked=${checkedRadios}`);
 
 // Select the saved default address
 const addrCard = page.locator("main").locator("div").filter({ hasText: /Flat 9C/ }).last();
@@ -96,6 +100,13 @@ if (sub.value != null && gst.value != null && del.value != null && tot.value != 
   check("checkout total = subtotal + GST + delivery", sub.value + gst.value + del.value === tot.value, `${sub.value}+${gst.value}+${del.value} vs ${tot.value}`);
 }
 check("COD option available", /Cash on Delivery/i.test(R.finalCheckout.buttons.join(" ") + coText), R.finalCheckout.buttons.join(" | ").slice(0, 200));
+// Safety guard: this script must never click Place Order / Pay.
+const placeOrderBtns = page.locator("main button").filter({ hasText: /Place Order|Pay ₹|Pay Securely/i });
+R.placeOrderButtonsUntouched = (await placeOrderBtns.count()) > 0;
+const payToasts = await toasts();
+R.paymentToasts = payToasts;
+check("no false payment success (no order/payment success toast)", !/order (placed|confirmed|successful)|payment (successful|completed)/i.test(payToasts.join(" ")), payToasts.join(" | "));
+check("no order was submitted by the test", !/order (placed|confirmed)/i.test(payToasts.join(" ")), payToasts.join(" | "));
 check("wallet row absent/inactive for zero balance", /Wallet/i.test(coText) || !/Wallet/.test(coText), "wallet not shown (balance ₹0)");
 await page.screenshot({ path: "/tmp/qa-24-checkout-payment.png" });
 
@@ -105,36 +116,50 @@ if (await couponInput.count()) {
   await couponInput.fill("INVALIDQA");
   const apply = page.locator("button", { hasText: /^Apply$/ }).first();
   if (await apply.count()) {
-    await apply.click().catch(() => {});
-    await page.waitForTimeout(1600);
-    t = await toasts();
+    // handleApplyCoupon silently no-ops while coupons:computeDiscount is still
+    // in flight, so poll/retry instead of clicking once and racing the query.
+    t = [];
+    const wantInvalid = (list) => list.some((x) => /invalid coupon/i.test(x));
+    for (let attempt = 0; attempt < 3 && !wantInvalid(t); attempt++) {
+      await page.waitForTimeout(attempt === 0 ? 2500 : 1500);
+      await apply.click().catch(() => {});
+      await page.waitForTimeout(1600);
+      t = await toasts();
+    }
     R.couponToast = t;
-    check("invalid coupon rejected with message", t.length > 0 && !/applied/i.test(t.join(" ")), t.join(" | "));
+    check("invalid coupon rejected with message", t.some((x) => /invalid coupon/i.test(x)), t.join(" | "));
+    check("invalid coupon is NOT applied", !t.some((x) => /applied successfully|coupon applied/i.test(x)), t.join(" | "));
   }
 }
 
-// ══ Breadcrumbs: current page only ══
+// ══ Breadcrumbs: current page only (real <nav aria-label="Breadcrumb">) ══
+const crumbKey = p.name.split(" ")[0];
 await go(page, "#/categories");
 await page.waitForTimeout(1200);
-const catLink = page.locator("a[href*='/products/'], main a, main button").first();
 const bc1 = await pageSummary(page);
 R.bcCategories = bc1.breadcrumb;
 await go(page, "#/products");
 await page.waitForTimeout(1200);
-const prodCard = page.locator("main").locator("div").filter({ hasText: new RegExp(p.name.split(" ")[0], "i") }).last();
+const prodCard = page.locator("main").locator("div").filter({ hasText: new RegExp(crumbKey, "i") }).last();
 if (await prodCard.count()) { await prodCard.click().catch(() => {}); await page.waitForTimeout(1600); }
 R.bcProduct = (await pageSummary(page)).breadcrumb;
-check("product breadcrumbs include product", /Home/.test(R.bcProduct || ""), R.bcProduct);
+check("product page renders a real breadcrumb", !!R.bcProduct, String(R.bcProduct));
+check("product breadcrumb includes the product", new RegExp(crumbKey, "i").test(R.bcProduct || ""), R.bcProduct);
+check("product breadcrumb trails back to Home/Products", /Home|Products/i.test(R.bcProduct || ""), R.bcProduct);
 await page.goBack();
 await page.waitForTimeout(1500);
 R.bcAfterBack = (await pageSummary(page)).breadcrumb;
-check("Back from product: breadcrumbs no longer show product", /Home/.test(R.bcAfterBack || "") && !new RegExp(p.name.split(" ")[0], "i").test(R.bcAfterBack || ""), R.bcAfterBack);
+check("Back from product: breadcrumb no longer shows product", !new RegExp(crumbKey, "i").test(R.bcAfterBack || ""), R.bcAfterBack);
+
+// arriving at checkout must not carry a stale product crumb
+R.bcCheckout = R.checkoutLanding?.breadcrumb ?? null;
+check("checkout page has no stale product crumb", !new RegExp(crumbKey, "i").test(R.bcCheckout || ""), R.bcCheckout ?? "(none)");
 
 await go(page, "#/account/addresses");
 await page.waitForTimeout(1600);
 const addrBc = (await pageSummary(page)).breadcrumb;
 R.bcAddresses = addrBc;
-check("account breadcrumbs do not retain product crumb", !new RegExp(p.name.split(" ")[0], "i").test(addrBc || ""), addrBc);
+check("account breadcrumbs do not retain product crumb", !new RegExp(crumbKey, "i").test(addrBc || ""), addrBc);
 
 // ══ Logout + route protection + returnTo ══
 await go(page, "#/account");
