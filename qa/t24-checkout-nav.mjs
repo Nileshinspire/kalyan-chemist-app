@@ -1,7 +1,7 @@
 // Authenticated QA — Checkout steps, breadcrumb integrity, logout/protection, Razorpay config.
 // Run: node qa/t24-checkout-nav.mjs
 import { launch, go, report, interesting } from "./harness.mjs";
-import { anonymousSignIn, injectSession, hash, queryPublic, pageSummary } from "./authSession.mjs";
+import { anonymousSignIn, injectSession, ensureAddress, hash, queryPublic, pageSummary } from "./authSession.mjs";
 
 const { browser, page, consoleErrors, pageErrors, badResponses } = await launch();
 const R = { checks: [], failures: [] };
@@ -11,6 +11,7 @@ const check = (name, ok, detail) => {
 };
 const toasts = async () =>
   (await page.locator("[data-sonner-toast]").allInnerTexts().catch(() => [])).map((t) => t.replace(/\s+/g, " ").trim());
+let t;
 
 const session = await anonymousSignIn();
 await go(page, "#/");
@@ -23,6 +24,11 @@ const rzProbe = await fetch(`${session.convexUrl}/api/action`, {
   body: JSON.stringify({ path: "razorpayActions:getKeyId", args: {} }),
 }).then((r) => r.text()).catch((e) => `error: ${e.message}`);
 R.razorpayGetKeyIdResponse = rzProbe.slice(0, 300);
+
+// ══ Address fixture (this account is new — checkout needs a saved address) ══
+await go(page, "#/account/addresses");
+R.addressFixture = await ensureAddress(page);
+R.addressFixtureVisible = /Flat 9C/.test((await page.locator("main").innerText()).replace(/\s+/g, " "));
 
 // ══ Cart → Checkout steps ══
 const items = await queryPublic(session.convexUrl, "publicProducts:searchPage", { query: "", sortBy: "price_asc", offset: 0, limit: 3 });
@@ -40,6 +46,10 @@ const stepLabels = await page.locator("button").evaluateAll((els) =>
 R.checkoutButtons = stepLabels;
 R.checkoutStep0 = await pageSummary(page);
 check("checkout step 1 (Address) renders", /Address/i.test(R.checkoutStep0.mainHead), R.checkoutStep0.mainHead.slice(0, 120));
+check("address fixture saved for this session", R.addressFixtureVisible === true, String(R.addressFixtureVisible));
+const cont0 = page.locator("main button", { hasText: /^Continue$/ }).first();
+const cont0Disabled = (await cont0.count()) ? await cont0.isDisabled().catch(() => null) : null;
+check("Continue blocked until an address is selected", cont0Disabled === true, `disabled=${cont0Disabled}`);
 
 // Select the saved default address
 const addrCard = page.locator("main").locator("div").filter({ hasText: /Flat 9C/ }).last();

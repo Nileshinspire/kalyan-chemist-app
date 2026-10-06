@@ -184,7 +184,10 @@ export default function Wishlist() {
                         variant="ghost"
                         size="icon"
                         className="absolute top-3 right-3 size-8 rounded-full bg-background/80 backdrop-blur-sm text-destructive hover:text-destructive hover:bg-background"
-                        onClick={() => handleRemove(product._id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemove(product._id);
+                        }}
                       >
                         <Trash2 className="size-3.5" />
                       </Button>

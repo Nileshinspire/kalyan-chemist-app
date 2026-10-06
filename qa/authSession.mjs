@@ -38,6 +38,39 @@ export async function injectSession(page, session) {
   await page.waitForTimeout(2500);
 }
 
+// Each test signs in as a brand-new anonymous account, so no saved address
+// exists yet. Downstream checkout/address assertions need a fixture, and this
+// creates one through the app's own address UI.
+export async function ensureAddress(page, { houseFlat = "Flat 9C", pincode = "421306" } = {}) {
+  const fill = async (sel, value) => {
+    const el = page.locator(sel).first();
+    await el.click().catch(() => {});
+    await el.fill(value);
+  };
+  await page.locator("button", { hasText: /^(Add|Add Your First) Address$/i }).first().click();
+  await page.waitForTimeout(900);
+  await fill("#fullName", "QA Test Customer");
+  await fill("#addrPhone", "9876543210");
+  await fill("#houseFlat", houseFlat);
+  await fill("#street", "100ft Road");
+  await fill("#area", "Kalyan East");
+  await fill("#city", "Kalyan");
+  const stateTrigger = page.locator('[role="dialog"] button:has-text("Select state"), [role="dialog"] [role="combobox"]').first();
+  if (await stateTrigger.count()) {
+    await stateTrigger.click().catch(() => {});
+    await page.waitForTimeout(600);
+    const opt = page.locator('[role="option"]', { hasText: /^Maharashtra$/i }).first();
+    if (await opt.count()) await opt.click().catch(() => {});
+  }
+  await fill("#pincode", pincode);
+  await fill("#landmark", "Near Anmol Garden");
+  const cb = page.locator('[role="dialog"] input[type="checkbox"]').first();
+  if (await cb.count()) await cb.check().catch(() => {});
+  await page.locator('[role="dialog"] button', { hasText: /^Add Address$/ }).first().click();
+  await page.waitForTimeout(2200);
+  return houseFlat;
+}
+
 export async function queryPublic(convexUrl, path, args = {}) {
   const res = await fetch(`${convexUrl}/api/query`, {
     method: "POST",
