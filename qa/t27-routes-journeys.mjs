@@ -1,12 +1,31 @@
 // Phase 2 + 11: sweep every customer-facing route and exercise the main
 // detail journeys (product / lab test / doctor), plus product-image safety.
 // Run: node qa/t27-routes-journeys.mjs
-import { launch, go, report, interesting, assertPreview, EXIT_ENV_BLOCKED } from "./harness.mjs";
+import { launch, BASE, report, interesting, assertPreview, EXIT_ENV_BLOCKED } from "./harness.mjs";
 import { pageSummary, hash, anonymousSignIn, injectSession } from "./authSession.mjs";
 
 await assertPreview();
 
 const { browser, page, consoleErrors, pageErrors, badResponses } = await launch();
+
+// Fast in-app navigation with the same signature as the harness `go()`.
+// The harness version does a full page.goto per route (27 routes × bundle
+// re-download + Convex reconnect), which overruns the 180s command cap.
+// Hash changes keep the SPA — and the injected auth session — alive.
+// NOTE: must be declared before its first call below (TDZ).
+const go = async (page, hashTarget) => {
+  const target = hashTarget.startsWith("#") ? hashTarget : `#${hashTarget}`;
+  const url = page.url();
+  if (!url.startsWith(BASE)) {
+    await page.goto(`${BASE}/${target}`, { waitUntil: "domcontentloaded" });
+  } else if (`#${url.split("#")[1] || "/"}` !== target) {
+    await page.evaluate((t) => { window.location.hash = t; }, target);
+  }
+  await page
+    .waitForFunction(() => document.body.innerText.length > 400, null, { timeout: 7000 })
+    .catch(() => {});
+  await page.waitForTimeout(1000);
+};
 
 // Several customer routes (upload-prescription, refill, lab tests, wishlist,
 // chatbot, doctor appointment) are auth-gated; sweep them as a signed-in user.
