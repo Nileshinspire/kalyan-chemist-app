@@ -1,7 +1,9 @@
 // Authenticated QA — corrected address checks + Wishlist + Cart operations.
 // Run: node qa/t23-wishlist-cart.mjs
-import { launch, go, report, interesting } from "./harness.mjs";
+import { launch, go, report, interesting, assertPreview } from "./harness.mjs";
 import { anonymousSignIn, injectSession, ensureAddress, hash, queryPublic, pageSummary } from "./authSession.mjs";
+
+await assertPreview();
 
 const { browser, page, consoleErrors, pageErrors, badResponses } = await launch();
 const R = { checks: [], failures: [] };

@@ -71,6 +71,29 @@ export async function ensureAddress(page, { houseFlat = "Flat 9C", pincode = "42
   return houseFlat;
 }
 
+// Clean up cart state created by a test so disposable QA sessions do not
+// leave stray cart items behind. Best-effort: never throws.
+export async function clearCart(page) {
+  try {
+    await page.goto("https://sunny-baths-help.freebuff.dev/#/cart", { waitUntil: "domcontentloaded" });
+    await page.waitForTimeout(1800);
+    const clear = page.locator("main button", { hasText: /^Clear Cart$/ }).first();
+    if (!(await clear.count())) return { cleared: false, reason: "cart already empty" };
+    await clear.click().catch(() => {});
+    await page.waitForTimeout(1500);
+    const confirm = page
+      .locator('[role="alertdialog"] button, [role="dialog"] button')
+      .filter({ hasText: /Clear|Remove|Yes/i })
+      .last();
+    if (await confirm.count()) await confirm.click().catch(() => {});
+    await page.waitForTimeout(1500);
+    const text = await page.locator("main").first().innerText().catch(() => "");
+    return { cleared: /Cart is Empty/i.test(text) };
+  } catch (e) {
+    return { cleared: false, reason: e?.message || String(e) };
+  }
+}
+
 export async function queryPublic(convexUrl, path, args = {}) {
   const res = await fetch(`${convexUrl}/api/query`, {
     method: "POST",

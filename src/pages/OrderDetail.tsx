@@ -52,6 +52,9 @@ export default function OrderDetail() {
   const navigate = useNavigate();
   const insideAccountLayout = useIsInsideAccountLayout();
   const showChrome = !insideAccountLayout;
+  // The Account Layout already renders the page's <main> landmark, so render
+  // this wrapper as a plain <div> while nested to avoid a duplicate landmark.
+  const MainTag = insideAccountLayout ? "div" : "main";
 
   const order = useQuery(api.orders.getById, id ? { orderId: id as any } : "skip");
   const tracking = useQuery(api.orders.getTracking, id ? { orderId: id as any } : "skip");
@@ -149,9 +152,9 @@ export default function OrderDetail() {
     return (
       <div className="min-h-screen flex flex-col bg-background">
         {showChrome && <Navbar />}
-        <main className="flex-1 flex items-center justify-center">
+        <MainTag className="flex-1 flex items-center justify-center">
           <Loader2 className="size-6 animate-spin text-muted-foreground" />
-        </main>
+        </MainTag>
         {showChrome && <Footer />}
       </div>
     );
@@ -161,11 +164,11 @@ export default function OrderDetail() {
     return (
       <div className="min-h-screen flex flex-col bg-background">
         {showChrome && <Navbar />}
-        <main className="flex-1 flex flex-col items-center justify-center text-center px-4">
+        <MainTag className="flex-1 flex flex-col items-center justify-center text-center px-4">
           <Package className="size-12 text-muted-foreground/30 mb-4" />
           <h2 className="text-xl font-bold">Order not found</h2>
           <Button className="mt-4 gradient-primary text-white" onClick={() => navigate("/orders")}>View Orders</Button>
-        </main>
+        </MainTag>
         {showChrome && <Footer />}
       </div>
     );
@@ -178,7 +181,7 @@ export default function OrderDetail() {
   return (
     <div className="min-h-screen flex flex-col bg-background">
       {showChrome && <Navbar />}
-      <main className="flex-1 mx-auto max-w-4xl w-full px-4 sm:px-6 py-8">
+      <MainTag className="flex-1 mx-auto max-w-4xl w-full px-4 sm:px-6 py-8">
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}>
           <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
             <div>
@@ -496,7 +499,7 @@ export default function OrderDetail() {
             </div>
           </div>
         </motion.div>
-      </main>
+      </MainTag>
       {showChrome && <Footer />}
     </div>
   );

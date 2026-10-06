@@ -1,7 +1,9 @@
 // Authenticated QA — session + Account Dashboard subpage navigation.
 // Run: node qa/t21-account-nav.mjs
-import { launch, go, report, interesting } from "./harness.mjs";
+import { launch, go, report, interesting, assertPreview } from "./harness.mjs";
 import { anonymousSignIn, injectSession, hash, pageSummary } from "./authSession.mjs";
+
+await assertPreview();
 
 const { browser, page, consoleErrors, pageErrors, badResponses } = await launch();
 const R = { checks: [], failures: [] };

@@ -171,29 +171,31 @@ export default function Wishlist() {
                 >
                   <Card className="border-border/60 overflow-hidden group hover:shadow-card-hover hover:border-primary/20 transition-all duration-300">
                     {/* Product image area */}
-                    <div
-                      className="relative flex items-center justify-center bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] h-40 cursor-pointer"
-                      role="link"
-                      tabIndex={0}
-                      aria-label={`View ${product.name}`}
-                      onClick={() => {
-                        beginProductTransition();
-                        navigate(`/products/${product.slug}`);
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
+                    <div className="relative h-40">
+                      <div
+                        className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] cursor-pointer"
+                        role="link"
+                        tabIndex={0}
+                        aria-label={`View ${product.name}`}
+                        onClick={() => {
                           beginProductTransition();
                           navigate(`/products/${product.slug}`);
-                        }
-                      }}
-                    >
-                      <Pill className="size-12 text-primary/20 group-hover:scale-110 transition-all duration-500" />
-                      {hasDiscount && (
-                        <Badge className="absolute top-3 left-3 text-[10px] font-bold bg-gradient-to-r from-green-500 to-emerald-500 text-white border-0 shadow-md">
-                          {Math.round(((product.price - product.discountPrice!) / product.price) * 100)}% OFF
-                        </Badge>
-                      )}
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            beginProductTransition();
+                            navigate(`/products/${product.slug}`);
+                          }
+                        }}
+                      >
+                        <Pill className="size-12 text-primary/20 group-hover:scale-110 transition-all duration-500" />
+                        {hasDiscount && (
+                          <Badge className="absolute top-3 left-3 text-[10px] font-bold bg-gradient-to-r from-green-500 to-emerald-500 text-white border-0 shadow-md">
+                            {Math.round(((product.price - product.discountPrice!) / product.price) * 100)}% OFF
+                          </Badge>
+                        )}
+                      </div>
                       <Button
                         variant="ghost"
                         size="icon"
@@ -226,10 +228,19 @@ export default function Wishlist() {
                       {/* Name */}
                       <h3
                         className="text-sm font-semibold line-clamp-2 hover:text-primary cursor-pointer transition-colors"
+                        role="link"
+                        tabIndex={0}
                         onClick={() => {
                         beginProductTransition();
                         navigate(`/products/${product.slug}`);
                       }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            beginProductTransition();
+                            navigate(`/products/${product.slug}`);
+                          }
+                        }}
                       >
                         {product.name}
                       </h3>

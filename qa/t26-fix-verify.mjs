@@ -4,8 +4,10 @@
 //  2) Cart pluralisation: 1 item -> "Subtotal (1 item)", 2+ -> "Subtotal (2 items)".
 //  3) Wishlist remove button still does NOT navigate.
 // Run: node qa/t26-fix-verify.mjs
-import { launch, go, report } from "./harness.mjs";
+import { launch, go, report, assertPreview } from "./harness.mjs";
 import { anonymousSignIn, injectSession, hash, queryPublic } from "./authSession.mjs";
+
+await assertPreview();
 
 const { browser, page, consoleErrors, pageErrors, badResponses } = await launch();
 const R = { checks: [], failures: [] };
@@ -118,6 +120,23 @@ R.lineThree = await subtotalLine();
 check('3 items -> "Subtotal (3 items)"', R.lineThree === "Subtotal (3 items)", String(R.lineThree));
 R.textThree = (await mainText()).slice(0, 220);
 await page.screenshot({ path: "/tmp/qa-26-cart.png" });
+
+// ══ Duplicate landmark: other components routed BOTH standalone and inside
+// AccountLayout must also emit exactly one <main> in each context. ══
+const mainCountAt = async (route) => {
+  await go(page, `#${route}`);
+  await page.waitForTimeout(1200);
+  return page.locator("main").count();
+};
+R.landmarks = {};
+R.landmarks["/account/refill"] = await mainCountAt("/account/refill");
+check("/account/refill emits exactly one <main>", R.landmarks["/account/refill"] === 1, `count=${R.landmarks["/account/refill"]}`);
+R.landmarks["/refill"] = await mainCountAt("/refill");
+check("standalone /refill keeps its own <main>", R.landmarks["/refill"] === 1, `count=${R.landmarks["/refill"]}`);
+R.landmarks["/account/orders/:id"] = await mainCountAt("/account/orders/00000000-0000-0000-0000-000000000000");
+check("/account/orders/:id emits exactly one <main>", R.landmarks["/account/orders/:id"] === 1, `count=${R.landmarks["/account/orders/:id"]}`);
+R.landmarks["/orders/:id"] = await mainCountAt("/orders/00000000-0000-0000-0000-000000000000");
+check("standalone /orders/:id keeps its own <main>", R.landmarks["/orders/:id"] === 1, `count=${R.landmarks["/orders/:id"]}`);
 
 R.consoleErrors = consoleErrors.filter((e) => !/pngtree|wikimedia|mankind|web-share|403/i.test(e)).slice(0, 6);
 R.pageErrors = pageErrors;

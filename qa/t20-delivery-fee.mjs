@@ -5,7 +5,9 @@
 //   4. Checkout total must include that same fee
 //   5. Repeat above the threshold
 // Run: node qa/t20-delivery-fee.mjs
-import { launch, go, report, interesting } from "./harness.mjs";
+import { launch, go, report, interesting, assertPreview } from "./harness.mjs";
+
+await assertPreview();
 
 const BASE = "https://sunny-baths-help.freebuff.dev";
 const results = {};

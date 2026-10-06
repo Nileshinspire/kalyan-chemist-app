@@ -3,6 +3,7 @@ import { useNavigate } from "react-router";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useAuth } from "@/context/AuthContext";
+import { useIsInsideAccountLayout } from "@/context/AccountLayoutContext";
 import type { Id } from "@/convex/_generated/dataModel";
 import { Button } from "@/components/ui/button";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
@@ -361,9 +362,14 @@ export default function MedicineRefill() {
 
   const isLoading = regularMedicines === undefined || suggestions === undefined || orderHistory === undefined;
 
+  // Rendered both at /refill and inside /account/refill. The Account Layout
+  // already supplies the <main> landmark, so only emit one when standalone.
+  const insideAccountLayout = useIsInsideAccountLayout();
+  const MainTag = insideAccountLayout ? "div" : "main";
+
   return (
     <div className="min-h-screen bg-background">
-      <main className="mx-auto max-w-7xl px-4 sm:px-6 py-8">
+      <MainTag className="mx-auto max-w-7xl px-4 sm:px-6 py-8">
         <Breadcrumb items={breadcrumbItems} />
         {/* Page Header */}
         <div className="mt-6 mb-8">
@@ -1361,7 +1367,7 @@ export default function MedicineRefill() {
             )}
           </div>
         )}
-      </main>
+      </MainTag>
 
       {/* ── Reminder Modal ── */}
       {reminderModal && (
