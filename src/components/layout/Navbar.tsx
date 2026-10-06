@@ -488,6 +488,32 @@ const Navbar = memo(function Navbar() {
         </div>
       </div>
 
+      {/* Search — mobile row (Apollo-style full-width search under the header
+          row). Below `md` Row 1 only carries the logo / cart / menu, so without
+          this row phones had no visible search outside the menu sheet. Hidden
+          from `md` up, where Row 1 already carries the desktop search, so the
+          laptop/desktop header is byte-for-byte unchanged. Skipped on the
+          homepage, whose hero already owns the primary search (same rule the
+          desktop search follows above). */}
+      {!isHomePage && (
+        <form
+          onSubmit={handleSearch}
+          role="search"
+          aria-label="Search medicines"
+          className="md:hidden mx-auto max-w-7xl px-4 sm:px-6 pb-3"
+        >
+          <div className="relative w-full">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+            <Input
+              placeholder="Search medicines, brands…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 h-10 rounded-xl bg-muted/40 border-border/40 hover:border-border/70"
+            />
+          </div>
+        </form>
+      )}
+
       {/* ═══════════════════════════════════════════════════════
           GLOBAL CATEGORY NAVIGATION BAR
           Only render on homepage — inner pages get it via SubNav

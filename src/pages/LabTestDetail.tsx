@@ -478,7 +478,7 @@ export default function LabTestDetail() {
 
             {/* ── Quick Links ── */}
             {relatedPackages.length > 0 && (
-              <div className="flex gap-4">
+              <div className="flex flex-wrap gap-2 sm:gap-4">
                 <a
                   href="#related-packages"
                   className="inline-flex items-center gap-1.5 rounded-lg bg-[#0a3d2e]/5 px-4 py-2 text-sm font-medium text-[#0a3d2e] hover:bg-[#0a3d2e]/10 transition-colors"
@@ -820,7 +820,7 @@ export default function LabTestDetail() {
                 <h3 className="text-lg font-bold text-gray-900 mb-2">Booking Confirmed</h3>
                 <p className="text-sm text-gray-500 mb-1">{bookingSuccess.testName}</p>
                 <p className="text-xs text-gray-400 mb-6">We will send you a confirmation with further details.</p>
-                <div className="flex gap-3 justify-center">                    <button
+                <div className="flex flex-wrap gap-2 sm:gap-3 justify-center">                    <button
                     onClick={() => {
                       closeBookingModal();
                       navigate("/account/my-lab-tests");
@@ -858,7 +858,7 @@ export default function LabTestDetail() {
                 {/* Collection Type */}
                 <div>
                   <label className="block text-sm font-bold text-gray-900 mb-2">Collection Type *</label>
-                  <div className="flex gap-3">
+                  <div className="flex flex-wrap gap-2 sm:gap-3">
                     <button onClick={() => setBookingType("home")} className={`flex-1 rounded-xl border-2 px-4 py-3 text-sm font-medium transition-colors ${bookingType === "home" ? "border-[#0a3d2e] bg-[#0a3d2e]/5 text-[#0a3d2e]" : "border-gray-200 text-gray-600 hover:border-gray-300"}`}>
                       <Home className="size-4 inline mr-1.5" />Home Collection
                     </button>

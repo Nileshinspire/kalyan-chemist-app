@@ -1108,7 +1108,13 @@ export default function ProductDetail() {
               </div>
             )}
 
-            <div className="flex gap-3">
+            {/* `flex-wrap` is the mobile-only safety valve: the three CTAs are
+                `whitespace-nowrap` Buttons whose combined min-width exceeds a
+                320–375px viewport, which pushed the row past the right edge and
+                scrolled the whole page sideways. When there is room (sm and up,
+                and on every desktop) nothing wraps, so the row renders exactly
+                as before. `gap-2` is restored to `gap-3` from sm upwards. */}
+            <div className="flex flex-wrap gap-2 sm:gap-3">
               <Button
                 size="lg"
                 className="flex-1 h-12 text-sm font-semibold gap-2 gradient-primary text-white shadow-glow hover:shadow-card-hover transition-all hover:scale-[1.02] active:scale-[0.98] rounded-xl"
@@ -1131,6 +1137,7 @@ export default function ProductDetail() {
               <Button
                 size="lg"
                 variant="outline"
+                aria-label="Add to wishlist"
                 className={`h-12 w-12 rounded-xl ${isWishlisted ? "bg-rose-50 border-rose-200 text-rose-500 hover:bg-rose-100" : ""}`}
                 onClick={handleWishlist}
               >

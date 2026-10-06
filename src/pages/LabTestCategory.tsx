@@ -843,7 +843,7 @@ export default function LabTestCategory() {
               </div>
               <div>
                 <label className="block text-sm font-bold text-gray-900 mb-2">Collection Type *</label>
-                <div className="flex gap-3">
+                <div className="flex flex-wrap gap-2 sm:gap-3">
                   <button onClick={() => setBookingType("home")} className={`flex-1 rounded-xl border-2 px-4 py-3 text-sm font-medium transition-colors ${bookingType === "home" ? "border-[#0a3d2e] bg-[#0a3d2e]/5 text-[#0a3d2e]" : "border-gray-200 text-gray-600 hover:border-gray-300"}`}>
                     <MapPin className="size-4 inline mr-1.5" />Home Collection
                   </button>

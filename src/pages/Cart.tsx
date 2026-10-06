@@ -234,10 +234,14 @@ export default function Cart() {
                     exit={{ opacity: 0, x: -16 }}
                   >
                     <Card className="border-border/60">
-                      <CardContent className="p-4 flex gap-4">
+                      {/* Mobile (<sm): tighter padding, a smaller thumbnail and a
+                          wrapping quantity/price row so the row's content never
+                          exceeds a 320px viewport. From `sm` up every value is the
+                          original one, so larger screens are unchanged. */}
+                      <CardContent className="p-3.5 sm:p-4 flex gap-3 sm:gap-4">
                         {/* Image */}
                         <div
-                          className="shrink-0 w-20 h-20 rounded-xl bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] flex items-center justify-center cursor-pointer"
+                          className="shrink-0 w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] flex items-center justify-center cursor-pointer"
                           onClick={() => {
                             beginProductTransition();
                             navigate(`/products/${product.slug}`);
@@ -274,7 +278,7 @@ export default function Cart() {
                             </Button>
                           </div>
 
-                          <div className="flex items-center justify-between mt-3">
+                          <div className="flex flex-wrap items-center justify-between gap-2 mt-3">
                             {/* Quantity controls */}
                             <div className="flex items-center gap-2">
                               <Button
