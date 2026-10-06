@@ -188,11 +188,18 @@ export default function Checkout() {
       : "skip"
   );
 
+  // The query above is skipped until 3+ characters are typed, so "pending" is
+  // only true while a validation request is genuinely still in flight.
+  const couponPending =
+    couponCode.trim().length >= 3 && subtotal > 0 && couponValidation === undefined;
+
   const handleApplyCoupon = () => {
     if (!couponCode.trim()) {
       toast.error("Please enter a coupon code");
       return;
     }
+    // Validation not ready yet — the Apply button is disabled meanwhile.
+    if (couponPending) return;
     if (couponValidation && couponValidation.valid) {
       setAppliedCoupon({
         code: couponValidation.code || "",
@@ -810,9 +817,16 @@ export default function Checkout() {
                       size="sm"
                       className="h-9 text-xs"
                       onClick={handleApplyCoupon}
-                      disabled={!couponCode.trim()}
+                      disabled={!couponCode.trim() || couponPending}
                     >
-                      Apply
+                      {couponPending ? (
+                        <>
+                          <Loader2 className="size-3 animate-spin" />
+                          Checking…
+                        </>
+                      ) : (
+                        "Apply"
+                      )}
                     </Button>
                   </div>
                 )}

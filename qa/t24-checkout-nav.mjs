@@ -114,7 +114,14 @@ await page.screenshot({ path: "/tmp/qa-24-checkout-payment.png" });
 const couponInput = page.locator('input[placeholder*="oupon" i], input[name*="coupon" i]').first();
 if (await couponInput.count()) {
   await couponInput.fill("INVALIDQA");
-  const apply = page.locator("button", { hasText: /^Apply$/ }).first();
+  const apply = page.locator("main button").filter({ hasText: /^(Apply|Checking)/ }).first();
+  // While coupons:computeDiscount is in flight the button must be disabled and
+  // show its loading treatment instead of silently doing nothing.
+  // Right after typing, the query has been kicked off but cannot have
+  // resolved yet, so the button must already be in its disabled/loading state.
+  const pendingSeen = (await apply.count()) ? await apply.isDisabled().catch(() => null) : null;
+  R.couponApplyDisabledWhileLoading = pendingSeen;
+  check("Apply disabled while coupon validation is loading", pendingSeen === true, `disabled=${pendingSeen}`);
   if (await apply.count()) {
     // handleApplyCoupon silently no-ops while coupons:computeDiscount is still
     // in flight, so poll/retry instead of clicking once and racing the query.

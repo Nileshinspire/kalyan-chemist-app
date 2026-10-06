@@ -173,9 +173,19 @@ export default function Wishlist() {
                     {/* Product image area */}
                     <div
                       className="relative flex items-center justify-center bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] h-40 cursor-pointer"
+                      role="link"
+                      tabIndex={0}
+                      aria-label={`View ${product.name}`}
                       onClick={() => {
                         beginProductTransition();
                         navigate(`/products/${product.slug}`);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          beginProductTransition();
+                          navigate(`/products/${product.slug}`);
+                        }
                       }}
                     >
                       <Pill className="size-12 text-primary/20 group-hover:scale-110 transition-all duration-500" />
@@ -188,6 +198,7 @@ export default function Wishlist() {
                         variant="ghost"
                         size="icon"
                         className="absolute top-3 right-3 size-8 rounded-full bg-background/80 backdrop-blur-sm text-destructive hover:text-destructive hover:bg-background"
+                        aria-label={`Remove ${product.name} from wishlist`}
                         onClick={(e) => {
                           e.stopPropagation();
                           handleRemove(product._id);

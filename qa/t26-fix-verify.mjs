@@ -50,9 +50,32 @@ await page.locator("button:has(svg.lucide-heart)").first().click().catch(() => {
 await page.waitForTimeout(1800);
 await go(page, "#/account/wishlist");
 const beforeHash = hash(page);
+
+// Semantic entry: focusable link + keyboard activation, visuals untouched
+const entry = page.locator('main [role="link"][aria-label]').first();
+R.entryCount = await page.locator('main [role="link"]').count();
+check("product entry exposes a link role", R.entryCount >= 1, `count=${R.entryCount}`);
+if (await entry.count()) {
+  R.entryTabbable = await entry.getAttribute("tabindex");
+  R.entryLabel = await entry.getAttribute("aria-label");
+  check("product entry is keyboard focusable", R.entryTabbable === "0", `tabindex=${R.entryTabbable}`);
+  check("product entry has an accessible name", /^View .+/.test(R.entryLabel || ""), String(R.entryLabel));
+  await entry.focus();
+  const focused = await page.evaluate(() => document.activeElement?.getAttribute("role"));
+  check("product entry can receive focus", focused === "link", `role=${focused}`);
+  await page.keyboard.press("Enter");
+  await page.waitForTimeout(1800);
+  R.keyboardNavHash = hash(page);
+  check("Enter on product entry navigates to the product", hash(page) === `/products/${p1.slug}`, hash(page));
+  await go(page, "#/account/wishlist");
+}
+const rmBtn = page.locator("main button:has(svg.lucide-trash2)").first();
+R.removeLabel = (await rmBtn.count()) ? await rmBtn.getAttribute("aria-label") : null;
+check("Remove is an independently named control", /^Remove .+ from wishlist/.test(R.removeLabel || ""), String(R.removeLabel));
 const trash = page.locator("main button:has(svg.lucide-trash2)").first();
 check("remove control present", (await trash.count()) > 0);
 if (await trash.count()) {
+  // clicking Remove must not activate the surrounding link-role entry
   await trash.click().catch(() => {});
   await page.waitForTimeout(2200);
   R.afterRemoveHash = hash(page);
