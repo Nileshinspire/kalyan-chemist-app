@@ -2,7 +2,7 @@
 // detail journeys (product / lab test / doctor), plus product-image safety.
 // Run: node qa/t27-routes-journeys.mjs
 import { launch, BASE, report, interesting, assertPreview, EXIT_ENV_BLOCKED } from "./harness.mjs";
-import { pageSummary, hash, anonymousSignIn, injectSession } from "./authSession.mjs";
+import { pageSummary, hash, anonymousSignIn, injectSession, queryPublic } from "./authSession.mjs";
 
 await assertPreview();
 
@@ -140,22 +140,63 @@ R.categoryFlow = await snapshot("category-flow");
 check("category navigates to a listing", /\/(products|categories)/.test(hash(page)), hash(page));
 check("category flow shows products", /₹/.test(await page.evaluate(() => document.body.innerText)), hash(page));
 
-// ── Lab tests → detail ──
+// ── Lab tests → category → test detail ──
+// These routes render no <main> and no anchor-based cards: the listing is a
+// grid of <button> tiles, category pages list clickable <div> cards (their
+// inner "Add" button stopPropagation-s into the booking modal), and the
+// detail route is /lab-tests/test/:testId.
 await go(page, "#/lab-tests");
-const testCard = page.locator("main a[href*='lab-tests'], main [data-slot='card']").first();
-await testCard.waitFor({ state: "visible", timeout: 9000 }).catch(() => {});
-check("lab tests listing renders", (await testCard.count()) > 0);
-await testCard.click().catch(() => {});
+const catTile = page.locator("button:visible", { hasText: "Full Body Checkup" }).first();
+await catTile.waitFor({ state: "visible", timeout: 9000 }).catch(() => {});
+check("lab tests listing renders", (await catTile.count()) > 0, hash(page));
+await catTile.click().catch(() => {});
+await page.waitForTimeout(2200);
+R.labCategory = await snapshot("lab-category");
+check("lab test category reachable", /^#\/lab-tests\/[^/]+/.test(hash(page)), hash(page));
+check("lab category renders content", R.labCategory.bodyLen > 400, `body=${R.labCategory.bodyLen} h1=${R.labCategory.h1.slice(0, 60)}`);
+
+const slug = (hash(page).match(/^\/lab-tests\/([^?]+)/) || [])[1] || "";
+const seeded = await queryPublic(session.convexUrl, "labTests:listByCategory", { categorySlug: slug });
+const firstName = Array.isArray(seeded) && seeded.length ? seeded[0].name : null;
+check("lab tests seeded for clicked category", !!firstName, `slug=${slug} n=${Array.isArray(seeded) ? seeded.length : JSON.stringify(seeded).slice(0, 80)}`);
+const itemCard = page.locator("div.grid > div.cursor-pointer").filter({ hasText: firstName || "\u0000" }).first();
+await itemCard.waitFor({ state: "visible", timeout: 9000 }).catch(() => {});
+check("lab category lists test items", (await itemCard.count()) > 0, hash(page));
+// Click the card header, never the inner "Add" button (it opens the modal).
+await itemCard.click({ position: { x: 20, y: 15 } }).catch(() => {});
 await page.waitForTimeout(2200);
 R.labDetail = await snapshot("lab-detail");
-check("lab test detail reachable", /lab-tests/.test(hash(page)), hash(page));
+check("lab test detail reachable", /lab-tests\/test\//.test(hash(page)), hash(page));
 check("lab detail renders content", R.labDetail.bodyLen > 400, `body=${R.labDetail.bodyLen} h1=${R.labDetail.h1.slice(0, 60)}`);
 
 // ── Doctor appointment → detail ──
+// Default view = specialties grid; a tile click navigates to
+// ?specialty=…&view=doctors where each DoctorCard is a <button>. The tile is
+// matched against the seeded doctor's specialty so the journey is data-driven
+// (this route, like lab-tests, has no <main> and no anchor cards).
+const docs = await queryPublic(session.convexUrl, "doctors:listDoctors", {});
+const seedDoc = Array.isArray(docs) && docs.length ? docs[0] : null;
+check("doctor data available for journey", !!seedDoc, Array.isArray(docs) ? `n=${docs.length}` : JSON.stringify(docs).slice(0, 80));
 await go(page, "#/doctor-appointment");
-const docCard = page.locator("main a[href*='doctors/'], main [data-slot='card']").first();
+const norm = (s) => String(s || "").toLowerCase().replace(/[^a-z]/g, "");
+let specClicked = false;
+if (seedDoc?.specialty) {
+  const tiles = page.locator("div.grid > button:visible");
+  const nTiles = Math.min(await tiles.count(), 30);
+  for (let i = 0; i < nTiles; i++) {
+    const txt = await tiles.nth(i).innerText().catch(() => "");
+    if (norm(txt) === norm(seedDoc.specialty)) {
+      await tiles.nth(i).click().catch(() => {});
+      specClicked = true;
+      break;
+    }
+  }
+}
+await page.waitForTimeout(1500);
+check("specialty tile opens doctor list", specClicked && /view=doctors/.test(hash(page)), hash(page));
+const docCard = page.locator("div.grid > button:visible").filter({ hasText: seedDoc?.name || "\u0000" }).first();
 await docCard.waitFor({ state: "visible", timeout: 9000 }).catch(() => {});
-check("doctor listing renders", (await docCard.count()) > 0);
+check("doctor listing renders", (await docCard.count()) > 0, hash(page));
 await docCard.click().catch(() => {});
 await page.waitForTimeout(2200);
 R.docDetail = await snapshot("doctor-detail");
