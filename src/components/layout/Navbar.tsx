@@ -127,7 +127,7 @@ const Navbar = memo(function Navbar() {
           : "glass-strong shadow-sm"
       }`}
     >
-      <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 sm:px-6 py-3">
+      <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 sm:px-6 py-2.5 sm:gap-4 sm:py-3">
         {/* Logo */}
         <div
           className="flex items-center gap-2.5 cursor-pointer shrink-0 group"
@@ -500,7 +500,7 @@ const Navbar = memo(function Navbar() {
           onSubmit={handleSearch}
           role="search"
           aria-label="Search medicines"
-          className="md:hidden mx-auto max-w-7xl px-4 sm:px-6 pb-3"
+          className="md:hidden mx-auto max-w-7xl px-4 sm:px-6 pb-2.5 sm:pb-3"
         >
           <div className="relative w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />

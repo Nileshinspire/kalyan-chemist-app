@@ -516,16 +516,17 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
       <Button
         variant="ghost"
         size="icon"
-        className="absolute top-3 right-3 z-10 h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background hover:scale-110 transition-all duration-300 opacity-0 group-hover:opacity-100"
+        className="absolute top-3 right-3 z-10 h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background hover:scale-110 transition-all duration-300 opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
         onClick={handleWishlist}
       >
         <Heart className={`size-4 transition-colors ${isWishlisted ? "fill-rose-500 text-rose-500" : "text-muted-foreground group-hover:text-rose-500"}`} />
       </Button>
 
-      {/* Product image placeholder */}
+      {/* Product image placeholder — mobile uses a shorter band so a 2-col
+          phone card keeps sane proportions; from `sm` the desktop band. */}
       <div
         ref={imageAreaRef}
-        className="relative flex shrink-0 items-center justify-center bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] h-44 border-b border-border/40 overflow-hidden"
+        className="relative flex shrink-0 items-center justify-center bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] h-32 sm:h-44 border-b border-border/40 overflow-hidden"
       >
         <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.08] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
         {realImage ? (
@@ -569,7 +570,7 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
       {/* Fixed-height image band above, content filling the rest, action row
           pinned to the bottom — the card's outer height never depends on the
           product data or on the image's aspect ratio. */}
-      <CardContent className="flex flex-1 flex-col p-4">
+      <CardContent className="flex flex-1 flex-col p-3 sm:p-4">
         <div className="space-y-2.5">
           <div className="flex flex-wrap gap-1.5">
             {product.prescriptionRequired && (
@@ -627,7 +628,7 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
         <div className="mt-auto flex flex-wrap gap-2 pt-2.5">
           <Button
             size="sm"
-            className="flex-1 h-9 px-2 sm:px-3 text-xs font-semibold gap-1 gradient-primary text-white shadow-sm hover:shadow-glow transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+            className="flex-1 h-9 px-2 sm:px-3 text-[11px] sm:text-xs font-semibold gap-1 gradient-primary text-white shadow-sm hover:shadow-glow transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
             onClick={handleBuyNow}
             disabled={product.stockQuantity === 0}
           >
@@ -637,7 +638,7 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
           <Button
             size="sm"
             variant="secondary"
-            className="h-9 px-2 sm:px-3 text-xs font-semibold gap-1 border border-border/60 hover:border-primary/30 hover:bg-primary/[0.03] transition-all duration-300"
+            className="h-9 px-2 sm:px-3 text-[11px] sm:text-xs font-semibold gap-1 border border-border/60 hover:border-primary/30 hover:bg-primary/[0.03] transition-all duration-300"
             onClick={handleAddToCart}
             disabled={product.stockQuantity === 0}
           >

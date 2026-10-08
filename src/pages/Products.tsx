@@ -638,10 +638,10 @@ export default function Products() {
                   The sidebar, filters and every other product section stay
                   untouched. */}
               <style>{`
-                .kc-products-grid .h-44 { height: 6.5rem; }
+                .kc-products-grid .h-44, .kc-products-grid .sm\:h-44 { height: 6.5rem; }
                 .kc-products-grid .size-20 { width: 4.5rem; height: 4.5rem; }
                 .kc-products-grid .size-14 { width: 2.75rem; height: 2.75rem; }
-                .kc-products-grid .p-4 { padding: 0.625rem 0.75rem; }
+                .kc-products-grid .p-4, .kc-products-grid .sm\:p-4 { padding: 0.625rem 0.75rem; }
                 .kc-products-grid .space-y-2\\.5 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.375rem; }
                 .kc-products-grid .text-sm { font-size: 0.8125rem; line-height: 1.25rem; }
                 .kc-products-grid .text-xs { font-size: 0.6875rem; line-height: 1rem; }

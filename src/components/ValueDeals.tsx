@@ -26,10 +26,10 @@ export default function ValueDeals() {
           above it). The shared ProductCard and every other section stay
           untouched. */}
       <style>{`
-        .kc-value-deal .h-44 { height: 5.5rem; }
+        .kc-value-deal .h-44, .kc-value-deal .sm\:h-44 { height: 5.5rem; }
         .kc-value-deal .size-20 { width: 4rem; height: 4rem; }
         .kc-value-deal .size-14 { width: 2.75rem; height: 2.75rem; }
-        .kc-value-deal .p-4 { padding: 0.5rem 0.75rem; }
+        .kc-value-deal .p-4, .kc-value-deal .sm\:p-4 { padding: 0.5rem 0.75rem; }
         .kc-value-deal .space-y-2\\.5 > :not([hidden]) ~ :not([hidden]) {
           margin-top: 0.375rem;
         }
@@ -38,7 +38,7 @@ export default function ValueDeals() {
         .kc-value-deal .h-9 { height: 2rem; }
       `}</style>
       <div className="mx-auto max-w-7xl px-4 sm:px-6 pt-1 sm:pt-2 pb-8 sm:pb-12">
-        <div className="flex items-end justify-between gap-4 mb-8">
+        <div className="flex items-end justify-between gap-4 mb-5 sm:mb-8">
           <div className="max-w-2xl">
             <div className="inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary mb-4">
               <BadgePercent className="size-3" />
@@ -67,9 +67,12 @@ export default function ValueDeals() {
             exactly (same container padding, same column count, same gaps), so
             each card renders at the SAME horizontal width as those tiles. Width
             only — the height rules in the scoped style block above stay as-is. */}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5">
+        {/* Mobile: swipeable row (two cards per view) so four deals occupy one
+            compact band instead of two tall grid rows — the Apollo-style
+            product carousel. From `sm` the original grid is restored exactly. */}
+        <div className="flex gap-3 overflow-x-auto scrollbar-none snap-x sm:grid sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5 sm:overflow-visible">
           {deals.map((product) => (
-            <div key={product._id} className="kc-value-deal">
+            <div key={product._id} className="kc-value-deal min-w-[calc(50%-0.375rem)] shrink-0 snap-start sm:min-w-0">
               <ProductCard product={product as any} />
             </div>
           ))}

@@ -58,10 +58,10 @@ export default function NewArrivals() {
           tighter padding, spacing and typography). The shared ProductCard
           and every other section stay untouched. */}
       <style>{`
-        .kc-new-arrival .h-44 { height: 5.5rem; }
+        .kc-new-arrival .h-44, .kc-new-arrival .sm\:h-44 { height: 5.5rem; }
         .kc-new-arrival .size-20 { width: 4rem; height: 4rem; }
         .kc-new-arrival .size-14 { width: 2.75rem; height: 2.75rem; }
-        .kc-new-arrival .p-4 { padding: 0.5rem 0.75rem; }
+        .kc-new-arrival .p-4, .kc-new-arrival .sm\:p-4 { padding: 0.5rem 0.75rem; }
         .kc-new-arrival .space-y-2\.5 > :not([hidden]) ~ :not([hidden]) {
           margin-top: 0.375rem;
         }
@@ -72,9 +72,9 @@ export default function NewArrivals() {
         .kc-new-arrival .h-9 { height: 2rem; }
       `}</style>
       <div className="mx-auto max-w-7xl px-4 sm:px-6 pt-1 sm:pt-2 pb-8 sm:pb-12">
-        <div className="flex items-end justify-between gap-4 mb-8">
+        <div className="flex items-end justify-between gap-4 mb-5 sm:mb-8">
           <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary mb-4">
+            <div className="inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary mb-3 sm:mb-4">
               <Sparkles className="size-3" />
               Just In
             </div>

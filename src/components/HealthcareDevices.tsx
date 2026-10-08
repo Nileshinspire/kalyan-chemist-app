@@ -235,7 +235,7 @@ export default function HealthcareDevices() {
           whileInView="visible"
           viewport={{ once: true, margin: "-60px" }}
           variants={{ visible: { transition: { staggerChildren: 0.06 } } }}
-          className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-6"
+          className="mt-5 grid grid-cols-2 gap-3 sm:mt-8 sm:grid-cols-3 sm:gap-4 lg:grid-cols-6"
         >
           {DEVICE_CATEGORIES.map((c) => (
             <motion.button
@@ -245,10 +245,10 @@ export default function HealthcareDevices() {
               onMouseEnter={() => preloadRoute("/products")}
               onFocus={() => preloadRoute("/products")}
               onClick={() => navigate(`/products?category=${c.slug}`)}
-              className="group flex flex-col items-center rounded-xl border border-border/60 bg-card p-4 sm:p-5 text-center shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/25 hover:shadow-md cursor-pointer"
+              className="group flex flex-col items-center rounded-xl border border-border/60 bg-card p-3 sm:p-5 text-center shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/25 hover:shadow-md cursor-pointer"
             >
               <span
-                className="flex size-14 shrink-0 items-center justify-center rounded-xl bg-muted text-[#0D6B62] transition-all duration-300 group-hover:bg-primary/10 group-hover:text-primary group-hover:shadow-[0_2px_14px_rgba(16,185,129,0.18)]"
+                className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-muted text-[#0D6B62] transition-all duration-300 group-hover:bg-primary/10 group-hover:text-primary group-hover:shadow-[0_2px_14px_rgba(16,185,129,0.18)] sm:size-14"
                 style={{
                   filter: "drop-shadow(0 1px 0 rgba(0,0,0,0.07)) drop-shadow(0 2px 3px rgba(0,0,0,0.1))",
                   transform: "perspective(250px) rotateX(1.5deg)",
@@ -262,7 +262,7 @@ export default function HealthcareDevices() {
                   {c.icon}
                 </span>
               </span>
-              <span className="mt-3 text-xs sm:text-sm font-semibold leading-snug text-foreground group-hover:text-primary transition-colors">
+              <span className="mt-2 text-xs sm:mt-3 sm:text-sm font-semibold leading-snug text-foreground group-hover:text-primary transition-colors">
                 {c.name}
               </span>
             </motion.button>

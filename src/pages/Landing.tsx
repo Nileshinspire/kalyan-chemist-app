@@ -317,7 +317,7 @@ export default function Landing() {
 
       {/* ── Quick Functions: Upload Prescription + Doctor Appointment + Lab Tests ── */}
       <section className="bg-background">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 py-6 sm:py-8">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 py-4 sm:py-8">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
             {/* Upload Prescription */}
             <button
@@ -450,7 +450,7 @@ export default function Landing() {
 
       {/* ── Trust bar ── */}
       <section className="border-y border-border/50 bg-card/60 backdrop-blur-sm">
-        <div className="mx-auto grid max-w-7xl grid-cols-2 gap-6 px-4 sm:px-6 py-12 sm:grid-cols-4">
+        <div className="mx-auto grid max-w-7xl grid-cols-2 gap-4 px-4 sm:px-6 py-8 sm:gap-6 sm:py-12 sm:grid-cols-4">
           {[
             { value: "10,000+", label: "Orders Delivered", icon: Truck },
             { value: "5,000+", label: "Products Available", icon: Pill },
@@ -468,7 +468,7 @@ export default function Landing() {
               <div className="mx-auto mb-3 flex size-10 items-center justify-center rounded-xl bg-primary/10 text-primary group-hover:bg-primary group-hover:text-white transition-all duration-300">
                 <stat.icon className="size-5" />
               </div>
-              <p className="text-2xl font-extrabold text-gradient sm:text-3xl">{stat.value}</p>
+              <p className="text-xl font-extrabold text-gradient sm:text-3xl">{stat.value}</p>
               <p className="mt-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">{stat.label}</p>
             </motion.div>
           ))}
@@ -481,7 +481,7 @@ export default function Landing() {
         whileInView="visible"
         viewport={{ once: true, margin: "-80px" }}
         variants={stagger}
-        className="mx-auto max-w-7xl px-4 sm:px-6 pt-10 pb-10 sm:pt-16"
+        className="mx-auto max-w-7xl px-4 sm:px-6 pt-8 pb-8 sm:pt-16 sm:pb-10"
       >
         <motion.div variants={fadeUp} className="flex flex-wrap items-end justify-between gap-4">
           <div className="max-w-xl">
@@ -489,10 +489,10 @@ export default function Landing() {
               <Sparkles className="size-3" />
               Browse by Category
             </div>
-            <h2 className="text-3xl font-bold tracking-tight sm:text-5xl">
+            <h2 className="text-2xl font-bold tracking-tight sm:text-5xl">
               Find What You Need
             </h2>
-            <p className="mt-3 text-muted-foreground leading-relaxed text-lg">
+            <p className="mt-2 text-sm sm:text-lg text-muted-foreground leading-relaxed">
               Find exactly what you need across our carefully organised medicine
               and wellness categories.
             </p>
@@ -508,7 +508,7 @@ export default function Landing() {
             <ArrowRight className="size-4 transition-transform duration-300 group-hover:translate-x-0.5" />
           </button>
         </motion.div>
-        <div className="mt-10 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 lg:gap-4">
+        <div className="mt-6 grid grid-cols-2 gap-3 sm:mt-10 sm:grid-cols-3 lg:grid-cols-5 lg:gap-4">
           {(categories ?? [])
             .filter((cat) => !HEALTH_CONDITION_SLUGS.has(cat.slug))
             .slice(0, 10)
@@ -550,17 +550,17 @@ export default function Landing() {
               Conditions" section exactly, so every Hot Sellers card renders at
               the SAME horizontal width as those tiles. Width only — no vertical
               class is touched. */}
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 pt-4 pb-12 sm:pb-24">
-            <div className="flex items-end justify-between mb-10">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 pt-3 pb-8 sm:pt-4 sm:pb-24">
+            <div className="flex items-end justify-between mb-6 sm:mb-10">
               <div>
                 <div className="inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary mb-4">
                   <Pill className="size-3" />
                   Bestselling
                 </div>
-                <h2 className="text-3xl font-bold tracking-tight sm:text-5xl">
+                <h2 className="text-2xl font-bold tracking-tight sm:text-5xl">
                   Hot Sellers
                 </h2>
-                <p className="mt-3 text-muted-foreground text-lg">
+                <p className="mt-2 text-sm sm:text-lg text-muted-foreground">
                   Our most-purchased medicines, ranked by real sales.
                 </p>
               </div>
@@ -568,7 +568,7 @@ export default function Landing() {
                 View All <ArrowRight className="ml-1.5 size-3.5" />
               </Button>
             </div>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5">
+            <div className="flex gap-3 overflow-x-auto scrollbar-none snap-x sm:grid sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5 sm:overflow-visible">
               {hotSellers.map((product) => {
                 const hasDiscount = product.discountPrice && product.discountPrice < product.price;
                 const discountPct = hasDiscount ? Math.round(((product.price - product.discountPrice!) / product.price) * 100) : 0;
@@ -578,7 +578,7 @@ export default function Landing() {
                     initial={{ opacity: 0, y: 16 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
-                    className="group rounded-2xl border border-border/70 bg-card p-4 cursor-pointer transition-all duration-500 hover:shadow-card-hover hover:border-primary/20 hover:-translate-y-1"
+                    className="group rounded-2xl border border-border/70 bg-card p-3 sm:p-4 cursor-pointer transition-all duration-500 hover:shadow-card-hover hover:border-primary/20 hover:-translate-y-1 min-w-[calc(50%-0.375rem)] shrink-0 snap-start sm:min-w-0"
                     onClick={() => {
                       beginProductTransition();
                       navigate(`/products/${product.slug}`, { state: { from: location.pathname + location.search } });
@@ -627,20 +627,20 @@ export default function Landing() {
 
       {/* ── Best Deals / Featured (from DB) ── */}
       {featuredProducts && featuredProducts.length > 0 && (
-        <section className="mx-auto max-w-7xl px-4 sm:px-6 py-12 sm:py-24">
-          <div className="mb-10">
+        <section className="mx-auto max-w-7xl px-4 sm:px-6 py-8 sm:py-24">
+          <div className="mb-6 sm:mb-10">
             <div className="inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary mb-4">
               <Zap className="size-3" />
               Limited Offers
             </div>
-            <h2 className="text-3xl font-bold tracking-tight sm:text-5xl">
+            <h2 className="text-2xl font-bold tracking-tight sm:text-5xl">
               Best Deals Right Now
             </h2>
-            <p className="mt-3 text-muted-foreground text-lg">
+            <p className="mt-2 text-sm sm:text-lg text-muted-foreground">
               Save more on your healthcare essentials with our top discounts.
             </p>
           </div>
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-4">
             {featuredProducts.map((product) => (
               <motion.div
                 key={product._id}
@@ -653,7 +653,7 @@ export default function Landing() {
                   navigate(`/products/${product.slug}`, { state: { from: location.pathname + location.search } });
                 }}
               >
-                <div className="relative flex items-center justify-center bg-gradient-to-br from-green-500/[0.06] to-emerald-500/[0.03] h-40">
+                <div className="relative flex items-center justify-center bg-gradient-to-br from-green-500/[0.06] to-emerald-500/[0.03] h-28 sm:h-40">
                   <Pill className="size-12 text-primary/20 group-hover:scale-110 transition-all duration-500" />
                   <div className="absolute top-3 left-3">
                     <Badge className="text-xs font-bold bg-gradient-to-r from-green-500 to-emerald-500 text-white border-0 shadow-md">
@@ -664,7 +664,7 @@ export default function Landing() {
                     <Badge variant="secondary" className="absolute top-3 right-2 text-[10px] bg-red-50 text-red-700">Rx</Badge>
                   )}
                 </div>
-                <div className="p-4">
+                <div className="p-3 sm:p-4">
                   <h3 className="text-sm font-semibold line-clamp-2 group-hover:text-primary transition-colors">{product.name}</h3>
                   <p className="text-xs text-muted-foreground mt-0.5">{product.manufacturer}</p>
                   <div className="flex items-baseline gap-1.5 mt-2">
@@ -692,21 +692,21 @@ export default function Landing() {
 
       {/* ── Testimonials: admin-approved only — public submission removed ── */}
       <section className="border-y border-border/50 bg-gradient-to-b from-card/50 to-background">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 py-12 sm:py-14">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8 sm:py-14">
           <div className="max-w-xl">
             <div className="inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary mb-3">
               <Star className="size-3" />
               Testimonials
             </div>
-            <h2 className="text-3xl font-bold tracking-tight sm:text-5xl">
+            <h2 className="text-2xl font-bold tracking-tight sm:text-5xl">
               What Our Customers Say
             </h2>
-            <p className="mt-3 text-muted-foreground leading-relaxed text-lg">
+            <p className="mt-2 text-sm sm:text-lg text-muted-foreground">
               Trusted by thousands of families across India for their everyday
               healthcare needs.
             </p>
           </div>
-          <div className="mt-8 grid gap-5 sm:grid-cols-3">
+          <div className="mt-6 grid gap-3 sm:mt-8 sm:gap-5 sm:grid-cols-3">
             {(dbTestimonials && dbTestimonials.length > 0 ? dbTestimonials : []).map((t, i) => (
               <motion.div
                 key={t._id}
@@ -714,7 +714,7 @@ export default function Landing() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-                className="flex flex-col justify-between rounded-2xl border border-border/70 bg-card p-6 transition-all duration-500 hover:shadow-card-hover hover:border-primary/20 hover:-translate-y-0.5"
+                className="flex flex-col justify-between rounded-2xl border border-border/70 bg-card p-4 sm:p-6 transition-all duration-500 hover:shadow-card-hover hover:border-primary/20 hover:-translate-y-0.5"
               >
                 <div>
                   <div className="mb-3 flex gap-0.5 text-amber-400">

@@ -53,7 +53,7 @@ const SubNav = memo(function SubNav() {
                 key={item.label}
                 type="button"
                 onClick={() => navigate(item.route)}
-                className="shrink-0 py-2.5 text-xs lg:text-sm font-medium text-foreground/70 hover:text-primary transition-colors duration-200 text-center whitespace-nowrap cursor-pointer"
+                className="shrink-0 py-2 text-xs lg:text-sm font-medium text-foreground/70 hover:text-primary transition-colors duration-200 text-center whitespace-nowrap cursor-pointer sm:py-2.5"
               >
                 {item.label}
               </button>

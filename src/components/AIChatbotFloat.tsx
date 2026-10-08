@@ -29,7 +29,7 @@ export default function AIChatbotFloat() {
   const verticalOffset = isHome ? "bottom-44" : "bottom-24";
 
   return (
-    <div className={`group fixed ${verticalOffset} right-6 z-50 flex items-center gap-3`}>
+    <div className={`group fixed ${verticalOffset} right-4 sm:right-6 z-50 flex items-center gap-3`}>
       {/* Hover label (desktop only) */}
       <span className="pointer-events-none hidden translate-x-1 rounded-full border border-border/60 bg-white px-3 py-1.5 text-[11px] font-semibold text-foreground/80 opacity-0 shadow-[0_2px_10px_rgba(0,0,0,0.06)] transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100 sm:block">
         Ask Kalyan Chemist AI
@@ -46,8 +46,8 @@ export default function AIChatbotFloat() {
         <span className="absolute inset-0 rounded-full bg-[oklch(0.45_0.12_170)]/25 opacity-60 blur-md transition-opacity duration-200 group-hover:opacity-90" />
 
         {/* Main button — teal brand gradient, premium finish */}
-        <span className="relative flex size-14 items-center justify-center rounded-full bg-gradient-to-br from-[oklch(0.42_0.09_170)] to-[oklch(0.36_0.09_173)] text-white shadow-lg shadow-[oklch(0.45_0.12_170)]/30 ring-1 ring-white/20 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:shadow-xl group-hover:shadow-[oklch(0.45_0.12_170)]/40 group-active:translate-y-0 group-active:scale-95">
-          <Bot className="size-6" />
+        <span className="relative flex size-12 items-center justify-center rounded-full bg-gradient-to-br from-[oklch(0.42_0.09_170)] to-[oklch(0.36_0.09_173)] text-white shadow-lg shadow-[oklch(0.45_0.12_170)]/30 ring-1 ring-white/20 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:shadow-xl group-hover:shadow-[oklch(0.45_0.12_170)]/40 group-active:translate-y-0 group-active:scale-95 sm:size-14">
+          <Bot className="size-5 sm:size-6" />
         </span>
 
         {/* AI sparkle badge */}

@@ -7,7 +7,12 @@ import { anonymousSignIn, injectSession } from "./authSession.mjs";
 
 await assertPreview();
 
-const WIDTHS = [320, 375, 390, 430];
+// Six phone widths are required now; the full set overruns the 180s command
+// cap in one run, so the sweep accepts a subset via `W=320,360` and the
+// 1440 desktop pass can be skipped with `SKIP_D=1` on the second batch.
+const WIDTHS = process.env.W
+  ? process.env.W.split(",").map((n) => Number(n.trim())).filter(Boolean)
+  : [320, 360, 375, 390, 412, 430];
 const ROUTES = [
   ["/", "Home"],
   ["/products", "Products"],
@@ -181,7 +186,7 @@ for (const width of WIDTHS) {
 await browser.close();
 
 // ── Desktop sanity pass (1440): the desktop layout must stay healthy ──
-{
+if (!process.env.SKIP_D) {
   const { browser: dB, page: dPage } = await launch();
   await go(dPage, "#/");
   for (const [route, label] of ROUTES) {
@@ -193,7 +198,7 @@ await browser.close();
   await dB.close();
 }
 
-report("Test 31: multi-width responsive QA (320/375/390/430 + 1440)", { counts: { checks: R.checks.length, failures: R.failures.length }, failures: R.failures });
+report(`Test 31: multi-width responsive QA (${WIDTHS.join("/")}${process.env.SKIP_D ? "" : " + 1440"})`, { counts: { checks: R.checks.length, failures: R.failures.length }, failures: R.failures });
 console.log(`\nchecks=${R.checks.length} ${R.failures.length ? "FAILURES:" : "ALL CHECKS PASSED"}`);
 for (const f of R.failures) console.log(" - " + f);
 if (R.failures.length) process.exit(1);

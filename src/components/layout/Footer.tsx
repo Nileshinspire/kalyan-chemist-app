@@ -479,7 +479,7 @@ const Footer = memo(function Footer() {
 
   return (
     <footer
-      className="mt-auto border-t border-white/10 bg-[#07281f] text-white/70"
+      className="mt-auto border-t border-white/10 bg-[#07281f] text-white/70 pb-[env(safe-area-inset-bottom)] md:pb-0"
       aria-label="Kalyan Chemist footer"
     >
       {/* ── Main navigation columns ──

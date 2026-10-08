@@ -560,9 +560,9 @@ export default function WhyKalyanChemist() {
             {/* stage backdrop: layered light pools behind the logo */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none" aria-hidden="true">
               {/* wide deep-emerald pool */}
-              <div className="absolute h-[170px] w-[170px] sm:h-[225px] sm:w-[225px] rounded-full" style={{ background: "radial-gradient(circle, rgba(8,122,82,0.30), transparent 68%)" }} />
+              <div className="absolute h-[120px] w-[120px] sm:h-[225px] sm:w-[225px] rounded-full" style={{ background: "radial-gradient(circle, rgba(8,122,82,0.30), transparent 68%)" }} />
               {/* emerald core */}
-              <div data-kcw-anim className="h-[125px] w-[125px] sm:h-[170px] sm:w-[170px] rounded-full" style={{ background: "radial-gradient(circle, rgba(22,163,106,0.18), transparent 62%)", animation: "kcw-pulse 5s ease-in-out infinite" }} />
+              <div data-kcw-anim className="h-[88px] w-[88px] sm:h-[170px] sm:w-[170px] rounded-full" style={{ background: "radial-gradient(circle, rgba(22,163,106,0.18), transparent 62%)", animation: "kcw-pulse 5s ease-in-out infinite" }} />
               {/* champagne under-glow */}
               <div data-kcw-anim className="absolute bottom-[6%] h-[52px] w-[70%] rounded-full" style={{ background: "radial-gradient(ellipse, rgba(216,184,120,0.10), transparent 65%)", animation: "kcw-pulse 6s ease-in-out 1.2s infinite" }} />
               {/* volumetric light beams (static gradient, opacity-animated) */}
@@ -590,7 +590,7 @@ export default function WhyKalyanChemist() {
             </div>
 
             {/* ── 3D SCENE CONTAINER ── */}
-            <div ref={sceneRef} className="relative h-[150px] w-[150px] sm:h-[200px] sm:w-[200px]" style={{ perspective: "1100px", transformStyle: "preserve-3d" }}>
+            <div ref={sceneRef} className="relative h-[112px] w-[112px] sm:h-[200px] sm:w-[200px]" style={{ perspective: "1100px", transformStyle: "preserve-3d" }}>
 
               {/* ── KC LOGO — solid two-sided 3D object: turns FRONT ↔ BACK in place ──
                   ONE wrapper (preserve-3d, origin center) carries the complete
@@ -705,8 +705,11 @@ export default function WhyKalyanChemist() {
 
           {/* ── CARDS COLUMN ── */}
           <div>
-            {/* clear fixed separation between all four cards — they never touch */}
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-3.5">
+            {/* clear fixed separation between all four cards — they never touch.
+                Below `sm` they sit in a 2×2 grid (Apollo-style compact benefit
+                tiles) instead of a single tall stack; from `sm` up the layout is
+                byte-for-byte the original 2-col grid. */}
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 sm:gap-3.5">
               {CARDS.map((card, i) => {
                 const isActive = activeIdx === i;
                 const Icon = card.icon;
