@@ -108,22 +108,18 @@ export default function NewArrivals() {
         </div>
         <div
             ref={trackRef}
-            onScroll={(e) => {
-              const el = e.currentTarget;
-              setCanPrev(el.scrollLeft > 4);
-              setCanNext(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
-            }}
-            className="flex gap-4 overflow-x-auto scrollbar-none snap-x snap-mandatory -mx-4 sm:-mx-6 px-4 sm:px-6"
-          >
-            {products.map((product) => (
-              <div
-                key={product._id}
-                className="kc-new-arrival min-w-[calc(50%-0.5rem)] snap-start md:min-w-[calc(33.333%-0.667rem)] lg:min-w-[calc(25%-0.75rem)]"
-              >
-                <ProductCard product={product} newArrival />
-              </div>
-            ))}
-          </div>
+          onScroll={update}
+          className="flex gap-4 overflow-x-auto scrollbar-none snap-x snap-mandatory -mx-4 sm:-mx-6 px-4 sm:px-6"
+        >
+          {products.map((product) => (
+            <div
+              key={product._id}
+              className="kc-new-arrival min-w-[calc(50%-0.5rem)] snap-start md:min-w-[calc(33.333%-0.667rem)] lg:min-w-[calc(25%-0.75rem)]"
+            >
+              <ProductCard product={product} newArrival />
+            </div>
+          ))}
+        </div>
 
         {/* Mobile arrows */}
         <div className="mt-5 flex items-center justify-center gap-3 sm:hidden">

@@ -101,6 +101,7 @@ export default function ShopByBrand() {
       ? (tile.offsetWidth + gap) * Math.max(1, Math.round(el.clientWidth / (tile.offsetWidth + gap)))
       : el.clientWidth;
     el.scrollBy({ left: direction * step, behavior: "smooth" });
+    updateArrows();
   };
 
   const openBrand = (slug: string) => {
