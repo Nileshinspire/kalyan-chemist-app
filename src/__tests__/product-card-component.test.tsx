@@ -1,3 +1,4 @@
+import { act } from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
@@ -5,11 +6,19 @@ import { useQuery, useMutation } from "convex/react";
 import ProductCard from "@/components/ProductCard";
 
 vi.mock("convex/react");
+vi.mock("@/lib/product-transition", () => ({
+  beginProductTransition: vi.fn(),
+}));
 vi.mock("@/context/AuthContext", () => ({
   useAuth: vi.fn(() => ({
-    user: null,
+    user: {
+      _id: "user_1",
+      name: "QA User",
+      email: "qa@example.com",
+      role: "customer",
+    },
     isLoading: false,
-    isAuthenticated: false,
+    isAuthenticated: true,
     isAdmin: false,
   })),
   AuthProvider: ({ children }: { children: React.ReactNode }) => children,
@@ -46,8 +55,8 @@ describe("ProductCard component", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     (mockUseMutation as any)
-      .mockReturnValueOnce(mockAddToCart)
-      .mockReturnValueOnce(mockToggleWishlist);
+      .mockReturnValueOnce(mockToggleWishlist)
+      .mockReturnValueOnce(mockAddToCart);
     mockUseQuery.mockReturnValue(false);
   });
 
@@ -159,26 +168,24 @@ describe("ProductCard component", () => {
 
   it("calls addToCart when Cart button clicked", async () => {
     mockAddToCart.mockResolvedValue({});
-    renderCard();
-    const cartBtn = screen.getByText("Cart").closest("button");
-    if (cartBtn) {
-      cartBtn.click();
-      expect(mockAddToCart).toHaveBeenCalledWith({ productId: "prod_1", quantity: 1 });
-    }
+    const { container } = renderCard();
+    const cartBtn = container.querySelector('button:not([disabled])') as HTMLButtonElement | null;
+    expect(cartBtn).toBeTruthy();
+    cartBtn!.click();
+    await vi.waitFor(() => expect(mockAddToCart).toHaveBeenCalled(), { timeout: 2000 });
+    expect(mockAddToCart).toHaveBeenCalledWith({ productId: "prod_1" });
   });
 
-  it("calls toggleWishlist when heart button clicked", () => {
+  it("calls toggleWishlist when heart button clicked", async () => {
     mockToggleWishlist.mockResolvedValue({});
     renderCard();
-    const heartBtns = screen.getAllByRole("button");
-    // Heart button is the one with aria-label or icon-heart
-    const heartBtn = heartBtns.find((btn) =>
-      btn.querySelector('[data-testid="icon-Heart"]')
-    );
-    if (heartBtn) {
-      heartBtn.click();
-      expect(mockToggleWishlist).toHaveBeenCalledWith({ productId: "prod_1" });
-    }
+    const heartBtn = container.querySelector('[data-testid="icon-Heart"]');
+    expect(heartBtn).toBeTruthy();
+    const btn = heartBtn!.closest('button') as HTMLButtonElement | null;
+    expect(btn).toBeTruthy();
+    btn!.click();
+    await vi.waitFor(() => expect(mockToggleWishlist).toHaveBeenCalled(), { timeout: 2000 });
+    expect(mockToggleWishlist).toHaveBeenCalledWith({ productId: "prod_1" });
   });
 });
 
@@ -206,7 +213,7 @@ describe("ProductCard uniform outer height", () => {
 
   it("keeps the image band at its fixed height and unable to shrink", () => {
     const { container } = renderCard({ imageUrl: "https://example.com/img.jpg" });
-    const band = container.querySelector(".h-44");
+    const band = container.querySelector('[class*="h-44"]');
     expect(band).toBeTruthy();
     expect(band?.className).toContain("shrink-0");
   });
