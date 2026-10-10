@@ -13,6 +13,7 @@ import { useProductTransitionVeil } from "@/lib/product-transition";
 import { installRoutePrefetch } from "@/lib/route-preload";
 import { PageErrorBoundary } from "@/components/PageErrorBoundary";
 import AIChatbotFloat from "@/components/AIChatbotFloat";
+import MobileBottomNav from "@/components/layout/MobileBottomNav";
 import RouteLoading from "@/components/RouteLoading";
 import "./index.css";
 
@@ -785,6 +786,8 @@ createRoot(document.getElementById("root")!).render(
           </PageErrorBoundary>
           {/* Global floating AI assistant — one instance, customer side only */}
           <AIChatbotFloat />
+          {/* Mobile-only bottom navigation — hidden on desktop/laptop (`md:hidden`) */}
+          <MobileBottomNav />
         </HashRouter>
         <Toaster />
       </AuthProvider>

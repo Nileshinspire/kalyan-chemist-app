@@ -26,7 +26,11 @@ export default function AIChatbotFloat() {
   }
 
   const isHome = location.pathname === "/";
-  const verticalOffset = isHome ? "bottom-44" : "bottom-24";
+  // Below `md` the button stacks above the mobile bottom navigation and the
+  // WhatsApp button; from `md` up the original desktop offsets are restored.
+  const verticalOffset = isHome
+    ? "bottom-[calc(11rem+env(safe-area-inset-bottom))] md:bottom-44"
+    : "bottom-[calc(8.5rem+env(safe-area-inset-bottom))] md:bottom-24";
 
   return (
     <div className={`group fixed ${verticalOffset} right-4 sm:right-6 z-50 flex items-center gap-3`}>

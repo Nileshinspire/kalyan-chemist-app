@@ -578,7 +578,7 @@ export default function Landing() {
                     initial={{ opacity: 0, y: 16 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
-                    className="group rounded-2xl border border-border/70 bg-card p-3 sm:p-4 cursor-pointer transition-all duration-500 hover:shadow-card-hover hover:border-primary/20 hover:-translate-y-1 min-w-[calc(50%-0.375rem)] shrink-0 snap-start sm:min-w-0"
+                    className="group rounded-2xl border border-border/70 bg-card p-3 sm:p-4 cursor-pointer transition-all duration-500 hover:shadow-card-hover hover:border-primary/20 hover:-translate-y-1 min-w-[calc(50%-0.5rem)] shrink-0 snap-start sm:min-w-0"
                     onClick={() => {
                       beginProductTransition();
                       navigate(`/products/${product.slug}`, { state: { from: location.pathname + location.search } });

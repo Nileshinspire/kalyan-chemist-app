@@ -34,8 +34,10 @@ export default function WhatsAppFloat() {
     setShowTooltip(false);
   };
 
+  // Mobile lifts the button above the app's bottom navigation (below `md`);
+  // from `md` up the original desktop position is restored exactly.
   return (
-    <div className="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] right-[max(1rem,env(safe-area-inset-right))] z-50 flex flex-col items-end gap-3 sm:bottom-[max(1.5rem,env(safe-area-inset-bottom))] sm:right-[max(1.5rem,env(safe-area-inset-right))]">
+    <div className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-[max(1rem,env(safe-area-inset-right))] z-50 flex flex-col items-end gap-3 md:bottom-[max(1.5rem,env(safe-area-inset-bottom))] sm:right-[max(1.5rem,env(safe-area-inset-right))]">
       {/* Tooltip */}
       <AnimatePresence>
         {showTooltip && (

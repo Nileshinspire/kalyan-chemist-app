@@ -617,15 +617,16 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
         </div>
 
         {/* In the 2-column grids a card is only ~140px wide on a small phone,
-            where "Buy Now" + "Cart" no longer fit side by side. The row wraps
-            so the same two buttons stack instead of colliding; from `sm` up
-            there is room, nothing wraps, and the card is unchanged.
+            where "Buy Now" + "Cart" no longer fit side by side. Below `sm` the
+            action row stacks the two existing buttons into clean full-width
+            rows (no wrapping, no collision); from `sm` up it is the original
+            single row with `flex-wrap` preserved, so desktop is unchanged.
 
             It is a sibling of the details block (not a child of it) and takes
             `mt-auto`, so the free space of a shorter card is absorbed above it
             and every card's buttons sit on the same bottom line. `pt-2.5`
             keeps the gap that the details block's `space-y-2.5` used to give. */}
-        <div className="mt-auto flex flex-wrap gap-2 pt-2.5">
+        <div className="mt-auto flex flex-col gap-2 pt-2.5 sm:flex-row sm:flex-wrap">
           <Button
             size="sm"
             className="flex-1 h-9 px-2 sm:px-3 text-[11px] sm:text-xs font-semibold gap-1 gradient-primary text-white shadow-sm hover:shadow-glow transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"

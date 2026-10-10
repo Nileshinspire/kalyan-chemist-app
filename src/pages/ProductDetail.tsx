@@ -689,7 +689,7 @@ export default function ProductDetail() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
+    <div className="min-h-screen flex flex-col bg-background pb-16 md:pb-0">
       <Navbar />
       <main className="flex-1 mx-auto max-w-7xl w-full px-4 sm:px-6 py-8">
         <Breadcrumb items={breadcrumbItems} />
@@ -1114,7 +1114,7 @@ export default function ProductDetail() {
                 scrolled the whole page sideways. When there is room (sm and up,
                 and on every desktop) nothing wraps, so the row renders exactly
                 as before. `gap-2` is restored to `gap-3` from sm upwards. */}
-            <div className="flex flex-wrap gap-2 sm:gap-3">
+            <div className="hidden md:flex flex-wrap gap-2 sm:gap-3">
               <Button
                 size="lg"
                 className="flex-1 h-12 text-sm font-semibold gap-2 gradient-primary text-white shadow-glow hover:shadow-card-hover transition-all hover:scale-[1.02] active:scale-[0.98] rounded-xl"
@@ -1915,6 +1915,45 @@ export default function ProductDetail() {
           </Card>
         </motion.div>
       </main>
+
+      {/* Mobile-only sticky purchase bar. Reuses the EXACT same handlers and
+          stock validation as the inline CTA row above (which is now `lg:`-only),
+          so no purchase logic is duplicated. It sits above the app's mobile
+          bottom navigation and is `lg:hidden`, so the desktop/laptop product
+          page is unchanged. The page container's `pb-16 lg:pb-0` keeps it from
+          covering the end of the content. */}
+      <div className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-40 border-t border-border/60 bg-background/95 backdrop-blur-md md:hidden">
+        <div className="mx-auto flex max-w-md items-center gap-1.5 px-4 py-2.5">
+          <Button
+            size="lg"
+            className="flex-1 min-w-0 h-11 px-2.5 text-sm font-semibold gap-1.5 gradient-primary text-white shadow-glow rounded-xl"
+            onClick={handleBuyNow}
+            disabled={activeStock <= 0}
+          >
+            <Zap className="size-4" />
+            Buy Now
+          </Button>
+          <Button
+            size="lg"
+            variant="outline"
+            className="h-11 px-2.5 text-sm font-semibold gap-1.5 rounded-xl"
+            onClick={handleAddToCart}
+            disabled={activeStock <= 0}
+          >
+            <ShoppingCart className="size-4" />
+            {isInStock ? "Add to Cart" : "Out of Stock"}
+          </Button>
+          <Button
+            size="lg"
+            variant="outline"
+            aria-label="Add to wishlist"
+            className={`h-11 w-11 rounded-xl ${isWishlisted ? "bg-rose-50 border-rose-200 text-rose-500 hover:bg-rose-100" : ""}`}
+            onClick={handleWishlist}
+          >
+            <Heart className={`size-4 ${isWishlisted ? "fill-rose-500" : ""}`} />
+          </Button>
+        </div>
+      </div>
 
       {/* Share Dialog */}
       <Dialog open={shareOpen} onOpenChange={setShareOpen}>

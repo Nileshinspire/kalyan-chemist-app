@@ -266,7 +266,9 @@ export default function PromotionalCarousel() {
                 aria-hidden={!active}
               >
                 {/* Banner image */}
-                <div className="relative aspect-[21/9] sm:aspect-[21/8] overflow-hidden bg-gradient-to-r from-emerald-900 to-teal-700">
+                {/* Mobile uses a taller 2:1 frame (less letterboxed, less clipped
+                    text); from `sm` up the original 21:8 is restored exactly. */}
+                <div className="relative aspect-[2/1] sm:aspect-[21/8] overflow-hidden bg-gradient-to-r from-emerald-900 to-teal-700">
                   {/* Mobile image (shown on small screens if available) */}
                   {s.mobileBannerImage && (
                     <img

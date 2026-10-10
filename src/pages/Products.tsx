@@ -19,6 +19,13 @@ import {
 import { getPaginationRange, resolveProductPage } from "@/lib/pagination";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -113,7 +120,6 @@ export default function Products() {
 
   const [autocompleteQuery, setAutocompleteQuery] = useState("");
   const [showAutocomplete, setShowAutocomplete] = useState(false);
-  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const autocompleteRef = useRef<HTMLDivElement>(null);
 
@@ -523,9 +529,14 @@ export default function Products() {
 
             {/* Main content */}
             <div className="flex-1 min-w-0" ref={resultsRef}>
-              {/* Mobile filter bar */}
-              <div className="flex items-center gap-3 mb-4 lg:hidden">
-                <div className="relative flex-1">
+              {/* Mobile filter bar — search + sorting + filters. Below `lg` only;
+                  the desktop sidebar above is untouched. Sorting uses the SAME
+                  sortBy state/setter and the SAME options as the desktop control,
+                  so behavior is unchanged. Filters reuse the project's existing
+                  Sheet component (as a bottom sheet) instead of pushing the grid
+                  down, so the existing filter controls stay one tap away. */}
+              <div className="flex items-center gap-2 mb-4 lg:hidden">
+                <div className="relative flex-1 min-w-0">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
                   <Input
                     placeholder="Search medicines..."
@@ -534,41 +545,64 @@ export default function Products() {
                     className="pl-9 h-10 rounded-xl"
                   />
                 </div>
-                <Button variant="outline" size="icon" className="h-10 w-10 rounded-xl" onClick={() => setMobileFiltersOpen(!mobileFiltersOpen)}>
-                  <SlidersHorizontal className="size-4" />
-                </Button>
-              </div>
-
-              {/* Mobile filters panel */}
-              {mobileFiltersOpen && (
-                <div className="lg:hidden mb-4 p-4 rounded-2xl border border-border/60 bg-card space-y-4">
-                  <div>
-                    <Label className="text-xs font-bold mb-2 block">Sort By</Label>
-                    <Select value={sortBy} onValueChange={setSortBy}>
-                      <SelectTrigger className="h-10 rounded-xl"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="relevance">Relevance</SelectItem>
-                        <SelectItem value="price_asc">Price: Low to High</SelectItem>
-                        <SelectItem value="price_desc">Price: High to Low</SelectItem>
-                        <SelectItem value="discount">Biggest Discount</SelectItem>
-                        <SelectItem value="newest">Newest First</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <Label className="text-xs font-bold mb-2 block">Type</Label>
-                    <div className="flex gap-2">
-                      <Button variant={prescriptionFilter === "" ? "default" : "outline"} size="sm" className="rounded-lg text-xs" onClick={() => setPrescriptionFilter("")}>All</Button>
-                      <Button variant={prescriptionFilter === "otc" ? "default" : "outline"} size="sm" className="rounded-lg text-xs" onClick={() => setPrescriptionFilter("otc")}>OTC</Button>
-                      <Button variant={prescriptionFilter === "rx" ? "default" : "outline"} size="sm" className="rounded-lg text-xs" onClick={() => setPrescriptionFilter("rx")}>Rx</Button>
+                <Select value={sortBy} onValueChange={setSortBy}>
+                  <SelectTrigger className="h-10 w-[7.5rem] shrink-0 rounded-xl text-xs" aria-label="Sort products">
+                    <SelectValue placeholder="Sort" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="relevance">Relevance</SelectItem>
+                    <SelectItem value="price_asc">Price: Low to High</SelectItem>
+                    <SelectItem value="price_desc">Price: High to Low</SelectItem>
+                    <SelectItem value="discount">Biggest Discount</SelectItem>
+                    <SelectItem value="newest">Newest First</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Sheet>
+                  <SheetTrigger asChild>
+                    <Button variant="outline" size="icon" className="h-10 w-10 shrink-0 rounded-xl" aria-label="Open filters">
+                      <SlidersHorizontal className="size-4" />
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent side="bottom" className="lg:hidden max-h-[85vh] overflow-y-auto rounded-t-2xl">
+                    <SheetHeader>
+                      <SheetTitle>Filters</SheetTitle>
+                    </SheetHeader>
+                    <div className="space-y-4 px-4 pb-6">
+                      <div>
+                        <Label className="text-xs font-bold mb-2 block">Sort By</Label>
+                        <Select value={sortBy} onValueChange={setSortBy}>
+                          <SelectTrigger className="h-10 rounded-xl"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="relevance">Relevance</SelectItem>
+                            <SelectItem value="price_asc">Price: Low to High</SelectItem>
+                            <SelectItem value="price_desc">Price: High to Low</SelectItem>
+                            <SelectItem value="discount">Biggest Discount</SelectItem>
+                            <SelectItem value="newest">Newest First</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="text-xs font-bold mb-2 block">Type</Label>
+                        <div className="flex gap-2">
+                          <Button variant={prescriptionFilter === "" ? "default" : "outline"} size="sm" className="rounded-lg text-xs" onClick={() => setPrescriptionFilter("")}>All</Button>
+                          <Button variant={prescriptionFilter === "otc" ? "default" : "outline"} size="sm" className="rounded-lg text-xs" onClick={() => setPrescriptionFilter("otc")}>OTC</Button>
+                          <Button variant={prescriptionFilter === "rx" ? "default" : "outline"} size="sm" className="rounded-lg text-xs" onClick={() => setPrescriptionFilter("rx")}>Rx</Button>
+                        </div>
+                      </div>
+                      <label className="flex items-center gap-2 text-sm">
+                        <Checkbox checked={stockFilter === "in_stock"} onCheckedChange={() => setStockFilter(stockFilter === "in_stock" ? "" : "in_stock")} />
+                        In Stock Only
+                      </label>
+                      {hasActiveFilters && (
+                        <Button variant="outline" size="sm" className="w-full text-sm rounded-xl" onClick={clearFilters}>
+                          <X className="mr-1.5 size-3" />
+                          Clear All Filters
+                        </Button>
+                      )}
                     </div>
-                  </div>
-                  <label className="flex items-center gap-2 text-sm">
-                    <Checkbox checked={stockFilter === "in_stock"} onCheckedChange={() => setStockFilter(stockFilter === "in_stock" ? "" : "in_stock")} />
-                    In Stock Only
-                  </label>
-                </div>
-              )}
+                  </SheetContent>
+                </Sheet>
+              </div>
 
               {/* Sort (desktop) */}
               <div className="hidden lg:flex items-center justify-between mb-4">

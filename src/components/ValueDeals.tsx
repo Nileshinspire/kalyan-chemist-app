@@ -72,7 +72,7 @@ export default function ValueDeals() {
             product carousel. From `sm` the original grid is restored exactly. */}
         <div className="flex gap-3 overflow-x-auto scrollbar-none snap-x sm:grid sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5 sm:overflow-visible">
           {deals.map((product) => (
-            <div key={product._id} className="kc-value-deal min-w-[calc(50%-0.375rem)] shrink-0 snap-start sm:min-w-0">
+            <div key={product._id} className="kc-value-deal min-w-[calc(50%-0.5rem)] shrink-0 snap-start sm:min-w-0">
               <ProductCard product={product as any} />
             </div>
           ))}

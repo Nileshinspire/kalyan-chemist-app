@@ -492,10 +492,11 @@ const Navbar = memo(function Navbar() {
           row). Below `md` Row 1 only carries the logo / cart / menu, so without
           this row phones had no visible search outside the menu sheet. Hidden
           from `md` up, where Row 1 already carries the desktop search, so the
-          laptop/desktop header is byte-for-byte unchanged. Skipped on the
-          homepage, whose hero already owns the primary search (same rule the
-          desktop search follows above). */}
-      {!isHomePage && (
+          laptop/desktop header is byte-for-byte unchanged. On the homepage the
+          hero owns the rest-state search, so this row joins it on scroll (the
+          same `scrolled` state already tracked above) to keep search reachable
+          while scrolling. */}
+      {(!isHomePage || scrolled) && (
         <form
           onSubmit={handleSearch}
           role="search"
@@ -519,7 +520,7 @@ const Navbar = memo(function Navbar() {
           Only render on homepage — inner pages get it via SubNav
           ═══════════════════════════════════════════════════════ */}
       {isHomePage && (
-      <nav className="hidden md:block" style={{ background: '#0a3d2e' }}>
+      <nav className="block" style={{ background: '#0a3d2e' }}>
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <div className="flex items-center gap-0 overflow-x-auto scrollbar-none pr-6">
             {CATEGORY_NAV_ITEMS.map((cat) => {
