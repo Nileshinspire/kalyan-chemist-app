@@ -215,7 +215,7 @@ export default function HealthcareDevices() {
 
   return (
     <section className="bg-background">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 pt-1 sm:pt-2 pb-8 sm:pb-12">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 pt-6 pb-6 sm:pt-2 sm:pb-12">
         <div className="max-w-2xl">
           <div className="inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary mb-4">
             <Activity className="size-3" />

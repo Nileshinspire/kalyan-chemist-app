@@ -114,7 +114,7 @@ export default function ShopByBrand() {
 
   return (
     <section className="bg-background">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 py-12 sm:py-16">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 py-6 sm:py-16">
         <div className="mb-8 flex items-end justify-between gap-4">
           <div>
             <h2 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">

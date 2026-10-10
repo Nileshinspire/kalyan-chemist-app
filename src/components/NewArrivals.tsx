@@ -72,7 +72,7 @@ export default function NewArrivals() {
         .kc-new-arrival .text-lg { font-size: 1rem; line-height: 1.5rem; }
         .kc-new-arrival .h-9 { height: 2rem; }
       `}</style>
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 pt-1 sm:pt-2 pb-8 sm:pb-12">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 pt-6 pb-6 sm:pt-2 sm:pb-12">
         <div className="flex items-end justify-between gap-4 mb-5 sm:mb-8">
           <div className="max-w-2xl">
             <div className="inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary mb-3 sm:mb-4">

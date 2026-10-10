@@ -541,7 +541,7 @@ export default function WhyKalyanChemist() {
       )}
 
       {/* ════ LAYER 3 — CONTENT ════ */}
-      <div className="relative z-10 mx-auto max-w-7xl px-5 sm:px-8">
+      <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-8">
         {/* ── TOP HEADING ── */}
         <motion.div initial="hidden" animate={revealed ? "visible" : "hidden"} variants={headV} className="text-center mb-1 sm:mb-1.5">
           <h2 className="text-[clamp(1.8rem,5vw,4rem)] font-black uppercase leading-[0.92] tracking-tight">

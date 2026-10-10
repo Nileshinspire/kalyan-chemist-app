@@ -228,7 +228,7 @@ export default function PromotionalCarousel() {
   return (
     <section
       ref={sectionRef}
-      className="mx-auto max-w-7xl px-4 sm:px-6"
+      className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-0"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       onFocus={() => setPaused(true)}

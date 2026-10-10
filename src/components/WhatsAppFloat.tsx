@@ -45,7 +45,7 @@ export default function WhatsAppFloat() {
             initial={{ opacity: 0, y: 10, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 10, scale: 0.9 }}
-            className="relative bg-white rounded-2xl shadow-xl border border-gray-100 px-3.5 py-2.5 max-w-[200px] sm:px-4 sm:py-3 sm:max-w-[220px]"
+            className="relative hidden md:block bg-white rounded-2xl shadow-xl border border-gray-100 px-3.5 py-2.5 max-w-[200px] sm:px-4 sm:py-3 sm:max-w-[220px]"
           >
             <button
               onClick={() => setShowTooltip(false)}

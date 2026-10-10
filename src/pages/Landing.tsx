@@ -317,7 +317,11 @@ export default function Landing() {
 
       {/* ── Quick Functions: Upload Prescription + Doctor Appointment + Lab Tests ── */}
       <section className="bg-background">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 py-4 sm:py-8">
+        {/* Mobile rhythm: every homepage section carries the same `py-6`
+            (24px) block so consecutive sections sit a uniform 48px apart.
+            The `sm:`/`md:` values below are unchanged, so tablet/laptop/
+            desktop keep their exact existing spacing. */}
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 py-6 sm:py-8">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
             {/* Upload Prescription */}
             <button
@@ -450,7 +454,7 @@ export default function Landing() {
 
       {/* ── Trust bar ── */}
       <section className="border-y border-border/50 bg-card/60 backdrop-blur-sm">
-        <div className="mx-auto grid max-w-7xl grid-cols-2 gap-4 px-4 sm:px-6 py-8 sm:gap-6 sm:py-12 sm:grid-cols-4">
+        <div className="mx-auto grid max-w-7xl grid-cols-2 gap-4 px-4 sm:px-6 py-6 sm:gap-6 sm:py-12 sm:grid-cols-4">
           {[
             { value: "10,000+", label: "Orders Delivered", icon: Truck },
             { value: "5,000+", label: "Products Available", icon: Pill },
@@ -481,7 +485,7 @@ export default function Landing() {
         whileInView="visible"
         viewport={{ once: true, margin: "-80px" }}
         variants={stagger}
-        className="mx-auto max-w-7xl px-4 sm:px-6 pt-8 pb-8 sm:pt-16 sm:pb-10"
+        className="mx-auto max-w-7xl px-4 sm:px-6 pt-6 pb-6 sm:pt-16 sm:pb-10"
       >
         <motion.div variants={fadeUp} className="flex flex-wrap items-end justify-between gap-4">
           <div className="max-w-xl">
@@ -550,7 +554,7 @@ export default function Landing() {
               Conditions" section exactly, so every Hot Sellers card renders at
               the SAME horizontal width as those tiles. Width only — no vertical
               class is touched. */}
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 pt-3 pb-8 sm:pt-4 sm:pb-24">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 pt-6 pb-6 sm:pt-4 sm:pb-24">
             <div className="flex items-end justify-between mb-6 sm:mb-10">
               <div>
                 <div className="inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary mb-4">
@@ -627,7 +631,7 @@ export default function Landing() {
 
       {/* ── Best Deals / Featured (from DB) ── */}
       {featuredProducts && featuredProducts.length > 0 && (
-        <section className="mx-auto max-w-7xl px-4 sm:px-6 py-8 sm:py-24">
+        <section className="mx-auto max-w-7xl px-4 sm:px-6 py-6 sm:py-24">
           <div className="mb-6 sm:mb-10">
             <div className="inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary mb-4">
               <Zap className="size-3" />
@@ -692,7 +696,7 @@ export default function Landing() {
 
       {/* ── Testimonials: admin-approved only — public submission removed ── */}
       <section className="border-y border-border/50 bg-gradient-to-b from-card/50 to-background">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8 sm:py-14">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 py-6 sm:py-14">
           <div className="max-w-xl">
             <div className="inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary mb-3">
               <Star className="size-3" />
