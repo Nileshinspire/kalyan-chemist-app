@@ -54,9 +54,10 @@ describe("ProductCard component", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // ProductCard calls useMutation in this order: addToCart, then toggleWishlist.
     (mockUseMutation as any)
-      .mockReturnValueOnce(mockToggleWishlist)
-      .mockReturnValueOnce(mockAddToCart);
+      .mockReturnValueOnce(mockAddToCart)
+      .mockReturnValueOnce(mockToggleWishlist);
     mockUseQuery.mockReturnValue(false);
   });
 
@@ -168,20 +169,20 @@ describe("ProductCard component", () => {
 
   it("calls addToCart when Cart button clicked", async () => {
     mockAddToCart.mockResolvedValue({});
-    const { container } = renderCard();
-    const cartBtn = container.querySelector('button:not([disabled])') as HTMLButtonElement | null;
+    renderCard();
+    const cartBtn = screen.getByText("Cart").closest("button") as HTMLButtonElement | null;
     expect(cartBtn).toBeTruthy();
     cartBtn!.click();
     await vi.waitFor(() => expect(mockAddToCart).toHaveBeenCalled(), { timeout: 2000 });
-    expect(mockAddToCart).toHaveBeenCalledWith({ productId: "prod_1" });
+    expect(mockAddToCart).toHaveBeenCalledWith({ productId: "prod_1", quantity: 1 });
   });
 
   it("calls toggleWishlist when heart button clicked", async () => {
     mockToggleWishlist.mockResolvedValue({});
-    renderCard();
-    const heartBtn = container.querySelector('[data-testid="icon-Heart"]');
-    expect(heartBtn).toBeTruthy();
-    const btn = heartBtn!.closest('button') as HTMLButtonElement | null;
+    const { container } = renderCard();
+    const heartIcon = container.querySelector("button .lucide-heart");
+    expect(heartIcon).toBeTruthy();
+    const btn = heartIcon!.closest("button") as HTMLButtonElement | null;
     expect(btn).toBeTruthy();
     btn!.click();
     await vi.waitFor(() => expect(mockToggleWishlist).toHaveBeenCalled(), { timeout: 2000 });

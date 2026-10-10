@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery } from "convex/react";
 import { Sparkles, ChevronLeft, ChevronRight } from "lucide-react";
 import { api } from "@/convex/_generated/api";
@@ -19,26 +19,27 @@ export default function NewArrivals() {
   const [canNext, setCanNext] = useState(false);
 
   // `update` reads layout, so it is collapsed to one measurement per frame
-  // instead of running on every resize event.
+  // instead of running on every resize/scroll event.
+  const frameRef = useRef(0);
+  const update = useCallback(() => {
+    if (frameRef.current) return;
+    frameRef.current = window.requestAnimationFrame(() => {
+      frameRef.current = 0;
+      const el = trackRef.current;
+      if (!el) return;
+      setCanPrev(el.scrollLeft > 4);
+      setCanNext(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+    });
+  }, []);
+
   useEffect(() => {
-    const el = trackRef.current;
-    if (!el) return;
-    let frame = 0;
-    const update = () => {
-      if (frame) return;
-      frame = window.requestAnimationFrame(() => {
-        frame = 0;
-        setCanPrev(el.scrollLeft > 4);
-        setCanNext(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
-      });
-    };
     update();
     window.addEventListener("resize", update);
     return () => {
-      if (frame) window.cancelAnimationFrame(frame);
+      if (frameRef.current) window.cancelAnimationFrame(frameRef.current);
       window.removeEventListener("resize", update);
     };
-  }, [products]);
+  }, [products, update]);
 
   if (!products || products.length === 0) return null;
 
@@ -107,7 +108,7 @@ export default function NewArrivals() {
           </div>
         </div>
         <div
-            ref={trackRef}
+          ref={trackRef}
           onScroll={update}
           className="flex gap-4 overflow-x-auto scrollbar-none snap-x snap-mandatory -mx-4 sm:-mx-6 px-4 sm:px-6"
         >
