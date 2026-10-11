@@ -516,7 +516,8 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
       <Button
         variant="ghost"
         size="icon"
-        className="absolute top-3 right-3 z-10 h-8 w-8 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background hover:scale-110 transition-all duration-300 opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+        aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+        className="absolute top-3 right-3 z-10 h-9 w-9 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background hover:scale-110 transition-all duration-300 opacity-100 sm:h-8 sm:w-8 sm:opacity-0 sm:group-hover:opacity-100"
         onClick={handleWishlist}
       >
         <Heart className={`size-4 transition-colors ${isWishlisted ? "fill-rose-500 text-rose-500" : "text-muted-foreground group-hover:text-rose-500"}`} />

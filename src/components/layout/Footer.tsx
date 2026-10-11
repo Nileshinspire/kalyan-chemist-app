@@ -493,7 +493,7 @@ const Footer = memo(function Footer() {
             links={COMPANY_LINKS}
             isOpen={openGroup === "about"}
             onToggle={toggleGroup}
-            contentClassName="translate-x-2 lg:translate-x-[5.5rem]"
+            contentClassName="md:translate-x-2 lg:translate-x-[5.5rem]"
             allowOverflow
             afterTitle={
               <div className="mt-8 lg:absolute lg:left-0 lg:top-[9rem] lg:z-10 lg:w-max lg:-translate-x-[5.5rem] lg:translate-y-12">

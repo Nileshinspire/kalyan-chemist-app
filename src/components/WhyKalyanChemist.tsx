@@ -469,7 +469,7 @@ export default function WhyKalyanChemist() {
   return (
     <section
       ref={sectionRef}
-      className="relative overflow-hidden py-1.5 sm:py-2.5 lg:py-3"
+      className="relative overflow-hidden py-6 sm:py-2.5 lg:py-3"
       style={{ background: CHARCOAL }}
       onPointerMove={!prefersReducedMotion ? onSectionPointerMove : undefined}
       onPointerLeave={!prefersReducedMotion ? onSectionPointerLeave : undefined}

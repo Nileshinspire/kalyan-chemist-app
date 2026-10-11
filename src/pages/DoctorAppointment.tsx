@@ -622,12 +622,12 @@ export default function DoctorAppointment() {
                 key={spec.key}
                 type="button"
                 onClick={() => handleSpecialtyClick(spec.key)}
-                className="group flex items-center gap-3 rounded-xl border border-border/60 bg-card px-3 py-3.5 text-left transition-all duration-300 hover:shadow-md hover:border-primary/30 hover:-translate-y-0.5 cursor-pointer"
+                className="group flex flex-col items-center gap-2 rounded-xl border border-border/60 bg-card px-2 py-3 text-center transition-all duration-300 hover:shadow-md hover:border-primary/30 hover:-translate-y-0.5 cursor-pointer sm:flex-row sm:gap-3 sm:px-3 sm:py-3.5 sm:text-left"
               >
                 <div className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-white/80 border border-border/30 group-hover:bg-white group-hover:shadow-sm transition-all duration-300 overflow-hidden">
                   <SpecialtyIcon specialtyKey={spec.key} className="size-8" />
                 </div>
-                <span className="text-xs sm:text-sm font-medium text-foreground group-hover:text-primary transition-colors leading-tight line-clamp-2">
+                <span className="min-w-0 text-xs sm:text-sm font-medium text-foreground group-hover:text-primary transition-colors leading-tight line-clamp-2 max-sm:break-words">
                   {spec.label}
                 </span>
               </button>

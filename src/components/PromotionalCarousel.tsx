@@ -379,14 +379,14 @@ export default function PromotionalCarousel() {
           <>
             <button
               onClick={() => navigateTo(currentRef.current - 1)}
-              className="absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 flex size-8 sm:size-9 items-center justify-center rounded-full bg-white/80 backdrop-blur-sm text-foreground shadow-md hover:bg-white transition-colors cursor-pointer"
+              className="absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 flex size-9 items-center justify-center rounded-full bg-white/80 backdrop-blur-sm text-foreground shadow-md hover:bg-white transition-colors cursor-pointer"
               aria-label="Previous campaign"
             >
               <ChevronLeft className="size-4 sm:size-5" />
             </button>
             <button
               onClick={() => navigateTo(currentRef.current + 1)}
-              className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 flex size-8 sm:size-9 items-center justify-center rounded-full bg-white/80 backdrop-blur-sm text-foreground shadow-md hover:bg-white transition-colors cursor-pointer"
+              className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 flex size-9 items-center justify-center rounded-full bg-white/80 backdrop-blur-sm text-foreground shadow-md hover:bg-white transition-colors cursor-pointer"
               aria-label="Next campaign"
             >
               <ChevronRight className="size-4 sm:size-5" />
@@ -397,17 +397,25 @@ export default function PromotionalCarousel() {
         {/* Dot indicators */}
         {hasMultiple && (
           <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5">
+            {/* Each dot's button carries `-m-3.5 p-3.5`: the padding grows the
+                touch target to ~34px while the equal negative margin subtracts
+                it back, so the dot's size and the spacing between dots are the
+                same as before at every width. */}
             {slides.map((_: any, i: number) => (
               <button
                 key={i}
                 onClick={() => navigateTo(i)}
-                className={`rounded-full transition-all duration-300 cursor-pointer ${
-                  i === current
-                    ? "w-5 h-1.5 bg-white"
-                    : "w-1.5 h-1.5 bg-white/50 hover:bg-white/80"
-                }`}
+                className="group/dot -m-3.5 flex cursor-pointer items-center justify-center rounded-full p-3.5"
                 aria-label={`Go to slide ${i + 1}`}
-              />
+              >
+                <span
+                  className={`block rounded-full transition-all duration-300 ${
+                    i === current
+                      ? "w-5 h-1.5 bg-white"
+                      : "w-1.5 h-1.5 bg-white/50 group-hover/dot:bg-white/80"
+                  }`}
+                />
+              </button>
             ))}
           </div>
         )}

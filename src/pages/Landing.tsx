@@ -532,7 +532,7 @@ export default function Landing() {
                     <style.icon className="size-[18px]" />
                   </div>
                   <div className="min-w-0 flex-1 text-left">
-                    <h3 className="truncate text-sm font-semibold text-foreground transition-colors duration-300 group-hover:text-primary sm:text-base">
+                    <h3 className="truncate text-xs font-semibold text-foreground transition-colors duration-300 group-hover:text-primary max-sm:line-clamp-2 max-sm:whitespace-normal max-sm:break-words sm:text-base">
                       {cat.name}
                     </h3>
                     <p className="mt-0.5 text-xs text-muted-foreground">

@@ -16,10 +16,9 @@ const widths = (process.argv[3] || "375,1440")
   .filter(Number.isFinite);
 const label = process.argv[4] || "local";
 const outFile = process.argv[5];
-const REMOTE = process.env.BASE || null;
-const DIST = join(process.cwd(), "dist");
 // BASE=<url> audits a live deployment instead of serving ./dist locally.
 const REMOTE = process.env.BASE || null;
+const DIST = join(process.cwd(), "dist");
 
 if (!REMOTE && !existsSync(join(DIST, "index.html"))) {
   console.error("dist/index.html missing — run `bun run build` first");
@@ -251,7 +250,7 @@ for (const w of widths) {
   const errs = [];
   page.on("pageerror", (e) => errs.push(String(e).slice(0, 200)));
 
-  if (!REMOTE)  if (!REMOTE) {
+  if (!REMOTE) {
     await page.route("**/*", async (routeObj) => {
       const reqUrl = new URL(routeObj.request().url());
       if (reqUrl.hostname !== "kc.local") return routeObj.continue();
