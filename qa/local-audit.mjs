@@ -3,6 +3,8 @@
 //
 // Usage: node qa/local-audit.mjs <route> <widths> <label> <outFile>
 //   e.g.  node qa/local-audit.mjs "#/" "320,375,390,430,768,1024,1440" home /tmp/home.json
+// Audit a live deployment instead of serving ./dist by setting BASE=<url>.
+//   BASE=https://sunny-baths-help.freebuff.dev node qa/local-audit.mjs "#/" "320,375,390,430,768,1024,1440" live-home /tmp/live-home.json
 import { chromium } from "playwright-core";
 import { readFileSync, existsSync, writeFileSync, statSync } from "node:fs";
 import { extname, join, normalize } from "node:path";
@@ -14,6 +16,7 @@ const widths = (process.argv[3] || "375,1440")
   .filter(Number.isFinite);
 const label = process.argv[4] || "local";
 const outFile = process.argv[5];
+const REMOTE = process.env.BASE || null;
 const DIST = join(process.cwd(), "dist");
 // BASE=<url> audits a live deployment instead of serving ./dist locally.
 const REMOTE = process.env.BASE || null;
@@ -248,24 +251,26 @@ for (const w of widths) {
   const errs = [];
   page.on("pageerror", (e) => errs.push(String(e).slice(0, 200)));
 
-  if (!REMOTE) await page.route("**/*", async (routeObj) => {
-    const reqUrl = new URL(routeObj.request().url());
-    if (reqUrl.hostname !== "kc.local") return routeObj.continue();
-    let p = decodeURIComponent(reqUrl.pathname);
-    if (p === "/" || p.endsWith(".html")) {
-      return routeObj.fulfill({ status: 200, contentType: MIME[".html"], body: readFileSync(join(DIST, "index.html")) });
-    }
-    const rel = normalize(p).replace(/^([/\\])+/, "");
-    const file = join(DIST, rel);
-    if (file.startsWith(DIST) && existsSync(file) && statSync(file).isFile()) {
-      return routeObj.fulfill({
-        status: 200,
-        contentType: MIME[extname(file)] || "application/octet-stream",
-        body: readFileSync(file),
-      });
-    }
-    return routeObj.fulfill({ status: 404, body: "not found" });
-  });
+  if (!REMOTE)  if (!REMOTE) {
+    await page.route("**/*", async (routeObj) => {
+      const reqUrl = new URL(routeObj.request().url());
+      if (reqUrl.hostname !== "kc.local") return routeObj.continue();
+      let p = decodeURIComponent(reqUrl.pathname);
+      if (p === "/" || p.endsWith(".html")) {
+        return routeObj.fulfill({ status: 200, contentType: MIME[".html"], body: readFileSync(join(DIST, "index.html")) });
+      }
+      const rel = normalize(p).replace(/^([/\\])+/, "");
+      const file = join(DIST, rel);
+      if (file.startsWith(DIST) && existsSync(file) && statSync(file).isFile()) {
+        return routeObj.fulfill({
+          status: 200,
+          contentType: MIME[extname(file)] || "application/octet-stream",
+          body: readFileSync(file),
+        });
+      }
+      return routeObj.fulfill({ status: 404, body: "not found" });
+    });
+  }
 
   try {
     await page.goto(REMOTE ? `${REMOTE}/${route}` : `http://kc.local/${route}`, { waitUntil: "domcontentloaded", timeout: 60000 });
