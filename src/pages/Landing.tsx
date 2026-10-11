@@ -256,7 +256,7 @@ export default function Landing() {
         </div>
 
         {/* Center: Heading + Search */}
-        <div className="relative z-20 mx-auto max-w-7xl px-4 sm:px-6 pt-8 md:pt-12 pb-4 md:pb-8">
+        <div className="relative z-20 mx-auto max-w-7xl px-4 sm:px-6 pt-8 md:pt-12 pb-4 max-sm:pb-6 md:pb-8">
           <div className="flex flex-col items-center text-center max-w-2xl mx-auto">
             <motion.h1
               initial={{ opacity: 0, y: 12 }}
@@ -572,7 +572,7 @@ export default function Landing() {
                 View All <ArrowRight className="ml-1.5 size-3.5" />
               </Button>
             </div>
-            <div className="flex gap-3 overflow-x-auto scrollbar-none snap-x sm:grid sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5 sm:overflow-visible">
+            <div className="flex gap-4 overflow-x-auto scrollbar-none snap-x snap-mandatory max-sm:overscroll-x-contain sm:grid sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5 sm:overflow-visible">
               {hotSellers.map((product) => {
                 const hasDiscount = product.discountPrice && product.discountPrice < product.price;
                 const discountPct = hasDiscount ? Math.round(((product.price - product.discountPrice!) / product.price) * 100) : 0;
@@ -698,7 +698,7 @@ export default function Landing() {
       <section className="border-y border-border/50 bg-gradient-to-b from-card/50 to-background">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 py-6 sm:py-14">
           <div className="max-w-xl">
-            <div className="inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary mb-3">
+            <div className="inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary mb-3 max-sm:mb-4">
               <Star className="size-3" />
               Testimonials
             </div>

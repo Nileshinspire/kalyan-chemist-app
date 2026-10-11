@@ -958,7 +958,7 @@ export default function HowItWorks() {
         <div className="absolute inset-x-0 bottom-0 h-px" style={{ background: `linear-gradient(90deg,transparent,${HAIRLINE},transparent)` }} />
       </div>
 
-      <div className="relative z-10 mx-auto max-w-6xl px-4 py-6 sm:px-8 sm:py-5">
+      <div className="relative z-10 mx-auto max-w-6xl px-4 py-6 max-sm:pt-12 sm:px-8 sm:py-5">
         {/* ── compact header + 01 → 06 rail on one row ── */}
         <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-1.5">
           <motion.div
@@ -971,7 +971,7 @@ export default function HowItWorks() {
             <span className="text-[10px] font-bold tracking-[0.28em] uppercase" style={{ color: PLUM }}>
               How it works
             </span>
-            <h2 className="mt-0.5 text-[clamp(1.05rem,2.1vw,1.55rem)] leading-tight font-black tracking-tight" style={{ color: INK }}>
+            <h2 className="mt-0.5 max-sm:text-2xl text-[clamp(1.05rem,2.1vw,1.55rem)] leading-tight font-black tracking-tight" style={{ color: INK }}>
               Your order, from{" "}
               <span
                 style={{

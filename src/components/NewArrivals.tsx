@@ -75,7 +75,7 @@ export default function NewArrivals() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 pt-6 pb-6 sm:pt-2 sm:pb-12">
         <div className="flex items-end justify-between gap-4 mb-5 sm:mb-8">
           <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary mb-3 sm:mb-4">
+            <div className="inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary mb-4">
               <Sparkles className="size-3" />
               Just In
             </div>
@@ -110,7 +110,7 @@ export default function NewArrivals() {
         <div
           ref={trackRef}
           onScroll={update}
-          className="flex gap-4 overflow-x-auto scrollbar-none snap-x snap-mandatory -mx-4 sm:-mx-6 px-4 sm:px-6"
+          className="flex gap-4 overflow-x-auto scrollbar-none snap-x snap-mandatory max-sm:overscroll-x-contain sm:-mx-6 sm:px-6"
         >
           {products.map((product) => (
             <div
