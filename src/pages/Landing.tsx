@@ -16,7 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate, useLocation } from "react-router";
-import { useRef, useMemo } from "react";
+import { useRef } from "react";
 import { preloadRoute } from "@/lib/route-preload";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
@@ -31,7 +31,7 @@ import HowItWorks from "@/components/HowItWorks";
 import PromotionalCarousel from "@/components/PromotionalCarousel";
 import WhyKalyanChemist from "@/components/WhyKalyanChemist";
 import ShopByBrand from "@/components/ShopByBrand";
-import type { Id } from "convex/server";
+import type { Id } from "@/convex/_generated/dataModel";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { formatCurrency } from "@/lib/auth-utils";
