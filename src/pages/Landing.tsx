@@ -329,16 +329,16 @@ export default function Landing() {
               onMouseEnter={() => preloadRoute("/upload-prescription")}
               onFocus={() => preloadRoute("/upload-prescription")}
               onClick={() => navigate("/upload-prescription")}
-              className="inline-flex items-center gap-2 rounded-lg border border-border/60 bg-card hover:bg-accent/40 px-2.5 py-2 sm:px-3 sm:py-2.5 transition-all duration-300 group cursor-pointer shadow-sm hover:shadow-md max-sm:shrink-0 max-sm:snap-start max-sm:min-w-[108px] max-sm:flex-col max-sm:items-center max-sm:justify-start max-sm:gap-1.5 max-sm:p-3 max-sm:text-center"
+              className="inline-flex items-center gap-2 rounded-lg border border-border/60 bg-card hover:bg-accent/40 px-2.5 py-2 sm:px-3 sm:py-2.5 transition-all duration-300 group cursor-pointer shadow-sm hover:shadow-md max-sm:shrink-0 max-sm:snap-start max-sm:w-[104px] max-sm:grow-0 max-sm:flex-col max-sm:items-center max-sm:justify-start max-sm:gap-1.5 max-sm:p-3 max-sm:text-center"
             >
               <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary/15 transition-colors max-sm:size-9">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="2" width="12" height="20" rx="2.5" /><line x1="10" y1="5" x2="14" y2="5" /><rect x="8.5" y="9" width="7" height="8.5" rx="1" /><line x1="10" y1="11.5" x2="14" y2="11.5" /><line x1="10" y1="13.5" x2="13" y2="13.5" /><line x1="10" y1="15.5" x2="12" y2="15.5" /><line x1="10.5" y1="7" x2="13.5" y2="7" strokeWidth="1.25" /></svg>
               </div>
-              <div className="text-left">
+              <div className="text-left max-sm:min-w-0">
                 <h3 className="text-xs sm:text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
                   Upload Prescription
                 </h3>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
+                <p className="text-[11px] text-muted-foreground mt-0.5 max-sm:line-clamp-2">
                   Upload your prescription easily
                 </p>
               </div>
@@ -350,16 +350,16 @@ export default function Landing() {
               onMouseEnter={() => preloadRoute("/doctor-appointment")}
               onFocus={() => preloadRoute("/doctor-appointment")}
               onClick={() => navigate("/doctor-appointment")}
-              className="inline-flex items-center gap-2 rounded-lg border border-border/60 bg-card hover:bg-accent/40 px-2.5 py-2 sm:px-3 sm:py-2.5 transition-all duration-300 group cursor-pointer shadow-sm hover:shadow-md max-sm:shrink-0 max-sm:snap-start max-sm:min-w-[108px] max-sm:flex-col max-sm:items-center max-sm:justify-start max-sm:gap-1.5 max-sm:p-3 max-sm:text-center"
+              className="inline-flex items-center gap-2 rounded-lg border border-border/60 bg-card hover:bg-accent/40 px-2.5 py-2 sm:px-3 sm:py-2.5 transition-all duration-300 group cursor-pointer shadow-sm hover:shadow-md max-sm:shrink-0 max-sm:snap-start max-sm:w-[104px] max-sm:grow-0 max-sm:flex-col max-sm:items-center max-sm:justify-start max-sm:gap-1.5 max-sm:p-3 max-sm:text-center"
             >
               <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary/15 transition-colors max-sm:size-9">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /><circle cx="12" cy="15" r="2.5" /><path d="M12 14v-0.5" /><path d="M12 16v0.5" /><path d="M11.5 15h-0.5" /><path d="M12.5 15h0.5" /></svg>
               </div>
-              <div className="text-left">
+              <div className="text-left max-sm:min-w-0">
                 <h3 className="text-xs sm:text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
                   Doctor Appointment
                 </h3>
-                <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-primary/70 mt-0.5">
+                <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-primary/70 mt-0.5 max-sm:line-clamp-2">
                   Book Now
                 </p>
               </div>
@@ -371,16 +371,16 @@ export default function Landing() {
               onMouseEnter={() => preloadRoute("/lab-tests")}
               onFocus={() => preloadRoute("/lab-tests")}
               onClick={() => navigate("/lab-tests")}
-              className="inline-flex items-center gap-2 rounded-lg border border-border/60 bg-card hover:bg-accent/40 px-4 py-2 sm:px-5 sm:py-2.5 transition-all duration-300 group cursor-pointer shadow-sm hover:shadow-md max-sm:shrink-0 max-sm:snap-start max-sm:min-w-[108px] max-sm:flex-col max-sm:items-center max-sm:justify-start max-sm:gap-1.5 max-sm:p-3 max-sm:text-center"
+              className="inline-flex items-center gap-2 rounded-lg border border-border/60 bg-card hover:bg-accent/40 px-4 py-2 sm:px-5 sm:py-2.5 transition-all duration-300 group cursor-pointer shadow-sm hover:shadow-md max-sm:shrink-0 max-sm:snap-start max-sm:w-[104px] max-sm:grow-0 max-sm:flex-col max-sm:items-center max-sm:justify-start max-sm:gap-1.5 max-sm:p-3 max-sm:text-center"
             >
               <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary/15 transition-colors max-sm:size-9">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 3h6" /><path d="M10 3v7.4a2 2 0 0 1-.4 1.2L5 17a2 2 0 0 0 1.6 3h10.8a2 2 0 0 0 1.6-3l-4.6-5.4a2 2 0 0 1-.4-1.2V3" /><path d="M8.5 14h7" /><circle cx="11" cy="17" r="1" fill="currentColor" stroke="none" /><circle cx="14" cy="18" r="0.75" fill="currentColor" stroke="none" /></svg>
               </div>
-              <div className="text-left">
+              <div className="text-left max-sm:min-w-0">
                 <h3 className="text-xs sm:text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
                   Lab Tests
                 </h3>
-                <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-primary/70 mt-0.5">
+                <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-primary/70 mt-0.5 max-sm:line-clamp-2">
                   Book Now
                 </p>
               </div>
@@ -392,16 +392,16 @@ export default function Landing() {
               onMouseEnter={() => preloadRoute("/refill")}
               onFocus={() => preloadRoute("/refill")}
               onClick={() => navigate("/refill")}
-              className="inline-flex items-center gap-2 rounded-lg border border-border/60 bg-card hover:bg-accent/40 px-2.5 py-2 sm:px-3 sm:py-2.5 transition-all duration-300 group cursor-pointer shadow-sm hover:shadow-md max-sm:shrink-0 max-sm:snap-start max-sm:min-w-[108px] max-sm:flex-col max-sm:items-center max-sm:justify-start max-sm:gap-1.5 max-sm:p-3 max-sm:text-center"
+              className="inline-flex items-center gap-2 rounded-lg border border-border/60 bg-card hover:bg-accent/40 px-2.5 py-2 sm:px-3 sm:py-2.5 transition-all duration-300 group cursor-pointer shadow-sm hover:shadow-md max-sm:shrink-0 max-sm:snap-start max-sm:w-[104px] max-sm:grow-0 max-sm:flex-col max-sm:items-center max-sm:justify-start max-sm:gap-1.5 max-sm:p-3 max-sm:text-center"
             >
               <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary/15 transition-colors max-sm:size-9">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="2" width="12" height="20" rx="2.5" /><line x1="10" y1="5" x2="14" y2="5" /><path d="M12 14a3 3 0 1 0 0-6" /><polyline points="15 11 12 8 9 11" stroke="none" /><path d="M16 11a4 4 0 0 1-4 4" /><polyline points="15 13 16 16 13 16" /><path d="M12 18a3 3 0 1 0 0 6" /><polyline points="9 21 12 24 15 21" stroke="none" /><line x1="8" y1="9" x2="16" y2="9" /></svg>
               </div>
-              <div className="text-left">
+              <div className="text-left max-sm:min-w-0">
                 <h3 className="text-xs sm:text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
                   Medicine Refill
                 </h3>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
+                <p className="text-[11px] text-muted-foreground mt-0.5 max-sm:line-clamp-2">
                   Refill your regular medicines
                 </p>
               </div>
@@ -413,16 +413,16 @@ export default function Landing() {
               onMouseEnter={() => preloadRoute("/chatbot")}
               onFocus={() => preloadRoute("/chatbot")}
               onClick={() => navigate("/chatbot")}
-              className="inline-flex items-center gap-2 rounded-lg border border-border/60 bg-card hover:bg-accent/40 px-2.5 py-2 sm:px-3 sm:py-2.5 transition-all duration-300 group cursor-pointer shadow-sm hover:shadow-md max-sm:shrink-0 max-sm:snap-start max-sm:min-w-[108px] max-sm:flex-col max-sm:items-center max-sm:justify-start max-sm:gap-1.5 max-sm:p-3 max-sm:text-center"
+              className="inline-flex items-center gap-2 rounded-lg border border-border/60 bg-card hover:bg-accent/40 px-2.5 py-2 sm:px-3 sm:py-2.5 transition-all duration-300 group cursor-pointer shadow-sm hover:shadow-md max-sm:shrink-0 max-sm:snap-start max-sm:w-[104px] max-sm:grow-0 max-sm:flex-col max-sm:items-center max-sm:justify-start max-sm:gap-1.5 max-sm:p-3 max-sm:text-center"
             >
               <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary/15 transition-colors max-sm:size-9">
                 <MessageCircle className="size-[16px]" />
               </div>
-              <div className="text-left">
+              <div className="text-left max-sm:min-w-0">
                 <h3 className="text-xs sm:text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
                   AI Chatbot
                 </h3>
-                <p className="text-[11px] text-muted-foreground mt-0.5">
+                <p className="text-[11px] text-muted-foreground mt-0.5 max-sm:line-clamp-2">
                   Chat for help & medicines
                 </p>
               </div>

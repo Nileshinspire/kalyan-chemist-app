@@ -78,7 +78,10 @@ const measure = (page) =>
 {
   const { ctx, page } = await open(390, "#/products");
   const top = await measure(page);
-  check("inner@390 top: header ~175px with all rows", top && top.h >= 160 && top.h <= 190, `h=${top?.h} rows=${JSON.stringify(top?.rows.map((r) => r.h))}`);
+  // New spec: the service-link row is not part of the phone sticky header
+  // (Apollo's header carries one nav row), so top = logo + search + category
+  // nav = ~142px, and it collapses to ~92px while scrolled.
+  check("inner@390 top: header ~142px (logo+search+category nav)", top && top.h >= 130 && top.h <= 152, `h=${top?.h} rows=${JSON.stringify(top?.rows.map((r) => r.h))}`);
   const searchVisibleTop = top.rows.some((r) => r.cls.includes("kc-collapse") && r.disp !== "none");
   check("inner@390 top: search row visible", searchVisibleTop, JSON.stringify(top?.rows));
 
@@ -94,7 +97,7 @@ const measure = (page) =>
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.waitForTimeout(600);
   const back = await measure(page);
-  check("inner@390 back-to-top: search row returns", back.h >= 160, `h=${back?.h}`);
+  check("inner@390 back-to-top: search row returns", back.h >= 130, `h=${back?.h}`);
   await ctx.close();
 }
 

@@ -105,11 +105,14 @@ for (const width of [390, 320]) {
       };
     }
 
-    // product rails: widths of the cards in each swipeable track
+    // product rails: widths of the cards in each swipeable track.
+    // The quick-action rail (fixed 104px service cards) is excluded so the
+    // product-carousel checks only measure the commerce carousels.
     out.rails = [...document.querySelectorAll('[class*="snap-x"]')]
       .map((rail) => {
         const r = rail.getBoundingClientRect();
         if (r.width < 50) return null;
+        if (String(rail.firstElementChild?.className || "").includes("w-[104px]")) return null;
         const cards = [...rail.children].map((c) => c.getBoundingClientRect().width).filter((w) => w > 40);
         if (!cards.length) return null;
         const cs = getComputedStyle(rail);
@@ -133,7 +136,7 @@ for (const width of [390, 320]) {
   });
 
   check(`W=${width}: no page horizontal overflow`, !data.overflow, `scrollW=${data.scrollW}`);
-  check(`W=${width}: header compact at top (${width >= 390 ? "≤150" : "≤150}px)`, data.headerH > 40 && data.headerH <= 150, `h=${data.headerH}`);
+  check(`W=${width}: header compact at top (max 150px)`, data.headerH > 40 && data.headerH <= 150, `h=${data.headerH}`);
   if (data.quick) {
     const cw = data.quick.cards.map((c) => c.w);
     check(`W=${width}: quick actions are a swipeable card rail`, data.quick.display === "flex" && /auto/.test(data.quick.overflowX), `display=${data.quick.display}`);
@@ -143,16 +146,65 @@ for (const width of [390, 320]) {
     check(`W=${width}: health conditions use a 5-column compact grid`, data.cond.cols === 5, `cols=${data.cond.cols}`);
     const tw = data.cond.tiles.map((t) => t.w);
     check(`W=${width}: condition tiles ≤ 80px wide`, tw.every((w) => w <= 80), JSON.stringify(tw.slice(0, 3)));
-    check(`W=${width}: condition labels ≤ 12px`, data.cond.label && parseFloat(data.cond.label.fs) <= 12.5, data.cond.label?.fs);
+    check(`W=${width}: condition labels max 12px`, data.cond.label && parseFloat(data.cond.label.fs) <= 12.5, data.cond.label?.fs);
   } else check(`W=${width}: health conditions grid found`, false);
   if (data.rails.length) {
-    const peek = data.rails.filter((r) => r.cardW >= 130 && r.cardW <= 185);
-    check(`W=${width}: product carousel cards ~130-185px (Apollo peek)`, peek.length >= 3, JSON.stringify(data.rails.map((r) => r.cardW)));
+    // Apollo cards scale with viewport: ~162px at 390, ~130px at 320.
+    const peek = data.rails.filter((r) => r.cardW >= 110 && r.cardW <= 185);
+    check(`W=${width}: product carousel cards 110-185px (Apollo peek)`, peek.length >= 3, JSON.stringify(data.rails.map((r) => r.cardW)));
     const gaps = [...new Set(data.rails.map((r) => r.gap))];
     check(`W=${width}: carousel gaps 12px`, gaps.every((g) => g === "12px"), JSON.stringify(gaps));
   } else check(`W=${width}: product carousels found`, false);
   check(`W=${width}: Hot Sellers shows real product images on mobile`, (data.hotImgs ?? 0) >= 1, `imgs=${data.hotImgs} visiblePills=${data.hotVisiblePills}`);
   check(`W=${width}: no page errors`, pageErrors.length === 0, JSON.stringify(pageErrors));
+  await ctx.close();
+}
+
+// ── Mobile menu sheet must carry the five service links (they moved out of
+// the phone sticky header, so their menu-sheet mirror is the reachability
+// guarantee that nothing was removed).
+{
+  console.log("\n──── mobile menu sheet ────");
+  const ctx = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    hasTouch: true,
+    deviceScaleFactor: 2,
+  });
+  const page = await ctx.newPage();
+  await page.route("**/*", async (r) => {
+    const u = new URL(r.request().url());
+    if (u.hostname !== "kc.local") return r.continue();
+    const p = decodeURIComponent(u.pathname);
+    if (p === "/" || p.endsWith(".html")) {
+      return r.fulfill({ status: 200, contentType: MIME[".html"], body: readFileSync(join(DIST, "index.html")) });
+    }
+    const file = join(DIST, normalize(p).replace(/^([/\\])+/, ""));
+    if (file.startsWith(DIST) && existsSync(file) && statSync(file).isFile()) {
+      return r.fulfill({ status: 200, contentType: MIME[extname(file)] || "application/octet-stream", body: readFileSync(file) });
+    }
+    return r.fulfill({ status: 404, body: "" });
+  });
+  await page.goto("http://kc.local/#/", { waitUntil: "domcontentloaded", timeout: 60000 });
+  await page.waitForTimeout(3000);
+  // The menu trigger is the ghost icon button carrying the Menu icon in the header.
+  const menuBtn = page.locator("header button:has(svg.lucide-menu)").first();
+  await menuBtn.click();
+  await page.waitForSelector('[role="dialog"]', { timeout: 8000 });
+  await page.waitForTimeout(800);
+  const sheetText = await page.evaluate(() => (document.querySelector('[role="dialog"], [data-radix-popper-content-wrapper]')?.textContent || ""));
+  const services = ["Upload Prescription", "Doctor Appointment", "Lab Tests", "Medicine Refill", "AI Chatbot"];
+  const missing = services.filter((s) => !sheetText.includes(s));
+  check("menu sheet lists all 5 service links", missing.length === 0, missing.length ? `missing=${JSON.stringify(missing)}` : "");
+  check("menu sheet still lists categories", /Categories/.test(sheetText) && /Baby Care/.test(sheetText));
+  // navigate via a service link
+  const labLink = page.getByRole("button", { name: "Lab Tests" }).first();
+  if (await labLink.isVisible().catch(() => false)) {
+    await labLink.click();
+    await page.waitForTimeout(1200);
+    const url = page.url();
+    check("service link navigates to /lab-tests", url.includes("lab-tests"), url);
+  } else check("service link navigates to /lab-tests", false, "link not visible");
   await ctx.close();
 }
 
