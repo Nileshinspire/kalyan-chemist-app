@@ -1,19 +1,13 @@
-import { motion, useScroll, useTransform, type Variants } from "framer-motion";
-import {
-  ShieldCheck,
+import { motion, useScroll, useTransform, type Variants } from "framer-motion";import { ShieldCheck,
   Truck,
   Pill,
   HeartPulse,
-  Baby,
   Stethoscope,
-  Leaf,
-  Brain,
   Star,
   Sparkles,
   ArrowRight,
   Zap,
   Search,
-  Upload,
   ShoppingCart,
   MessageCircle,
 } from "lucide-react";
@@ -21,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate, useLocation, useSearchParams } from "react-router";
 import { useRef, useMemo } from "react";
-import { openWhatsApp, generateEnquiryMessage } from "@/lib/whatsapp";
+import { openWhatsApp } from "@/lib/whatsapp";
 import { preloadRoute } from "@/lib/route-preload";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
@@ -47,15 +41,6 @@ const fadeUp: Variants = {
     opacity: 1,
     y: 0,
     transition: { duration: 0.7, ease: [0.22, 1, 0.36, 1] },
-  },
-};
-
-const fadeUpDelay: Variants = {
-  hidden: { opacity: 0, y: 40 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.8, ease: [0.22, 1, 0.36, 1], delay: 0.15 },
   },
 };
 
@@ -165,7 +150,7 @@ const HERO_CATEGORIES = [
 function HeroCategoryNav() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const currentNavKey = useMemo(() => searchParams.get("nav") || "", [searchParams.get("nav")]);
+  const currentNavKey = useMemo(() => searchParams.get("nav") || "", [searchParams]);
 
   return (
     <div className="relative" style={{ background: '#0a3d2e' }}>
@@ -200,20 +185,16 @@ function HeroCategoryNav() {
 }
 
 
-
-
-
 export default function Landing() {
   const navigate = useNavigate();
   const location = useLocation();
   const heroRef = useRef(null);
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] });
-  const heroY = useTransform(scrollYProgress, [0, 1], [0, 120]);
   const heroOpacity = useTransform(scrollYProgress, [0, 0.8], [1, 0]);
 
   const dbTestimonials = useQuery(api.testimonials.listFeatured, { limit: 6 });
-  const logWhatsApp = useMutation(api.whatsappEnquiries.log);
-  const deliveryConfig = useQuery(api.deliveryConfig.getPublic);
+  const _logWhatsApp = useMutation(api.whatsappEnquiries.log);
+  const _deliveryConfig = useQuery(api.deliveryConfig.getPublic);
 
   const addToCart = useMutation(api.cart.addItem);
 

@@ -26,11 +26,13 @@ export default function ValueDeals() {
           above it). The shared ProductCard and every other section stay
           untouched. */}
       <style>{`
-        .kc-value-deal .h-44, .kc-value-deal .sm\:h-44 { height: 5.5rem; }
+        .kc-value-deal .h-44, .kc-value-deal .sm:h-44 { height: 5.5rem; }
         .kc-value-deal .size-20 { width: 4rem; height: 4rem; }
         .kc-value-deal .size-14 { width: 2.75rem; height: 2.75rem; }
-        .kc-value-deal .p-4, .kc-value-deal .sm\:p-4 { padding: 0.5rem 0.75rem; }
-        .kc-value-deal .space-y-2\\.5 > :not([hidden]) ~ :not([hidden]) {
+        .kc-value-deal .p-4,        .kc-value-deal .sm\:p-4 { padding: 0.5rem 0.75rem; }
+        .kc-value-deal .sm\:h-44 { height: 5.5rem; }
+        .kc-value-deal .sm\:h-44 { height: 5.5rem; }
+        .kc-value-deal .space-y-2\.5 > :not([hidden]) ~ :not([hidden]) {
           margin-top: 0.375rem;
         }
         .kc-value-deal .text-sm { font-size: 0.8125rem; line-height: 1.25rem; }
