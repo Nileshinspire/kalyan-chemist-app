@@ -1,4 +1,6 @@
-import { motion, useScroll, useTransform, type Variants } from "framer-motion";import { ShieldCheck,
+import { motion, useScroll, useTransform, type Variants } from "framer-motion";
+import {
+  ShieldCheck,
   Truck,
   Pill,
   HeartPulse,
@@ -13,9 +15,8 @@ import { motion, useScroll, useTransform, type Variants } from "framer-motion";i
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useNavigate, useLocation, useSearchParams } from "react-router";
+import { useNavigate, useLocation } from "react-router";
 import { useRef, useMemo } from "react";
-import { openWhatsApp } from "@/lib/whatsapp";
 import { preloadRoute } from "@/lib/route-preload";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
@@ -30,6 +31,7 @@ import HowItWorks from "@/components/HowItWorks";
 import PromotionalCarousel from "@/components/PromotionalCarousel";
 import WhyKalyanChemist from "@/components/WhyKalyanChemist";
 import ShopByBrand from "@/components/ShopByBrand";
+import type { Id } from "convex/server";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { formatCurrency } from "@/lib/auth-utils";
@@ -134,67 +136,16 @@ const HEALTH_CONDITION_SLUGS = new Set([
   "health-safety", // ≈ Cold & Immunity
 ]);
 
-/* ─── Category Navigation inside Hero Banner ─── */
-const HERO_CATEGORIES = [
-  { label: "Kalyan Chemist Products", slug: "", key: "all" },
-  { label: "Baby Care", slug: "baby-mother", key: "baby-care" },
-  { label: "Nutritional Drinks & Supplements", slug: "nutrition", key: "nutrition" },
-  { label: "Women Care", slug: "baby-mother", key: "women-care" },
-  { label: "Personal Care", slug: "personal-care", key: "personal-care" },
-  { label: "Ayurveda", slug: "alternative-medicine", key: "ayurveda" },
-  { label: "Health Devices", slug: "health-safety", key: "health-devices" },
-  { label: "Home Essentials", slug: "others", key: "home-essentials" },
-  { label: "Health Conditions", slug: "health-safety", key: "health-conditions" },
-] as const;
-
-function HeroCategoryNav() {
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const currentNavKey = useMemo(() => searchParams.get("nav") || "", [searchParams]);
-
-  return (
-    <div className="relative" style={{ background: '#0a3d2e' }}>
-      <div className="mx-auto max-w-7xl px-4 sm:px-6">
-        <div className="flex items-center gap-0 overflow-x-auto scrollbar-none pr-4">
-          {HERO_CATEGORIES.map((cat) => {
-            const isActive = currentNavKey === cat.key;
-            return (
-              <button
-                type="button"
-                key={cat.key}
-                onClick={() => {
-                  if (cat.slug) {
-                    navigate(`/products?category=${cat.slug}&nav=${cat.key}`);
-                  } else {
-                    navigate(`/products?nav=all`);
-                  }
-                }}
-                className="relative px-3 lg:px-4 py-2.5 text-xs lg:text-sm font-medium whitespace-nowrap transition-all duration-200 shrink-0 cursor-pointer" style={{ color: '#FFFFFF' }}
-              >
-                {cat.label}
-                {isActive && (
-                  <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-white rounded-full" />
-                )}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-
 export default function Landing() {
   const navigate = useNavigate();
   const location = useLocation();
   const heroRef = useRef(null);
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] });
-  const heroOpacity = useTransform(scrollYProgress, [0, 0.8], [1, 0]);
+  useTransform(scrollYProgress, [0, 0.8], [1, 0]);
 
   const dbTestimonials = useQuery(api.testimonials.listFeatured, { limit: 6 });
-  const _logWhatsApp = useMutation(api.whatsappEnquiries.log);
-  const _deliveryConfig = useQuery(api.deliveryConfig.getPublic);
+  useMutation(api.whatsappEnquiries.log);
+  useQuery(api.deliveryConfig.getPublic);
 
   const addToCart = useMutation(api.cart.addItem);
 
@@ -205,16 +156,16 @@ export default function Landing() {
 
   const handleAddToCart = async (productId: string) => {
     try {
-      await addToCart({ productId: productId as any, quantity: 1 });
+      await addToCart({ productId: productId as Id<'products'>, quantity: 1 });
       toast.success("Added to cart");
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Convex prefixes the thrown message, so an exact comparison never
       // matches and the raw server error is shown to the customer instead.
-      if (/not authenticated/i.test(error.message ?? "")) {
+      if (/not authenticated/i.test(String(error ?? ""))) {
         toast.error("Please sign in to add items to cart");
         navigate(`/auth?returnTo=${encodeURIComponent(location.pathname + location.search)}`);
       } else {
-        toast.error(error.message || "Failed to add to cart");
+        toast.error(error instanceof Error ? error.message : "Failed to add to cart");
       }
     }
   };
