@@ -217,14 +217,16 @@ export default function HealthcareDevices() {
     <section className="bg-background">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 pt-6 pb-6 sm:pt-2 sm:pb-12">
         <div className="max-w-2xl">
-          <div className="inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary mb-4">
+          {/* Apollo-style compact heading on phones: pill + description
+              render from `sm` up exactly as before. */}
+          <div className="max-sm:hidden inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary mb-4">
             <Activity className="size-3" />
             Home Health Devices
           </div>
-          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground max-sm:text-base max-sm:font-semibold max-sm:tracking-normal">
             Healthcare Devices
           </h2>
-          <p className="mt-2 text-sm sm:text-base text-muted-foreground">
+          <p className="mt-2 text-sm sm:text-base text-muted-foreground max-sm:hidden">
             Monitor your health at home with trusted devices — from blood
             pressure and glucose to oxygen, respiratory care and more.
           </p>

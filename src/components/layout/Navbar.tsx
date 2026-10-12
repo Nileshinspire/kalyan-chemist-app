@@ -121,6 +121,13 @@ const Navbar = memo(function Navbar() {
   return (
     <>
     <header
+      /* `data-kc-scrolled` / `data-kc-home` are inert attributes consumed ONLY
+         by the mobile CSS block in index.css: while scrolling an inner page on
+         a phone, the sticky header collapses its search + service rows down to
+         the compact logo/category-nav stack (the Apollo behaviour). Desktop,
+         laptop and tablet rendering is untouched. */
+      data-kc-scrolled={scrolled ? "true" : "false"}
+      data-kc-home={isHomePage ? "true" : "false"}
       className={`sticky top-0 z-50 transition-all duration-300 ${
         scrolled
           ? "glass-strong shadow-md shadow-primary/[0.03]"
@@ -501,7 +508,7 @@ const Navbar = memo(function Navbar() {
           onSubmit={handleSearch}
           role="search"
           aria-label="Search medicines"
-          className="md:hidden mx-auto max-w-7xl px-4 sm:px-6 pb-2.5 sm:pb-3"
+          className="kc-collapse-on-scroll md:hidden mx-auto max-w-7xl px-4 sm:px-6 pb-2.5 sm:pb-3"
         >
           <div className="relative w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />

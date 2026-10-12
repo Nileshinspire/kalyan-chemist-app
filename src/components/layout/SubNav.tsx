@@ -40,8 +40,11 @@ const SubNav = memo(function SubNav() {
 
   return (
     <>
-      {/* ═══ Service Navigation — simple text links, evenly spaced ═══ */}
-      <nav className="border-b border-border/40 bg-background">
+      {/* ═══ Service Navigation — simple text links, evenly spaced ═══
+          `kc-collapse-on-scroll` is consumed only by the mobile CSS block in
+          index.css: on phones this row tucks away while the page is scrolled
+          so the sticky header stays compact (desktop/laptop unchanged). */}
+      <nav className="kc-collapse-on-scroll border-b border-border/40 bg-background">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           {/* Five nowrap labels need ~460px as equal grid tracks, which forces
               a phone-width page to scroll sideways. Below `sm` they become a

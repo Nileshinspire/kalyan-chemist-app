@@ -262,7 +262,7 @@ export default function Landing() {
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4 }}
-              className="text-2xl sm:text-3xl md:text-4xl font-bold text-white tracking-tight mb-4"
+              className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-4"
             >
               Buy Medicines and Essentials
             </motion.h1>
@@ -489,14 +489,16 @@ export default function Landing() {
       >
         <motion.div variants={fadeUp} className="flex flex-wrap items-end justify-between gap-4">
           <div className="max-w-xl">
-            <div className="inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary mb-4">
+            {/* Apollo-style compact heading on phones: pill + description copy
+                render from `sm` up exactly as before. */}
+            <div className="max-sm:hidden inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary mb-4">
               <Sparkles className="size-3" />
               Browse by Category
             </div>
-            <h2 className="text-2xl font-bold tracking-tight sm:text-5xl">
+            <h2 className="text-2xl font-bold tracking-tight sm:text-5xl max-sm:text-base max-sm:font-semibold max-sm:tracking-normal">
               Find What You Need
             </h2>
-            <p className="mt-2 text-sm sm:text-lg text-muted-foreground leading-relaxed">
+            <p className="mt-2 text-sm sm:text-lg text-muted-foreground leading-relaxed max-sm:hidden">
               Find exactly what you need across our carefully organised medicine
               and wellness categories.
             </p>
@@ -506,7 +508,7 @@ export default function Landing() {
             onMouseEnter={() => preloadRoute("/categories")}
             onFocus={() => preloadRoute("/categories")}
             onClick={() => navigate("/categories")}
-            className="group inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border/70 bg-card px-4 py-2 text-sm font-semibold text-primary shadow-sm transition-all duration-300 hover:border-primary/30 hover:shadow-glow active:scale-95 cursor-pointer"
+            className="group inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border/70 bg-card px-4 py-2 text-sm font-semibold text-primary shadow-sm transition-all duration-300 hover:border-primary/30 hover:shadow-glow active:scale-95 cursor-pointer max-sm:rounded-none max-sm:border-0 max-sm:bg-transparent max-sm:px-0 max-sm:py-0 max-sm:shadow-none"
           >
             View All
             <ArrowRight className="size-4 transition-transform duration-300 group-hover:translate-x-0.5" />
@@ -557,18 +559,20 @@ export default function Landing() {
           <div className="mx-auto max-w-7xl px-4 sm:px-6 pt-6 pb-6 sm:pt-4 sm:pb-24">
             <div className="flex items-end justify-between mb-6 sm:mb-10">
               <div>
-                <div className="inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary mb-4">
+                {/* Apollo-style compact heading on phones: pill + description
+                    render from `sm` up exactly as before. */}
+                <div className="max-sm:hidden inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary mb-4">
                   <Pill className="size-3" />
                   Bestselling
                 </div>
-                <h2 className="text-2xl font-bold tracking-tight sm:text-5xl">
+                <h2 className="text-2xl font-bold tracking-tight sm:text-5xl max-sm:text-base max-sm:font-semibold max-sm:tracking-normal">
                   Hot Sellers
                 </h2>
-                <p className="mt-2 text-sm sm:text-lg text-muted-foreground">
+                <p className="mt-2 text-sm sm:text-lg text-muted-foreground max-sm:hidden">
                   Our most-purchased medicines, ranked by real sales.
                 </p>
               </div>
-              <Button variant="outline" className="hidden sm:flex rounded-xl" onClick={() => navigate("/products")}>
+              <Button variant="outline" className="rounded-xl max-sm:border-0 max-sm:bg-transparent max-sm:px-0 max-sm:shadow-none max-sm:text-sm" onClick={() => navigate("/products")}>
                 View All <ArrowRight className="ml-1.5 size-3.5" />
               </Button>
             </div>
@@ -620,11 +624,6 @@ export default function Landing() {
                 );
               })}
             </div>
-            <div className="mt-6 text-center sm:hidden">
-              <Button variant="outline" className="rounded-xl" onClick={() => navigate("/products")}>
-                View All <ArrowRight className="ml-1.5 size-3.5" />
-              </Button>
-            </div>
           </div>
         </section>
       )}
@@ -633,14 +632,16 @@ export default function Landing() {
       {featuredProducts && featuredProducts.length > 0 && (
         <section className="mx-auto max-w-7xl px-4 sm:px-6 py-6 sm:py-24">
           <div className="mb-6 sm:mb-10">
-            <div className="inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary mb-4">
+            {/* Apollo-style compact heading on phones: pill + description
+                render from `sm` up exactly as before. */}
+            <div className="max-sm:hidden inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary mb-4">
               <Zap className="size-3" />
               Limited Offers
             </div>
-            <h2 className="text-2xl font-bold tracking-tight sm:text-5xl">
+            <h2 className="text-2xl font-bold tracking-tight sm:text-5xl max-sm:text-base max-sm:font-semibold max-sm:tracking-normal">
               Best Deals Right Now
             </h2>
-            <p className="mt-2 text-sm sm:text-lg text-muted-foreground">
+            <p className="mt-2 text-sm sm:text-lg text-muted-foreground max-sm:hidden">
               Save more on your healthcare essentials with our top discounts.
             </p>
           </div>
@@ -698,14 +699,16 @@ export default function Landing() {
       <section className="border-y border-border/50 bg-gradient-to-b from-card/50 to-background">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 py-6 sm:py-14">
           <div className="max-w-xl">
-            <div className="inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary mb-3 max-sm:mb-4">
+            {/* Apollo-style compact heading on phones: pill + description
+                render from `sm` up exactly as before. */}
+            <div className="max-sm:hidden inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary mb-3 max-sm:mb-4">
               <Star className="size-3" />
               Testimonials
             </div>
-            <h2 className="text-2xl font-bold tracking-tight sm:text-5xl">
+            <h2 className="text-2xl font-bold tracking-tight sm:text-5xl max-sm:text-base max-sm:font-semibold max-sm:tracking-normal">
               What Our Customers Say
             </h2>
-            <p className="mt-2 text-sm sm:text-lg text-muted-foreground">
+            <p className="mt-2 text-sm sm:text-lg text-muted-foreground max-sm:hidden">
               Trusted by thousands of families across India for their everyday
               healthcare needs.
             </p>

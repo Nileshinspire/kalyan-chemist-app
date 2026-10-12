@@ -114,13 +114,15 @@ export default function ShopByBrand() {
 
   return (
     <section className="bg-background">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 py-6 max-sm:pt-16 sm:py-16">
-        <div className="mb-8 flex items-end justify-between gap-4">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 py-6 sm:py-16">
+        <div className="mb-5 flex items-end justify-between gap-4 sm:mb-8">
           <div>
-            <h2 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+            {/* Apollo-style compact heading on phones: the description copy
+                renders from `sm` up exactly as before. */}
+            <h2 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl max-sm:text-base max-sm:font-semibold max-sm:tracking-normal">
               Shop By Brand
             </h2>
-            <p className="mt-2 text-sm text-muted-foreground sm:text-base">
+            <p className="mt-2 text-sm text-muted-foreground sm:text-base max-sm:hidden">
               Genuine medicines from trusted pharmaceutical brands
             </p>
           </div>

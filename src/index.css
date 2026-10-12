@@ -257,6 +257,25 @@ button, a, [role="button"], [role="link"], select, input[type="submit"], input[t
   touch-action: manipulation;
 }
 
+/* ── Apollo-style compact sticky header on phones ──────────────────────────
+ * On an inner page the sticky <header> carries four rows (logo · search ·
+ * service links · category nav) ≈ 175px, which swallows a fifth of a phone
+ * viewport once it pins. While scrolled, the search row and the service-link
+ * row therefore tuck away and the header collapses to the compact logo +
+ * category-nav stack (~92px), the way Apollo Pharmacy's header behaves.
+ *
+ * Scope: below 768px ONLY, and only for inner pages — the homepage keeps its
+ * on-scroll search row (it is the only search once the hero scrolls away), and
+ * the search row still renders normally at the top of every page. Tablets,
+ * laptops and desktops are untouched: the selector never matches at ≥768px,
+ * where the rows are controlled by their existing responsive utilities.
+ */
+@media (max-width: 767.98px) {
+  header[data-kc-scrolled="true"]:not([data-kc-home="true"]) .kc-collapse-on-scroll {
+    display: none;
+  }
+}
+
 /* Scrollbar styling */
 ::-webkit-scrollbar {
   width: 6px;

@@ -338,14 +338,18 @@ export default function HealthConditions() {
     <section className="bg-background">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 pt-6 pb-6 sm:pt-5 sm:pb-12">
         <div className="max-w-2xl">
-          <div className="inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary mb-4">
+          {/* Apollo-style compact section heading on phones: the eyebrow pill
+              and the description copy render from `sm` up exactly as before;
+              below that only the 16px/600 title remains, giving every mobile
+              section the same single-line heading rhythm. */}
+          <div className="max-sm:hidden inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary mb-4">
             <HeartPulse className="size-3" />
             Health Conditions
           </div>
-          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+          <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground max-sm:text-base max-sm:font-semibold max-sm:tracking-normal">
             Browse by Health Conditions
           </h2>
-          <p className="mt-2 text-sm sm:text-base text-muted-foreground">
+          <p className="mt-2 text-sm sm:text-base text-muted-foreground max-sm:hidden">
             Shop curated medicines and wellness products for the health conditions
             that matter most to you and your family.
           </p>

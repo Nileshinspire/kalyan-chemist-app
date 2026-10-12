@@ -239,14 +239,16 @@ export default function PopularLabTests() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 pt-6 pb-6 sm:pt-2 sm:pb-12">
         <div className="flex items-end justify-between gap-4 mb-5 sm:mb-8">
           <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary mb-4">
+            {/* Apollo-style compact heading on phones: pill + description
+                render from `sm` up exactly as before. */}
+            <div className="max-sm:hidden inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary mb-4">
               <FlaskConical className="size-3" />
               Lab Diagnostics
             </div>
-            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground">
+            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground max-sm:text-base max-sm:font-semibold max-sm:tracking-normal">
               Popular Lab Tests
             </h2>
-            <p className="mt-2 text-sm sm:text-base text-muted-foreground">
+            <p className="mt-2 text-sm sm:text-base text-muted-foreground max-sm:hidden">
               Book diagnostic tests with home sample collection and quick reports
               from our trusted partner labs.
             </p>
