@@ -527,7 +527,8 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
           phone card keeps sane proportions; from `sm` the desktop band. */}
       <div
         ref={imageAreaRef}
-        className="relative flex shrink-0 items-center justify-center bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] h-32 sm:h-44 border-b border-border/40 overflow-hidden"
+        className="relative flex shrink-0 items-center justify-center bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] overflow-hidden border-b border-border/40 rounded-xl"
+        style={{ height: 118 }}
       >
         <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.08] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
         {realImage ? (
@@ -572,7 +573,7 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
           pinned to the bottom — the card's outer height never depends on the
           product data or on the image's aspect ratio. */}
       <CardContent className="flex flex-1 flex-col p-3 sm:p-4">
-        <div className="space-y-2.5">
+        <div className="space-y-1.5 sm:space-y-2.5">
           <div className="flex flex-wrap gap-1.5">
             {product.prescriptionRequired && (
               <Badge variant="secondary" className="text-[10px] font-medium bg-red-50 text-red-700 border-red-200">
@@ -627,10 +628,10 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
             `mt-auto`, so the free space of a shorter card is absorbed above it
             and every card's buttons sit on the same bottom line. `pt-2.5`
             keeps the gap that the details block's `space-y-2.5` used to give. */}
-        <div className="mt-auto flex flex-col gap-2 pt-2.5 sm:flex-row sm:flex-wrap">
+        <div className="mt-auto flex flex-col gap-1.5 pt-2.5 sm:flex-row sm:flex-wrap">
           <Button
             size="sm"
-            className="flex-1 h-9 px-2 sm:px-3 text-[11px] sm:text-xs font-semibold gap-1 gradient-primary text-white shadow-sm hover:shadow-glow transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+            className="flex-1 h-[28px] px-2 sm:px-3 text-[11px] sm:text-xs font-semibold gap-1 gradient-primary text-white shadow-sm hover:shadow-glow transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
             onClick={handleBuyNow}
             disabled={product.stockQuantity === 0}
           >
@@ -640,7 +641,7 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
           <Button
             size="sm"
             variant="secondary"
-            className="h-9 px-2 sm:px-3 text-[11px] sm:text-xs font-semibold gap-1 border border-border/60 hover:border-primary/30 hover:bg-primary/[0.03] transition-all duration-300"
+            className="h-[28px] px-2 sm:px-3 text-[11px] sm:text-xs font-semibold gap-1 border border-border/60 hover:border-primary/30 hover:bg-primary/[0.03] transition-all duration-300"
             onClick={handleAddToCart}
             disabled={product.stockQuantity === 0}
           >

@@ -108,21 +108,20 @@ export default function NewArrivals() {
               <ChevronRight className="size-4" />
             </button>
           </div>
-        </div>
-        <div
-          ref={trackRef}
-          onScroll={update}
-          className="flex gap-3 overflow-x-auto scrollbar-none snap-x snap-mandatory max-sm:overscroll-x-contain sm:-mx-6 sm:px-6 sm:gap-4"
-        >
-          {products.map((product) => (
-            <div
-              key={product._id}
-              className="kc-new-arrival min-w-[calc(50%-0.5rem)] snap-start md:min-w-[calc(33.333%-0.667rem)] lg:min-w-[calc(25%-0.75rem)] max-sm:min-w-[calc(42%-0.375rem)]"
-            >
-              <ProductCard product={product} newArrival />
-            </div>
-          ))}
-        </div>
+        </div>          <div
+            ref={trackRef}
+            onScroll={update}
+            className="flex gap-3 overflow-x-auto scrollbar-none snap-x snap-mandatory max-sm:overscroll-x-contain sm:-mx-6 sm:px-6 sm:gap-4"
+          >
+            {products.map((product) => (
+              <div
+                key={product._id}
+                className="kc-new-arrival min-w-[calc(50%-0.5rem)] snap-start md:min-w-[calc(33.333%-0.667rem)] lg:min-w-[calc(25%-0.75rem)] max-sm:min-w-[calc(42%-0.375rem)]"
+              >
+                <ProductCard product={product} newArrival />
+              </div>
+            ))}
+          </div>
 
         {/* Mobile arrows */}
         <div className="mt-5 flex items-center justify-center gap-3 sm:hidden">
