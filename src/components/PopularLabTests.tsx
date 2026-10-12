@@ -282,7 +282,7 @@ export default function PopularLabTests() {
             setCanPrev(el.scrollLeft > 4);
             setCanNext(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
           }}
-          className="flex gap-4 overflow-x-auto scrollbar-none snap-x snap-mandatory max-sm:overscroll-x-contain sm:-mx-6 sm:px-6"
+          className="flex gap-3 overflow-x-auto scrollbar-none snap-x snap-mandatory max-sm:overscroll-x-contain sm:-mx-6 sm:px-6 sm:gap-4"
         >
           {tests.map((test) => {
             const hasPrice = test.discountedPrice > 0;
@@ -297,7 +297,7 @@ export default function PopularLabTests() {
                 onMouseEnter={() => preloadRoute("/lab-tests")}
                 onFocus={() => preloadRoute("/lab-tests")}
                 onClick={() => navigate(`/lab-tests/test/${test._id}`)}
-                className="group flex min-w-[calc(50%-0.5rem)] snap-start flex-col rounded-xl border border-border/60 bg-card p-4 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md cursor-pointer md:min-w-[calc(33.333%-0.667rem)] lg:min-w-[calc(25%-0.75rem)]"
+                className="group flex min-w-[calc(50%-0.5rem)] snap-start flex-col rounded-xl border border-border/60 bg-card p-4 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md cursor-pointer md:min-w-[calc(33.333%-0.667rem)] lg:min-w-[calc(25%-0.75rem)] max-sm:min-w-[calc(46%-0.375rem)]"
               >
                 <div className="flex items-center gap-3.5">
                   <span

@@ -30,6 +30,20 @@ import {
   X,
 } from "lucide-react";
 
+/* ─── Service Navigation Items (same five links as SubNav) ───
+ * On phones the service-link row is not part of the sticky header (that row
+ * is what made phone headers 175px tall), so the identical five destinations
+ * are surfaced here in the mobile menu sheet — nothing becomes unreachable.
+ * Desktop/laptop already had these links via SubNav; the sheet is a
+ * mobile-only surface. */
+const SERVICE_NAV_ITEMS = [
+  { label: "Upload Prescription", route: "/upload-prescription" },
+  { label: "Doctor Appointment", route: "/doctor-appointment" },
+  { label: "Lab Tests", route: "/lab-tests" },
+  { label: "Medicine Refill", route: "/refill" },
+  { label: "AI Chatbot", route: "/chatbot" },
+] as const;
+
 /* ─── Global Category Navigation Items ─── */
 const CATEGORY_NAV_ITEMS = [
   { label: "Kalyan Chemist Products", slug: "", key: "all" },
@@ -370,6 +384,27 @@ const Navbar = memo(function Navbar() {
                       <Package className="mr-2 size-4" />
                       Browse Medicines
                     </Button>
+                    {/* Service links (mobile mirror of the SubNav row) */}
+                    <div className="mt-2 mb-2 px-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                        Services
+                      </p>
+                    </div>
+                    {SERVICE_NAV_ITEMS.map((item) => (
+                      <Button
+                        key={item.route}
+                        variant="ghost"
+                        className="justify-start rounded-xl h-9 text-xs"
+                        onMouseEnter={() => preloadRoute(item.route)}
+                        onFocus={() => preloadRoute(item.route)}
+                        onClick={() => {
+                          navigate(item.route);
+                          setMobileOpen(false);
+                        }}
+                      >
+                        {item.label}
+                      </Button>
+                    ))}
                     {/* Mobile category links */}
                     <div className="mt-2 mb-2 px-2">
                       <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">

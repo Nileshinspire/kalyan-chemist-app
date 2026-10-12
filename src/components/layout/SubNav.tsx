@@ -41,10 +41,14 @@ const SubNav = memo(function SubNav() {
   return (
     <>
       {/* ═══ Service Navigation — simple text links, evenly spaced ═══
-          `kc-collapse-on-scroll` is consumed only by the mobile CSS block in
-          index.css: on phones this row tucks away while the page is scrolled
-          so the sticky header stays compact (desktop/laptop unchanged). */}
-      <nav className="kc-collapse-on-scroll border-b border-border/40 bg-background">
+          Apollo's mobile header carries ONE nav row, so below `sm` this row
+          is removed from the sticky header entirely (that is what made phone
+          headers 175px tall); the same five links stay reachable on phones
+          via the mobile menu sheet (Navbar) and the homepage quick-action
+          rail, so nothing is lost. From `sm` up — tablet, laptop, desktop —
+          the row renders exactly as before, and between `sm` and `md` it
+          still tucks away on scroll via `kc-collapse-on-scroll`. */}
+      <nav className="kc-collapse-on-scroll max-sm:hidden border-b border-border/40 bg-background">
         <div className="mx-auto max-w-7xl px-4 sm:px-6">
           {/* Five nowrap labels need ~460px as equal grid tracks, which forces
               a phone-width page to scroll sideways. Below `sm` they become a

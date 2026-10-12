@@ -322,16 +322,16 @@ export default function Landing() {
             The `sm:`/`md:` values below are unchanged, so tablet/laptop/
             desktop keep their exact existing spacing. */}
         <div className="mx-auto max-w-7xl px-4 sm:px-6 py-6 sm:py-8">
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-5">
+          <div className="flex gap-2.5 overflow-x-auto scrollbar-none snap-x max-sm:overscroll-x-contain sm:grid sm:grid-cols-3 sm:gap-3 md:grid-cols-5">
             {/* Upload Prescription */}
             <button
               type="button"
               onMouseEnter={() => preloadRoute("/upload-prescription")}
               onFocus={() => preloadRoute("/upload-prescription")}
               onClick={() => navigate("/upload-prescription")}
-              className="inline-flex items-center gap-2 rounded-lg border border-border/60 bg-card hover:bg-accent/40 px-2.5 py-2 sm:px-3 sm:py-2.5 transition-all duration-300 group cursor-pointer shadow-sm hover:shadow-md"
+              className="inline-flex items-center gap-2 rounded-lg border border-border/60 bg-card hover:bg-accent/40 px-2.5 py-2 sm:px-3 sm:py-2.5 transition-all duration-300 group cursor-pointer shadow-sm hover:shadow-md max-sm:shrink-0 max-sm:snap-start max-sm:min-w-[108px] max-sm:flex-col max-sm:items-center max-sm:justify-start max-sm:gap-1.5 max-sm:p-3 max-sm:text-center"
             >
-              <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary/15 transition-colors">
+              <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary/15 transition-colors max-sm:size-9">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="2" width="12" height="20" rx="2.5" /><line x1="10" y1="5" x2="14" y2="5" /><rect x="8.5" y="9" width="7" height="8.5" rx="1" /><line x1="10" y1="11.5" x2="14" y2="11.5" /><line x1="10" y1="13.5" x2="13" y2="13.5" /><line x1="10" y1="15.5" x2="12" y2="15.5" /><line x1="10.5" y1="7" x2="13.5" y2="7" strokeWidth="1.25" /></svg>
               </div>
               <div className="text-left">
@@ -350,9 +350,9 @@ export default function Landing() {
               onMouseEnter={() => preloadRoute("/doctor-appointment")}
               onFocus={() => preloadRoute("/doctor-appointment")}
               onClick={() => navigate("/doctor-appointment")}
-              className="inline-flex items-center gap-2 rounded-lg border border-border/60 bg-card hover:bg-accent/40 px-2.5 py-2 sm:px-3 sm:py-2.5 transition-all duration-300 group cursor-pointer shadow-sm hover:shadow-md"
+              className="inline-flex items-center gap-2 rounded-lg border border-border/60 bg-card hover:bg-accent/40 px-2.5 py-2 sm:px-3 sm:py-2.5 transition-all duration-300 group cursor-pointer shadow-sm hover:shadow-md max-sm:shrink-0 max-sm:snap-start max-sm:min-w-[108px] max-sm:flex-col max-sm:items-center max-sm:justify-start max-sm:gap-1.5 max-sm:p-3 max-sm:text-center"
             >
-              <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary/15 transition-colors">
+              <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary/15 transition-colors max-sm:size-9">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /><circle cx="12" cy="15" r="2.5" /><path d="M12 14v-0.5" /><path d="M12 16v0.5" /><path d="M11.5 15h-0.5" /><path d="M12.5 15h0.5" /></svg>
               </div>
               <div className="text-left">
@@ -371,9 +371,9 @@ export default function Landing() {
               onMouseEnter={() => preloadRoute("/lab-tests")}
               onFocus={() => preloadRoute("/lab-tests")}
               onClick={() => navigate("/lab-tests")}
-              className="inline-flex items-center gap-2 rounded-lg border border-border/60 bg-card hover:bg-accent/40 px-4 py-2 sm:px-5 sm:py-2.5 transition-all duration-300 group cursor-pointer shadow-sm hover:shadow-md"
+              className="inline-flex items-center gap-2 rounded-lg border border-border/60 bg-card hover:bg-accent/40 px-4 py-2 sm:px-5 sm:py-2.5 transition-all duration-300 group cursor-pointer shadow-sm hover:shadow-md max-sm:shrink-0 max-sm:snap-start max-sm:min-w-[108px] max-sm:flex-col max-sm:items-center max-sm:justify-start max-sm:gap-1.5 max-sm:p-3 max-sm:text-center"
             >
-              <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary/15 transition-colors">
+              <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary/15 transition-colors max-sm:size-9">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 3h6" /><path d="M10 3v7.4a2 2 0 0 1-.4 1.2L5 17a2 2 0 0 0 1.6 3h10.8a2 2 0 0 0 1.6-3l-4.6-5.4a2 2 0 0 1-.4-1.2V3" /><path d="M8.5 14h7" /><circle cx="11" cy="17" r="1" fill="currentColor" stroke="none" /><circle cx="14" cy="18" r="0.75" fill="currentColor" stroke="none" /></svg>
               </div>
               <div className="text-left">
@@ -392,9 +392,9 @@ export default function Landing() {
               onMouseEnter={() => preloadRoute("/refill")}
               onFocus={() => preloadRoute("/refill")}
               onClick={() => navigate("/refill")}
-              className="inline-flex items-center gap-2 rounded-lg border border-border/60 bg-card hover:bg-accent/40 px-2.5 py-2 sm:px-3 sm:py-2.5 transition-all duration-300 group cursor-pointer shadow-sm hover:shadow-md"
+              className="inline-flex items-center gap-2 rounded-lg border border-border/60 bg-card hover:bg-accent/40 px-2.5 py-2 sm:px-3 sm:py-2.5 transition-all duration-300 group cursor-pointer shadow-sm hover:shadow-md max-sm:shrink-0 max-sm:snap-start max-sm:min-w-[108px] max-sm:flex-col max-sm:items-center max-sm:justify-start max-sm:gap-1.5 max-sm:p-3 max-sm:text-center"
             >
-              <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary/15 transition-colors">
+              <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary/15 transition-colors max-sm:size-9">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="6" y="2" width="12" height="20" rx="2.5" /><line x1="10" y1="5" x2="14" y2="5" /><path d="M12 14a3 3 0 1 0 0-6" /><polyline points="15 11 12 8 9 11" stroke="none" /><path d="M16 11a4 4 0 0 1-4 4" /><polyline points="15 13 16 16 13 16" /><path d="M12 18a3 3 0 1 0 0 6" /><polyline points="9 21 12 24 15 21" stroke="none" /><line x1="8" y1="9" x2="16" y2="9" /></svg>
               </div>
               <div className="text-left">
@@ -413,9 +413,9 @@ export default function Landing() {
               onMouseEnter={() => preloadRoute("/chatbot")}
               onFocus={() => preloadRoute("/chatbot")}
               onClick={() => navigate("/chatbot")}
-              className="inline-flex items-center gap-2 rounded-lg border border-border/60 bg-card hover:bg-accent/40 px-2.5 py-2 sm:px-3 sm:py-2.5 transition-all duration-300 group cursor-pointer shadow-sm hover:shadow-md"
+              className="inline-flex items-center gap-2 rounded-lg border border-border/60 bg-card hover:bg-accent/40 px-2.5 py-2 sm:px-3 sm:py-2.5 transition-all duration-300 group cursor-pointer shadow-sm hover:shadow-md max-sm:shrink-0 max-sm:snap-start max-sm:min-w-[108px] max-sm:flex-col max-sm:items-center max-sm:justify-start max-sm:gap-1.5 max-sm:p-3 max-sm:text-center"
             >
-              <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary/15 transition-colors">
+              <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary/15 transition-colors max-sm:size-9">
                 <MessageCircle className="size-[16px]" />
               </div>
               <div className="text-left">
@@ -576,7 +576,7 @@ export default function Landing() {
                 View All <ArrowRight className="ml-1.5 size-3.5" />
               </Button>
             </div>
-            <div className="flex gap-4 overflow-x-auto scrollbar-none snap-x snap-mandatory max-sm:overscroll-x-contain sm:grid sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5 sm:overflow-visible">
+            <div className="flex gap-3 overflow-x-auto scrollbar-none snap-x snap-mandatory max-sm:overscroll-x-contain sm:grid sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5 sm:overflow-visible">
               {hotSellers.map((product) => {
                 const hasDiscount = product.discountPrice && product.discountPrice < product.price;
                 const discountPct = hasDiscount ? Math.round(((product.price - product.discountPrice!) / product.price) * 100) : 0;
@@ -586,14 +586,31 @@ export default function Landing() {
                     initial={{ opacity: 0, y: 16 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
-                    className="group rounded-2xl border border-border/70 bg-card p-3 sm:p-4 cursor-pointer transition-all duration-500 hover:shadow-card-hover hover:border-primary/20 hover:-translate-y-1 min-w-[calc(50%-0.5rem)] shrink-0 snap-start sm:min-w-0"
+                    className="group rounded-2xl border border-border/70 bg-card p-3 sm:p-4 cursor-pointer transition-all duration-500 hover:shadow-card-hover hover:border-primary/20 hover:-translate-y-1 min-w-[calc(50%-0.5rem)] shrink-0 snap-start sm:min-w-0 max-sm:min-w-[calc(42%-0.375rem)]"
                     onClick={() => {
                       beginProductTransition();
                       navigate(`/products/${product.slug}`, { state: { from: location.pathname + location.search } });
                     }}
                   >
                     <div className="relative flex items-center justify-center bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] h-32 rounded-xl mb-3 overflow-hidden">
-                      <Pill className="size-10 text-primary/20 group-hover:text-primary/30 transition-all duration-500" />
+                      {/* Phones follow Apollo's image-first cards and show the real
+                          packshot when the catalog has one; the Pill placeholder
+                          keeps its current desktop rendering (and the mobile
+                          fallback for products without an image). */}
+                      {product.imageUrl ? (
+                        <>
+                          <img
+                            src={product.imageUrl}
+                            alt={product.name}
+                            loading="lazy"
+                            decoding="async"
+                            className="absolute inset-0 h-full w-full object-contain p-2 sm:hidden"
+                          />
+                          <Pill className="max-sm:hidden size-10 text-primary/20 group-hover:text-primary/30 transition-all duration-500" />
+                        </>
+                      ) : (
+                        <Pill className="size-10 text-primary/20 group-hover:text-primary/30 transition-all duration-500" />
+                      )}
                       {hasDiscount && (
                         <Badge className="absolute top-2 left-2 text-[10px] font-bold bg-gradient-to-r from-green-500 to-emerald-500 text-white border-0">
                           {discountPct}% OFF
@@ -659,7 +676,22 @@ export default function Landing() {
                 }}
               >
                 <div className="relative flex items-center justify-center bg-gradient-to-br from-green-500/[0.06] to-emerald-500/[0.03] h-28 sm:h-40">
-                  <Pill className="size-12 text-primary/20 group-hover:scale-110 transition-all duration-500" />
+                  {/* Real packshot on phones (Apollo-style image-first card);
+                      desktop keeps the existing Pill placeholder exactly. */}
+                  {product.imageUrl ? (
+                    <>
+                      <img
+                        src={product.imageUrl}
+                        alt={product.name}
+                        loading="lazy"
+                        decoding="async"
+                        className="absolute inset-0 h-full w-full object-contain p-2 sm:hidden"
+                      />
+                      <Pill className="max-sm:hidden size-12 text-primary/20 group-hover:scale-110 transition-all duration-500" />
+                    </>
+                  ) : (
+                    <Pill className="size-12 text-primary/20 group-hover:scale-110 transition-all duration-500" />
+                  )}
                   <div className="absolute top-3 left-3">
                     <Badge className="text-xs font-bold bg-gradient-to-r from-green-500 to-emerald-500 text-white border-0 shadow-md">
                       {product.discountPercent}% OFF

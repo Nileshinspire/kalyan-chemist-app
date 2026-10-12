@@ -153,7 +153,7 @@ export default function ShopByBrand() {
         <div
           ref={trackRef}
           onScroll={updateArrows}
-          className="flex flex-nowrap snap-x snap-mandatory gap-4 overflow-x-auto overscroll-x-contain pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="flex flex-nowrap snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:gap-4"
         >
           {brands.map((brand) => (
             <button

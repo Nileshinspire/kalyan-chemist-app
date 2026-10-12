@@ -72,9 +72,9 @@ export default function ValueDeals() {
         {/* Mobile: swipeable row (two cards per view) so four deals occupy one
             compact band instead of two tall grid rows — the Apollo-style
             product carousel. From `sm` the original grid is restored exactly. */}
-        <div className="flex gap-4 overflow-x-auto scrollbar-none snap-x snap-mandatory max-sm:overscroll-x-contain sm:grid sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5 sm:overflow-visible">
+        <div className="flex gap-3 overflow-x-auto scrollbar-none snap-x snap-mandatory max-sm:overscroll-x-contain sm:grid sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5 sm:overflow-visible">
           {deals.map((product) => (
-            <div key={product._id} className="kc-value-deal min-w-[calc(50%-0.5rem)] shrink-0 snap-start sm:min-w-0">
+            <div key={product._id} className="kc-value-deal min-w-[calc(50%-0.5rem)] shrink-0 snap-start sm:min-w-0 max-sm:min-w-[calc(42%-0.375rem)]">
               <ProductCard product={product as any} />
             </div>
           ))}
