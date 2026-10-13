@@ -506,7 +506,7 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
        an individual card taller (an extra manufacturer / dosage line, a longer
        name, a different image aspect ratio) and all bottom edges line up. */
     <Card
-      className="group relative h-full overflow-hidden border-border/60 bg-card cursor-pointer transition-all duration-500 hover:shadow-card-hover hover:border-primary/20 hover:-translate-y-1"
+      className="group relative h-full flex-col overflow-hidden border-border/60 bg-card cursor-pointer transition-all duration-500 hover:shadow-card-hover hover:border-primary/20 hover:-translate-y-1 max-sm:gap-0 max-sm:py-0"
       onClick={() => goProduct(navigate, location.pathname + location.search, product.slug)}
       onMouseEnter={warmProductDetail}
       onFocus={warmProductDetail}
@@ -523,11 +523,13 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
         <Heart className={`size-4 transition-colors ${isWishlisted ? "fill-rose-500 text-rose-500" : "text-muted-foreground group-hover:text-rose-500"}`} />
       </Button>
 
-      {/* Mobile: Apollo-style short image band; content fills the rest, actions pinned bottom. Desktop (`sm:` and up) unchanged. */}
+      {/* Image band: the mobile band is short and flush with the card's top
+          edge (the card's own vertical padding and gap are removed below `sm`),
+          so the packshot area never eats a phone screen. From `sm` up this is
+          the original band and the card keeps its original padding/gap. */}
       <div
         ref={imageAreaRef}
-        className="relative flex shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] border-b border-border/40 sm:hidden"
-        style={{ height: 118 }}
+        className="relative flex h-28 shrink-0 items-center justify-center overflow-hidden rounded-xl border-b border-border/40 bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] sm:h-44"
       >
         <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.08] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
         {realImage ? (
@@ -568,13 +570,11 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
         )}
       </div>
 
-      {/* Mobile: Apollo-style short image band; content fills the rest, actions pinned bottom. Desktop (`sm:` and up) unchanged. */}
-      <div
-        ref={imageAreaRef}
-        className="relative flex shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] border-b border-border/40 sm:hidden"
-        style={{ height: 118 }}
-      >
-        <div className="space-y-1.5 sm:space-y-2.5">
+      {/* Content: fills the space the image band leaves and pins the action row
+          to the bottom edge, so every card in a row lines up. Mobile uses tight
+          padding/spacing; `sm:` restores the original values. */}
+      <CardContent className="flex flex-1 flex-col p-2.5 sm:p-4">
+        <div className="space-y-2.5 max-sm:space-y-1.5">
           <div className="flex flex-wrap gap-1.5">
             {product.prescriptionRequired && (
               <Badge variant="secondary" className="text-[10px] font-medium bg-red-50 text-red-700 border-red-200">
@@ -594,10 +594,13 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
           </div>
 
           <div>
-            <h3 className="text-sm font-semibold leading-snug text-foreground line-clamp-2 group-hover:text-primary transition-colors duration-300">
+            <h3 className="text-sm max-sm:text-[13px] font-semibold leading-snug text-foreground line-clamp-2 group-hover:text-primary transition-colors duration-300">
               {product.name}
             </h3>
-            <p className="mt-0.5 text-xs text-muted-foreground break-words">{product.manufacturer}</p>
+            {/* Manufacturer wraps naturally and is capped at two lines on
+                phones, so a long company name can never stretch one card in a
+                row far past its neighbours. */}
+            <p className="mt-0.5 text-xs text-muted-foreground break-words max-sm:line-clamp-2">{product.manufacturer}</p>
           </div>
 
           {displayInfo && (
@@ -607,7 +610,7 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
           )}
 
           <div className="flex items-baseline gap-1.5">
-            <span className="text-lg font-extrabold text-foreground">
+            <span className="text-lg max-sm:text-base font-extrabold text-foreground">
               {formatCurrency(hasDiscount ? product.discountPrice! : product.price)}
             </span>
             {hasDiscount && (
@@ -629,24 +632,24 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
             `mt-auto`, so the free space of a shorter card is absorbed above it
             and every card's buttons sit on the same bottom line. `pt-2.5`
             keeps the gap that the details block's `space-y-2.5` used to give. */}
-        <div className="mt-auto flex flex-col gap-1.5 pt-2.5 sm:flex-row sm:flex-wrap">
+        <div className="mt-auto flex flex-wrap gap-2 pt-2.5 max-sm:gap-1 max-sm:pt-1.5">
           <Button
             size="sm"
-            className="flex-1 h-[28px] px-2 sm:px-3 text-[11px] sm:text-xs font-semibold gap-1 gradient-primary text-white shadow-sm hover:shadow-glow transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+            className="h-9 max-sm:h-auto max-sm:min-h-8 max-sm:px-1.5 max-sm:py-1 flex-1 min-w-0 px-2 sm:px-3 text-[11px] sm:text-xs font-semibold gap-1 gradient-primary text-white shadow-sm hover:shadow-glow transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
             onClick={handleBuyNow}
             disabled={product.stockQuantity === 0}
           >
-            <Zap className="size-3" />
+            <Zap className="size-3 max-sm:hidden" />
             {product.stockQuantity === 0 ? "Out of Stock" : "Buy Now"}
           </Button>
           <Button
             size="sm"
             variant="secondary"
-            className="h-[28px] px-2 sm:px-3 text-[11px] sm:text-xs font-semibold gap-1 border border-border/60 hover:border-primary/30 hover:bg-primary/[0.03] transition-all duration-300"
+            className="h-9 max-sm:h-auto max-sm:min-h-8 max-sm:px-1.5 max-sm:py-1 shrink-0 px-2 sm:px-3 text-[11px] sm:text-xs font-semibold gap-1 border border-border/60 hover:border-primary/30 hover:bg-primary/[0.03] transition-all duration-300"
             onClick={handleAddToCart}
             disabled={product.stockQuantity === 0}
           >
-            <ShoppingCart className="size-3" />
+            <ShoppingCart className="size-3 max-sm:hidden" />
             Cart
           </Button>
         </div>

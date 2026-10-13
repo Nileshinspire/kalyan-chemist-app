@@ -709,7 +709,7 @@ export default function WhyKalyanChemist() {
                 Below `sm` they sit in a 2×2 grid (Apollo-style compact benefit
                 tiles) instead of a single tall stack; from `sm` up the layout is
                 byte-for-byte the original 2-col grid. */}
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 sm:gap-3.5">
+            <div className="grid grid-cols-2 gap-2 max-sm:auto-rows-fr sm:grid-cols-2 sm:gap-3.5">
               {CARDS.map((card, i) => {
                 const isActive = activeIdx === i;
                 const Icon = card.icon;
@@ -720,14 +720,14 @@ export default function WhyKalyanChemist() {
                     initial="hidden"
                     animate={revealed ? "visible" : "hidden"}
                     variants={cardV}
-                    className="relative [perspective:900px]"
+                    className="relative h-full [perspective:900px]"
                     onMouseEnter={() => setActiveIdx(i)}
                   >
                     {/* card body — overflow-hidden clips ALL effects inside the card,
                         so hover glow/elevation can never spill into a neighbour */}
                     <div
                       ref={(el) => { cardRefs.current[i] = el; }}
-                      className={`group relative z-10 overflow-hidden rounded-2xl border p-2 sm:p-2.5 transition-[transform,border-color] duration-[260ms] ease-out will-change-transform ${
+                      className={`group relative z-10 overflow-hidden rounded-2xl border p-2 max-sm:h-full sm:p-2.5 transition-[transform,border-color] duration-[260ms] ease-out will-change-transform ${
                         isActive ? "border-[#16A36A]/30" : "border-[#F5F3EC]/[0.07]"
                       }`}
                       style={{
