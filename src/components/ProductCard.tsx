@@ -523,11 +523,10 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
         <Heart className={`size-4 transition-colors ${isWishlisted ? "fill-rose-500 text-rose-500" : "text-muted-foreground group-hover:text-rose-500"}`} />
       </Button>
 
-      {/* Product image placeholder — mobile uses a shorter band so a 2-col
-          phone card keeps sane proportions; from `sm` the desktop band. */}
+      {/* Mobile: Apollo-style short image band; content fills the rest, actions pinned bottom. Desktop (`sm:` and up) unchanged. */}
       <div
         ref={imageAreaRef}
-        className="relative flex shrink-0 items-center justify-center bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] overflow-hidden border-b border-border/40 rounded-xl"
+        className="relative flex shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] border-b border-border/40 sm:hidden"
         style={{ height: 118 }}
       >
         <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.08] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
@@ -569,10 +568,12 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
         )}
       </div>
 
-      {/* Fixed-height image band above, content filling the rest, action row
-          pinned to the bottom — the card's outer height never depends on the
-          product data or on the image's aspect ratio. */}
-      <CardContent className="flex flex-1 flex-col p-3 sm:p-4">
+      {/* Mobile: Apollo-style short image band; content fills the rest, actions pinned bottom. Desktop (`sm:` and up) unchanged. */}
+      <div
+        ref={imageAreaRef}
+        className="relative flex shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] border-b border-border/40 sm:hidden"
+        style={{ height: 118 }}
+      >
         <div className="space-y-1.5 sm:space-y-2.5">
           <div className="flex flex-wrap gap-1.5">
             {product.prescriptionRequired && (
