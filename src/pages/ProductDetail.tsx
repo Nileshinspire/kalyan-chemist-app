@@ -68,6 +68,7 @@ import {
   Check,
   Sparkles,
   Scale,
+  type LucideIcon,
 } from "lucide-react";
 import { useState, useCallback, useRef } from "react";
 import {
@@ -262,6 +263,103 @@ function ReviewSheet({
         )}
       </SheetContent>
     </Sheet>
+  );
+}
+
+/* ─── Section navigation tabs ───────────────────────────────────────────────
+ * The nine product sections a shopper can jump to, defined ONCE. They used to be
+ * written out twice (two desktop rows) which made the phones layout drift: the
+ * bar was a plain `flex-wrap`, so at 390px it wrapped 3 / 2 / 3 / 1 and left
+ * "Other" alone on its own row.
+ *
+ * `label.split(" ")[0]` is the short label phones already showed (Product,
+ * Medical, Key, …); `label` is the full label used from `sm` up.
+ */
+type SectionTab = { id: string; label: string; icon: LucideIcon };
+
+const SECTION_TABS: SectionTab[] = [
+  { id: "product-info", label: "Product Information", icon: BookOpen },
+  { id: "medical-benefits", label: "Medical Benefits", icon: Stethoscope },
+  { id: "key-ingredients", label: "Key Ingredients", icon: Pill },
+  { id: "directions-for-use", label: "Directions for Use", icon: ClipboardList },
+  { id: "safety", label: "Safety", icon: ShieldCheck },
+  { id: "information", label: "Information", icon: Info },
+  { id: "faqs", label: "FAQs", icon: HelpCircle },
+  { id: "customers-also-bought", label: "Customers Also Bought", icon: ShoppingCart },
+  { id: "other-links", label: "Other Links", icon: Link2 },
+];
+
+/**
+ * One section tab. Two layouts, one behaviour (same state, same scroll target):
+ *  - `bar`  — the desktop/laptop row item (icon + label inline). Unchanged.
+ *  - `grid` — the phones-only grid cell (icon above label, centred), so every
+ *             cell has the same width/height and the rows stay balanced.
+ */
+function SectionNavTab({
+  tab,
+  isActive,
+  onSelect,
+  variant,
+  layoutId,
+}: {
+  tab: SectionTab;
+  isActive: boolean;
+  onSelect: () => void;
+  variant: "bar" | "grid";
+  layoutId: string;
+}) {
+  const Icon = tab.icon;
+
+  if (variant === "grid") {
+    return (
+      <button
+        type="button"
+        onClick={onSelect}
+        className={`relative flex flex-col items-center justify-center gap-1 py-2.5 px-1 text-[11px] font-medium tracking-wide cursor-pointer rounded-xl transition-colors duration-250 ${
+          isActive ? "text-primary font-semibold" : "text-slate-500"
+        }`}
+      >
+        <Icon
+          className={`size-4 ${isActive ? "text-primary" : "text-slate-400"}`}
+          strokeWidth={isActive ? 2 : 1.5}
+        />
+        <span className="max-w-full text-center leading-tight">{tab.label.split(" ")[0]}</span>
+        {isActive && (
+          <motion.span
+            layoutId={layoutId}
+            className="absolute bottom-0 left-3 right-3 h-[2.5px] rounded-full bg-primary"
+            transition={{ type: "spring", stiffness: 500, damping: 30 }}
+          />
+        )}
+      </button>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={`relative flex items-center gap-1.5 py-2.5 px-3.5 text-[11px] sm:text-xs font-medium tracking-wide cursor-pointer rounded-t-lg transition-all duration-250 ease-out group ${
+        isActive ? "text-primary font-semibold" : "text-slate-500 hover:text-slate-800"
+      }`}
+    >
+      <Icon
+        className={`size-3.5 transition-all duration-250 ${isActive ? "text-primary" : "text-slate-400 group-hover:text-primary/80 group-hover:translate-y-[-1px]"}`}
+        strokeWidth={isActive ? 2 : 1.5}
+      />
+      <span className="hidden sm:inline transition-colors duration-250">{tab.label}</span>
+      <span className="sm:hidden transition-colors duration-250">{tab.label.split(" ")[0]}</span>
+      {/* Animated underline indicator */}
+      {isActive && (
+        <motion.span
+          layoutId={layoutId}
+          className="absolute bottom-0 left-2 right-2 h-[2.5px] rounded-full bg-primary"
+          transition={{ type: "spring", stiffness: 500, damping: 30 }}
+        />
+      )}
+      {/* Hover underline (non-active only) */}
+      <span className="absolute bottom-0 left-3 right-3 h-[2px] rounded-full bg-primary/20 scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
+    </button>
   );
 }
 
@@ -689,7 +787,11 @@ export default function ProductDetail() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-background pb-16 md:pb-0">
+    /* Below `md` the fixed mobile chrome is 121px tall (65px sticky purchase bar
+       + 56px bottom-navigation spacer) and the bar sits 56px above the viewport
+       bottom, so the page needs 65px of its own padding plus breathing room —
+       the previous `pb-16` (64px) left the last footer line one pixel behind it. */
+    <div className="min-h-screen flex flex-col bg-background pb-[5.5rem] md:pb-0">
       <Navbar />
       <main className="flex-1 mx-auto max-w-7xl w-full px-4 sm:px-6 py-8">
         <Breadcrumb items={breadcrumbItems} />
@@ -1183,21 +1285,28 @@ export default function ProductDetail() {
               Order on WhatsApp{whatsappQty > 1 ? ` (${whatsappQty}×)` : ""}
             </Button>
 
-            <div className="flex flex-wrap gap-6 pt-1">
-              <div className="flex flex-col items-center text-center gap-1">
+            {/* Delivery promises. Phones: a fixed three-track grid, so the three
+                items always share ONE row with equal widths and centred icon /
+                heading / description (the old `flex-wrap` row let "Trusted
+                Pharmacy" drop to its own line on narrow screens). Each heading
+                sits in a two-line-tall box on phones so the descriptions below
+                still start on the same line even though the headings wrap
+                differently. From `sm` up the original flex row is unchanged. */}
+            <div className="grid grid-cols-3 gap-x-2 pt-1 sm:flex sm:flex-wrap sm:gap-6">
+              <div className="flex min-w-0 flex-col items-center text-center gap-1">
                 <Truck className="size-7 text-slate-700" strokeWidth={1.5} />
-                <span className="text-sm font-semibold text-foreground">Fast Delivery</span>
-                <span className="text-[11px] text-muted-foreground">Same day dispatch</span>
+                <span className="text-sm font-semibold text-foreground max-sm:flex max-sm:min-h-7 max-sm:items-center max-sm:text-[11px] max-sm:leading-tight">Fast Delivery</span>
+                <span className="text-[11px] text-muted-foreground max-sm:leading-snug">Same day dispatch</span>
               </div>
-              <div className="flex flex-col items-center text-center gap-1">
+              <div className="flex min-w-0 flex-col items-center text-center gap-1">
                 <Package className="size-7 text-slate-700" strokeWidth={1.5} />
-                <span className="text-sm font-semibold text-foreground">Secure Packaging</span>
-                <span className="text-[11px] text-muted-foreground">Sealed & protected</span>
+                <span className="text-sm font-semibold text-foreground max-sm:flex max-sm:min-h-7 max-sm:items-center max-sm:text-[11px] max-sm:leading-tight">Secure Packaging</span>
+                <span className="text-[11px] text-muted-foreground max-sm:leading-snug">Sealed & protected</span>
               </div>
-              <div className="flex flex-col items-center text-center gap-1">
+              <div className="flex min-w-0 flex-col items-center text-center gap-1">
                 <ShieldCheck className="size-7 text-slate-700" strokeWidth={1.5} />
-                <span className="text-sm font-semibold text-foreground">Trusted Pharmacy</span>
-                <span className="text-[11px] text-muted-foreground">Licensed & verified</span>
+                <span className="text-sm font-semibold text-foreground max-sm:flex max-sm:min-h-7 max-sm:items-center max-sm:text-[11px] max-sm:leading-tight">Trusted Pharmacy</span>
+                <span className="text-[11px] text-muted-foreground max-sm:leading-snug">Licensed & verified</span>
               </div>
             </div>
 
@@ -1280,50 +1389,42 @@ export default function ProductDetail() {
         >
           {/* Tab bar container */}
           <div className="rounded-2xl border border-border/40 bg-gradient-to-b from-card/90 to-card shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] overflow-hidden">
-            {/* Row 1: tabs + trust indicators */}
-            <div className="flex flex-wrap items-center gap-x-1 lg:gap-x-2 gap-y-1 px-2 pt-2">
+            {/* Phones: all nine tabs in one fixed 3-column grid → three complete
+                rows of three. Equal-width cells mean no row can be left with a
+                single lone tab and every icon/label sits on the same grid line,
+                at every supported width (320–430px). */}
+            <div className="grid grid-cols-3 gap-x-1 gap-y-1 px-2 py-2 sm:hidden">
+              {SECTION_TABS.map((tab) => (
+                <SectionNavTab
+                  key={tab.id}
+                  tab={tab}
+                  isActive={activeTab === tab.id}
+                  variant="grid"
+                  layoutId="activeTabIndicatorMobile"
+                  onSelect={() => {
+                    setActiveTab(tab.id);
+                    document.getElementById(tab.id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }}
+                />
+              ))}
+            </div>
+
+            {/* Row 1: tabs + trust indicators (from `sm` up — unchanged) */}
+            <div className="hidden sm:flex flex-wrap items-center gap-x-1 lg:gap-x-2 gap-y-1 px-2 pt-2">
               <div className="flex flex-wrap gap-x-1 lg:gap-x-1.5">
-                {(
-                  [
-                    { id: "product-info", label: "Product Information", icon: BookOpen },
-                    { id: "medical-benefits", label: "Medical Benefits", icon: Stethoscope },
-                    { id: "key-ingredients", label: "Key Ingredients", icon: Pill },
-                    { id: "directions-for-use", label: "Directions for Use", icon: ClipboardList },
-                    { id: "safety", label: "Safety", icon: ShieldCheck },
-                  ] as const
-                ).map((tab) => {
-                  const Icon = tab.icon;
-                  const isActive = activeTab === tab.id;
-                  return (
-                    <button
-                      key={tab.id}
-                      type="button"
-                      onClick={() => {
-                        setActiveTab(tab.id);
-                        document.getElementById(tab.id)?.scrollIntoView({ behavior: "smooth", block: "start" });
-                      }}
-                      className={`relative flex items-center gap-1.5 py-2.5 px-3.5 text-[11px] sm:text-xs font-medium tracking-wide cursor-pointer rounded-t-lg transition-all duration-250 ease-out group ${
-                        isActive
-                          ? "text-primary font-semibold"
-                          : "text-slate-500 hover:text-slate-800"
-                      }`}
-                    >
-                      <Icon className={`size-3.5 transition-all duration-250 ${isActive ? "text-primary" : "text-slate-400 group-hover:text-primary/80 group-hover:translate-y-[-1px]"}`} strokeWidth={isActive ? 2 : 1.5} />
-                      <span className="hidden sm:inline transition-colors duration-250">{tab.label}</span>
-                      <span className="sm:hidden transition-colors duration-250">{tab.label.split(" ")[0]}</span>
-                      {/* Animated underline indicator */}
-                      {isActive && (
-                        <motion.span
-                          layoutId="activeTabIndicator"
-                          className="absolute bottom-0 left-2 right-2 h-[2.5px] rounded-full bg-primary"
-                          transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                        />
-                      )}
-                      {/* Hover underline (non-active only) */}
-                      <span className="absolute bottom-0 left-3 right-3 h-[2px] rounded-full bg-primary/20 scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
-                    </button>
-                  );
-                })}
+                {SECTION_TABS.slice(0, 5).map((tab) => (
+                  <SectionNavTab
+                    key={tab.id}
+                    tab={tab}
+                    isActive={activeTab === tab.id}
+                    variant="bar"
+                    layoutId="activeTabIndicator"
+                    onSelect={() => {
+                      setActiveTab(tab.id);
+                      document.getElementById(tab.id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }}
+                  />
+                ))}
               </div>
 
               {/* Trust indicators */}
@@ -1352,46 +1453,21 @@ export default function ProductDetail() {
               </div>
             </div>
 
-            {/* Row 2: remaining tabs */}
-            <div className="flex flex-wrap gap-x-1 lg:gap-x-1.5 px-2 pb-0 pt-0 border-t border-border/30">
-              {(
-                [
-                  { id: "information", label: "Information", icon: Info },
-                  { id: "faqs", label: "FAQs", icon: HelpCircle },
-                  { id: "customers-also-bought", label: "Customers Also Bought", icon: ShoppingCart },
-                  { id: "other-links", label: "Other Links", icon: Link2 },
-                ] as const
-              ).map((tab) => {
-                const Icon = tab.icon;
-                const isActive = activeTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => {
-                      setActiveTab(tab.id);
-                      document.getElementById(tab.id)?.scrollIntoView({ behavior: "smooth", block: "start" });
-                    }}
-                    className={`relative flex items-center gap-1.5 py-2.5 px-3.5 text-[11px] sm:text-xs font-medium tracking-wide cursor-pointer rounded-t-lg transition-all duration-250 ease-out group ${
-                      isActive
-                        ? "text-primary font-semibold"
-                        : "text-slate-500 hover:text-slate-800"
-                    }`}
-                  >
-                    <Icon className={`size-3.5 transition-all duration-250 ${isActive ? "text-primary" : "text-slate-400 group-hover:text-primary/80 group-hover:translate-y-[-1px]"}`} strokeWidth={isActive ? 2 : 1.5} />
-                    <span className="hidden sm:inline transition-colors duration-250">{tab.label}</span>
-                    <span className="sm:hidden transition-colors duration-250">{tab.label.split(" ")[0]}</span>
-                    {isActive && (
-                      <motion.span
-                        layoutId="activeTabIndicator2"
-                        className="absolute bottom-0 left-2 right-2 h-[2.5px] rounded-full bg-primary"
-                        transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                      />
-                    )}
-                    <span className="absolute bottom-0 left-3 right-3 h-[2px] rounded-full bg-primary/20 scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
-                  </button>
-                );
-              })}
+            {/* Row 2: remaining tabs (from `sm` up — unchanged) */}
+            <div className="hidden sm:flex flex-wrap gap-x-1 lg:gap-x-1.5 px-2 pb-0 pt-0 border-t border-border/30">
+              {SECTION_TABS.slice(5).map((tab) => (
+                <SectionNavTab
+                  key={tab.id}
+                  tab={tab}
+                  isActive={activeTab === tab.id}
+                  variant="bar"
+                  layoutId="activeTabIndicator2"
+                  onSelect={() => {
+                    setActiveTab(tab.id);
+                    document.getElementById(tab.id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }}
+                />
+              ))}
             </div>
 
             {/* Mobile trust indicators */}
