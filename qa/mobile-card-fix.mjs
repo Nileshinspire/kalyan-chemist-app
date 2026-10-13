@@ -74,9 +74,10 @@ const PROBE = () => {
         .map((child) => {
           const card = child.querySelector('[data-slot="card"]') || child;
           const band =
+            card.querySelector('div[class*="h-28"]') ||
             card.querySelector('div[class*="h-32"]') ||
             card.querySelector('div[class*="h-44"]') ||
-            card.querySelector('div[class*="h-40"]');
+            card.querySelector('div[class*="h-40"]') || card;
           const img = card.querySelector("img");
           const buttons = [...card.querySelectorAll("button")].map((b) => ({ label: (b.textContent || "").trim().slice(0, 14), ...box(b) }));
           const c = box(card);
@@ -104,7 +105,7 @@ const PROBE = () => {
       const cards = [...grid.children].map((child) => {
         const buttons = [...child.querySelectorAll("button")].map((b) => ({ label: (b.textContent || "").trim().slice(0, 14), ...box(b) }));
         if (!buttons.some((b) => /buy now|cart|out of stock/i.test(b.label))) return null;
-        const band = child.querySelector('div[class*="h-28"], div[class*="h-40"], div[class*="h-32"]');
+          const band = child.querySelector('div[class*="h-28"], div[class*="h-32"], div[class*="h-40"], div[class*="h-44"]') || child;
         return {
           card: box(child),
           band: band ? box(band) : null,
@@ -203,12 +204,20 @@ for (const width of [320, 360, 375, 390, 430]) {
   );
   const bands = data.rails.flatMap((r) => r.cards.map((c) => c.band?.h).filter(Boolean));
   check(
-    `W=${width}: image bands identical across every product carousel`,
-    bands.length > 0 && new Set(bands).size === 1 && bands[0] >= 96 && bands[0] <= 132,
+    `W=${width}: image bands identical across every product carousel (h-24 mobile / h-40 sm)`,
+    bands.length > 0 && new Set(bands).size === 1 && bands[0] === 96,
     JSON.stringify(bands)
   );
-  const btnH = data.rails.flatMap((r) => r.cards.flatMap((c) => c.buttons.map((b) => b.h)));
-  check(`W=${width}: touch buttons >= 30px tall`, btnH.length > 0 && btnH.every((h) => h >= 30), JSON.stringify(btnH));
+  const btnH = data.rails.flatMap((r) => r.cards.flatMap((c) => c.buttons.map((b) => b.h)));  check(
+    `W=${width}: touch buttons >= 30px tall`,
+    btnH.length > 0 && btnH.every((h) => h >= 30),
+    JSON.stringify(btnH)
+  );
+  check(
+    `W=${width}: no card shows its WhatsApp icon as a 17px pill`,
+    !btnH.some((h) => h === 17),
+    JSON.stringify(btnH.filter((h) => h === 17))
+  );
 
   // product images stay inside their (now shorter) band and stay centred
   const withImg = data.rails.flatMap((r) => r.cards).filter((c) => c.img && c.band && c.img.w > 0);
@@ -300,7 +309,7 @@ async function desktopMeasure(root) {
     const target = (await card.count()) ? card : sec.locator(".group.rounded-2xl").first();
     const info = await target.evaluate((el) => {
       const r = el.getBoundingClientRect();
-      const band = el.querySelector('div[class*="h-44"], div[class*="h-40"], div[class*="h-32"]');
+      const band = el.querySelector('div[class*="h-44"], div[class*="h-40"], div[class*="h-32"], div[class*="h-28"]') || el;
       return {
         w: Math.round(r.width),
         h: Math.round(r.height),

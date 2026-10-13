@@ -529,7 +529,7 @@ export default function Landing() {
                         details block. Mobile keeps the short band and tight
                         padding; from `sm` up the original band height and
                         padding are restored exactly. */}
-                    <div className="relative mb-2 flex h-28 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] sm:mb-3 sm:h-32">
+                    <div className="relative mb-2 flex h-24 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] sm:mb-3 sm:h-32">
                       {product.imageUrl ? (
                         <>
                           <img
@@ -609,10 +609,10 @@ export default function Landing() {
                 }}
               >
                 {/* Apollo-style vertical product card: the mobile band matches
-                    every other product carousel (h-32) and the details block
-                    uses the same tight padding; from `sm` up the original
-                    heights and padding are unchanged. */}
-                <div className="relative flex h-28 items-center justify-center overflow-hidden bg-gradient-to-br from-green-500/[0.06] to-emerald-500/[0.03] sm:h-40">
+                    every other product carousel (h-24) and the details block uses
+                    the same tight padding; from `sm` up the original heights and
+                    padding are unchanged. */}
+                <div className="relative flex h-24 items-center justify-center overflow-hidden bg-gradient-to-br from-green-500/[0.06] to-emerald-500/[0.03] sm:h-40">
                   {product.imageUrl ? (
                     <>
                       <img
@@ -636,16 +636,16 @@ export default function Landing() {
                     <Badge variant="secondary" className="absolute top-2 right-2 text-[10px] bg-red-50 text-red-700 sm:top-3">Rx</Badge>
                   )}
                 </div>
-                <div className="p-2.5 sm:p-4">
+                <div className="p-2.5 max-sm:p-1.5 sm:p-4">
                   <h3 className="text-sm max-sm:text-[13px] font-semibold line-clamp-2 transition-colors group-hover:text-primary">{product.name}</h3>
-                  <p className="mt-0.5 text-xs text-muted-foreground break-words max-sm:line-clamp-2">{product.manufacturer}</p>
+                  <p className="mt-0.5 text-xs max-sm:text-[11px] text-muted-foreground break-words max-sm:line-clamp-2">{product.manufacturer}</p>
                   <div className="mt-1.5 flex items-baseline gap-1.5 sm:mt-2">
                     <span className="text-lg max-sm:text-base font-extrabold">{formatCurrency(product.discountPrice!)}</span>
                     <span className="text-xs text-muted-foreground line-through">{formatCurrency(product.price)}</span>
                   </div>
                   <Button
                     size="sm"
-                    className="mt-2 h-8 w-full rounded-lg text-xs font-semibold gradient-primary text-white sm:mt-3"
+                    className="mt-2 h-8 w-full rounded-lg text-xs font-semibold gradient-primary text-white sm:mt-3 max-sm:h-8 max-sm:justify-center"
                     onClick={(e) => { e.stopPropagation(); handleAddToCart(product._id); }}
                     disabled={product.stockQuantity === 0}
                   >

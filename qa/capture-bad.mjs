@@ -1,0 +1,23 @@
+import { chromium } from 'playwright-core';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+const SHOTS='qa/shots/';
+const b=await chromium.launch({args:['--no-sandbox']});
+const ctx=await b.newContext({viewport:{width:430,height:900},isMobile:true,hasTouch:true});
+const p=await ctx.newPage();
+await p.route('**/*', async r=>{
+  const u=new URL(r.request().url());
+  if(u.hostname!=='kc.local') return r.continue();
+  const pth=decodeURIComponent(u.pathname);
+  if(pth==='/'||pth.endsWith('.html')) return r.fulfill({status:200,contentType:'text/html; charset=utf-8',body:readFileSync(join(process.cwd(),'dist-verify','index.html'))});
+  const f=join(process.cwd(),'dist-verify',require('path').normalize(pth).replace(/^[\/\\]+/,''));
+  if(f.startsWith(process.cwd()+'/dist-verify') && require('fs').existsSync(f) && require('fs').statSync(f).isFile()) return r.fulfill({status:200,contentType:'application/octet-stream',body:readFileSync(f)});
+  return r.fulfill({status:404,body:''});
+});
+await p.goto('http://kc.local/#/products',{waitUntil:'domcontentloaded',timeout:60000});
+await p.waitForTimeout(4000);
+await p.screenshot({path:join(process.cwd(),SHOTS,'before-fix-430-full.png')});
+await p.evaluate(()=>console.log('gridcols',document.querySelector('[data-slot="card"]').parentElement.parentElement?getComputedStyle(document.querySelector('[data-slot="card"]').parentElement.parentElement).gridTemplateColumns:'none'));
+await ctx.close();
+await b.close();
+console.log('done');

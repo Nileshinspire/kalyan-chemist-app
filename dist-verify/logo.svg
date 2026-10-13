@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Kalyan Chemist">
+  <title>Kalyan Chemist</title>
+  <defs>
+    <linearGradient id="kc-hex" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#31B072" />
+      <stop offset="0.5" stop-color="#149C5C" />
+      <stop offset="1" stop-color="#0A7043" />
+    </linearGradient>
+    <filter id="kc-shadow" x="-25%" y="-25%" width="150%" height="150%">
+      <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#04331F" flood-opacity="0.35" />
+    </filter>
+  </defs>
+
+  <!-- Green hexagon (point-up) with softly rounded corners -->
+  <g filter="url(#kc-shadow)">
+    <path
+      d="M256 48 L436.1 152 L436.1 360 L256 464 L75.9 360 L75.9 152 Z"
+      fill="url(#kc-hex)"
+      stroke="url(#kc-hex)"
+      stroke-width="36"
+      stroke-linejoin="round"
+    />
+  </g>
+
+  <!-- White medical cross -->
+  <g fill="#FFFFFF">
+    <rect x="221" y="140" width="70" height="232" rx="10" />
+    <rect x="140" y="221" width="232" height="70" rx="10" />
+  </g>
+</svg>
