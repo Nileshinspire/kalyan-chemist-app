@@ -98,14 +98,15 @@ const PROBE = () => {
     .filter(Boolean)
     .slice(0, 6);
 
-  // ── "Why Choose Us" four feature cards ──
   // ── product GRIDS (e.g. "Best Deals"): 2-column grids are not snap rails ──
   const grids = [...document.querySelectorAll('div[class*="grid-cols-2"]')]
     .map((grid) => {
       const cards = [...grid.children].map((child) => {
         const buttons = [...child.querySelectorAll("button")].map((b) => ({ label: (b.textContent || "").trim().slice(0, 14), ...box(b) }));
         if (!buttons.some((b) => /buy now|cart|out of stock/i.test(b.label))) return null;
-          const band = child.querySelector('div[class*="h-28"], div[class*="h-32"], div[class*="h-40"], div[class*="h-44"]') || child;
+
+        const band = child.querySelector('div[class*="h-28"], div[class*="h-32"], div[class*="h-40"], div[class*="h-44"]') || child;
+
         return {
           card: box(child),
           band: band ? box(band) : null,
@@ -113,10 +114,10 @@ const PROBE = () => {
           head: grid.closest("section")?.querySelector("h1,h2,h3")?.textContent?.trim().slice(0, 28) || "?",
         };
       }).filter(Boolean);
+
       if (!cards.length) return null;
       return { gap: getComputedStyle(grid).gap, cards };
-    })
-    .filter(Boolean);
+    }).filter(Boolean);
 
   const why = [];
   for (const t of ["authentic medicines", "expert pharmacists", "fast home delivery", "seamless refills"]) {
@@ -166,7 +167,7 @@ const browser = await chromium.launch({ args: ["--no-sandbox"] });
 
 // ─────────────────────────── Part A — mobile ───────────────────────────
 for (const width of [320, 360, 375, 390, 430]) {
-  console.log(`\n──── dist-verify @ ${width}px (mobile) ────`);
+  console.log(`\n──── dist-verify @ ${width}px (mobile, cardTail thereafter) ────`);
   const ctx = await browser.newContext({
     viewport: { width, height: 844 },
     isMobile: true,
@@ -202,13 +203,20 @@ for (const width of [320, 360, 375, 390, 430]) {
     data.rails.every((r) => new Set(r.cards.map((c) => c.card.h)).size <= 2),
     JSON.stringify(data.rails.map((r) => r.cards.map((c) => c.card.h)))
   );
-  const bands = data.rails.flatMap((r) => r.cards.map((c) => c.band?.h).filter(Boolean));
   check(
-    `W=${width}: image bands identical across every product carousel (h-24 mobile / h-40 sm)`,
-    bands.length > 0 && new Set(bands).size === 1 && bands[0] === 96,
-    JSON.stringify(bands)
+    `W=${width}: every product card uses the mobile image band (band.h === 96, no band.h === 112 lane)`,
+    data.rails.every((r) => r.cards.every((c) => c.band?.h === 96)),
+    JSON.stringify(data.rails.map((r) => r.cards.map((c) => c.band?.h)))
   );
-  const btnH = data.rails.flatMap((r) => r.cards.flatMap((c) => c.buttons.map((b) => b.h)));  check(
+  // wh = which lane has which band.h; if any h-112 band shows up, that lane is the 17px WhatsApp pill lane.
+  const wh = [...new Set(data.rails.flatMap((r) => r.cards.map((c) => c.band?.h).filter(Boolean)))];
+  check(
+    `W=${width}: only the h-96 band exists (no stray h-112 band means no 17px WhatsApp pill lane)`,
+    wh.length === 1 && wh[0] === 96,
+    JSON.stringify(wh)
+  );
+  const btnH = data.rails.flatMap((r) => r.cards.flatMap((c) => c.buttons.map((b) => b.h)));
+  check(
     `W=${width}: touch buttons >= 30px tall`,
     btnH.length > 0 && btnH.every((h) => h >= 30),
     JSON.stringify(btnH)
@@ -285,10 +293,10 @@ for (const width of [320, 360, 375, 390, 430]) {
       ["fix-mobile-390-new-arrivals.png", "New Arrivals"],
       ["fix-mobile-390-best-deals.png", "Best Deals Right Now"],
     ]) {
-      const sec = page.locator(`h2:has-text("${needle}")`).first().locator("xpath=ancestor::section[1]");
+      const sec = page.locator(`h2:has-text("${needle}")`) .first() .locator("xpath=ancestor::section[1]");
       if (await sec.count()) await sec.screenshot({ path: join(SHOTS, name) }).catch(() => {});
     }
-    const whySec = page.locator('h3:has-text("Authentic Medicines")').first().locator("xpath=ancestor::section[1]");
+    const whySec = page.locator('h3:has-text("Authentic Medicines")') .first() .locator("xpath=ancestor::section[1]");
     if (await whySec.count()) await whySec.screenshot({ path: join(SHOTS, "fix-mobile-390-why-choose-us.png") }).catch(() => {});
   }
   await ctx.close();
@@ -303,13 +311,14 @@ async function desktopMeasure(root) {
   const rails = await page.evaluate(PROBE);
   const sections = [];
   for (const name of ["Hot Sellers", "New Arrivals", "Best Deals Right Now", "Value Deals Under"]) {
-    const sec = page.locator(`h2:has-text("${name}")`).first().locator("xpath=ancestor::section[1]");
+    const sec = page.locator(`h2:has-text("${name}")`) .first() .locator("xpath=ancestor::section[1]");
     if (!(await sec.count())) continue;
-    const card = sec.locator('[data-slot="card"]').first();
-    const target = (await card.count()) ? card : sec.locator(".group.rounded-2xl").first();
+    const card = sec.locator('[data-slot="card"]') .first();
+    const target = (await card.count()) ? card : sec.locator(".group.rounded-2xl") .first();
     const info = await target.evaluate((el) => {
       const r = el.getBoundingClientRect();
       const band = el.querySelector('div[class*="h-44"], div[class*="h-40"], div[class*="h-32"], div[class*="h-28"]') || el;
+
       return {
         w: Math.round(r.width),
         h: Math.round(r.height),

@@ -2044,7 +2044,7 @@ export default function ProductDetail() {
               className="flex flex-col items-center gap-1.5 p-3 rounded-xl hover:bg-green-50 transition-colors"
               onClick={() => {
                 const text = encodeURIComponent(`Check out ${p.name} on Kalyan Chemist\n${shareUrl}`);
-                window.open(`https://wa.me/?text=${text}`, "_blank");
+                window.open(`https://wa.me/?text=${text}`, "_blank", "noopener");
               }}
             >
               <div className="size-11 rounded-full bg-green-500 flex items-center justify-center">

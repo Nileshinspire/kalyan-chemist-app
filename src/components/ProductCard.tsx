@@ -31,6 +31,8 @@ function isAuthError(error: unknown): boolean {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Heart, ShoppingCart, Pill, Zap } from "lucide-react";
+import { clsx } from "clsx";
+import { motion, type Variants } from "framer-motion";
 import { formatCurrency } from "@/lib/auth-utils";
 import { preloadProductDetail } from "@/lib/route-preload";
 import { toast } from "sonner";
@@ -499,11 +501,22 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
     convexClient.prewarmQuery({ query: api.products.getBySlug, args: { slug: product.slug } });
   }, [convexClient, product.slug]);
 
+  const motionBuiltIn: boolean =
+    typeof window !== "undefined" && window.__PRODUCT_CARD_MOTION_BUILT_IN__ === true;
+
+  const cardVariants: Variants = {
+    hidden: { opacity: 0, y: 12 },
+    visible: { opacity: 1, y: 0, transition: { duration: 0.35, ease: [0.22, 1, 0.36, 1] } },
+  };
+
   return (
     /* Scope these caption + action-row tweaks to the product carousels + grids that
    render `ProductCard` (landing, products, value-deals). Other holiday/ad decks
    render different rounded shells with their own inline styles, so they stay unaffected. */
-    <Card
+    <motion.div
+      variants={cardVariants}
+      initial="hidden"
+      animate={motionBuiltIn ? "visible" : undefined}
       className="group relative h-full flex-col overflow-hidden border-border/60 bg-card cursor-pointer transition-all duration-500 hover:shadow-card-hover hover:border-primary/20 hover:-translate-y-1 max-sm:gap-0 max-sm:py-0"
       onClick={() => goProduct(navigate, location.pathname + location.search, product.slug)}
       onMouseEnter={warmProductDetail}
@@ -629,7 +642,10 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
             It is a sibling of the details block (not a child of it) and takes
             `mt-auto`, so the free space of a shorter card is absorbed above it
             and every card's buttons sit on the same bottom line. `pt-2.5`
-            keeps the gap that the details block's `space-y-2.5` used to give. */}          <div className="mt-auto flex flex-wrap gap-2 pt-2.5 max-sm:gap-1 max-sm:pt-1.5">
+            keeps the gap that the details block's `space-y-2.5` used to give. */}          <div className={clsx(
+            "mt-auto flex flex-wrap gap-2 pt-2.5 max-sm:gap-1 max-sm:pt-1.5",
+            motionBuiltIn && "opacity-0 motion-safe:opacity-100 motion-safe:duration-700 motion-safe:transition-opacity"
+          )}>
           <Button
             size="sm"
             className="h-8 max-sm:h-8 max-sm:px-1 max-sm:py-0 flex-1 min-w-0 px-2 sm:px-3 text-[11px] max-sm:text-[11px] sm:text-xs font-semibold gap-1 gradient-primary text-white shadow-sm hover:shadow-glow transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
@@ -652,6 +668,7 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
         </div>
       </CardContent>
     </Card>
+  </motion.div>
   );
 });
 

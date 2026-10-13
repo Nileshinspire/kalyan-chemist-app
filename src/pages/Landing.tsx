@@ -188,7 +188,7 @@ export default function Landing() {
         </div>
 
         {/* Center: Heading + Search */}
-        <div className="relative z-20 mx-auto max-w-7xl px-4 sm:px-6 pt-8 md:pt-12 pb-4 max-sm:pb-6 md:pb-8">
+        <div className="relative z-30 mx-auto max-w-7xl px-4 sm:px-6 pt-8 md:pt-12 pb-4 max-sm:pb-6 md:pb-8 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.6)]">
           <div className="flex flex-col items-center text-center max-w-2xl mx-auto">
             <motion.h1
               initial={{ opacity: 0, y: 12 }}
@@ -219,7 +219,7 @@ export default function Landing() {
                 />
                 <button
                   type="submit"
-                  className="absolute right-1.5 top-1/2 -translate-y-1/2 h-9 sm:h-10 px-5 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition-colors"
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 h-9 sm:h-10 px-5 rounded-lg bg-primary/95 text-white text-sm font-semibold shadow-lg shadow-black/15 hover:bg-primary hover:brightness-110 transition-colors"
                 >
                   Search
                 </button>
