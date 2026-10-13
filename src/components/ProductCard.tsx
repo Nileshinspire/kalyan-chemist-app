@@ -4,39 +4,24 @@ import { beginProductTransition } from "@/lib/product-transition";
 import { useQuery, useMutation, useConvex } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Card, CardContent } from "@/components/ui/card";
-
-/**
- * Every product card navigates through here so the Product Details route
- * always takes over the screen the moment the card is clicked.
- */
-function goProduct(
-  navigate: NavigateFunction,
-  from: string,
-  slug: string,
-): void {
-  beginProductTransition();
-  navigate(`/products/${slug}`, { state: { from } });
-}
-
-/**
- * Convex prefixes thrown messages ("[CONVEX M(cart:addItem)] ... Not
- * authenticated ..."), so auth failures must be matched loosely — an exact
- * comparison falls through to the generic branch and shows the raw server
- * error, complete with source path and request id, to the customer.
- */
-function isAuthError(error: unknown): boolean {
-  const message = error instanceof Error ? error.message : String(error ?? "");
-  return /not authenticated/i.test(message);
-}
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Heart, ShoppingCart, Pill, Zap } from "lucide-react";
-import { clsx } from "clsx";
-import { motion, type Variants } from "framer-motion";
 import { formatCurrency } from "@/lib/auth-utils";
 import { preloadProductDetail } from "@/lib/route-preload";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
+import { clsx } from "clsx";
+import { motion, type Variants } from "framer-motion";
+
+function goProduct(navigate: NavigateFunction, currentPath: string, slug: string) {
+  beginProductTransition();
+  navigate(`/products/${slug}`, { state: { from: currentPath } });
+}
+
+function isAuthError(error: unknown): boolean {
+  return typeof error === "object" && error !== null && "message" in error && typeof (error as any).message === "string" && /not authenticated/i.test(String((error as any).message));
+}
 
 interface ProductCardProps {
   product: {
@@ -57,7 +42,6 @@ interface ProductCardProps {
     brandName?: string | null;
     imageUrl?: string;
   };
-  /** Opt-in "New" badge (used by the homepage New Arrivals carousel only). */
   newArrival?: boolean;
 }
 
@@ -83,13 +67,9 @@ interface ProductCardProps {
 
 /** Content box of a product image, in fractions of the natural image. */
 type ContentCrop = {
-  /** Left edge of the product, 0–1 of natural width. */
   x: number;
-  /** Top edge of the product, 0–1 of natural height. */
   y: number;
-  /** Width of the product, 0–1 of natural width. */
   w: number;
-  /** Height of the product, 0–1 of natural height. */
   h: number;
   naturalWidth: number;
   naturalHeight: number;
@@ -135,221 +115,204 @@ const MIN_IMPROVEMENT = 1.02;
  * product touching a corner, a shadow, and JPEG noise, all of which broke
  * earlier corner/median based estimates. Fully transparent pixels are treated
  * as backdrop, so cut-out PNGs work too.
- *
- * Returns null when there is nothing meaningful to trim.
  */
-function measureContentCrop(img: HTMLImageElement): ContentCrop | null {
-  const naturalWidth = img.naturalWidth;
-  const naturalHeight = img.naturalHeight;
-  if (!naturalWidth || !naturalHeight) return null;
-
-  const scale = Math.min(1, MEASURE_EDGE / Math.max(naturalWidth, naturalHeight));
-  const width = Math.max(1, Math.round(naturalWidth * scale));
-  const height = Math.max(1, Math.round(naturalHeight * scale));
+function findCrop(img: HTMLImageElement): ContentCrop | null {
+  const { naturalWidth: width, naturalHeight: height } = img;
+  if (!width || !height) return null;
 
   const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
+  canvas.width = Math.min(width, MEASURE_EDGE);
+  canvas.height = Math.min(height, MEASURE_EDGE);
   const ctx = canvas.getContext("2d", { willReadFrequently: true });
   if (!ctx) return null;
-  ctx.drawImage(img, 0, 0, width, height);
 
-  let data: Uint8ClampedArray;
-  try {
-    // Throws on a CORS-tainted canvas, which is the expected failure mode for
-    // third-party image hosts — callers fall back to the plain image.
-    data = ctx.getImageData(0, 0, width, height).data;
-  } catch {
-    return null;
-  }
+  const scale = canvas.width / width;
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
-  const total = width * height;
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const { data, width: cw, height: ch } = imageData;
+  const total = cw * ch;
+
   const luma = new Float32Array(total);
-  const alpha = new Uint8ClampedArray(total);
-  const opaque: number[] = [];
-  for (let p = 0; p < total; p += 1) {
-    const i = p * 4;
-    alpha[p] = data[i + 3];
-    if (alpha[p] < MIN_ALPHA) {
-      luma[p] = -1;
-      continue;
-    }
-    const value = 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
-    luma[p] = value;
-    opaque.push(value);
-  }
-  if (!opaque.length) return null;
-
-  // A cut-out on transparency: alpha alone is an exact product mask. Deriving a
-  // brightness threshold here would sample the product itself, since it is
-  // often the only opaque thing in the image.
-  const useAlpha = (total - opaque.length) / total >= MIN_TRANSPARENT_SHARE;
-
-  let threshold = 0;
-  if (!useAlpha) {
-    opaque.sort((a, b) => a - b);
-    const backdrop = opaque[Math.floor((opaque.length - 1) * BACKGROUND_PERCENTILE)];
-    threshold = backdrop - BACKGROUND_TOLERANCE;
-  }
-
-  let minX = width;
-  let minY = height;
+  const alpha = new Uint8Array(total);
+  let minX = Infinity;
   let maxX = -1;
+  let minY = Infinity;
   let maxY = -1;
   let foreground = 0;
 
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      const p = y * width + x;
-      // Transparent, or backdrop-coloured: not part of the product.
-      if (useAlpha ? alpha[p] < MIN_ALPHA : luma[p] >= threshold) continue;
+  for (let i = 0; i < total; i++) {
+    const r = data[i * 4];
+    const g = data[i * 4 + 1];
+    const b = data[i * 4 + 2];
+    const a = data[i * 4 + 3];
+    alpha[i] = a;
+    luma[i] = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  }
+
+  const sorted = new Float32Array(luma);
+  sorted.sort((a, b) => a - b);
+  const threshold = sorted[Math.min(total - 1, Math.round(total * BACKGROUND_PERCENTILE))] + BACKGROUND_TOLERANCE;
+
+  const useAlpha = alpha.reduce((acc, v) => acc + v, 0) / total > MIN_TRANSPARENT_SHARE;
+
+  for (let y = 0; y < ch; y++) {
+    for (let x = 0; x < cw; x++) {
+      const i = y * cw + x;
+      if (useAlpha ? alpha[i] < MIN_ALPHA : luma[i] >= threshold) continue;
       if (x < minX) minX = x;
       if (x > maxX) maxX = x;
       if (y < minY) minY = y;
       if (y > maxY) maxY = y;
-      foreground += 1;
+      foreground++;
     }
   }
 
   if (maxX < minX || maxY < minY) return null;
   if (foreground / total < MIN_CONTENT_DENSITY) return null;
 
-  const contentW = (maxX - minX + 1) / width;
-  const contentH = (maxY - minY + 1) / height;
-  // Too thin to crop safely. Whether a crop is worth applying at all is
-  // decided by the caller, which can compare it against the plain render.
+  const contentW = (maxX - minX + 1) / cw;
+  const contentH = (maxY - minY + 1) / ch;
   if (contentW < MIN_CROP_AXIS || contentH < MIN_CROP_AXIS) return null;
 
   const padX = contentW * CROP_PADDING;
   const padY = contentH * CROP_PADDING;
+
   return {
-    x: Math.max(0, minX / width - padX),
-    y: Math.max(0, minY / height - padY),
-    w: Math.min(1, contentW + padX * 2),
-    h: Math.min(1, contentH + padY * 2),
-    naturalWidth,
-    naturalHeight,
+    x: Math.max(0, minX / cw - padX),
+    y: Math.max(0, minY / ch - padY),
+    w: Math.min(1, (maxX - minX + 1) / cw + padX * 2),
+    h: Math.min(1, (maxY - minY + 1) / ch + padY * 2),
+    naturalWidth: width,
+    naturalHeight: height,
   };
 }
 
-/**
- * Measure an image's content box off-screen. `undefined` means "still
- * measuring", `null` means "use the plain image" — the caller keeps rendering
- * a correctly sized image in both cases, so there is no layout shift.
- */
-function useContentCrop(src: string | undefined): ContentCrop | null | undefined {
-  const [crop, setCrop] = useState<ContentCrop | null | undefined>(() => {
-    if (!src) return null;
-    return cropCache.get(src);
-  });
+/** Reuse one scratch canvas per decode width to reduce GC pressure. */
+const CANVAS_CACHE = new Map<number, HTMLCanvasElement>();
 
+function decodeToCanvas(src: string, edge: number): HTMLCanvasElement | null {
+  const cached = CANVAS_CACHE.get(edge);
+  if (cached && cached.width === edge) {
+    const ctx = cached.getContext("2d", { willReadFrequently: true });
+    if (ctx) {
+      ctx.clearRect(0, 0, edge, edge);
+      return cached;
+    }
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = edge;
+  canvas.height = edge;
+  CANVAS_CACHE.set(edge, canvas);
+  return canvas;
+}
+
+function measureImage(src: string): ContentCrop | null {
+  if (!src || src.startsWith("data:") || !document.createElement("canvas").getContext("2d")) return null;
+  try {
+    const img = new Image();
+    img.decoding = "async";
+    img.src = src;
+    if (!img.complete || img.naturalWidth === 0) return null;
+    const canvas = decodeToCanvas(src, MEASURE_EDGE);
+    if (!canvas) return null;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) return null;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const { data, width: cw, height: ch } = imageData;
+    const total = cw * ch;
+    const luma = new Float32Array(total);
+    const alpha = new Uint8Array(total);
+    let minX = Infinity;
+    let maxX = -1;
+    let minY = Infinity;
+    let maxY = -1;
+    let foreground = 0;
+    for (let i = 0; i < total; i++) {
+      const r = data[i * 4];
+      const g = data[i * 4 + 1];
+      const b = data[i * 4 + 2];
+      const a = data[i * 4 + 3];
+      alpha[i] = a;
+      luma[i] = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    }
+    const sorted = new Float32Array(luma);
+    sorted.sort((a, b) => a - b);
+    const threshold = sorted[Math.min(total - 1, Math.round(total * BACKGROUND_PERCENTILE))] + BACKGROUND_TOLERANCE;
+    const useAlpha = alpha.reduce((acc, v) => acc + v, 0) / total > MIN_TRANSPARENT_SHARE;
+    for (let y = 0; y < ch; y++) {
+      for (let x = 0; x < cw; x++) {
+        const i = y * cw + x;
+        if (useAlpha ? alpha[i] < MIN_ALPHA : luma[i] >= threshold) continue;
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+        foreground++;
+      }
+    }
+    if (maxX < minX || maxY < minY) return null;
+    if (foreground / total < MIN_CONTENT_DENSITY) return null;
+    const contentW = (maxX - minX + 1) / cw;
+    const contentH = (maxY - minY + 1) / ch;
+    if (contentW < MIN_CROP_AXIS || contentH < MIN_CROP_AXIS) return null;
+    const padX = contentW * CROP_PADDING;
+    const padY = contentH * CROP_PADDING;
+    return {
+      x: Math.max(0, minX / cw - padX),
+      y: Math.max(0, minY / ch - padY),
+      w: Math.min(1, (maxX - minX + 1) / cw + padX * 2),
+      h: Math.min(1, (maxY - minY + 1) / ch + padY * 2),
+      naturalWidth: img.naturalWidth,
+      naturalHeight: img.naturalHeight,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function useContentCrop(src: string | undefined): ContentCrop | null | undefined {
+  const [crop, setCrop] = useState<ContentCrop | null | undefined>(undefined);
   useEffect(() => {
     if (!src) return;
-
-    let cancelled = false;
-    const measure = () => {
-      if (cancelled) return;
-      const cached = cropCache.get(src);
-      if (cached !== undefined) {
-        setCrop(cached);
-        return;
-      }
-      // A detached probe is used rather than crossOrigin on the visible <img>:
-      // if the host withholds CORS headers only this probe fails, and the real
-      // image still renders.
-      const probe = new Image();
-      probe.crossOrigin = "anonymous";
-      probe.decoding = "async";
-      probe.onload = () => {
-        const result = measureContentCrop(probe);
-        cropCache.set(src, result);
-        if (!cancelled) setCrop(result);
-      };
-      probe.onerror = () => {
-        cropCache.set(src, null);
-        if (!cancelled) setCrop(null);
-      };
-      probe.src = src;
-    };
-
-    const idleWindow = window as Window & {
-      requestIdleCallback?: (cb: () => void) => void;
-    };
-    if (typeof idleWindow.requestIdleCallback === "function") {
-      idleWindow.requestIdleCallback(measure);
-    } else {
-      window.setTimeout(measure, 120);
+    const cached = cropCache.get(src);
+    if (cached !== undefined) {
+      setCrop(cached);
+      return;
     }
-    return () => {
-      cancelled = true;
-    };
+    const measured = measureImage(src);
+    cropCache.set(src, measured);
+    setCrop(measured);
   }, [src]);
-
   return crop;
 }
 
-/** Live pixel size of the image area, so the crop stays correct on resize. */
 function useBoxSize(ref: RefObject<HTMLElement | null>): { width: number; height: number } {
   const [size, setSize] = useState({ width: 0, height: 0 });
-  useEffect(() => {
+
+  const schedule = useCallback(() => {
     const el = ref.current;
     if (!el) return;
+    const { width, height } = el.getBoundingClientRect();
+    setSize({ width: Math.max(0, Math.round(width)), height: Math.max(0, Math.round(height)) });
+  }, [ref]);
 
-    let frame = 0;
-    // Bail out when the size is unchanged, so measuring never triggers a
-    // pointless re-render (which matters for consumers that read render order).
-    const update = () =>
-      setSize((prev) => {
-        const width = el.clientWidth;
-        const height = el.clientHeight;
-        return prev.width === width && prev.height === height
-          ? prev
-          : { width, height };
-      });
-    const schedule = () => {
-      if (frame) window.cancelAnimationFrame(frame);
-      frame = window.requestAnimationFrame(update);
-    };
-
+  useEffect(() => {
     schedule();
-    // Environments without ResizeObserver (e.g. jsdom) still get the initial
-    // measurement from the scheduled frame above.
+    let frame = 0;
     const observer =
       typeof ResizeObserver === "undefined" ? null : new ResizeObserver(schedule);
-    observer?.observe(el);
-
+    observer?.observe(ref.current!);
     return () => {
       if (frame) window.cancelAnimationFrame(frame);
       observer?.disconnect();
     };
-  }, [ref]);
+  }, [ref, schedule]);
   return size;
 }
 
-/**
- * Share of the image area the cropped product may fill on its limiting axis.
- * With CROP_PADDING the visible product lands at roughly 83% of the area,
- * matching the reference storefronts, while keeping a clean margin so the
- * product never touches the card edge or a corner badge.
- */
-const FILL_FACTOR = 0.86;
-
-/**
- * Renders the product image so the product — not the image's baked-in white
- * padding — fills the area.
- *
- * A crop is applied ONLY when it makes the product genuinely larger. Many
- * catalogue images are already cropped tight to the product, so trimming them
- * would shrink the product instead of growing it; those keep the plain
- * `object-contain` render, which is already as large as their aspect ratio
- * allows.
- *
- * When a crop does help, the image is laid out at explicit pixel dimensions and
- * offset so the product's bounding box is centred and fitted with `contain`
- * proportions. The full image is still displayed (the product is never cut
- * off) and its aspect ratio is preserved exactly, because the offset is
- * derived from the same scale used for the width and height.
- */
 function ProductImage({
   src,
   alt,
@@ -377,35 +340,36 @@ function ProductImage({
   const contentHeight = crop.h * crop.naturalHeight;
   if (contentWidth <= 0 || contentHeight <= 0) return plain;
 
-  // How much of the image area the product occupies as-is.
   const plainScale = Math.min(box.width / crop.naturalWidth, box.height / crop.naturalHeight);
   const plainFill = Math.max(
     (contentWidth * plainScale) / box.width,
     (contentHeight * plainScale) / box.height
   );
 
-  // "contain" fit of the product box inside the image area, never upscaling a
-  // small source beyond MAX_UPSCALE so the result cannot look blurry.
-  const fit = Math.min(
-    (box.width * FILL_FACTOR) / contentWidth,
-    (box.height * FILL_FACTOR) / contentHeight
-  );
-  const scale = Math.min(fit, MAX_UPSCALE);
+  const fitByWidth = Math.min(0.95, (box.width * 0.95) / contentWidth);
+  const fitByHeight = box.height > 0
+    ? Math.min((box.height * 1.05) / contentHeight, MAX_UPSCALE)
+    : MAX_UPSCALE;
+  const scale = Math.min(fitByWidth, fitByHeight);
   const cropFill = Math.max(
     (contentWidth * scale) / box.width,
     (contentHeight * scale) / box.height
   );
 
-  // Trimming only helps when there is real padding to reclaim. Otherwise the
-  // untouched image already fills the area as well as it can.
-  if (cropFill < plainFill * MIN_IMPROVEMENT) return plain;
+  const minScale60 = 60 / Math.max(contentWidth, contentHeight, 1);
+  const useScale = Math.max(scale, minScale60);
+  const canRender60 =
+    contentWidth * useScale <= box.width &&
+    (box.height > 0 ? contentHeight * useScale <= box.height * 1.05 : true);
 
-  const width = crop.naturalWidth * scale;
-  const height = crop.naturalHeight * scale;
-  // Centre the product box, then shift back by the padding that sits to the
-  // left of / above it, so the visible product lands dead centre.
-  const left = (box.width - contentWidth * scale) / 2 - crop.x * crop.naturalWidth * scale;
-  const top = (box.height - contentHeight * scale) / 2 - crop.y * crop.naturalHeight * scale;
+  if (!canRender60) return plain;
+
+  const width = Math.max(60, crop.naturalWidth * useScale);
+  const height = Math.max(60, crop.naturalHeight * useScale);
+  const left =
+    (box.width - contentWidth * useScale) / 2 - crop.x * crop.naturalWidth * useScale;
+  const top =
+    (box.height - contentHeight * useScale) / 2 - crop.y * crop.naturalHeight * useScale;
 
   return (
     <img
@@ -451,8 +415,6 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
       await addToCart({ productId: product._id as any, quantity: 1 });
       toast.success(`${product.name} added to cart`);
     } catch (error: any) {
-      // Convex prefixes thrown messages ("[CONVEX M(...)] ... Not authenticated"),
-      // so an exact match leaks the raw server error to the customer.
       if (isAuthError(error)) {
         toast.error("Please sign in to add items to cart");
         navigate(signInUrl);
@@ -491,18 +453,13 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
 
   const displayInfo = product.dosage || product.strength || product.form || "";
 
-  // Warm the destination before the click happens. Loading the route chunk
-  // alone is not enough: the Product Detail page renders a bare loading state
-  // until its `products.getBySlug` query resolves, and that short state makes
-  // the footer fill the screen for a moment. Subscribing to the query ahead of
-  // time means the page has its data on the very first render.
   const warmProductDetail = useCallback(() => {
     preloadProductDetail();
     convexClient.prewarmQuery({ query: api.products.getBySlug, args: { slug: product.slug } });
   }, [convexClient, product.slug]);
 
   const motionBuiltIn: boolean =
-    typeof window !== "undefined" && window.__PRODUCT_CARD_MOTION_BUILT_IN__ === true;
+    typeof window !== "undefined" && (window as any).__PRODUCT_CARD_MOTION_BUILT_IN__ === true;
 
   const cardVariants: Variants = {
     hidden: { opacity: 0, y: 12 },
@@ -510,9 +467,6 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
   };
 
   return (
-    /* Scope these caption + action-row tweaks to the product carousels + grids that
-   render `ProductCard` (landing, products, value-deals). Other holiday/ad decks
-   render different rounded shells with their own inline styles, so they stay unaffected. */
     <motion.div
       variants={cardVariants}
       initial="hidden"
@@ -523,152 +477,138 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
       onFocus={warmProductDetail}
       onPointerDown={warmProductDetail}
     >
-      {/* Wishlist button */}
-      <Button
-        variant="ghost"
-        size="icon"
-        aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
-        className="absolute top-3 right-3 z-10 h-9 w-9 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background hover:scale-110 transition-all duration-300 opacity-100 sm:h-8 sm:w-8 sm:opacity-0 sm:group-hover:opacity-100"
-        onClick={handleWishlist}
+      <Card
+        className="group relative h-full flex-col overflow-hidden border-border/60 bg-card cursor-pointer transition-all duration-500 hover:shadow-card-hover hover:border-primary/20 hover:-translate-y-1 max-sm:gap-0 max-sm:py-0"
+        onClick={() => goProduct(navigate, location.pathname + location.search, product.slug)}
+        onMouseEnter={warmProductDetail}
+        onFocus={warmProductDetail}
+        onPointerDown={warmProductDetail}
       >
-        <Heart className={`size-4 transition-colors ${isWishlisted ? "fill-rose-500 text-rose-500" : "text-muted-foreground group-hover:text-rose-500"}`} />
-      </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
+          className="absolute top-3 right-3 z-10 h-9 w-9 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background hover:scale-110 transition-all duration-300 opacity-100 sm:h-8 sm:w-8 sm:opacity-0 sm:group-hover:opacity-100"
+          onClick={handleWishlist}
+        >
+          <Heart className={`size-4 transition-colors ${isWishlisted ? "fill-rose-500 text-rose-500" : "text-muted-foreground group-hover:text-rose-500"}`} />
+        </Button>
 
-      {/* Image band: the mobile band is short and flush with the card's top
-          edge (the card's own vertical padding and gap are removed below `sm`),
-          so the packshot area never eats a phone screen. From `sm` up this is
-          the original band and the card keeps its original padding/gap. */}
-      <div
-        ref={imageAreaRef}
-        className="relative flex h-24 shrink-0 items-center justify-center overflow-hidden rounded-xl border-b border-border/40 bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] sm:h-44"
-      >
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.08] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-        {realImage ? (
-          <ProductImage
-            src={realImage}
-            alt={product.name}
-            crop={crop}
-            box={imageBox}
-          />
-        ) : (
-          <Pill
-            className="size-14 text-primary/20 transition-all duration-500 group-hover:scale-125 group-hover:text-primary/35 group-hover:rotate-6"
-          />
-        )}
-        {newArrival && (
-          <div className="absolute top-3 left-3">
-            <Badge className="text-[10px] font-bold bg-gradient-to-r from-teal-600 to-emerald-600 text-white border-0 shadow-md">
-              New
-            </Badge>
-          </div>
-        )}
-        {hasDiscount && (
-          <div className={`absolute left-3 ${newArrival ? "top-12" : "top-3"}`}>
-            <Badge className="text-[10px] font-bold bg-gradient-to-r from-green-500 to-emerald-500 text-white border-0 shadow-md">
-              {discountPct}% OFF
-            </Badge>
-          </div>
-        )}
-        {product.stockQuantity > 0 && product.stockQuantity < 10 && (
-          <div className="absolute bottom-3 left-3">
-            <Badge
-              variant="outline"
-              className="text-[10px] font-medium text-amber-600 border-amber-300 bg-amber-50/80 backdrop-blur-sm"
-            >
-              Only {product.stockQuantity} left
-            </Badge>
-          </div>
-        )}
-      </div>
-
-      {/* Content: fills the space the image band leaves and pins the action row
-          to the bottom edge, so every card in a row lines up. Mobile uses tight
-          padding/spacing; `sm:` restores the original values. */}
-      <CardContent className="flex flex-1 flex-col p-2.5 sm:p-4">
-        <div className="space-y-2.5">
-          <div className="flex flex-wrap gap-1.5">
-            {product.prescriptionRequired && (
-              <Badge variant="secondary" className="text-[10px] font-medium bg-red-50 text-red-700 border-red-200">
-                Rx Required
-              </Badge>
-            )}
-            {!product.prescriptionRequired && (
-              <Badge variant="outline" className="text-[10px] font-medium text-green-700 border-green-200 bg-green-50/50">
-                OTC
-              </Badge>
-            )}
-            {product.brandName && (
-              <Badge variant="outline" className="text-[10px] font-medium">
-                {product.brandName}
-              </Badge>
-            )}
-          </div>
-
-          <div>
-            <h3 className="text-sm max-sm:text-[13px] max-sm:leading-snug font-semibold max-sm:leading-tight text-foreground line-clamp-2 group-hover:text-primary transition-colors duration-300">
-              {product.name}
-            </h3>
-            {/* Manufacturer wraps naturally and is capped at two lines on
-                phones, so a long company name can never stretch one card in a
-                row far past its neighbours. */}
-            <p className="mt-0.5 text-xs max-sm:text-[11px] max-sm:leading-snug text-muted-foreground break-words max-sm:line-clamp-2">{product.manufacturer}</p>
-          </div>
-
-          {displayInfo && (
-            <p className="text-xs max-sm:text-[11px] max-sm:leading-snug text-muted-foreground">
-              {displayInfo}{product.packSize ? ` · ${product.packSize}` : ""}
-            </p>
+        <div
+          ref={imageAreaRef}
+          className="relative flex h-24 min-h-[100px] items-center justify-center overflow-hidden rounded-xl border-b border-border/40 bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] sm:h-44"
+        >
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.08] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          {realImage ? (
+            <ProductImage
+              src={realImage}
+              alt={product.name}
+              crop={crop}
+              box={imageBox}
+            />
+          ) : (
+            <Pill
+              className="size-14 text-primary/20 transition-all duration-500 group-hover:scale-125 group-hover:text-primary/35 group-hover:rotate-6"
+            />
           )}
-
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-lg max-sm:text-base font-extrabold text-foreground">
-              {formatCurrency(hasDiscount ? product.discountPrice! : product.price)}
-            </span>
-            {hasDiscount && (
-              <span className="text-xs text-muted-foreground line-through">
-                {formatCurrency(product.price)}
-              </span>
-            )}
-          </div>
-
+          {newArrival && (
+            <div className="absolute top-3 left-3">
+              <Badge className="text-[10px] font-bold bg-gradient-to-r from-teal-600 to-emerald-600 text-white border-0 shadow-md">
+                New
+              </Badge>
+            </div>
+          )}
+          {hasDiscount && (
+            <div className={`absolute left-3 ${newArrival ? "top-12" : "top-3"}`}>
+              <Badge className="text-[10px] font-bold bg-gradient-to-r from-green-500 to-emerald-500 text-white border-0 shadow-md">
+                {discountPct}% OFF
+              </Badge>
+            </div>
+          )}
+          {product.stockQuantity > 0 && product.stockQuantity < 10 && (
+            <div className="absolute bottom-3 left-3">
+              <Badge
+                variant="outline"
+                className="text-[10px] font-medium text-amber-600 border-amber-300 bg-amber-50/80 backdrop-blur-sm"
+              >
+                Only {product.stockQuantity} left
+              </Badge>
+            </div>
+          )}
         </div>
 
-        {/* In the 2-column grids a card is only ~140px wide on a small phone,
-            where "Buy Now" + "Cart" no longer fit side by side. Below `sm` the
-            action row stacks the two existing buttons into clean full-width
-            rows (no wrapping, no collision); from `sm` up it is the original
-            single row with `flex-wrap` preserved, so desktop is unchanged.
+        <CardContent className="flex flex-1 flex-col p-2.5 sm:p-4">
+          <div className="space-y-2.5">
+            <div className="flex flex-wrap gap-1.5">
+              {product.prescriptionRequired && (
+                <Badge variant="secondary" className="text-[10px] font-medium bg-red-50 text-red-700 border-red-200">
+                  Rx Required
+                </Badge>
+              )}
+              {!product.prescriptionRequired && (
+                <Badge variant="outline" className="text-[10px] font-medium text-green-700 border-green-200 bg-green-50/50">
+                  OTC
+                </Badge>
+              )}
+              {product.brandName && (
+                <Badge variant="outline" className="text-[10px] font-medium">
+                  {product.brandName}
+                </Badge>
+              )}
+            </div>
 
-            It is a sibling of the details block (not a child of it) and takes
-            `mt-auto`, so the free space of a shorter card is absorbed above it
-            and every card's buttons sit on the same bottom line. `pt-2.5`
-            keeps the gap that the details block's `space-y-2.5` used to give. */}          <div className={clsx(
+            <div>
+              <h3 className="text-sm max-sm:text-[13px] max-sm:leading-snug font-semibold max-sm:leading-tight text-foreground line-clamp-2 group-hover:text-primary transition-colors duration-300">
+                {product.name}
+              </h3>
+              <p className="mt-0.5 text-xs max-sm:text-[11px] max-sm:leading-snug text-muted-foreground break-words max-sm:line-clamp-2">{product.manufacturer}</p>
+            </div>
+
+            {displayInfo && (
+              <p className="text-xs max-sm:text-[11px] max-sm:leading-snug text-muted-foreground">
+                {displayInfo}{product.packSize ? ` · ${product.packSize}` : ""}
+              </p>
+            )}
+
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-lg max-sm:text-base font-extrabold text-foreground">
+                {formatCurrency(hasDiscount ? product.discountPrice! : product.price)}
+              </span>
+              {hasDiscount && (
+                <span className="text-xs text-muted-foreground line-through">
+                  {formatCurrency(product.price)}
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className={clsx(
             "mt-auto flex flex-wrap gap-2 pt-2.5 max-sm:gap-1 max-sm:pt-1.5",
             motionBuiltIn && "opacity-0 motion-safe:opacity-100 motion-safe:duration-700 motion-safe:transition-opacity"
           )}>
-          <Button
-            size="sm"
-            className="h-8 max-sm:h-8 max-sm:px-1 max-sm:py-0 flex-1 min-w-0 px-2 sm:px-3 text-[11px] max-sm:text-[11px] sm:text-xs font-semibold gap-1 gradient-primary text-white shadow-sm hover:shadow-glow transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
-            onClick={handleBuyNow}
-            disabled={product.stockQuantity === 0}
-          >
-            <Zap className="size-3 max-sm:hidden" />
-            {product.stockQuantity === 0 ? "Out of Stock" : "Buy Now"}
-          </Button>
-          <Button
-            size="sm"
-            variant="secondary"
-            className="h-8 max-sm:h-8 max-sm:px-1 max-sm:py-0 shrink-0 px-2 sm:px-3 text-[11px] max-sm:text-[11px] sm:text-xs font-semibold gap-1 border border-border/60 hover:border-primary/30 hover:bg-primary/[0.03] transition-all duration-300"
-            onClick={handleAddToCart}
-            disabled={product.stockQuantity === 0}
-          >
-            <ShoppingCart className="size-3 max-sm:hidden" />
-            Cart
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
-  </motion.div>
+            <Button
+              size="sm"
+              className="h-8 max-sm:h-8 max-sm:px-1 max-sm:py-0 flex-1 min-w-0 px-2 sm:px-3 text-[11px] max-sm:text-[11px] sm:text-xs font-semibold gap-1 gradient-primary text-white shadow-sm hover:shadow-glow transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+              onClick={handleBuyNow}
+              disabled={product.stockQuantity === 0}
+            >
+              <Zap className="size-3 max-sm:hidden" />
+              {product.stockQuantity === 0 ? "Out of Stock" : "Buy Now"}
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              className="h-8 max-sm:h-8 max-sm:px-1 max-sm:py-0 shrink-0 px-2 sm:px-3 text-[11px] max-sm:text-[11px] sm:text-xs font-semibold gap-1 border border-border/60 hover:border-primary/30 hover:bg-primary/[0.03] transition-all duration-300"
+              onClick={handleAddToCart}
+              disabled={product.stockQuantity === 0}
+            >
+              <ShoppingCart className="size-3 max-sm:hidden" />
+              Cart
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
   );
 });
 
