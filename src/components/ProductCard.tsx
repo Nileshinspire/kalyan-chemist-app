@@ -340,29 +340,33 @@ function ProductImage({
   const contentHeight = crop.h * crop.naturalHeight;
   if (contentWidth <= 0 || contentHeight <= 0) return plain;
 
-  const plainScale = Math.min(box.width / crop.naturalWidth, box.height / crop.naturalHeight);
-  const plainFill = Math.max(
-    (contentWidth * plainScale) / box.width,
-    (contentHeight * plainScale) / box.height
-  );
-
   const fitByWidth = Math.min(0.95, (box.width * 0.95) / contentWidth);
   const fitByHeight = box.height > 0
     ? Math.min((box.height * 1.05) / contentHeight, MAX_UPSCALE)
     : MAX_UPSCALE;
   const scale = Math.min(fitByWidth, fitByHeight);
-  const cropFill = Math.max(
-    (contentWidth * scale) / box.width,
-    (contentHeight * scale) / box.height
-  );
 
+  // Always stay above a visible floor so a tiny detected crop (small logo,
+  // near-blank packshot) still renders a usable thumbnail instead of a
+  // sub-60px sliver.  Use the clamped scale for centering too, since with
+  // `object-contain` huge negative left/top from a tiny scale can report a
+  // much smaller visible portion.
   const minScale60 = 60 / Math.max(contentWidth, contentHeight, 1);
   const useScale = Math.max(scale, minScale60);
-  const canRender60 =
-    contentWidth * useScale <= box.width &&
-    (box.height > 0 ? contentHeight * useScale <= box.height * 1.05 : true);
 
-  if (!canRender60) return plain;
+  // Keep the image safely inside the slot: no more than 95% of either
+  // dimension, and never larger than the slot on the long axis after the
+  // 60px floor is enforced.
+  const renderWidth = contentWidth * useScale;
+  const renderHeight = contentHeight * useScale;
+  if (
+    renderWidth > box.width * 0.95 ||
+    renderHeight > box.height * 1.05 ||
+    renderWidth > box.width ||
+    renderHeight > box.height
+  ) {
+    return plain;
+  }
 
   const width = Math.max(60, crop.naturalWidth * useScale);
   const height = Math.max(60, crop.naturalHeight * useScale);
@@ -492,11 +496,9 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
           onClick={handleWishlist}
         >
           <Heart className={`size-4 transition-colors ${isWishlisted ? "fill-rose-500 text-rose-500" : "text-muted-foreground group-hover:text-rose-500"}`} />
-        </Button>
-
-        <div
+        </Button>          <div
           ref={imageAreaRef}
-          className="relative flex h-24 min-h-[100px] items-center justify-center overflow-hidden rounded-xl border-b border-border/40 bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] sm:h-44"
+          className="relative flex h-24 min-h-[100px] items-center justify-center overflow-hidden rounded-xl border-b border-border/40 bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] sm:h-44 sm:min-h-0"
         >
           <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.08] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
           {realImage ? (
