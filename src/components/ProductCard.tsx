@@ -52,8 +52,8 @@ interface ProductCardProps {
  * every side: never cropped, never stretched, never wider than the card's image
  * area. The box is absolutely positioned, so it never contributes to the card's
  * intrinsic width (the mobile carousels size their items from content) and
- * never widens a card. The band itself is square on phones and a fixed,
- * controlled strip from `sm` up, which keeps the desktop card compact.
+ * never widens a card. The band itself is square on phones and a controlled
+ * strip from `sm` up, which keeps the desktop card compact.
  */
 
 function ProductImage({ src, alt }: { src: string; alt: string }) {
@@ -165,38 +165,38 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
           variant="ghost"
           size="icon"
           aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
-          className="absolute top-3 right-3 z-10 h-9 w-9 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background hover:scale-110 transition-all duration-300 opacity-100 sm:h-8 sm:w-8 sm:opacity-0 sm:group-hover:opacity-100"
+          className="absolute top-2 right-2 z-10 h-7 w-7 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background hover:scale-110 transition-all duration-300 opacity-100 sm:h-6 sm:w-6 sm:opacity-0 sm:group-hover:opacity-100"
           onClick={handleWishlist}
         >
-          <Heart className={`size-4 transition-colors ${isWishlisted ? "fill-rose-500 text-rose-500" : "text-muted-foreground group-hover:text-rose-500"}`} />
+          <Heart className={`size-3.5 transition-colors ${isWishlisted ? "fill-rose-500 text-rose-500" : "text-muted-foreground group-hover:text-rose-500"}`} />
         </Button>
         <div
-          className="relative flex aspect-square shrink-0 items-center justify-center overflow-hidden rounded-xl border-b border-border/40 bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] sm:aspect-auto sm:h-44 sm:min-h-0"
+          className="relative flex aspect-square shrink-0 items-center justify-center overflow-hidden rounded-xl border-b border-border/40 bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] sm:aspect-auto sm:h-30 sm:min-h-0"
         >
           <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.08] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
           {realImage ? (
             <ProductImage src={realImage} alt={product.name} />
           ) : (
             <Pill
-              className="size-14 text-primary/20 transition-all duration-500 group-hover:scale-125 group-hover:text-primary/35 group-hover:rotate-6"
+              className="size-10 text-primary/20 transition-all duration-500 group-hover:scale-125 group-hover:text-primary/35 group-hover:rotate-6"
             />
           )}
           {newArrival && (
-            <div className="absolute top-3 left-3">
+            <div className="absolute top-2 left-2">
               <Badge className="text-[10px] font-bold bg-gradient-to-r from-teal-600 to-emerald-600 text-white border-0 shadow-md">
                 New
               </Badge>
             </div>
           )}
           {hasDiscount && (
-            <div className={`absolute left-3 ${newArrival ? "top-12" : "top-3"}`}>
+            <div className={`absolute left-2 ${newArrival ? "top-10" : "top-2"}`}>
               <Badge className="text-[10px] font-bold bg-gradient-to-r from-green-500 to-emerald-500 text-white border-0 shadow-md">
                 {discountPct}% OFF
               </Badge>
             </div>
           )}
           {product.stockQuantity > 0 && product.stockQuantity < 10 && (
-            <div className="absolute bottom-3 left-3">
+            <div className="absolute bottom-2 left-2">
               <Badge
                 variant="outline"
                 className="text-[10px] font-medium text-amber-600 border-amber-300 bg-amber-50/80 backdrop-blur-sm"
@@ -207,8 +207,8 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
           )}
         </div>
 
-        <CardContent className="flex flex-1 flex-col p-2.5 sm:p-3">
-          <div className="space-y-2 max-sm:space-y-1.5">
+        <CardContent className="flex flex-1 flex-col p-2.5 sm:p-2.5">
+          <div className="space-y-1.5 max-sm:space-y-1">
             <div className="flex flex-wrap gap-1.5">
               {product.prescriptionRequired && (
                 <Badge variant="secondary" className="text-[10px] font-medium bg-red-50 text-red-700 border-red-200">
@@ -228,24 +228,24 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
             </div>
 
             <div>
-              <h3 className="text-sm max-sm:text-[13px] max-sm:leading-snug font-semibold max-sm:leading-tight text-foreground line-clamp-2 group-hover:text-primary transition-colors duration-300">
+              <h3 className="text-[14px] max-sm:text-[13px] max-sm:leading-snug font-semibold max-sm:leading-tight text-foreground line-clamp-2 group-hover:text-primary transition-colors duration-300">
                 {product.name}
               </h3>
-              <p className="mt-0.5 text-xs max-sm:text-[11px] max-sm:leading-snug text-muted-foreground break-words max-sm:line-clamp-2">{product.manufacturer}</p>
+              <p className="mt-0.5 text-[11px] max-sm:text-[10px] max-sm:leading-snug text-muted-foreground break-words max-sm:line-clamp-2">{product.manufacturer}</p>
             </div>
 
             {displayInfo && (
-              <p className="text-xs max-sm:text-[11px] max-sm:leading-snug text-muted-foreground">
+              <p className="text-[11px] max-sm:text-[10px] max-sm:leading-snug text-muted-foreground">
                 {displayInfo}{product.packSize ? ` · ${product.packSize}` : ""}
               </p>
             )}
 
             <div className="flex items-baseline gap-1.5">
-              <span className="text-lg max-sm:text-base font-extrabold text-foreground">
+              <span className="text-base max-sm:text-base font-extrabold text-foreground">
                 {formatCurrency(hasDiscount ? product.discountPrice! : product.price)}
               </span>
               {hasDiscount && (
-                <span className="text-xs text-muted-foreground line-through">
+                <span className="text-[11px] text-muted-foreground line-through">
                   {formatCurrency(product.price)}
                 </span>
               )}
@@ -255,10 +255,10 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
           {/* `pt-2.5` (not `pt-2`) keeps the token the New Arrivals scoped
               rule `[class~="pt-2.5"]` matches, so that section's action-row
               spacing — mobile and desktop — stays exactly as it was. */}
-          <div className="mt-auto flex flex-wrap gap-2 pt-2.5 max-sm:gap-1.5 max-sm:pt-2">
+          <div className="mt-auto flex flex-wrap gap-1.5 pt-2.5 max-sm:gap-1.5 max-sm:pt-2">
             <Button
               size="sm"
-              className="h-8 max-sm:h-9 max-sm:min-h-9 max-sm:px-1 max-sm:py-0 flex-1 min-w-0 px-2 sm:px-3 text-[11px] max-sm:text-[11px] sm:text-xs font-semibold gap-1 gradient-primary text-white shadow-sm hover:shadow-glow transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+              className="h-7 max-sm:h-8 max-sm:min-h-8 max-sm:px-0 max-sm:py-0 flex-1 min-w-0 px-1.5 sm:px-2 text-[11px] max-sm:text-[10px] sm:text-xs font-semibold gap-0.5 gradient-primary text-white shadow-sm hover:shadow-glow transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
               onClick={handleBuyNow}
               disabled={product.stockQuantity === 0}
             >
@@ -268,7 +268,7 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
             <Button
               size="sm"
               variant="secondary"
-              className="h-8 max-sm:h-9 max-sm:min-h-9 max-sm:px-1 max-sm:py-0 shrink-0 px-2 sm:px-3 text-[11px] max-sm:text-[11px] sm:text-xs font-semibold gap-1 border border-border/60 hover:border-primary/30 hover:bg-primary/[0.03] transition-all duration-300"
+              className="h-7 max-sm:h-8 max-sm:min-h-8 max-sm:px-0 max-sm:py-0 shrink-0 px-1.5 sm:px-2 text-[11px] max-sm:text-[10px] sm:text-xs font-semibold gap-0.5 border border-border/60 hover:border-primary/30 hover:bg-primary/[0.03] transition-all duration-300"
               onClick={handleAddToCart}
               disabled={product.stockQuantity === 0}
             >

@@ -426,7 +426,8 @@ export default function Products() {
                 {/* Categories */}
                 <div>
                   <h3 className="text-sm font-bold text-foreground mb-3">Categories</h3>
-                  <div className="space-y-0.5">                      <button
+                  <div className="space-y-0.5">
+                      <button
                         className={`w-full text-left px-3 py-2.5 rounded-xl text-sm transition-all duration-200 ${
                           !selectedCategorySlug
                             ? "bg-primary/10 text-primary font-semibold shadow-sm"
@@ -672,18 +673,27 @@ export default function Products() {
                   The sidebar, filters and every other product section stay
                   untouched. */}
               <style>{`
-                .kc-products-grid .h-44, .kc-products-grid .sm\:h-44 { height: 6.5rem; }
-                .kc-products-grid .size-20 { width: 4.5rem; height: 4.5rem; }
-                .kc-products-grid .size-14 { width: 2.75rem; height: 2.75rem; }
-                .kc-products-grid .p-4, .kc-products-grid .sm\:p-4 { padding: 0.625rem 0.75rem; }
-                .kc-products-grid .space-y-2\\.5 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.375rem; }
+                .kc-products-grid .h-30, .kc-products-grid .sm\\:h-30 { height: 7.5rem; }
+                .kc-products-grid .sm\\:p-2.5 { padding: 0.625rem; }
+                .kc-products-grid .p-2.5, .kc-products-grid .sm\\:p-2.5 { padding: 0.625rem; }
+                .kc-products-grid .space-y-1.5 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.375rem; }
+                .kc-products-grid .space-y-1 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.25rem; }
+                .kc-products-grid .text-[14px] { font-size: 0.875rem; line-height: 1.3125rem; }
                 .kc-products-grid .text-sm { font-size: 0.8125rem; line-height: 1.25rem; }
                 .kc-products-grid .text-xs { font-size: 0.6875rem; line-height: 1rem; }
+                .kc-products-grid .text-[13px] { font-size: 0.8125rem; line-height: 1.25rem; }
+                .kc-products-grid .text-[11px] { font-size: 0.75rem; line-height: 1rem; }
+                .kc-products-grid .text-base { font-size: 0.9375rem; line-height: 1.40625rem; }
+                .kc-products-grid .text-[10px] { font-size: 0.625rem; line-height: 0.75rem; }
+                .kc-products-grid .h-7 { height: 1.75rem; }
+                .kc-products-grid .h-8 { height: 1.625rem; }
+                .kc-products-grid .h-9 { height: 1.625rem; }
+                .kc-products-grid .w-7 { width: 1.75rem; }
+                .kc-products-grid .w-8 { width: 1.625rem; }
                 .kc-products-grid button.text-xs { font-size: 0.75rem; line-height: 1rem; }
-                .kc-products-grid .text-lg { font-size: 1rem; line-height: 1.5rem; }
-                .kc-products-grid .h-9 { height: 1.875rem; }
-                .kc-products-grid .h-8 { height: 1.75rem; }
-                .kc-products-grid .w-8 { width: 1.75rem; }
+                .kc-products-grid .gap-1.5 { gap: 0.375rem; }
+                .kc-products-grid .gap-1 { gap: 0.25rem; }
+                .kc-products-grid .gap-2 { gap: 0.375rem; }
               `}</style>
 
               {/* Products grid */}
@@ -712,9 +722,7 @@ export default function Products() {
                 </motion.div>
               ) : (
                 <div
-                  className={`kc-products-grid grid gap-3 grid-cols-2 md:grid-cols-3 xl:grid-cols-4 transition-opacity duration-200${
-                    isSwappingPages ? " opacity-50" : ""
-                  }`}
+                  className={`kc-products-grid grid gap-3 grid-cols-2 md:grid-cols-3 xl:grid-cols-4 transition-opacity duration-200${isSwappingPages ? " opacity-50" : ""}`}
                 >
                   {displayedProducts.map((product) => (
                     <ProductCard key={product._id} product={product as any} />
