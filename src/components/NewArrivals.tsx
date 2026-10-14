@@ -116,7 +116,7 @@ export default function NewArrivals() {
             {products.map((product) => (
               <div
                 key={product._id}
-                className="kc-new-arrival min-w-[calc(50%-0.5rem)] snap-start md:min-w-[calc(33.333%-0.667rem)] lg:min-w-[calc(25%-0.75rem)] max-sm:min-w-[calc(42%-0.375rem)]"
+                className="kc-new-arrival min-w-[calc(50%-0.5rem)] snap-start md:min-w-[calc(33.333%-0.667rem)] lg:min-w-[calc(25%-0.75rem)] max-sm:min-w-[calc(42%-0.375rem)] max-sm:w-[calc(42%-0.375rem)]"
               >
                 <ProductCard product={product} newArrival />
               </div>

@@ -105,22 +105,34 @@ function ProductImage({
     aspect !== null && slotAspect !== null && aspect < slotAspect * COVER_ASPECT_THRESHOLD;
 
   return (
-    <img
-      src={src}
-      alt={alt}
-      loading="lazy"
-      decoding="async"
-      onLoad={(e) => {
-        const el = e.currentTarget;
-        if (el.naturalWidth > 0 && el.naturalHeight > 0) {
-          setAspect(el.naturalWidth / el.naturalHeight);
-        }
-      }}
-      className={clsx(
-        "absolute inset-0 h-full w-full",
-        cover ? "object-cover" : "object-contain"
-      )}
-    />
+    // Phones get a padded, contained packshot ("Apollo-style"): the image is
+    // inset from the band on every side so the whole package stays visible at
+    // its natural aspect ratio with even white space around it. The wrapper is
+    // absolutely positioned, so it never contributes to the card's intrinsic
+    // width (the mobile carousels size their items from content) and never
+    // crops or stretches anything. From `sm` up the wrapper is `display:
+    // contents`, so the <img> is the band's direct child again — byte-for-byte
+    // the same rendering the desktop cards had before this change.
+    <div className="max-sm:absolute max-sm:inset-2.5 sm:contents">
+      <img
+        src={src}
+        alt={alt}
+        loading="lazy"
+        decoding="async"
+        onLoad={(e) => {
+          const el = e.currentTarget;
+          if (el.naturalWidth > 0 && el.naturalHeight > 0) {
+            setAspect(el.naturalWidth / el.naturalHeight);
+          }
+        }}
+        className={clsx(
+          "absolute inset-0 h-full w-full",
+          cover ? "object-cover" : "object-contain",
+          // Phones always contain (never crop) the packshot.
+          "max-sm:object-contain"
+        )}
+      />
+    </div>
   );
 }
 
@@ -228,7 +240,7 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
         </Button>
         <div
           ref={imageAreaRef}
-          className="relative flex h-24 shrink-0 items-center justify-center overflow-hidden rounded-xl border-b border-border/40 bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] sm:h-44 sm:min-h-0"
+          className="relative flex aspect-square shrink-0 items-center justify-center overflow-hidden rounded-xl border-b border-border/40 bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] sm:aspect-auto sm:h-44 sm:min-h-0"
         >
           <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.08] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
           {realImage ? (
@@ -269,7 +281,7 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
         </div>
 
         <CardContent className="flex flex-1 flex-col p-2.5 sm:p-4">
-          <div className="space-y-2.5">
+          <div className="space-y-2.5 max-sm:space-y-1.5">
             <div className="flex flex-wrap gap-1.5">
               {product.prescriptionRequired && (
                 <Badge variant="secondary" className="text-[10px] font-medium bg-red-50 text-red-700 border-red-200">
@@ -313,10 +325,10 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
             </div>
           </div>
 
-          <div className="mt-auto flex flex-wrap gap-2 pt-2.5 max-sm:gap-1 max-sm:pt-1.5">
+          <div className="mt-auto flex flex-wrap gap-2 pt-2.5 max-sm:gap-1.5 max-sm:pt-2">
             <Button
               size="sm"
-              className="h-8 max-sm:h-8 max-sm:px-1 max-sm:py-0 flex-1 min-w-0 px-2 sm:px-3 text-[11px] max-sm:text-[11px] sm:text-xs font-semibold gap-1 gradient-primary text-white shadow-sm hover:shadow-glow transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+              className="h-8 max-sm:h-9 max-sm:min-h-9 max-sm:px-1 max-sm:py-0 flex-1 min-w-0 px-2 sm:px-3 text-[11px] max-sm:text-[11px] sm:text-xs font-semibold gap-1 gradient-primary text-white shadow-sm hover:shadow-glow transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
               onClick={handleBuyNow}
               disabled={product.stockQuantity === 0}
             >
@@ -326,7 +338,7 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
             <Button
               size="sm"
               variant="secondary"
-              className="h-8 max-sm:h-8 max-sm:px-1 max-sm:py-0 shrink-0 px-2 sm:px-3 text-[11px] max-sm:text-[11px] sm:text-xs font-semibold gap-1 border border-border/60 hover:border-primary/30 hover:bg-primary/[0.03] transition-all duration-300"
+              className="h-8 max-sm:h-9 max-sm:min-h-9 max-sm:px-1 max-sm:py-0 shrink-0 px-2 sm:px-3 text-[11px] max-sm:text-[11px] sm:text-xs font-semibold gap-1 border border-border/60 hover:border-primary/30 hover:bg-primary/[0.03] transition-all duration-300"
               onClick={handleAddToCart}
               disabled={product.stockQuantity === 0}
             >

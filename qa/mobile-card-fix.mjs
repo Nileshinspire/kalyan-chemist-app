@@ -194,27 +194,38 @@ for (const width of [320, 360, 375, 390, 430]) {
     widths.length > 0 && widths.every((w) => w >= 108 && w <= 200),
     JSON.stringify(widths)
   );
+  // Mobile card = square image band + compact body. The square band replaces the
+  // old 96px strip, so the bound is 400px with a tight cap on the body itself.
+  const bodyHeights = data.rails.flatMap((r) => r.cards.map((c) => c.card.h - (c.band?.h || 0)));
   check(
-    `W=${width}: every product card is compact (<= 310px tall)`,
-    heights.length > 0 && heights.every((h) => h <= 310),
+    `W=${width}: every product card is compact (<= 400px tall)`,
+    heights.length > 0 && heights.every((h) => h <= 400),
     JSON.stringify(heights)
+  );
+  check(
+    `W=${width}: every product card body is compact (<= 210px below the image)`,
+    bodyHeights.length > 0 && bodyHeights.every((h) => h > 0 && h <= 210),
+    JSON.stringify(bodyHeights)
   );
   check(
     `W=${width}: cards inside one carousel share a height`,
     data.rails.every((r) => new Set(r.cards.map((c) => c.card.h)).size <= 2),
     JSON.stringify(data.rails.map((r) => r.cards.map((c) => c.card.h)))
   );
+  // Apollo-style mobile image area: square, sized from the card width.
   check(
-    `W=${width}: every product card uses the mobile image band (band.h === 96, no band.h === 112 lane)`,
-    data.rails.every((r) => r.cards.every((c) => c.band?.h === 96)),
-    JSON.stringify(data.rails.map((r) => r.cards.map((c) => c.band?.h)))
+    `W=${width}: every product card uses a square mobile image band (band.h === band.w)`,
+    data.rails.every((r) => r.cards.every((c) => c.band && Math.abs(c.band.h - c.band.w) <= 2)),
+    JSON.stringify(data.rails.map((r) => r.cards.map((c) => (c.band ? `${c.band.w}x${c.band.h}` : null))))
   );
-  // wh = which lane has which band.h; if any h-112 band shows up, that lane is the 17px WhatsApp pill lane.
-  const wh = [...new Set(data.rails.flatMap((r) => r.cards.map((c) => c.band?.h).filter(Boolean)))];
+  // Every carousel must be internally uniform: a stray band size inside one
+  // lane would mean a card rendered with a different image area than its
+  // siblings (the old "17px WhatsApp pill lane" symptom).
+  const laneBands = data.rails.map((r) => [...new Set(r.cards.map((c) => (c.band ? `${c.band.w}x${c.band.h}` : null)))]);
   check(
-    `W=${width}: only the h-96 band exists (no stray h-112 band means no 17px WhatsApp pill lane)`,
-    wh.length === 1 && wh[0] === 96,
-    JSON.stringify(wh)
+    `W=${width}: every carousel's image bands share one size`,
+    laneBands.length > 0 && laneBands.every((b) => b.length === 1),
+    JSON.stringify(laneBands)
   );
   const btnH = data.rails.flatMap((r) => r.cards.flatMap((c) => c.buttons.map((b) => b.h)));
   check(
@@ -253,8 +264,8 @@ for (const width of [320, 360, 375, 390, 430]) {
     console.log(`   grid[${g.cards[0].head}] gap=${g.gap} cards=${JSON.stringify(g.cards.map((c) => `${c.card.w}x${c.card.h}`))} bands=${JSON.stringify(gb)}`);
     check(`W=${width}: product grid ${g.cards[0].head} cards equal width`, new Set(gw).size === 1, JSON.stringify(gw));
     check(`W=${width}: product grid ${g.cards[0].head} cards equal height`, new Set(gh).size === 1, JSON.stringify(gh));
-    check(`W=${width}: product grid ${g.cards[0].head} compact (<= 310px)`, gh.every((h) => h <= 310), JSON.stringify(gh));
-    check(`W=${width}: product grid ${g.cards[0].head} image band matches carousels`, new Set(gb).size === 1 && gb[0] === data.rails[0]?.cards[0]?.band?.h, `grid=${JSON.stringify(gb)} rail=${data.rails[0]?.cards[0]?.band?.h}`);
+    check(`W=${width}: product grid ${g.cards[0].head} compact (<= 400px)`, gh.every((h) => h <= 400), JSON.stringify(gh));
+    check(`W=${width}: product grid ${g.cards[0].head} image band is square and uniform`, new Set(gb).size === 1 && g.cards.every((c) => c.band && Math.abs(c.band.h - c.band.w) <= 2), `grid=${JSON.stringify(gb)}`);
     const clipped = g.cards.filter((c) => c.buttons.some((b) => b.x < c.card.x - 1 || b.x + b.w > c.card.x + c.card.w + 1));
     check(`W=${width}: product grid ${g.cards[0].head} buttons inside their card`, clipped.length === 0, JSON.stringify(clipped.length));
     check(`W=${width}: product grid ${g.cards[0].head} buttons >= 30px tall`, g.cards.flatMap((c) => c.buttons.map((b) => b.h)).every((h) => h >= 30));

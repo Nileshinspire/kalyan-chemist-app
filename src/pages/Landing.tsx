@@ -529,7 +529,7 @@ export default function Landing() {
                         details block. Mobile keeps the short band and tight
                         padding; from `sm` up the original band height and
                         padding are restored exactly. */}
-                    <div className="relative mb-2 flex h-24 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] sm:mb-3 sm:h-32">
+                    <div className="relative mb-2 flex aspect-square items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] sm:mb-3 sm:aspect-auto sm:h-32">
                       {product.imageUrl ? (
                         <>
                           <img
@@ -563,7 +563,7 @@ export default function Landing() {
                     </div>
                     <Button
                       size="sm"
-                      className="mt-2 h-8 w-full rounded-lg text-xs font-semibold gradient-primary text-white sm:mt-3"
+                      className="mt-2 h-8 w-full rounded-lg text-xs font-semibold gradient-primary text-white max-sm:h-9 max-sm:min-h-9 sm:mt-3"
                       onClick={(e) => { e.stopPropagation(); handleAddToCart(product._id); }}
                       disabled={product.stockQuantity === 0}
                     >
@@ -612,7 +612,7 @@ export default function Landing() {
                     every other product carousel (h-24) and the details block uses
                     the same tight padding; from `sm` up the original heights and
                     padding are unchanged. */}
-                <div className="relative flex h-24 items-center justify-center overflow-hidden bg-gradient-to-br from-green-500/[0.06] to-emerald-500/[0.03] sm:h-40">
+                <div className="relative flex aspect-square items-center justify-center overflow-hidden bg-gradient-to-br from-green-500/[0.06] to-emerald-500/[0.03] sm:aspect-auto sm:h-40">
                   {product.imageUrl ? (
                     <>
                       <img
@@ -645,7 +645,7 @@ export default function Landing() {
                   </div>
                   <Button
                     size="sm"
-                    className="mt-2 h-8 w-full rounded-lg text-xs font-semibold gradient-primary text-white sm:mt-3 max-sm:h-8 max-sm:justify-center"
+                    className="mt-2 h-8 w-full rounded-lg text-xs font-semibold gradient-primary text-white sm:mt-3 max-sm:h-9 max-sm:min-h-9 max-sm:justify-center"
                     onClick={(e) => { e.stopPropagation(); handleAddToCart(product._id); }}
                     disabled={product.stockQuantity === 0}
                   >

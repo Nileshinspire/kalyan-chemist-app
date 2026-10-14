@@ -1,0 +1,3 @@
+function b(e,l,m){if(e.length===0)return;const r=Object.keys(e[0]).map(n=>({key:n,header:n.replace(/([A-Z])/g," $1").replace(/^./,c=>c.toUpperCase())})),a=r.map(n=>u(n.header)),i=e.map(n=>r.map(c=>{const o=n[c.key];return o==null?"":typeof o=="number"?String(o):u(String(o))})),p=[a.join(","),...i.map(n=>n.join(","))].join(`
+`),d=new Blob(["\uFEFF"+p],{type:"text/csv;charset=utf-8;"}),s=URL.createObjectURL(d),t=document.createElement("a");t.href=s,t.download=`${l}_${new Date().toISOString().slice(0,10)}.csv`,document.body.appendChild(t),t.click(),document.body.removeChild(t),URL.revokeObjectURL(s)}function u(e){return e.includes(",")||e.includes('"')||e.includes(`
+`)?`"${e.replace(/"/g,'""')}"`:e}export{b as e};
