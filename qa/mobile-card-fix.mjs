@@ -74,6 +74,7 @@ const PROBE = () => {
         .map((child) => {
           const card = child.querySelector('[data-slot="card"]') || child;
           const band =
+            card.querySelector('div[class*="h-24"]') ||
             card.querySelector('div[class*="h-28"]') ||
             card.querySelector('div[class*="h-32"]') ||
             card.querySelector('div[class*="h-44"]') ||
@@ -105,7 +106,7 @@ const PROBE = () => {
         const buttons = [...child.querySelectorAll("button")].map((b) => ({ label: (b.textContent || "").trim().slice(0, 14), ...box(b) }));
         if (!buttons.some((b) => /buy now|cart|out of stock/i.test(b.label))) return null;
 
-        const band = child.querySelector('div[class*="h-28"], div[class*="h-32"], div[class*="h-40"], div[class*="h-44"]') || child;
+        const band = child.querySelector('div[class*="h-24"], div[class*="h-28"], div[class*="h-32"], div[class*="h-40"], div[class*="h-44"]') || child;
 
         return {
           card: box(child),
@@ -317,7 +318,7 @@ async function desktopMeasure(root) {
     const target = (await card.count()) ? card : sec.locator(".group.rounded-2xl") .first();
     const info = await target.evaluate((el) => {
       const r = el.getBoundingClientRect();
-      const band = el.querySelector('div[class*="h-44"], div[class*="h-40"], div[class*="h-32"], div[class*="h-28"]') || el;
+      const band = el.querySelector('div[class*="h-24"], div[class*="h-44"], div[class*="h-40"], div[class*="h-32"], div[class*="h-28"]') || el;
 
       return {
         w: Math.round(r.width),

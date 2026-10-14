@@ -54,10 +54,15 @@ describe("ProductCard component", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    // ProductCard calls useMutation in this order: addToCart, then toggleWishlist.
-    (mockUseMutation as any)
-      .mockReturnValueOnce(mockAddToCart)
-      .mockReturnValueOnce(mockToggleWishlist);
+    // ProductCard calls useMutation in a fixed order every render: addToCart
+    // first, then toggleWishlist. The component re-renders once the image band
+    // is measured, so the mock must return a stable function on every call
+    // rather than only the first two — otherwise later renders hand the
+    // handlers `undefined` and the click assertions never fire.
+    let mutationCall = 0;
+    (mockUseMutation as any).mockImplementation(() =>
+      ++mutationCall % 2 === 1 ? mockAddToCart : mockToggleWishlist
+    );
     mockUseQuery.mockReturnValue(false);
   });
 

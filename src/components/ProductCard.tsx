@@ -46,248 +46,14 @@ interface ProductCardProps {
 }
 
 /* ─── Product image presentation ───
- * The stored packshots are full-bleed source images: a 600px-wide canvas that
- * usually carries a lot of baked-in white/transparent padding around a product
- * sitting in the middle. `object-fit: contain` fits the WHOLE canvas, so the
- * actual medicine stays small no matter how large the image area is — which is
- * why simply enlarging the <img> left the product looking tiny.
- *
- * So the padding is measured and removed before display: the image is decoded
- * once into a small offscreen canvas, the bounding box of its non-background
- * pixels is found, and the <img> is then laid out so that box fills the image
- * area with `contain` proportions. The product therefore appears large while
- * the image itself is still fully visible — never cropped, stretched, squeezed
- * or blurred by a CSS transform (the box is expressed in layout pixels, so the
- * browser downsamples the source smoothly instead of scaling a raster layer).
- *
- * Everything here is progressive enhancement: if the image cannot be measured
- * (no canvas, blocked CORS, non-browser environment) the component falls back
- * to a plain centred `object-contain` image, which is the previous behaviour.
+ * Packshots are full-bleed canvases that often carry baked-in white padding,
+ * and some are extremely tall (e.g. 174x600). Sizing by `object-contain` alone
+ * therefore leaves those products as thin slivers once the mobile image band
+ * shrank to 96px. The band is filled with the packshot instead, and `object-fit`
+ * switches to `cover` only when the source is clearly taller than the slot, so
+ * every card shows a product at least as wide as the band without ever
+ * overflowing it.
  */
-
-/** Content box of a product image, in fractions of the natural image. */
-type ContentCrop = {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  naturalWidth: number;
-  naturalHeight: number;
-};
-
-/** Measured crops are cached per URL — each image is decoded at most once. */
-const cropCache = new Map<string, ContentCrop | null>();
-
-/** Longest edge of the scratch canvas used for measuring. */
-const MEASURE_EDGE = 220;
-/**
- * How far below the backdrop level a pixel may sit and still count as
- * backdrop. Catalogue packshots sit on a near-white sweep, often a little
- * grey or warm from JPEG compression, so the level is taken from the image
- * itself rather than assumed to be pure white.
- */
-const BACKGROUND_TOLERANCE = 20;
-/** Percentile used as the backdrop level: high, but not hostage to one specular pixel. */
-const BACKGROUND_PERCENTILE = 0.99;
-/** Ignore fully transparent pixels. */
-const MIN_ALPHA = 12;
-/**
- * Share of transparent pixels that means the image is a cut-out, where alpha
- * is an exact product mask and no brightness test is needed.
- */
-const MIN_TRANSPARENT_SHARE = 0.15;
-/** Below this share of foreground pixels the image is treated as unusable. */
-const MIN_CONTENT_DENSITY = 0.02;
-/** Reject degenerate slivers rather than zooming into a stray dark pixel. */
-const MIN_CROP_AXIS = 0.06;
-/** Breathing room added around the detected box so edges are never shaved. */
-const CROP_PADDING = 0.02;
-/** Never upscale a tiny source beyond this, so small crops cannot turn blurry. */
-const MAX_UPSCALE = 2;
-/** A crop must beat the uncropped render by this much to be worth applying. */
-const MIN_IMPROVEMENT = 1.02;
-
-/**
- * Find the bounding box of the product inside a decoded image.
- *
- * The backdrop is the bright sweep the product sits on, so the backdrop level
- * is taken as a high percentile of the image's luminance: that survives a
- * product touching a corner, a shadow, and JPEG noise, all of which broke
- * earlier corner/median based estimates. Fully transparent pixels are treated
- * as backdrop, so cut-out PNGs work too.
- */
-function findCrop(img: HTMLImageElement): ContentCrop | null {
-  const { naturalWidth: width, naturalHeight: height } = img;
-  if (!width || !height) return null;
-
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.min(width, MEASURE_EDGE);
-  canvas.height = Math.min(height, MEASURE_EDGE);
-  const ctx = canvas.getContext("2d", { willReadFrequently: true });
-  if (!ctx) return null;
-
-  const scale = canvas.width / width;
-  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-  const { data, width: cw, height: ch } = imageData;
-  const total = cw * ch;
-
-  const luma = new Float32Array(total);
-  const alpha = new Uint8Array(total);
-  let minX = Infinity;
-  let maxX = -1;
-  let minY = Infinity;
-  let maxY = -1;
-  let foreground = 0;
-
-  for (let i = 0; i < total; i++) {
-    const r = data[i * 4];
-    const g = data[i * 4 + 1];
-    const b = data[i * 4 + 2];
-    const a = data[i * 4 + 3];
-    alpha[i] = a;
-    luma[i] = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-  }
-
-  const sorted = new Float32Array(luma);
-  sorted.sort((a, b) => a - b);
-  const threshold = sorted[Math.min(total - 1, Math.round(total * BACKGROUND_PERCENTILE))] + BACKGROUND_TOLERANCE;
-
-  const useAlpha = alpha.reduce((acc, v) => acc + v, 0) / total > MIN_TRANSPARENT_SHARE;
-
-  for (let y = 0; y < ch; y++) {
-    for (let x = 0; x < cw; x++) {
-      const i = y * cw + x;
-      if (useAlpha ? alpha[i] < MIN_ALPHA : luma[i] >= threshold) continue;
-      if (x < minX) minX = x;
-      if (x > maxX) maxX = x;
-      if (y < minY) minY = y;
-      if (y > maxY) maxY = y;
-      foreground++;
-    }
-  }
-
-  if (maxX < minX || maxY < minY) return null;
-  if (foreground / total < MIN_CONTENT_DENSITY) return null;
-
-  const contentW = (maxX - minX + 1) / cw;
-  const contentH = (maxY - minY + 1) / ch;
-  if (contentW < MIN_CROP_AXIS || contentH < MIN_CROP_AXIS) return null;
-
-  const padX = contentW * CROP_PADDING;
-  const padY = contentH * CROP_PADDING;
-
-  return {
-    x: Math.max(0, minX / cw - padX),
-    y: Math.max(0, minY / ch - padY),
-    w: Math.min(1, (maxX - minX + 1) / cw + padX * 2),
-    h: Math.min(1, (maxY - minY + 1) / ch + padY * 2),
-    naturalWidth: width,
-    naturalHeight: height,
-  };
-}
-
-/** Reuse one scratch canvas per decode width to reduce GC pressure. */
-const CANVAS_CACHE = new Map<number, HTMLCanvasElement>();
-
-function decodeToCanvas(src: string, edge: number): HTMLCanvasElement | null {
-  const cached = CANVAS_CACHE.get(edge);
-  if (cached && cached.width === edge) {
-    const ctx = cached.getContext("2d", { willReadFrequently: true });
-    if (ctx) {
-      ctx.clearRect(0, 0, edge, edge);
-      return cached;
-    }
-  }
-  const canvas = document.createElement("canvas");
-  canvas.width = edge;
-  canvas.height = edge;
-  CANVAS_CACHE.set(edge, canvas);
-  return canvas;
-}
-
-function measureImage(src: string): ContentCrop | null {
-  if (!src || src.startsWith("data:") || !document.createElement("canvas").getContext("2d")) return null;
-  try {
-    const img = new Image();
-    img.decoding = "async";
-    img.src = src;
-    if (!img.complete || img.naturalWidth === 0) return null;
-    const canvas = decodeToCanvas(src, MEASURE_EDGE);
-    if (!canvas) return null;
-    const ctx = canvas.getContext("2d", { willReadFrequently: true });
-    if (!ctx) return null;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const { data, width: cw, height: ch } = imageData;
-    const total = cw * ch;
-    const luma = new Float32Array(total);
-    const alpha = new Uint8Array(total);
-    let minX = Infinity;
-    let maxX = -1;
-    let minY = Infinity;
-    let maxY = -1;
-    let foreground = 0;
-    for (let i = 0; i < total; i++) {
-      const r = data[i * 4];
-      const g = data[i * 4 + 1];
-      const b = data[i * 4 + 2];
-      const a = data[i * 4 + 3];
-      alpha[i] = a;
-      luma[i] = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-    }
-    const sorted = new Float32Array(luma);
-    sorted.sort((a, b) => a - b);
-    const threshold = sorted[Math.min(total - 1, Math.round(total * BACKGROUND_PERCENTILE))] + BACKGROUND_TOLERANCE;
-    const useAlpha = alpha.reduce((acc, v) => acc + v, 0) / total > MIN_TRANSPARENT_SHARE;
-    for (let y = 0; y < ch; y++) {
-      for (let x = 0; x < cw; x++) {
-        const i = y * cw + x;
-        if (useAlpha ? alpha[i] < MIN_ALPHA : luma[i] >= threshold) continue;
-        if (x < minX) minX = x;
-        if (x > maxX) maxX = x;
-        if (y < minY) minY = y;
-        if (y > maxY) maxY = y;
-        foreground++;
-      }
-    }
-    if (maxX < minX || maxY < minY) return null;
-    if (foreground / total < MIN_CONTENT_DENSITY) return null;
-    const contentW = (maxX - minX + 1) / cw;
-    const contentH = (maxY - minY + 1) / ch;
-    if (contentW < MIN_CROP_AXIS || contentH < MIN_CROP_AXIS) return null;
-    const padX = contentW * CROP_PADDING;
-    const padY = contentH * CROP_PADDING;
-    return {
-      x: Math.max(0, minX / cw - padX),
-      y: Math.max(0, minY / ch - padY),
-      w: Math.min(1, (maxX - minX + 1) / cw + padX * 2),
-      h: Math.min(1, (maxY - minY + 1) / ch + padY * 2),
-      naturalWidth: img.naturalWidth,
-      naturalHeight: img.naturalHeight,
-    };
-  } catch {
-    return null;
-  }
-}
-
-function useContentCrop(src: string | undefined): ContentCrop | null | undefined {
-  const [crop, setCrop] = useState<ContentCrop | null | undefined>(undefined);
-  useEffect(() => {
-    if (!src) return;
-    const cached = cropCache.get(src);
-    if (cached !== undefined) {
-      setCrop(cached);
-      return;
-    }
-    const measured = measureImage(src);
-    cropCache.set(src, measured);
-    setCrop(measured);
-  }, [src]);
-  return crop;
-}
 
 function useBoxSize(ref: RefObject<HTMLElement | null>): { width: number; height: number } {
   const [size, setSize] = useState({ width: 0, height: 0 });
@@ -313,76 +79,47 @@ function useBoxSize(ref: RefObject<HTMLElement | null>): { width: number; height
   return size;
 }
 
+/**
+ * Below this ratio of source-aspect to slot-aspect the packshot is treated as
+ * "too tall for a contained fit" and is cropped into a centred cover instead.
+ */
+const COVER_ASPECT_THRESHOLD = 0.85;
+
 function ProductImage({
   src,
   alt,
-  crop,
   box,
 }: {
   src: string;
   alt: string;
-  crop: ContentCrop | null | undefined;
   box: { width: number; height: number };
 }) {
-  const plain = (
-    <img
-      src={src}
-      alt={alt}
-      className="h-auto w-auto max-h-full max-w-full object-contain"
-      loading="lazy"
-      decoding="async"
-    />
-  );
+  const [aspect, setAspect] = useState<number | null>(null);
+  const slotAspect = box.width > 0 && box.height > 0 ? box.width / box.height : null;
 
-  if (!crop || box.width <= 0 || box.height <= 0) return plain;
-
-  const contentWidth = crop.w * crop.naturalWidth;
-  const contentHeight = crop.h * crop.naturalHeight;
-  if (contentWidth <= 0 || contentHeight <= 0) return plain;
-
-  const fitByWidth = Math.min(0.95, (box.width * 0.95) / contentWidth);
-  const fitByHeight = box.height > 0
-    ? Math.min((box.height * 1.05) / contentHeight, MAX_UPSCALE)
-    : MAX_UPSCALE;
-  const scale = Math.min(fitByWidth, fitByHeight);
-
-  // Always stay above a visible floor so a tiny detected crop (small logo,
-  // near-blank packshot) still renders a usable thumbnail instead of a
-  // sub-60px sliver.  Use the clamped scale for centering too, since with
-  // `object-contain` huge negative left/top from a tiny scale can report a
-  // much smaller visible portion.
-  const minScale60 = 60 / Math.max(contentWidth, contentHeight, 1);
-  const useScale = Math.max(scale, minScale60);
-
-  // Keep the image safely inside the slot: no more than 95% of either
-  // dimension, and never larger than the slot on the long axis after the
-  // 60px floor is enforced.
-  const renderWidth = contentWidth * useScale;
-  const renderHeight = contentHeight * useScale;
-  if (
-    renderWidth > box.width * 0.95 ||
-    renderHeight > box.height * 1.05 ||
-    renderWidth > box.width ||
-    renderHeight > box.height
-  ) {
-    return plain;
-  }
-
-  const width = Math.max(60, crop.naturalWidth * useScale);
-  const height = Math.max(60, crop.naturalHeight * useScale);
-  const left =
-    (box.width - contentWidth * useScale) / 2 - crop.x * crop.naturalWidth * useScale;
-  const top =
-    (box.height - contentHeight * useScale) / 2 - crop.y * crop.naturalHeight * useScale;
+  // `cover` only for sources clearly taller than the slot (thin strips and tall
+  // bottles); everything else keeps `contain`, so wide and square packshots are
+  // never clipped. The <img> always fills the slot, so it stays inside the band
+  // and never renders narrower than the card's image area.
+  const cover =
+    aspect !== null && slotAspect !== null && aspect < slotAspect * COVER_ASPECT_THRESHOLD;
 
   return (
     <img
       src={src}
       alt={alt}
-      className="absolute object-contain"
-      style={{ width, height, left, top }}
       loading="lazy"
       decoding="async"
+      onLoad={(e) => {
+        const el = e.currentTarget;
+        if (el.naturalWidth > 0 && el.naturalHeight > 0) {
+          setAspect(el.naturalWidth / el.naturalHeight);
+        }
+      }}
+      className={clsx(
+        "absolute inset-0 h-full w-full",
+        cover ? "object-cover" : "object-contain"
+      )}
     />
   );
 }
@@ -398,7 +135,6 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
     product.imageUrl && product.imageUrl !== "/placeholder-medicine.svg"
       ? product.imageUrl
       : undefined;
-  const crop = useContentCrop(realImage);
   const addToCart = useMutation(api.cart.addItem);
   const toggleWishlist = useMutation(api.wishlist.toggle);
   const isWishlisted = useQuery(
@@ -476,10 +212,6 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
       initial="hidden"
       animate={motionBuiltIn ? "visible" : undefined}
       className="group relative h-full flex-col overflow-hidden border-border/60 bg-card cursor-pointer transition-all duration-500 hover:shadow-card-hover hover:border-primary/20 hover:-translate-y-1 max-sm:gap-0 max-sm:py-0"
-      onClick={() => goProduct(navigate, location.pathname + location.search, product.slug)}
-      onMouseEnter={warmProductDetail}
-      onFocus={warmProductDetail}
-      onPointerDown={warmProductDetail}
     >
       <Card
         className="group relative h-full flex-col overflow-hidden border-border/60 bg-card cursor-pointer transition-all duration-500 hover:shadow-card-hover hover:border-primary/20 hover:-translate-y-1 max-sm:gap-0 max-sm:py-0"
@@ -496,16 +228,16 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
           onClick={handleWishlist}
         >
           <Heart className={`size-4 transition-colors ${isWishlisted ? "fill-rose-500 text-rose-500" : "text-muted-foreground group-hover:text-rose-500"}`} />
-        </Button>          <div
+        </Button>
+        <div
           ref={imageAreaRef}
-          className="relative flex h-24 min-h-[100px] items-center justify-center overflow-hidden rounded-xl border-b border-border/40 bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] sm:h-44 sm:min-h-0"
+          className="relative flex h-24 shrink-0 items-center justify-center overflow-hidden rounded-xl border-b border-border/40 bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] sm:h-44 sm:min-h-0"
         >
           <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.08] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
           {realImage ? (
             <ProductImage
               src={realImage}
               alt={product.name}
-              crop={crop}
               box={imageBox}
             />
           ) : (
