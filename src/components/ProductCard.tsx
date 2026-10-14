@@ -198,9 +198,6 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
     convexClient.prewarmQuery({ query: api.products.getBySlug, args: { slug: product.slug } });
   }, [convexClient, product.slug]);
 
-  const motionBuiltIn: boolean =
-    typeof window !== "undefined" && (window as any).__PRODUCT_CARD_MOTION_BUILT_IN__ === true;
-
   const cardVariants: Variants = {
     hidden: { opacity: 0, y: 12 },
     visible: { opacity: 1, y: 0, transition: { duration: 0.35, ease: [0.22, 1, 0.36, 1] } },
@@ -210,7 +207,7 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
     <motion.div
       variants={cardVariants}
       initial="hidden"
-      animate={motionBuiltIn ? "visible" : undefined}
+      animate="visible"
       className="group relative h-full flex-col overflow-hidden border-border/60 bg-card cursor-pointer transition-all duration-500 hover:shadow-card-hover hover:border-primary/20 hover:-translate-y-1 max-sm:gap-0 max-sm:py-0"
     >
       <Card
@@ -316,10 +313,7 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
             </div>
           </div>
 
-          <div className={clsx(
-            "mt-auto flex flex-wrap gap-2 pt-2.5 max-sm:gap-1 max-sm:pt-1.5",
-            motionBuiltIn && "opacity-0 motion-safe:opacity-100 motion-safe:duration-700 motion-safe:transition-opacity"
-          )}>
+          <div className="mt-auto flex flex-wrap gap-2 pt-2.5 max-sm:gap-1 max-sm:pt-1.5">
             <Button
               size="sm"
               className="h-8 max-sm:h-8 max-sm:px-1 max-sm:py-0 flex-1 min-w-0 px-2 sm:px-3 text-[11px] max-sm:text-[11px] sm:text-xs font-semibold gap-1 gradient-primary text-white shadow-sm hover:shadow-glow transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
