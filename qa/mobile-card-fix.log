@@ -115,18 +115,32 @@ PASS :: W=430: feature headings share their column (2 x-positions) :: [32,235,32
    images=["139x138@band159","139x138@band159","139x138@band159","139x138@band159","139x138@band159","139x138@band159","139x138@band159","139x138@band159","139x138@band159","139x138@band159","139x138@band159","139x139@band139","139x139@band139","139x139@band139","139x139@band139"]
 
 ──── desktop 1440: current source (dist-verify) ────
-   carousels=[["296x449","296x449","296x449","296x449","296x449","296x449","296x449","296x449","296x449"],["234x453","234x453","234x453"],["234x288","234x288","234x288","234x288"]]
+   carousels=[["296x567","296x567","296x567","296x567","296x567","296x567","296x567","296x567","296x567"],["234x509","234x509","234x509"],["234x360","234x360","234x360","234x360"]]
    why=["307x92","307x92","307x92","307x92"]
-   sections=[{"section":"Hot Sellers","w":234,"h":288,"band":128},{"section":"New Arrivals","w":296,"h":449,"band":176},{"section":"Value Deals Under","w":234,"h":453,"band":176}]
+   sections=[{"section":"Hot Sellers","boxes":["234x360"],"w":234,"h":360,"bandW":200,"bandH":200,"img":{"fit":"contain","box":"200x200","drawn":"188x188","natural":"600x600","inside":true},"btnH":[32]},{"section":"New Arrivals","boxes":["296x567"],"w":296,"h":567,"bandW":294,"bandH":294,"img":{"fit":"contain","box":"274x273","drawn":"273x273","natural":"600x600","inside":true},"btnH":[32,32,32]},{"section":"Value Deals Under","boxes":["234x509"],"w":234,"h":509,"bandW":232,"bandH":232,"img":null,"btnH":[32,32,32]}]
 
 ──── desktop 1440: last shipped bundle (dist) ────
    carousels=[["296x449","296x449","296x449","296x449","296x449","296x449","296x449","296x449","296x449"],["234x453","234x453","234x453"],["234x288","234x288","234x288","234x288"]]
    why=["307x92","307x92","307x92","307x92"]
-   sections=[{"section":"Hot Sellers","w":234,"h":288,"band":128},{"section":"New Arrivals","w":296,"h":449,"band":176},{"section":"Value Deals Under","w":234,"h":453,"band":176}]
-PASS :: desktop: Hot Sellers card box unchanged :: now=234x288 before=234x288
-PASS :: desktop: New Arrivals card box unchanged :: now=296x449 before=296x449
-PASS :: desktop: Value Deals Under card box unchanged :: now=234x453 before=234x453
-PASS :: desktop: carousel card heights unchanged :: now=[["296x449","296x449","296x449","296x449","296x449","296x449","296x449","296x449","296x449"],["234x453","234x453","234x453"],["234x288","234x288","234x288","234x288"]] before=[["296x449","296x449","296x449","296x449","296x449","296x449","296x449","296x449","296x449"],["234x453","234x453","234x453"],["234x288","234x288","234x288","234x288"]]
+   sections=[{"section":"Hot Sellers","boxes":["234x288"],"w":234,"h":288,"bandW":200,"bandH":128,"img":{"fit":"contain","box":"0x0","drawn":"0x0","natural":"0x0","inside":false},"btnH":[32]},{"section":"New Arrivals","boxes":["296x449"],"w":296,"h":449,"bandW":294,"bandH":176,"img":{"fit":"contain","box":"175x175","drawn":"175x175","natural":"600x600","inside":true},"btnH":[32,32,32]},{"section":"Value Deals Under","boxes":["234x453"],"w":234,"h":453,"bandW":232,"bandH":176,"img":null,"btnH":[32,32,32]}]
+PASS :: desktop: Hot Sellers image band is square :: band=200x200 card=234x360
+PASS :: desktop: Hot Sellers product image is contained (never cropped) :: {"fit":"contain","box":"200x200","drawn":"188x188","natural":"600x600","inside":true}
+PASS :: desktop: Hot Sellers image has white space on every side (>=4px) :: drawn=188x188 band=200x200 box=200x200
+PASS :: desktop: Hot Sellers cards share one box :: ["234x360"]
+PASS :: desktop: Hot Sellers product image actually loads :: {"fit":"contain","box":"200x200","drawn":"188x188","natural":"600x600","inside":true}
+PASS :: desktop: Hot Sellers action buttons unchanged :: now=[32] before=[32]
+PASS :: desktop: New Arrivals image band is square :: band=294x294 card=296x567
+PASS :: desktop: New Arrivals product image is contained (never cropped) :: {"fit":"contain","box":"274x273","drawn":"273x273","natural":"600x600","inside":true}
+PASS :: desktop: New Arrivals image has white space on every side (>=4px) :: drawn=273x273 band=294x294 box=274x273
+PASS :: desktop: New Arrivals cards share one box :: ["296x567"]
+PASS :: desktop: New Arrivals product image actually loads :: {"fit":"contain","box":"274x273","drawn":"273x273","natural":"600x600","inside":true}
+PASS :: desktop: New Arrivals action buttons unchanged :: now=[32,32,32] before=[32,32,32]
+PASS :: desktop: Value Deals Under image band is square :: band=232x232 card=234x509
+PASS :: desktop: Value Deals Under product image is contained (never cropped) :: null
+PASS :: desktop: Value Deals Under cards share one box :: ["234x509"]
+PASS :: desktop: Value Deals Under product image actually loads :: null
+PASS :: desktop: Value Deals Under action buttons unchanged :: now=[32,32,32] before=[32,32,32]
+PASS :: desktop: no horizontal page overflow :: scrollW=1440 vw=1440
 PASS :: desktop: Why Choose Us cards unchanged :: now=["307x92","307x92","307x92","307x92"] before=["307x92","307x92","307x92","307x92"]
 
 ALL CARD CHECKS PASSED

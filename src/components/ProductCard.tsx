@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { memo, useCallback } from "react";
 import { useNavigate, useLocation, type NavigateFunction } from "react-router";
 import { beginProductTransition } from "@/lib/product-transition";
 import { useQuery, useMutation, useConvex } from "convex/react";
@@ -11,7 +11,6 @@ import { formatCurrency } from "@/lib/auth-utils";
 import { preloadProductDetail } from "@/lib/route-preload";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
-import { clsx } from "clsx";
 import { motion, type Variants } from "framer-motion";
 
 function goProduct(navigate: NavigateFunction, currentPath: string, slug: string) {
@@ -46,91 +45,25 @@ interface ProductCardProps {
 }
 
 /* ─── Product image presentation ───
- * Packshots are full-bleed canvases that often carry baked-in white padding,
- * and some are extremely tall (e.g. 174x600). Sizing by `object-contain` alone
- * therefore leaves those products as thin slivers once the mobile image band
- * shrank to 96px. The band is filled with the packshot instead, and `object-fit`
- * switches to `cover` only when the source is clearly taller than the slot, so
- * every card shows a product at least as wide as the band without ever
- * overflowing it.
+ * Packshots arrive in every shape — square, wide and extremely tall (some are
+ * 174x600) — and often carry their own baked-in white padding. The image sits
+ * in a padded box inside the square image band and is `object-contain`, so the
+ * whole package stays visible at its natural aspect ratio with even white
+ * space on every side: never cropped, never stretched, never wider than the
+ * card's image area. The box is absolutely positioned, so it never contributes
+ * to the card's intrinsic width (the mobile carousels size their items from
+ * content) and never widens a card.
  */
 
-function useBoxSize(ref: RefObject<HTMLElement | null>): { width: number; height: number } {
-  const [size, setSize] = useState({ width: 0, height: 0 });
-
-  const schedule = useCallback(() => {
-    const el = ref.current;
-    if (!el) return;
-    const { width, height } = el.getBoundingClientRect();
-    setSize({ width: Math.max(0, Math.round(width)), height: Math.max(0, Math.round(height)) });
-  }, [ref]);
-
-  useEffect(() => {
-    schedule();
-    let frame = 0;
-    const observer =
-      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(schedule);
-    observer?.observe(ref.current!);
-    return () => {
-      if (frame) window.cancelAnimationFrame(frame);
-      observer?.disconnect();
-    };
-  }, [ref, schedule]);
-  return size;
-}
-
-/**
- * Below this ratio of source-aspect to slot-aspect the packshot is treated as
- * "too tall for a contained fit" and is cropped into a centred cover instead.
- */
-const COVER_ASPECT_THRESHOLD = 0.85;
-
-function ProductImage({
-  src,
-  alt,
-  box,
-}: {
-  src: string;
-  alt: string;
-  box: { width: number; height: number };
-}) {
-  const [aspect, setAspect] = useState<number | null>(null);
-  const slotAspect = box.width > 0 && box.height > 0 ? box.width / box.height : null;
-
-  // `cover` only for sources clearly taller than the slot (thin strips and tall
-  // bottles); everything else keeps `contain`, so wide and square packshots are
-  // never clipped. The <img> always fills the slot, so it stays inside the band
-  // and never renders narrower than the card's image area.
-  const cover =
-    aspect !== null && slotAspect !== null && aspect < slotAspect * COVER_ASPECT_THRESHOLD;
-
+function ProductImage({ src, alt }: { src: string; alt: string }) {
   return (
-    // Phones get a padded, contained packshot ("Apollo-style"): the image is
-    // inset from the band on every side so the whole package stays visible at
-    // its natural aspect ratio with even white space around it. The wrapper is
-    // absolutely positioned, so it never contributes to the card's intrinsic
-    // width (the mobile carousels size their items from content) and never
-    // crops or stretches anything. From `sm` up the wrapper is `display:
-    // contents`, so the <img> is the band's direct child again — byte-for-byte
-    // the same rendering the desktop cards had before this change.
-    <div className="max-sm:absolute max-sm:inset-2.5 sm:contents">
+    <div className="absolute inset-2.5">
       <img
         src={src}
         alt={alt}
         loading="lazy"
         decoding="async"
-        onLoad={(e) => {
-          const el = e.currentTarget;
-          if (el.naturalWidth > 0 && el.naturalHeight > 0) {
-            setAspect(el.naturalWidth / el.naturalHeight);
-          }
-        }}
-        className={clsx(
-          "absolute inset-0 h-full w-full",
-          cover ? "object-cover" : "object-contain",
-          // Phones always contain (never crop) the packshot.
-          "max-sm:object-contain"
-        )}
+        className="absolute inset-0 h-full w-full object-contain"
       />
     </div>
   );
@@ -141,8 +74,6 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
   const location = useLocation();
   const { user } = useAuth();
   const convexClient = useConvex();
-  const imageAreaRef = useRef<HTMLDivElement>(null);
-  const imageBox = useBoxSize(imageAreaRef);
   const realImage =
     product.imageUrl && product.imageUrl !== "/placeholder-medicine.svg"
       ? product.imageUrl
@@ -239,16 +170,11 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
           <Heart className={`size-4 transition-colors ${isWishlisted ? "fill-rose-500 text-rose-500" : "text-muted-foreground group-hover:text-rose-500"}`} />
         </Button>
         <div
-          ref={imageAreaRef}
-          className="relative flex aspect-square shrink-0 items-center justify-center overflow-hidden rounded-xl border-b border-border/40 bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] sm:aspect-auto sm:h-44 sm:min-h-0"
+          className="relative flex aspect-square shrink-0 items-center justify-center overflow-hidden rounded-xl border-b border-border/40 bg-gradient-to-br from-primary/[0.04] to-primary/[0.01]"
         >
           <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.08] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
           {realImage ? (
-            <ProductImage
-              src={realImage}
-              alt={product.name}
-              box={imageBox}
-            />
+            <ProductImage src={realImage} alt={product.name} />
           ) : (
             <Pill
               className="size-14 text-primary/20 transition-all duration-500 group-hover:scale-125 group-hover:text-primary/35 group-hover:rotate-6"

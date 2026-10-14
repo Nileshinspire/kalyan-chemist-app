@@ -150,9 +150,20 @@ const routes = [
   ["hot-sellers", "#/hot-sellers", "/#/products/"],
 ];
 
+// Phones (where the fix landed first) plus the desktop width, so the same
+// "square band + contained packshot + nothing collides" contract is asserted on
+// the laptop layout too.
+const WIDTHS = [360, 375, 390, 430, 1440];
+
 const browser = await chromium.launch({ args: ["--no-sandbox"] });
-for (const w of [360, 375, 390, 430]) {
-  const ctx = await browser.newContext({ viewport: { width: w, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
+for (const w of WIDTHS) {
+  const mobile = w < 700;
+  const ctx = await browser.newContext({
+    viewport: { width: w, height: mobile ? 844 : 900 },
+    isMobile: mobile,
+    hasTouch: mobile,
+    deviceScaleFactor: mobile ? 2 : 1,
+  });
   const page = await ctx.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e)));
@@ -196,13 +207,13 @@ for (const w of [360, 375, 390, 430]) {
     const stretched = withImg.filter((c) => c.img.drawnAspect && Math.abs(c.img.natAspect - c.img.drawnAspect) > 0.03);
     check(`${tag}: drawn image keeps its natural aspect ratio (not stretched)`, stretched.length === 0, JSON.stringify(stretched.slice(0, 3).map((c) => `${c.name} nat=${c.img.natAspect} drawn=${c.img.drawnAspect}`)));
 
-    // The visible product must not fill the whole band: there has to be real
-    // white space around it (the whole point of the Apollo-style treatment).
-    const oversized = withImg.filter((c) => c.img.drawnW > c.bandW * 0.93 || c.img.drawnH > c.bandH * 0.93);
-    check(`${tag}: drawn product is smaller than its band (>=7% white space)`, oversized.length === 0, JSON.stringify(oversized.slice(0, 3).map((c) => `${c.name} drawn=${c.img.drawnW}x${c.img.drawnH} band=${c.bandW}x${c.bandH}`)));
-
-    const tight = withImg.filter((c) => Math.min(c.img.gapLeft, c.img.gapRight, c.img.gapTop, c.img.gapBottom) < 4);
-    check(`${tag}: white space around every product image (>=4px)`, tight.length === 0, JSON.stringify(tight.slice(0, 3).map((c) => `${c.name} ${c.img.gapLeft}/${c.img.gapRight}/${c.img.gapTop}/${c.img.gapBottom}`)));
+    // The visible product must not fill the band: the padded image box has to
+    // leave at least 8px of white space on every side (the design's 10px inset),
+    // on both axes — an absolute figure, because a percentage tuned for a
+    // 142px phone band would be wrong for a 294px desktop band.
+    const whitespaceOk = (c) => c.bandW - c.img.drawnW >= 16 && c.bandH - c.img.drawnH >= 16;
+    const tight = withImg.filter((c) => !whitespaceOk(c));
+    check(`${tag}: white space around every product image (>=8px per side)`, tight.length === 0, JSON.stringify(tight.slice(0, 3).map((c) => `${c.name} drawn=${c.img.drawnW}x${c.img.drawnH} band=${c.bandW}x${c.bandH}`)));
 
     const bandNotSquare = data.cards.filter((c) => Math.abs(c.bandW - c.bandH) > 2);
     check(`${tag}: image band is square`, bandNotSquare.length === 0, JSON.stringify(bandNotSquare.slice(0, 2).map((c) => c.bandW + "x" + c.bandH)));

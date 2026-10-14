@@ -65,7 +65,9 @@ const PROBE = () => {
   for (const card of cards) {
     const sec = card.closest("section");
     const head = sec?.querySelector("h1,h2,h3")?.textContent?.trim().slice(0, 30) || "?";
-    const band = card.querySelector('div[class*="h-24"], div[class*="h-28"], div[class*="h-32"], div[class*="h-40"], div[class*="h-44"]');
+    const band =
+      card.querySelector('div[class*="aspect-square"]') ||
+      card.querySelector('div[class*="h-24"], div[class*="h-28"], div[class*="h-32"], div[class*="h-40"], div[class*="h-44"]');
     const img = card.querySelector("img");
     const buttons = [...card.querySelectorAll("button")].map((b) => ({ l: (b.textContent || "").trim().slice(0, 12), ...B(b) }));
     const texts = [...card.querySelectorAll("h3, p, span")].slice(0, 8).map((el) => ({

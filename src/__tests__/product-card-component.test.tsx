@@ -217,11 +217,17 @@ describe("ProductCard uniform outer height", () => {
     expect(card.className).toContain("flex-col");
   });
 
-  it("keeps the image band at its fixed height and unable to shrink", () => {
+  it("keeps the image band square and unable to shrink", () => {
     const { container } = renderCard({ imageUrl: "https://example.com/img.jpg" });
-    const band = container.querySelector('[class*="h-44"]');
+    const band = container.querySelector('[class*="aspect-square"]');
     expect(band).toBeTruthy();
     expect(band?.className).toContain("shrink-0");
+    // The packshot lives in its own padded box and is always contained, so a
+    // wide, square or very tall package is shown whole and never cropped.
+    const img = band?.querySelector("img");
+    expect(img?.className).toContain("object-contain");
+    expect(img?.className).not.toContain("object-cover");
+    expect(band?.querySelector('[class*="inset-2.5"]')).toBeTruthy();
   });
 
   it("lets the content section take the remaining space", () => {

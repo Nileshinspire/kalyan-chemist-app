@@ -5,14 +5,16 @@
 // local build of the current source (dist-verify, produced with
 // `vite build --outDir dist-verify`) served through Playwright route
 // interception. The last shipped bundle (dist, built before these changes) is
-// served the same way and measured for the "desktop unchanged" comparison.
+// served the same way and measured for the parts that must NOT change
+// (desktop action buttons, the "Why Choose Us" feature cards).
 //
 // Part A — mobile widths (320/360/375/390/430): every product card in the
 // homepage carousels (outer box, image band, buttons) and the four
 // "Why Choose Us" feature cards (width / height / icon / heading alignment),
 // plus page-level horizontal overflow. Saves mobile screenshots.
-// Part B — desktop (1440): the same product sections measured in dist-verify and
-// dist.
+// Part B — desktop (1440): the product sections must now use the same square,
+// contained image band as the phone cards, while the desktop action buttons,
+// feature cards and page geometry stay exactly as they were.
 import { chromium } from "playwright-core";
 import { readFileSync, existsSync, statSync, mkdirSync } from "node:fs";
 import { extname, join, normalize } from "node:path";
@@ -74,6 +76,7 @@ const PROBE = () => {
         .map((child) => {
           const card = child.querySelector('[data-slot="card"]') || child;
           const band =
+            card.querySelector('div[class*="aspect-square"]') ||
             card.querySelector('div[class*="h-24"]') ||
             card.querySelector('div[class*="h-28"]') ||
             card.querySelector('div[class*="h-32"]') ||
@@ -106,7 +109,7 @@ const PROBE = () => {
         const buttons = [...child.querySelectorAll("button")].map((b) => ({ label: (b.textContent || "").trim().slice(0, 14), ...box(b) }));
         if (!buttons.some((b) => /buy now|cart|out of stock/i.test(b.label))) return null;
 
-        const band = child.querySelector('div[class*="h-24"], div[class*="h-28"], div[class*="h-32"], div[class*="h-40"], div[class*="h-44"]') || child;
+        const band = child.querySelector('div[class*="aspect-square"], div[class*="h-24"], div[class*="h-28"], div[class*="h-32"], div[class*="h-40"], div[class*="h-44"]') || child;
 
         return {
           card: box(child),
@@ -325,23 +328,66 @@ async function desktopMeasure(root) {
   for (const name of ["Hot Sellers", "New Arrivals", "Best Deals Right Now", "Value Deals Under"]) {
     const sec = page.locator(`h2:has-text("${name}")`) .first() .locator("xpath=ancestor::section[1]");
     if (!(await sec.count())) continue;
-    const card = sec.locator('[data-slot="card"]') .first();
-    const target = (await card.count()) ? card : sec.locator(".group.rounded-2xl") .first();
-    const info = await target.evaluate((el) => {
+    const cards = sec.locator('[data-slot="card"]');
+    const target = (await cards.count()) ? cards : sec.locator(".group.rounded-2xl");
+    if (!(await target.count())) continue;
+    // Lazy-loaded packshots need the section on screen before they decode.
+    await target.first().scrollIntoViewIfNeeded();
+    await page.waitForTimeout(1500);
+    const info = await target.first().evaluate((el) => {
       const r = el.getBoundingClientRect();
-      const band = el.querySelector('div[class*="h-24"], div[class*="h-44"], div[class*="h-40"], div[class*="h-32"], div[class*="h-28"]') || el;
-
+      const band =
+        el.querySelector('div[class*="aspect-square"]') ||
+        el.querySelector('div[class*="h-24"], div[class*="h-44"], div[class*="h-40"], div[class*="h-32"], div[class*="h-28"]') || el;
+      const b = band.getBoundingClientRect();
+      const img = el.querySelector("img");
+      let imgInfo = null;
+      if (img) {
+        const ir = img.getBoundingClientRect();
+        const cs = getComputedStyle(img);
+        const bw = ir.width - (parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight));
+        const bh = ir.height - (parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom));
+        const scale =
+          img.naturalWidth && img.naturalHeight
+            ? Math.min(bw / img.naturalWidth, bh / img.naturalHeight)
+            : 0;
+        imgInfo = {
+          fit: cs.objectFit,
+          box: `${Math.round(ir.width)}x${Math.round(ir.height)}`,
+          // Actual painted size of an `object-contain` image.
+          drawn: `${Math.round(img.naturalWidth * scale)}x${Math.round(img.naturalHeight * scale)}`,
+          natural: `${img.naturalWidth}x${img.naturalHeight}`,
+          inside:
+            ir.left >= b.left - 1 &&
+            ir.right <= b.right + 1 &&
+            ir.top >= b.top - 1 &&
+            ir.bottom <= b.bottom + 1,
+        };
+      }
       return {
         w: Math.round(r.width),
         h: Math.round(r.height),
-        band: band ? Math.round(band.getBoundingClientRect().height) : null,
+        bandW: Math.round(b.width),
+        bandH: Math.round(b.height),
+        img: imgInfo,
+        btnH: [...el.querySelectorAll("button")].map((x) => Math.round(x.getBoundingClientRect().height)),
       };
     });
-    sections.push({ section: name, ...info });
+    const boxes = await target.evaluateAll((els) =>
+      [...new Set(els.map((el) => `${Math.round(el.getBoundingClientRect().width)}x${Math.round(el.getBoundingClientRect().height)}`))]
+    );
+    sections.push({ section: name, boxes, ...info });
   }
   const shot = await page.screenshot({ path: join(SHOTS, `fix-desktop-1440-${root === NEW ? "new" : "before"}.png`), fullPage: true }).catch(() => null);
   await ctx.close();
-  return { rails: rails.rails.map((r) => r.cards.map((c) => `${c.card.w}x${c.card.h}`)), why: rails.why.map((c) => `${c.card.w}x${c.card.h}`), sections, shot };
+  return {
+    vw: rails.vw,
+    scrollW: rails.scrollW,
+    rails: rails.rails.map((r) => r.cards.map((c) => `${c.card.w}x${c.card.h}`)),
+    why: rails.why.map((c) => `${c.card.w}x${c.card.h}`),
+    sections,
+    shot,
+  };
 }
 
 console.log("\n──── desktop 1440: current source (dist-verify) ────");
@@ -357,12 +403,47 @@ console.log(`   why=${JSON.stringify(before.why)}`);
 console.log(`   sections=${JSON.stringify(before.sections)}`);
 
 for (const s of now.sections) {
+  check(
+    `desktop: ${s.section} image band is square`,
+    s.bandW !== null && Math.abs(s.bandW - s.bandH) <= 2,
+    `band=${s.bandW}x${s.bandH} card=${s.w}x${s.h}`
+  );
+  check(
+    `desktop: ${s.section} product image is contained (never cropped)`,
+    s.img ? s.img.fit === "contain" : true,
+    JSON.stringify(s.img)
+  );
+  if (s.img && s.img.natural !== "0x0") {
+    const [dw, dh] = s.img.drawn.split("x").map(Number);
+    check(
+      `desktop: ${s.section} image has white space on every side (>=4px)`,
+      s.img.inside && dw <= s.bandW - 8 && dh <= s.bandH - 8,
+      `drawn=${s.img.drawn} band=${s.bandW}x${s.bandH} box=${s.img.box}`
+    );
+  }
+  check(
+    `desktop: ${s.section} cards share one box`,
+    s.boxes.length === 1,
+    JSON.stringify(s.boxes)
+  );
+  // A card with an <img> has an imageUrl: that packshot must actually decode,
+  // not sit there blank. (img === null means the product has no image and the
+    // placeholder icon is shown instead — legitimate.)
+  check(
+    `desktop: ${s.section} product image actually loads`,
+    s.img ? s.img.natural !== "0x0" : true,
+    JSON.stringify(s.img)
+  );
   const b = before.sections.find((x) => x.section === s.section);
-  if (!b) continue;
-  check(`desktop: ${s.section} card box unchanged`, s.h === b.h && s.w === b.w, `now=${s.w}x${s.h} before=${b.w}x${b.h}`);
+  if (b) {
+    check(
+      `desktop: ${s.section} action buttons unchanged`,
+      JSON.stringify(s.btnH) === JSON.stringify(b.btnH),
+      `now=${JSON.stringify(s.btnH)} before=${JSON.stringify(b.btnH)}`
+    );
+  }
 }
-const sameCount = JSON.stringify(now.rails) === JSON.stringify(before.rails);
-check("desktop: carousel card heights unchanged", sameCount, `now=${JSON.stringify(now.rails)} before=${JSON.stringify(before.rails)}`);
+check("desktop: no horizontal page overflow", now.scrollW <= now.vw + 1, `scrollW=${now.scrollW} vw=${now.vw}`);
 const whySame = JSON.stringify(now.why) === JSON.stringify(before.why);
 check("desktop: Why Choose Us cards unchanged", whySame, `now=${JSON.stringify(now.why)} before=${JSON.stringify(before.why)}`);
 

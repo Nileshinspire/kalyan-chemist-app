@@ -529,18 +529,15 @@ export default function Landing() {
                         details block. Mobile keeps the short band and tight
                         padding; from `sm` up the original band height and
                         padding are restored exactly. */}
-                    <div className="relative mb-2 flex aspect-square items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] sm:mb-3 sm:aspect-auto sm:h-32">
+                    <div className="relative mb-2 flex aspect-square items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] sm:mb-3">
                       {product.imageUrl ? (
-                        <>
-                          <img
-                            src={product.imageUrl}
-                            alt={product.name}
-                            loading="lazy"
-                            decoding="async"
-                            className="absolute inset-0 h-full w-full object-contain p-1.5 sm:hidden"
-                          />
-                          <Pill className="max-sm:hidden size-10 text-primary/20 group-hover:text-primary/30 transition-all duration-500" />
-                        </>
+                        <img
+                          src={product.imageUrl}
+                          alt={product.name}
+                          loading="lazy"
+                          decoding="async"
+                          className="absolute inset-0 h-full w-full object-contain p-1.5"
+                        />
                       ) : (
                         <Pill className="size-10 text-primary/20 group-hover:text-primary/30 transition-all duration-500" />
                       )}
@@ -612,18 +609,15 @@ export default function Landing() {
                     every other product carousel (h-24) and the details block uses
                     the same tight padding; from `sm` up the original heights and
                     padding are unchanged. */}
-                <div className="relative flex aspect-square items-center justify-center overflow-hidden bg-gradient-to-br from-green-500/[0.06] to-emerald-500/[0.03] sm:aspect-auto sm:h-40">
+                <div className="relative flex aspect-square items-center justify-center overflow-hidden bg-gradient-to-br from-green-500/[0.06] to-emerald-500/[0.03]">
                   {product.imageUrl ? (
-                    <>
-                      <img
-                        src={product.imageUrl}
-                        alt={product.name}
-                        loading="lazy"
-                        decoding="async"
-                        className="absolute inset-0 h-full w-full object-contain p-1.5 sm:hidden"
-                      />
-                      <Pill className="max-sm:hidden size-12 text-primary/20 group-hover:scale-110 transition-all duration-500" />
-                    </>
+                    <img
+                      src={product.imageUrl}
+                      alt={product.name}
+                      loading="lazy"
+                      decoding="async"
+                      className="absolute inset-0 h-full w-full object-contain p-1.5"
+                    />
                   ) : (
                     <Pill className="size-12 text-primary/20 group-hover:scale-110 transition-all duration-500" />
                   )}
