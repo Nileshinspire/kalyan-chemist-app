@@ -403,9 +403,17 @@ console.log(`   why=${JSON.stringify(before.why)}`);
 console.log(`   sections=${JSON.stringify(before.sections)}`);
 
 for (const s of now.sections) {
+  // Desktop contract: compact card + a controlled, fixed-height image strip
+  // (the band is square only on phones). Before this correction the square
+  // desktop band pushed cards to 567px tall.
   check(
-    `desktop: ${s.section} image band is square`,
-    s.bandW !== null && Math.abs(s.bandW - s.bandH) <= 2,
+    `desktop: ${s.section} card is compact (<= 460px tall)`,
+    s.h <= 460,
+    `card=${s.w}x${s.h}`
+  );
+  check(
+    `desktop: ${s.section} image band is a controlled strip (<=180px, not taller than wide)`,
+    s.bandW !== null && s.bandH <= 180 && s.bandW >= s.bandH,
     `band=${s.bandW}x${s.bandH} card=${s.w}x${s.h}`
   );
   check(

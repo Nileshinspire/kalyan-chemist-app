@@ -47,12 +47,13 @@ interface ProductCardProps {
 /* ─── Product image presentation ───
  * Packshots arrive in every shape — square, wide and extremely tall (some are
  * 174x600) — and often carry their own baked-in white padding. The image sits
- * in a padded box inside the square image band and is `object-contain`, so the
- * whole package stays visible at its natural aspect ratio with even white
- * space on every side: never cropped, never stretched, never wider than the
- * card's image area. The box is absolutely positioned, so it never contributes
- * to the card's intrinsic width (the mobile carousels size their items from
- * content) and never widens a card.
+ * in a padded box inside the image band and is `object-contain`, so the whole
+ * package stays visible at its natural aspect ratio with even white space on
+ * every side: never cropped, never stretched, never wider than the card's image
+ * area. The box is absolutely positioned, so it never contributes to the card's
+ * intrinsic width (the mobile carousels size their items from content) and
+ * never widens a card. The band itself is square on phones and a fixed,
+ * controlled strip from `sm` up, which keeps the desktop card compact.
  */
 
 function ProductImage({ src, alt }: { src: string; alt: string }) {
@@ -170,7 +171,7 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
           <Heart className={`size-4 transition-colors ${isWishlisted ? "fill-rose-500 text-rose-500" : "text-muted-foreground group-hover:text-rose-500"}`} />
         </Button>
         <div
-          className="relative flex aspect-square shrink-0 items-center justify-center overflow-hidden rounded-xl border-b border-border/40 bg-gradient-to-br from-primary/[0.04] to-primary/[0.01]"
+          className="relative flex aspect-square shrink-0 items-center justify-center overflow-hidden rounded-xl border-b border-border/40 bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] sm:aspect-auto sm:h-44 sm:min-h-0"
         >
           <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.08] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
           {realImage ? (
@@ -206,8 +207,8 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
           )}
         </div>
 
-        <CardContent className="flex flex-1 flex-col p-2.5 sm:p-4">
-          <div className="space-y-2.5 max-sm:space-y-1.5">
+        <CardContent className="flex flex-1 flex-col p-2.5 sm:p-3">
+          <div className="space-y-2 max-sm:space-y-1.5">
             <div className="flex flex-wrap gap-1.5">
               {product.prescriptionRequired && (
                 <Badge variant="secondary" className="text-[10px] font-medium bg-red-50 text-red-700 border-red-200">
@@ -251,6 +252,9 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
             </div>
           </div>
 
+          {/* `pt-2.5` (not `pt-2`) keeps the token the New Arrivals scoped
+              rule `[class~="pt-2.5"]` matches, so that section's action-row
+              spacing — mobile and desktop — stays exactly as it was. */}
           <div className="mt-auto flex flex-wrap gap-2 pt-2.5 max-sm:gap-1.5 max-sm:pt-2">
             <Button
               size="sm"

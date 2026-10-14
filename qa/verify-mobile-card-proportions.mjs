@@ -127,6 +127,7 @@ const PROBE = () => {
       head,
       name: (card.querySelector("h3")?.textContent || "").trim().slice(0, 24),
       cardW: Math.round(wrapper.getBoundingClientRect().width),
+      cardH: Math.round(wrapper.getBoundingClientRect().height),
       wrapperOpacity: getComputedStyle(wrapper).opacity,
       cardOpacity: getComputedStyle(card).opacity,
       bandW: Math.round(br.width),
@@ -216,7 +217,23 @@ for (const w of WIDTHS) {
     check(`${tag}: white space around every product image (>=8px per side)`, tight.length === 0, JSON.stringify(tight.slice(0, 3).map((c) => `${c.name} drawn=${c.img.drawnW}x${c.img.drawnH} band=${c.bandW}x${c.bandH}`)));
 
     const bandNotSquare = data.cards.filter((c) => Math.abs(c.bandW - c.bandH) > 2);
-    check(`${tag}: image band is square`, bandNotSquare.length === 0, JSON.stringify(bandNotSquare.slice(0, 2).map((c) => c.bandW + "x" + c.bandH)));
+    // Phones keep the square image area; from `sm` up the same contained
+    // treatment lives in a controlled, fixed-height strip so the desktop card
+    // stays compact (a square band on a 294px-wide card made cards 567px tall).
+    const badBand =
+      w < 700
+        ? bandNotSquare
+        : data.cards.filter((c) => c.bandH > 180 || c.bandW < c.bandH);
+    check(
+      `${tag}: image band is ${w < 700 ? "square" : "a compact strip (<=180px tall, not taller than wide)"}`,
+      badBand.length === 0,
+      JSON.stringify(badBand.slice(0, 2).map((c) => c.bandW + "x" + c.bandH))
+    );
+
+    if (w >= 700) {
+      const tooTall = data.cards.filter((c) => c.cardH > 460);
+      check(`${tag}: desktop cards are compact (<=460px tall)`, tooTall.length === 0, JSON.stringify(tooTall.slice(0, 3).map((c) => `${c.name} ${c.cardW}x${c.cardH}`)));
+    }
 
     // consistent width per section
     const groups = new Map();

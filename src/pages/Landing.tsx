@@ -529,7 +529,7 @@ export default function Landing() {
                         details block. Mobile keeps the short band and tight
                         padding; from `sm` up the original band height and
                         padding are restored exactly. */}
-                    <div className="relative mb-2 flex aspect-square items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] sm:mb-3">
+                    <div className="relative mb-2 flex aspect-square items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] sm:mb-3 sm:aspect-auto sm:h-32">
                       {product.imageUrl ? (
                         <img
                           src={product.imageUrl}
@@ -609,7 +609,7 @@ export default function Landing() {
                     every other product carousel (h-24) and the details block uses
                     the same tight padding; from `sm` up the original heights and
                     padding are unchanged. */}
-                <div className="relative flex aspect-square items-center justify-center overflow-hidden bg-gradient-to-br from-green-500/[0.06] to-emerald-500/[0.03]">
+                <div className="relative flex aspect-square items-center justify-center overflow-hidden bg-gradient-to-br from-green-500/[0.06] to-emerald-500/[0.03] sm:aspect-auto sm:h-40">
                   {product.imageUrl ? (
                     <img
                       src={product.imageUrl}
