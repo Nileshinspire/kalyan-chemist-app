@@ -21,24 +21,6 @@ export default function ValueDeals() {
 
   return (
     <section className="bg-background">
-      {/* Scoped compact-card styles: shrink ONLY the cards rendered inside
-          this Value Deals grid (same treatment as the New Arrivals carousel
-          above it). The shared ProductCard and every other section stay
-          untouched. */}
-      <style>{`
-        .kc-value-deal .h-44, .kc-value-deal .sm:h-44 { height: 5.5rem; }
-        .kc-value-deal .size-20 { width: 4rem; height: 4rem; }
-        .kc-value-deal .size-14 { width: 2.75rem; height: 2.75rem; }
-        .kc-value-deal .p-4,        .kc-value-deal .sm\:p-4 { padding: 0.5rem 0.75rem; }
-        .kc-value-deal .sm\:h-44 { height: 5.5rem; }
-        .kc-value-deal .sm\:h-44 { height: 5.5rem; }
-        .kc-value-deal .space-y-2\.5 > :not([hidden]) ~ :not([hidden]) {
-          margin-top: 0.375rem;
-        }
-        .kc-value-deal .text-sm { font-size: 0.8125rem; line-height: 1.25rem; }
-        .kc-value-deal .text-lg { font-size: 1rem; line-height: 1.5rem; }
-        .kc-value-deal .h-9 { height: 2rem; }
-      `}</style>
       <div className="mx-auto max-w-7xl px-4 sm:px-6 pt-6 pb-6 sm:pt-2 sm:pb-12">
         <div className="flex items-end justify-between gap-4 mb-5 sm:mb-8">
           <div className="max-w-2xl">
@@ -67,16 +49,13 @@ export default function ValueDeals() {
           </button>
         </div>
 
-        {/* Grid track system mirrors the "Browse by Health Conditions" section
-            exactly (same container padding, same column count, same gaps), so
-            each card renders at the SAME horizontal width as those tiles. Width
-            only — the height rules in the scoped style block above stay as-is. */}
         {/* Mobile: swipeable row (two cards per view) so four deals occupy one
             compact band instead of two tall grid rows — the Apollo-style
-            product carousel. From `sm` the original grid is restored exactly. */}
-        <div className="flex gap-3 overflow-x-auto scrollbar-none snap-x snap-mandatory max-sm:overscroll-x-contain sm:grid sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5 sm:overflow-visible">
+            product carousel. From `sm` up the cards sit on the shared
+            `.kc-card-track`, i.e. exactly the Hot Sellers card size. */}
+        <div className="flex gap-3 overflow-x-auto scrollbar-none snap-x snap-mandatory max-sm:overscroll-x-contain sm:grid sm:gap-4 kc-card-track sm:overflow-visible">
           {deals.map((product) => (
-            <div key={product._id} className="kc-value-deal min-w-[calc(50%-0.5rem)] shrink-0 snap-start sm:min-w-0 max-sm:min-w-[calc(42%-0.375rem)] max-sm:w-[calc(42%-0.375rem)]">
+            <div key={product._id} className="min-w-[calc(50%-0.5rem)] shrink-0 snap-start sm:min-w-0 max-sm:min-w-[calc(42%-0.375rem)] max-sm:w-[calc(42%-0.375rem)]">
               <ProductCard product={product as any} />
             </div>
           ))}

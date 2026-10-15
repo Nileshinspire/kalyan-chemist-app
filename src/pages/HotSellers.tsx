@@ -82,7 +82,7 @@ export default function HotSellers() {
               </Button>
             </motion.div>
           ) : (
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
+            <div className="grid grid-cols-2 gap-4 kc-card-track">
               {products.map((product) => (
                 <ProductCard key={product._id} product={product} />
               ))}

@@ -276,6 +276,37 @@ button, a, [role="button"], [role="link"], select, input[type="submit"], input[t
   }
 }
 
+/* ── Shared product-card box (single source of truth) ─────────────────────
+ * Every section that renders products — Hot Sellers (homepage section and
+ * `/hot-sellers` page), New Arrivals, Value Deals (homepage grid and page),
+ * Best Deals and the All Medicines listing — lays its ProductCards out with
+ * `.kc-card-track`, so each card is exactly the same size everywhere.
+ *
+ * The values are the measured Hot Sellers reference card at a 1440px laptop
+ * viewport: 296px wide, 371px tall. Card width comes from the track (one
+ * column per card) and the card fills it; card height comes from
+ * `--kc-card-h` as a min-height on the shared ProductCard, so a longer product
+ * name can wrap to its second line instead of being clipped, and a card that
+ * does wrap stays the same height in every section.
+ *
+ * Phones are untouched: the media query never matches below 640px, where the
+ * card stays fluid and each section keeps its own mobile layout.
+ */
+:root {
+  --kc-card-w: 296px;
+  --kc-card-h: 371px;
+}
+
+@media (min-width: 640px) {
+  /* One column per card, so a grid never stretches or squeezes the card.
+     Any width left over from a narrower container (the All Medicines listing
+     sits beside a filter sidebar) stays as trailing slack instead of resizing
+     the cards. */
+  .kc-card-track {
+    grid-template-columns: repeat(auto-fill, var(--kc-card-w));
+  }
+}
+
 /* Scrollbar styling */
 ::-webkit-scrollbar {
   width: 6px;

@@ -82,7 +82,7 @@ export default function ValueDealsPage() {
               </Button>
             </motion.div>
           ) : (
-            <div className="grid gap-4 grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
+            <div className="grid gap-4 grid-cols-2 kc-card-track">
               {deals.map((product) => (
                 <ProductCard key={product._id} product={product as any} />
               ))}

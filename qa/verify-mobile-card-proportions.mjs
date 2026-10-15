@@ -158,7 +158,9 @@ const routes = [
 // Phones (where the fix landed first) plus the desktop width, so the same
 // "square band + contained packshot + nothing collides" contract is asserted on
 // the laptop layout too.
-const WIDTHS = [360, 375, 390, 430, 1440];
+const WIDTHS = process.env.WIDTHS
+  ? process.env.WIDTHS.split(",").map(Number)
+  : [360, 375, 390, 430, 1440];
 
 const browser = await chromium.launch({ args: ["--no-sandbox"] });
 for (const w of WIDTHS) {

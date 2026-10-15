@@ -54,24 +54,6 @@ export default function NewArrivals() {
 
   return (
     <section className="bg-background">
-      {/* Scoped compact-card styles: shrink ONLY the cards rendered inside
-          this New Arrivals carousel (smaller image band + product image,
-          tighter padding, spacing and typography). The shared ProductCard
-          and every other section stay untouched. */}
-      <style>{`
-        .kc-new-arrival .h-44, .kc-new-arrival .sm\:h-44 { height: 5.5rem; }
-        .kc-new-arrival .size-20 { width: 4rem; height: 4rem; }
-        .kc-new-arrival .size-14 { width: 2.75rem; height: 2.75rem; }
-        .kc-new-arrival .p-4, .kc-new-arrival .sm\:p-4 { padding: 0.5rem 0.75rem; }
-        .kc-new-arrival .space-y-2\.5 > :not([hidden]) ~ :not([hidden]) {
-          margin-top: 0.375rem;
-        }
-        /* the card's bottom action row keeps the compact 6px gap here */
-        .kc-new-arrival [class~="pt-2.5"] { padding-top: 0.375rem; }
-        .kc-new-arrival .text-sm { font-size: 0.8125rem; line-height: 1.25rem; }
-        .kc-new-arrival .text-lg { font-size: 1rem; line-height: 1.5rem; }
-        .kc-new-arrival .h-9 { height: 2rem; }
-      `}</style>
       <div className="mx-auto max-w-7xl px-4 sm:px-6 pt-6 pb-6 sm:pt-2 sm:pb-12">
         <div className="flex items-end justify-between gap-4 mb-5 sm:mb-8">
           <div className="max-w-2xl">
@@ -116,7 +98,10 @@ export default function NewArrivals() {
             {products.map((product) => (
               <div
                 key={product._id}
-                className="kc-new-arrival min-w-[calc(50%-0.5rem)] snap-start md:min-w-[calc(33.333%-0.667rem)] lg:min-w-[calc(25%-0.75rem)] max-sm:min-w-[calc(42%-0.375rem)] max-sm:w-[calc(42%-0.375rem)]"
+                /* One carousel item per reference card width from `sm` up, so a
+                   card here is the same size as the one in the Hot Sellers
+                   grid; the phone widths are unchanged. */
+                className="min-w-[calc(50%-0.5rem)] snap-start sm:min-w-[var(--kc-card-w)] sm:w-[var(--kc-card-w)] max-sm:min-w-[calc(42%-0.375rem)] max-sm:w-[calc(42%-0.375rem)]"
               >
                 <ProductCard product={product} newArrival />
               </div>
