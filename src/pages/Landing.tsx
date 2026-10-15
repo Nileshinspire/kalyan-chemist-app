@@ -10,10 +10,12 @@ import {
   ArrowRight,
   Zap,
   Search,
+  ShoppingCart,
   MessageCircle,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useNavigate } from "react-router";
+import { useNavigate, useLocation } from "react-router";
 import { useRef } from "react";
 import { preloadRoute } from "@/lib/route-preload";
 import Navbar from "@/components/layout/Navbar";
@@ -28,9 +30,13 @@ import HowItWorks from "@/components/HowItWorks";
 import PromotionalCarousel from "@/components/PromotionalCarousel";
 import WhyKalyanChemist from "@/components/WhyKalyanChemist";
 import ShopByBrand from "@/components/ShopByBrand";
+import { beginProductTransition } from "@/lib/product-transition";
 import ProductCard from "@/components/ProductCard";
+import type { Id } from "@/convex/_generated/dataModel";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { formatCurrency } from "@/lib/auth-utils";
+import { toast } from "sonner";
 
 const fadeUp: Variants = {
   hidden: { opacity: 0, y: 30 },
@@ -133,6 +139,7 @@ const HEALTH_CONDITION_SLUGS = new Set([
 
 export default function Landing() {
   const navigate = useNavigate();
+  const location = useLocation();
   const heroRef = useRef(null);
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] });
   useTransform(scrollYProgress, [0, 0.8], [1, 0]);
@@ -141,10 +148,28 @@ export default function Landing() {
   useMutation(api.whatsappEnquiries.log);
   useQuery(api.deliveryConfig.getPublic);
 
+  const addToCart = useMutation(api.cart.addItem);
+
   // Real data from Convex
   const categories = useQuery(api.categories.list);
   const hotSellers = useQuery(api.publicProducts.hotSellers, { limit: 4 });
   const featuredProducts = useQuery(api.publicProducts.featured, { limit: 4 });
+
+  const handleAddToCart = async (productId: string) => {
+    try {
+      await addToCart({ productId: productId as Id<'products'>, quantity: 1 });
+      toast.success("Added to cart");
+    } catch (error: unknown) {
+      // Convex prefixes the thrown message, so an exact comparison never
+      // matches and the raw server error is shown to the customer instead.
+      if (/not authenticated/i.test(String(error ?? ""))) {
+        toast.error("Please sign in to add items to cart");
+        navigate(`/auth?returnTo=${encodeURIComponent(location.pathname + location.search)}`);
+      } else {
+        toast.error(error instanceof Error ? error.message : "Failed to add to cart");
+      }
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background text-foreground overflow-x-clip">
@@ -460,11 +485,10 @@ export default function Landing() {
       {/* ── Hot Sellers (from DB) ── */}
       {hotSellers && hotSellers.length > 0 && (
         <section className="border-y border-border/50 bg-gradient-to-b from-card/50 to-background">
-          {/* Cards sit on the shared `.kc-card-track` and render through the
-              shared ProductCard, so this section shows exactly the Hot Sellers
-              reference card (same width, image band, spacing and buttons) as
-              the `/hot-sellers` page and every other product section. The
-              phone layout keeps its swipeable two-up carousel. */}
+          {/* Container padding + grid track system mirror the "Browse by Health
+              Conditions" section exactly, so every Hot Sellers card renders at
+              the SAME horizontal width as those tiles. Width only — no vertical
+              class is touched. */}
           <div className="mx-auto max-w-7xl px-4 sm:px-6 pt-6 pb-6 sm:pt-4 sm:pb-24">
             <div className="flex items-end justify-between mb-6 sm:mb-10">
               <div>
@@ -485,15 +509,68 @@ export default function Landing() {
                 View All <ArrowRight className="ml-1.5 size-3.5" />
               </Button>
             </div>
-            <div className="flex gap-3 overflow-x-auto scrollbar-none snap-x snap-mandatory max-sm:overscroll-x-contain sm:grid sm:gap-4 kc-card-track sm:overflow-visible">
-              {hotSellers.map((product) => (
-                <div
-                  key={product._id}
-                  className="min-w-[calc(50%-0.5rem)] shrink-0 snap-start sm:min-w-0 max-sm:min-w-[calc(42%-0.375rem)] max-sm:w-[calc(42%-0.375rem)]"
-                >
-                  <ProductCard product={product} />
-                </div>
-              ))}
+            <div className="flex gap-3 overflow-x-auto scrollbar-none snap-x snap-mandatory max-sm:overscroll-x-contain sm:grid sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5 sm:overflow-visible">
+              {hotSellers.map((product) => {
+                const hasDiscount = product.discountPrice && product.discountPrice < product.price;
+                const discountPct = hasDiscount ? Math.round(((product.price - product.discountPrice!) / product.price) * 100) : 0;
+                return (
+                  <motion.div
+                    key={product._id}
+                    initial={{ opacity: 0, y: 16 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    className="group min-w-[calc(50%-0.5rem)] shrink-0 snap-start rounded-2xl border border-border/70 bg-card p-2.5 sm:min-w-0 sm:p-4 cursor-pointer transition-all duration-500 hover:shadow-card-hover hover:border-primary/20 hover:-translate-y-1 max-sm:min-w-[calc(42%-0.375rem)]"
+                    onClick={() => {
+                      beginProductTransition();
+                      navigate(`/products/${product.slug}`, { state: { from: location.pathname + location.search } });
+                    }}
+                  >
+                    {/* Apollo-style vertical product card: a short image band
+                        with a centred, contained packshot, then a compact
+                        details block. Mobile keeps the short band and tight
+                        padding; from `sm` up the original band height and
+                        padding are restored exactly. */}
+                    <div className="relative mb-2 flex aspect-square items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] sm:mb-3 sm:aspect-auto sm:h-32">
+                      {product.imageUrl ? (
+                        <img
+                          src={product.imageUrl}
+                          alt={product.name}
+                          loading="lazy"
+                          decoding="async"
+                          className="absolute inset-0 h-full w-full object-contain p-1.5"
+                        />
+                      ) : (
+                        <Pill className="size-10 text-primary/20 group-hover:text-primary/30 transition-all duration-500" />
+                      )}
+                      {hasDiscount && (
+                        <Badge className="absolute top-2 left-2 text-[10px] font-bold bg-gradient-to-r from-green-500 to-emerald-500 text-white border-0">
+                          {discountPct}% OFF
+                        </Badge>
+                      )}
+                      {product.prescriptionRequired && (
+                        <Badge variant="secondary" className="absolute top-2 right-2 text-[10px] bg-red-50 text-red-700">Rx</Badge>
+                      )}
+                    </div>
+                    <h3 className="text-sm max-sm:text-[13px] font-semibold line-clamp-2 transition-colors group-hover:text-primary">{product.name}</h3>
+                    <p className="mt-0.5 text-xs text-muted-foreground break-words max-sm:line-clamp-2">{product.manufacturer}</p>
+                    <div className="mt-1.5 flex items-baseline gap-1.5 sm:mt-2">
+                      <span className="text-base font-extrabold">{formatCurrency(hasDiscount ? product.discountPrice! : product.price)}</span>
+                      {hasDiscount && (
+                        <span className="text-xs text-muted-foreground line-through">{formatCurrency(product.price)}</span>
+                      )}
+                    </div>
+                    <Button
+                      size="sm"
+                      className="mt-2 h-8 w-full rounded-lg text-xs font-semibold gradient-primary text-white max-sm:h-9 max-sm:min-h-9 sm:mt-3"
+                      onClick={(e) => { e.stopPropagation(); handleAddToCart(product._id); }}
+                      disabled={product.stockQuantity === 0}
+                    >
+                      <ShoppingCart className="size-3 mr-1" />
+                      {product.stockQuantity === 0 ? "Out of Stock" : "Add to Cart"}
+                    </Button>
+                  </motion.div>
+                );
+              })}
             </div>
           </div>
         </section>

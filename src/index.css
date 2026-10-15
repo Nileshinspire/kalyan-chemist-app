@@ -276,34 +276,45 @@ button, a, [role="button"], [role="link"], select, input[type="submit"], input[t
   }
 }
 
-/* ── Shared product-card box (single source of truth) ─────────────────────
+/* ── Shared product-card track (single source of truth for card WIDTH) ────
  * Every section that renders products — Hot Sellers (homepage section and
- * `/hot-sellers` page), New Arrivals, Value Deals (homepage grid and page),
- * Best Deals and the All Medicines listing — lays its ProductCards out with
- * `.kc-card-track`, so each card is exactly the same size everywhere.
+ * `/hot-sellers` page), New Arrivals, Value Deals (homepage grid and page) and
+ * Best Deals — lays its ProductCards out with `.kc-card-track`, and the track
+ * reproduces the Hot Sellers section's own grid verbatim:
  *
- * The values are the measured Hot Sellers reference card at a 1440px laptop
- * viewport: 296px wide, 371px tall. Card width comes from the track (one
- * column per card) and the card fills it; card height comes from
- * `--kc-card-h` as a min-height on the shared ProductCard, so a longer product
- * name can wrap to its second line instead of being clipped, and a card that
- * does wrap stays the same height in every section.
+ *     sm:grid-cols-3 · md:grid-cols-4 · lg:grid-cols-5 · gap-4
  *
- * Phones are untouched: the media query never matches below 640px, where the
- * card stays fluid and each section keeps its own mobile layout.
+ * Because the sections share the reference's container (`max-w-7xl` + `px-6`)
+ * and its gaps, a card here is the reference card: 234px wide on a 1366/1440px
+ * laptop, exactly like the Hot Sellers cards.
+ *
+ * The card HEIGHT comes from the card itself — `--kc-card-h`, the measured
+ * 288px of the reference card, applied as a min-height from `sm` up. A name
+ * cannot stretch a card (it is clamped to one line) and a missing manufacturer
+ * cannot shrink one (the min-height holds the box).
+ *
+ * Phones are untouched: the media queries never match below 640px, where the
+ * card keeps its own mobile layout and each section keeps its own columns.
  */
 :root {
-  --kc-card-w: 296px;
-  --kc-card-h: 371px;
+  --kc-card-h: 288px;
 }
 
 @media (min-width: 640px) {
-  /* One column per card, so a grid never stretches or squeezes the card.
-     Any width left over from a narrower container (the All Medicines listing
-     sits beside a filter sidebar) stays as trailing slack instead of resizing
-     the cards. */
   .kc-card-track {
-    grid-template-columns: repeat(auto-fill, var(--kc-card-w));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 768px) {
+  .kc-card-track {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .kc-card-track {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 }
 

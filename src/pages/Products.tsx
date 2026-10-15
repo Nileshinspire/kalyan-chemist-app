@@ -692,8 +692,14 @@ export default function Products() {
                   </Button>
                 </motion.div>
               ) : (
+                /* The shared `.kc-card-track` grid (3/4/5 columns) would squeeze
+                   the cards here, because this listing renders beside the filter
+                   sidebar and so gets ~230px less width than the full-width
+                   sections. Four columns at the same 16px gap therefore keep a
+                   card within a few px of the Hot Sellers reference width
+                   instead of shrinking it. Phones are untouched. */
                 <div
-                  className={`grid gap-3 grid-cols-2 kc-card-track transition-opacity duration-200${isSwappingPages ? " opacity-50" : ""}`}
+                  className={`grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 transition-opacity duration-200${isSwappingPages ? " opacity-50" : ""}`}
                 >
                   {displayedProducts.map((product) => (
                     <ProductCard key={product._id} product={product as any} />

@@ -86,6 +86,15 @@ describe("ProductCard component", () => {
     expect(container.textContent).not.toContain("1 strip");
   });
 
+  it("keeps the mobile-only dosage line off the desktop card", () => {
+    // The Hot Sellers reference card shows name → manufacturer → price, so the
+    // dosage/pack line is scoped to phones (`sm:hidden`).
+    const { container } = renderCard({ strength: "500mg", packSize: "1 strip" });
+    const line = screen.getByText(/500mg.*1 strip/);
+    expect(line.className).toContain("sm:hidden");
+    expect(container.textContent).toContain("500mg");
+  });
+
   it("renders selling price (formatCurrency uses Intl with no decimals)", () => {
     renderCard();
     // formatCurrency(50) → "₹50" (no decimals), formatCurrency(60) → "₹60"
@@ -128,7 +137,7 @@ describe("ProductCard component", () => {
 
   it("shows Out of Stock when stock is 0", () => {
     renderCard({ stockQuantity: 0 });
-    expect(screen.getByText("Out of Stock")).toBeInTheDocument();
+    expect(screen.getAllByText("Out of Stock").length).toBeGreaterThan(0);
   });
 
   it("shows low stock badge when stock is between 1 and 9", () => {
@@ -156,20 +165,38 @@ describe("ProductCard component", () => {
     expect(svgs.length).toBeGreaterThan(0);
   });
 
-  it("shows Buy Now button for in-stock products", () => {
+  it("shows the mobile Buy Now and Cart buttons", () => {
     renderCard();
     expect(screen.getByText("Buy Now")).toBeInTheDocument();
-  });
-
-  it("shows Cart button for adding to cart", () => {
-    renderCard();
     expect(screen.getByText("Cart")).toBeInTheDocument();
   });
 
-  it("disables Buy Now and Cart when out of stock", () => {
+  it("uses a single full-width Add to Cart from sm up, matching the reference", () => {
+    renderCard();
+    const addBtn = screen.getByText("Add to Cart").closest("button") as HTMLButtonElement;
+    expect(addBtn).toBeTruthy();
+    // Hidden on phones (which keep Buy Now + Cart) and full-width from sm up,
+    // i.e. exactly the Hot Sellers reference button: 234 - 2*16 - 2 borders.
+    expect(addBtn.className).toContain("hidden");
+    expect(addBtn.className).toContain("sm:flex");
+    expect(addBtn.className).toContain("w-full");
+    expect(addBtn.className).toContain("h-8");
+    expect(addBtn.className).toContain("sm:mt-3");
+    // The mobile pair it replaces is hidden from sm up.
+    expect((screen.getByText("Buy Now").closest("button") as HTMLElement).className).toContain("sm:hidden");
+    expect((screen.getByText("Cart").closest("button") as HTMLElement).className).toContain("sm:hidden");
+  });
+
+  it("disables the mobile Buy Now and the desktop Add to Cart when out of stock", () => {
     renderCard({ stockQuantity: 0 });
-    const buyNowBtn = screen.getByText("Out of Stock").closest("button");
-    expect(buyNowBtn).toBeDisabled();
+    // Out of stock, so the mobile primary action reads "Out of Stock"; the
+    // desktop button does too. Both, plus the Cart button, must be disabled.
+    const disabled = screen
+      .getAllByText("Out of Stock")
+      .map((el) => el.closest("button"));
+    expect(disabled.length).toBeGreaterThan(0);
+    expect(disabled.every((btn) => btn?.hasAttribute("disabled"))).toBe(true);
+    expect((screen.getByText("Cart").closest("button") as HTMLButtonElement).disabled).toBe(true);
   });
 
   it("calls addToCart when Cart button clicked", async () => {
@@ -178,6 +205,18 @@ describe("ProductCard component", () => {
     const cartBtn = screen.getByText("Cart").closest("button") as HTMLButtonElement | null;
     expect(cartBtn).toBeTruthy();
     cartBtn!.click();
+    await vi.waitFor(() => expect(mockAddToCart).toHaveBeenCalled(), { timeout: 2000 });
+    expect(mockAddToCart).toHaveBeenCalledWith({ productId: "prod_1", quantity: 1 });
+  });
+
+  it("calls addToCart when the desktop Add to Cart button clicked", async () => {
+    mockAddToCart.mockResolvedValue({});
+    renderCard();
+    const addBtn = screen.getByText("Add to Cart").closest("button") as HTMLButtonElement | null;
+    expect(addBtn).toBeTruthy();
+    await act(async () => {
+      addBtn!.click();
+    });
     await vi.waitFor(() => expect(mockAddToCart).toHaveBeenCalled(), { timeout: 2000 });
     expect(mockAddToCart).toHaveBeenCalledWith({ productId: "prod_1", quantity: 1 });
   });
@@ -195,13 +234,14 @@ describe("ProductCard component", () => {
   });
 });
 
-/* ─── Uniform outer height ───
- * A card must be exactly as tall as its row / grid track and never as tall as
- * its own content, so a product with an extra manufacturer or dosage line, a
- * two-line name or a portrait packshot cannot render a taller card than a
- * product without them.
+/* ─── The shared card box ───
+ * Every product section renders this one card, so its box must be the Hot
+ * Sellers reference box: `rounded-2xl border border-border/70 bg-card p-4`, a
+ * 128px image band, one full-width Add to Cart, and a total height pinned to
+ * `--kc-card-h` (288px) from `sm` up. Nothing about the product may change that
+ * box — not a two-line name, not a missing manufacturer, not the packshot.
  */
-describe("ProductCard uniform outer height", () => {
+describe("ProductCard reference box", () => {
   const CARD = '[data-slot="card"]';
   const CONTENT = '[data-slot="card-content"]';
 
@@ -210,41 +250,81 @@ describe("ProductCard uniform outer height", () => {
     return (container.querySelector(CARD) as HTMLElement).className;
   };
 
+  it("uses the reference box: rounded-2xl, border-border/70, 16px padding", () => {
+    const cls = cardClasses();
+    expect(cls).toContain("rounded-2xl");
+    expect(cls).toContain("border-border/70");
+    expect(cls).toContain("bg-card");
+    expect(cls).toContain("sm:p-4");
+  });
+
   it("stretches to the track height and lays out as a flex column", () => {
     const { container } = renderCard();
     const card = container.querySelector(CARD) as HTMLElement;
     expect(card.className).toContain("h-full");
     expect(card.className).toContain("flex-col");
+    // Height comes from the shared token, never from the content.
+    expect(card.className).toContain("sm:min-h-[var(--kc-card-h)]");
   });
 
-  it("keeps the image band square and unable to shrink", () => {
+  it("keeps the image band square on phones and a fixed 128px strip from sm up", () => {
     const { container } = renderCard({ imageUrl: "https://example.com/img.jpg" });
-    const band = container.querySelector('[class*="aspect-square"]');
+    const band = container.querySelector('[class*="aspect-square"]') as HTMLElement;
     expect(band).toBeTruthy();
-    expect(band?.className).toContain("shrink-0");
-    // The packshot lives in its own padded box and is always contained, so a
-    // wide, square or very tall package is shown whole and never cropped.
-    const img = band?.querySelector("img");
+    expect(band.className).toContain("shrink-0");
+    expect(band.className).toContain("sm:aspect-auto");
+    expect(band.className).toContain("sm:h-32");
+    // The packshot fills the band and is always contained, so a wide, square or
+    // very tall package is shown whole and never cropped.
+    const img = band.querySelector("img");
     expect(img?.className).toContain("object-contain");
     expect(img?.className).not.toContain("object-cover");
-    expect(band?.querySelector('[class*="inset-2.5"]')).toBeTruthy();
+    expect(img?.className).toContain("inset-0");
+    expect(img?.className).toContain("sm:p-1.5");
   });
 
-  it("lets the content section take the remaining space", () => {
+  it("clamps name and manufacturer to one line from sm up", () => {
+    const { container } = renderCard({
+      name: "HealthKart HK Vitals Multivitamin",
+      manufacturer: "Procter & Gamble Health Ltd",
+    });
+    const name = screen.getByText("HealthKart HK Vitals Multivitamin");
+    const manu = screen.getByText("Procter & Gamble Health Ltd");
+    expect(name.className).toContain("sm:truncate");
+    expect(name.className).toContain("sm:line-clamp-none");
+    expect(manu.className).toContain("sm:truncate");
+    expect(manu.className).toContain("sm:line-clamp-none");
+    expect(container.querySelector(CONTENT)).toBeTruthy();
+  });
+
+  it("anchors the action row to the bottom of the card", () => {
     const { container } = renderCard();
+    const card = container.querySelector(CARD) as HTMLElement;
     const content = container.querySelector(CONTENT) as HTMLElement;
+    const actions = screen.getByText("Add to Cart").closest("div") as HTMLElement;
+    expect(actions.className).toContain("mt-auto");
+    // A sibling of the details block, inside the content column, so the free
+    // space of a shorter card is absorbed above the button instead of under it.
+    expect(actions.parentElement).toBe(content);
+    expect(content.parentElement).toBe(card);
     expect(content.className).toContain("flex-1");
     expect(content.className).toContain("flex-col");
   });
 
-  it("anchors the action row to the bottom of the content section", () => {
+  it("keeps the phone card exactly as it was: full-bleed band + inner padding", () => {
     const { container } = renderCard();
+    const card = container.querySelector(CARD) as HTMLElement;
     const content = container.querySelector(CONTENT) as HTMLElement;
-    const actions = screen.getByText("Buy Now").closest("div") as HTMLElement;
-    expect(actions.className).toContain("mt-auto");
-    // A sibling of the details block, so the free space of a shorter card is
-    // absorbed above it instead of being left under the buttons.
-    expect(actions.parentElement).toBe(content);
+    const band = container.querySelector('[class*="aspect-square"]') as HTMLElement;
+    // The card carries no phone padding, so the square band stays full-bleed;
+    // the 10px inset lives on the content block, and the phone-only chip row
+    // and dosage line stay in place.
+    expect(card.className).not.toMatch(/\bp-2\.5|\bmax-sm:p-/);
+    expect(content.className).toContain("max-sm:p-2.5");
+    expect(band.className).toContain("max-sm:border-b");
+    expect((container.querySelector("div[class*='flex-wrap'][class*='sm:hidden']") as HTMLElement)).toBeTruthy();
+    const chipRow = screen.getByText("OTC").parentElement as HTMLElement;
+    expect(chipRow.className).toContain("sm:hidden");
   });
 
   it("uses identical outer-height classes for completely different products", () => {

@@ -51,8 +51,11 @@ const MEASURE = ([longName, mode]) => {
     const h3 = card.querySelector("h3");
     if (!h3) continue;
     const cr = card.getBoundingClientRect();
-    const btns = [...card.querySelectorAll("button")].filter((b) =>
-      /buy now|cart|out of stock/i.test(b.textContent || "")
+    // Only the action buttons actually rendered at this viewport: from `sm` up
+    // the phone pair is `display: none` (a zero-size rect at the document
+    // origin), and below `sm` the desktop Add to Cart is.
+    const btns = [...card.querySelectorAll("button")].filter(
+      (b) => /buy now|cart|out of stock/i.test(b.textContent || "") && b.getClientRects().length > 0
     );
     const priceEl = [...card.querySelectorAll("span")].find((s) => /₹/.test(s.textContent || ""));
     const lh = parseFloat(getComputedStyle(h3).lineHeight);
@@ -61,6 +64,20 @@ const MEASURE = ([longName, mode]) => {
         card.closest("section")?.querySelector("h1,h2,h3")?.textContent?.trim().slice(0, 22) || "?",
       name: (h3.textContent || "").trim().slice(0, 22),
       box: `${Math.round(cr.width)}x${Math.round(cr.height)}`,
+      // The grid column / carousel slot the card is laid out in: a card fills
+      // its slot, so only the slot's width can change the card's width.
+      columnW: (() => {
+        const p = card.parentElement;
+        if (!p) return Math.round(cr.width);
+        const gtc = getComputedStyle(p).gridTemplateColumns;
+        const first = gtc && gtc !== "none" ? parseFloat(gtc.split(" ")[0]) : NaN;
+        return Math.round(Number.isFinite(first) ? first : p.getBoundingClientRect().width);
+      })(),
+      // From `sm` up the card shows exactly ONE action button (the reference's
+      // full-width Add to Cart); phones keep their Buy Now + Cart pair.
+      visibleActions: [...card.querySelectorAll("button")].filter(
+        (b) => /add to cart|buy now|out of stock/i.test(b.textContent || "") && b.getBoundingClientRect().width > 1
+      ).length,
       lines: Math.round(h3.getBoundingClientRect().height / lh),
       overflowY: card.scrollHeight - card.clientHeight,
       buttonsInside: btns.every((b) => {
@@ -68,10 +85,12 @@ const MEASURE = ([longName, mode]) => {
         return br.bottom <= cr.bottom + 1 && br.top >= cr.top - 1 && br.height > 4;
       }),
       priceInside: priceEl ? priceEl.getBoundingClientRect().bottom <= cr.bottom + 1 : true,
-      allInside: [...card.querySelectorAll("h3,p,span,button")].every((el) => {
-        const r = el.getBoundingClientRect();
-        return r.bottom <= cr.bottom + 1 && r.top >= cr.top - 1;
-      }),
+      allInside: [...card.querySelectorAll("h3,p,span,button")]
+        .filter((el) => el.getClientRects().length > 0)
+        .every((el) => {
+          const r = el.getBoundingClientRect();
+          return r.bottom <= cr.bottom + 1 && r.top >= cr.top - 1;
+        }),
     });
   }
   return out;
@@ -102,11 +121,11 @@ for (const [label, route] of ROUTES) {
     console.log(
       `  ${mode.padEnd(6)} n=${String(list.length).padEnd(3)} box=${uniq.join(" || ")} lines=${[...new Set(list.map((c) => c.lines))].join("/")}`
     );
-    boxes[mode].push(...uniq);
+    boxes[mode].push(...list.map((c) => ({ box: c.box, columnW: c.columnW, head: c.head })));
 
     check(`${label} [${mode}]: box identical across the section`, uniq.length === 1, uniq.join(" || "));
     check(
-      `${label} [${mode}]: price + both buttons stay inside the card`,
+      `${label} [${mode}]: price + the rendered action button(s) stay inside the card`,
       list.every((c) => c.buttonsInside && c.priceInside && c.overflowY <= 1),
       JSON.stringify(
         list.filter((c) => !c.buttonsInside || !c.priceInside || c.overflowY > 1).slice(0, 2).map((c) => c.name)
@@ -117,8 +136,9 @@ for (const [label, route] of ROUTES) {
       list.every((c) => c.allInside),
       JSON.stringify(list.filter((c) => !c.allInside).slice(0, 2).map((c) => c.name))
     );
-    check(`${label} [${mode}]: every card carries Buy Now + Cart`,
-      list.every((c) => c.buttonsInside));
+    check(`${label} [${mode}]: exactly one action button is shown per card`,
+      list.every((c) => c.visibleActions === 1),
+      JSON.stringify([...new Set(list.map((c) => c.visibleActions))]));
     if (mode === "sparse")
       check(`${label} [sparse]: missing detail lines do not shrink the card`,
         uniq.every((b) => b === res.real[0].box), `${uniq.join("||")} vs real ${res.real[0].box}`);
@@ -130,11 +150,26 @@ for (const [label, route] of ROUTES) {
 await browser.close();
 
 for (const mode of ["real", "sparse", "long"]) {
-  const uniq = [...new Set(boxes[mode])];
-  check(`${W} [${mode}]: one card box across every section`, uniq.length === 1, uniq.join(" || "));
+  const items = boxes[mode];
+  const heights = [...new Set(items.map((i) => i.box.split("x")[1]))];
+  const refW = Math.max(...items.map((i) => parseInt(i.box.split("x")[0], 10)));
+  // Every card is the reference card, except where its own container is
+  // narrower than the reference (the All Medicines listing beside the filter
+  // sidebar) — and there it must fill that whole column.
+  const off = items.filter((i) => {
+    const w = parseInt(i.box.split("x")[0], 10);
+    return w !== refW && w !== i.columnW;
+  });
+  check(
+    `${W} [${mode}]: one card shape across every section (reference width ${refW}px)`,
+    heights.length === 1 && off.length === 0,
+    `heights ${heights.join("||")}${off.length ? ` off=${JSON.stringify(off.slice(0, 2))}` : ""}`
+  );
 }
 console.log("\nBOX SUMMARY");
 for (const mode of ["real", "sparse", "long"])
-  console.log(`  ${mode.padEnd(7)}: ${[...new Set(boxes[mode])].join(" || ")}`);
+  console.log(
+    `  ${mode.padEnd(7)}: ${[...new Set(boxes[mode].map((i) => `${i.box} (column ${i.columnW})`))].join(" || ")}`
+  );
 console.log(failures === 0 ? "\nCARD-BOX INVARIANCE CHECKS PASSED" : `\n${failures} CHECK(S) FAILED`);
 process.exit(failures === 0 ? 0 : 1);

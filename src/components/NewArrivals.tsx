@@ -98,10 +98,12 @@ export default function NewArrivals() {
             {products.map((product) => (
               <div
                 key={product._id}
-                /* One carousel item per reference card width from `sm` up, so a
-                   card here is the same size as the one in the Hot Sellers
-                   grid; the phone widths are unchanged. */
-                className="min-w-[calc(50%-0.5rem)] snap-start sm:min-w-[var(--kc-card-w)] sm:w-[var(--kc-card-w)] max-sm:min-w-[calc(42%-0.375rem)] max-sm:w-[calc(42%-0.375rem)]"
+                /* One carousel item per column of the Hot Sellers reference
+                   grid, so a card here is the same width as the one in the Hot
+                   Sellers section at every breakpoint (3 across, then 4, then
+                   5, with the same 16px gaps); the phone widths are
+                   unchanged. */
+                className="min-w-[calc(50%-0.5rem)] snap-start max-sm:min-w-[calc(42%-0.375rem)] max-sm:w-[calc(42%-0.375rem)] sm:min-w-0 sm:w-[calc((100%_-_2rem)/3)] sm:shrink-0 md:min-w-0 md:w-[calc((100%_-_3rem)/4)] lg:min-w-0 lg:w-[calc((100%_-_4rem)/5)]"
               >
                 <ProductCard product={product} newArrival />
               </div>
