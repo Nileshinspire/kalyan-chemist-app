@@ -673,9 +673,15 @@ export default function Products() {
                   The sidebar, filters and every other product section stay
                   untouched. */}
               <style>{`
-                .kc-products-grid .h-30, .kc-products-grid .sm\\:h-30 { height: 7.5rem; }
-                .kc-products-grid .sm\\:p-2.5 { padding: 0.625rem; }
-                .kc-products-grid .p-2.5, .kc-products-grid .sm\\:p-2.5 { padding: 0.625rem; }
+                /* "sm:"-prefixed utilities only apply from 640px up, so any
+                   rule targeting one must keep its media query — otherwise
+                   the phone layout inherits the desktop value (an unguarded
+                   "sm:h-30" here collapsed the phone image band from a square
+                   into a 120px strip). */
+                .kc-products-grid .p-2.5 { padding: 0.625rem; }
+                @media (min-width: 640px) {
+                  .kc-products-grid .sm\\:p-2.5 { padding: 0.625rem; }
+                }
                 .kc-products-grid .space-y-1.5 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.375rem; }
                 .kc-products-grid .space-y-1 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.25rem; }
                 .kc-products-grid .text-[14px] { font-size: 0.875rem; line-height: 1.3125rem; }

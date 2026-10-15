@@ -8,7 +8,9 @@ const HEIGHT = Number(process.env.DIAG_H || 900);
   const { browser, page } = await launch();
   try {
     await page.setViewportSize({ width: WIDTH, height: HEIGHT });
-    await go(page, "products");
+    // The app uses a HashRouter, so the listing lives at `#/products` —
+    // without the hash this measured the landing page and silently passed.
+    await go(page, "#/products");
     await page.waitForTimeout(4000);
 
     const desktop = await page.evaluate(() => {

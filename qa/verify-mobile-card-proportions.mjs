@@ -14,6 +14,10 @@ import { readFileSync, existsSync, statSync, mkdirSync } from "node:fs";
 import { extname, join, normalize } from "node:path";
 
 const ROOT = join(process.cwd(), process.env.KC_ROOT || "dist-verify");
+// Set KC_PREVIEW to run the very same checks against the live app instead of
+// a local static build.
+const PREVIEW = process.env.KC_PREVIEW || "";
+const ORIGIN = PREVIEW || "http://kc.local";
 const SHOTS = join(process.cwd(), "qa/shots");
 mkdirSync(SHOTS, { recursive: true });
 const MIME = {
@@ -168,10 +172,10 @@ for (const w of WIDTHS) {
   const page = await ctx.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e)));
-  await serve(page);
+  if (!PREVIEW) await serve(page);
 
   for (const [label, route] of routes) {
-    await page.goto(`http://kc.local/${route}`, { waitUntil: "domcontentloaded", timeout: 60000 });
+    await page.goto(`${ORIGIN}/${route}`, { waitUntil: "domcontentloaded", timeout: 60000 });
     await page.waitForTimeout(2600);
     await page.evaluate(async () => {
       const step = Math.round(innerHeight * 0.9);
@@ -258,7 +262,7 @@ for (const w of WIDTHS) {
   }
 
   // tapping a card still navigates
-  await page.goto("http://kc.local/#/products", { waitUntil: "domcontentloaded", timeout: 60000 });
+  await page.goto(`${ORIGIN}/#/products`, { waitUntil: "domcontentloaded", timeout: 60000 });
   await page.waitForTimeout(2600);
   const before = page.url();
   const clicked = await page.evaluate(() => {
