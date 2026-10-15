@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Heart, ShoppingCart, Pill } from "lucide-react";
 import { formatCurrency } from "@/lib/auth-utils";
+import { productDiscountPercent } from "@/lib/discount";
 import { preloadProductDetail } from "@/lib/route-preload";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
@@ -49,7 +50,8 @@ interface ProductCardProps {
  * whole catalogue is measured against:
  *
  *   box          rounded-2xl · border-border/70 · bg-card · 16px padding
- *   image band   128px tall, rounded-xl, gradient wash, `object-contain` packshot
+ *   image band   128px tall, rounded-xl, clean white packshot field,
+ *                `object-contain` so the product keeps its aspect ratio
  *   details      name (14/20) → manufacturer (12/16) → price (16px extrabold)
  *   action       ONE full-width `Add to Cart`, 32px tall
  *
@@ -73,7 +75,7 @@ function ProductImage({ src, alt }: { src: string; alt: string }) {
       alt={alt}
       loading="lazy"
       decoding="async"
-      className="absolute inset-0 h-full w-full object-contain p-2.5 sm:p-1.5"
+      className="absolute inset-0 h-full w-full object-center object-contain p-2.5 sm:p-1.5"
     />
   );
 }
@@ -139,9 +141,9 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
     }
   };
 
-  const discountPct = hasDiscount
-    ? Math.round(((product.price - product.discountPrice!) / product.price) * 100)
-    : 0;
+  // The badge and the homepage discount section read the same function, so the
+  // percentage a customer sees is exactly the percentage the section matches on.
+  const discountPct = productDiscountPercent(product.price, product.discountPrice);
 
   const displayInfo = product.dosage || product.strength || product.form || "";
 
@@ -179,7 +181,12 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
 
       {/* Image band — the reference strip: square on phones, 128px from `sm` up.
           Absolutely nothing inside it contributes to the card's box. */}
-      <div className="relative flex aspect-square shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] max-sm:mb-0 max-sm:border-b max-sm:border-border/40 sm:mb-3 sm:aspect-auto sm:h-32">
+      {/* A clean white packshot field, frame-consistent across every section and
+          the same height as before (square on phones, 128px from `sm` up). The
+          picture is only ever contained, centred, and never cropped or
+          stretched, and the hairline inset ring gives the product the crisp
+          framing of a studio packshot without changing the card's box. */}
+      <div className="relative flex aspect-square shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white max-sm:mb-0 max-sm:border-b max-sm:border-border/40 sm:mb-3 sm:aspect-auto sm:h-32 sm:ring-1 sm:ring-border/50 sm:ring-inset">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.08] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
         {realImage ? (
           <ProductImage src={realImage} alt={product.name} />
@@ -195,7 +202,10 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
             </Badge>
           </div>
         )}
-        {hasDiscount && (
+        {/* The badge renders only for a discount that actually rounds to at
+            least 1%, so a card can never advertise "0% OFF" for a product the
+            discount section would not match. */}
+        {discountPct > 0 && (
           <div className={`absolute left-2 ${newArrival ? "top-10" : "top-2"}`}>
             <Badge className="text-[10px] font-bold bg-gradient-to-r from-green-500 to-emerald-500 text-white border-0 shadow-md">
               {discountPct}% OFF

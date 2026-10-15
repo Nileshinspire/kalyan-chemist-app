@@ -1077,6 +1077,21 @@ const schema = defineSchema(
     updatedAt: v.number(),
   }),
 
+    // ── Homepage exact-discount section (admin-owned, one row) ──
+    // The configured percentage is matched against each product's OWN
+    // calculated discount (price vs discountPrice), never against a label.
+    // `manualProductIds` only ever adds products whose real discount already
+    // equals `discountPercent`, so a price change can never keep showing a
+    // product that no longer qualifies.
+    discountHighlights: defineTable({
+      /** Whole percent, 1–99 — the exact discount the section advertises. */
+      discountPercent: v.number(),
+      /** Products the admin picked by hand, in addition to the auto matches. */
+      manualProductIds: v.array(v.id("products")),
+      updatedBy: v.optional(v.id("users")),
+      updatedAt: v.number(),
+    }),
+
     // ── AI Chatbot Conversations ──
     chatbot_conversations: defineTable({
       userId: v.id("users"),

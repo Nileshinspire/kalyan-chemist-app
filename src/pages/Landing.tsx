@@ -26,6 +26,7 @@ import PopularLabTests from "@/components/PopularLabTests";
 import HealthcareDevices from "@/components/HealthcareDevices";
 import NewArrivals from "@/components/NewArrivals";
 import ValueDeals from "@/components/ValueDeals";
+import MinimumDiscount from "@/components/MinimumDiscount";
 import HowItWorks from "@/components/HowItWorks";
 import PromotionalCarousel from "@/components/PromotionalCarousel";
 import WhyKalyanChemist from "@/components/WhyKalyanChemist";
@@ -144,7 +145,6 @@ export default function Landing() {
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] });
   useTransform(scrollYProgress, [0, 0.8], [1, 0]);
 
-  const dbTestimonials = useQuery(api.testimonials.listFeatured, { limit: 6 });
   useMutation(api.whatsappEnquiries.log);
   useQuery(api.deliveryConfig.getPublic);
 
@@ -530,7 +530,10 @@ export default function Landing() {
                         details block. Mobile keeps the short band and tight
                         padding; from `sm` up the original band height and
                         padding are restored exactly. */}
-                    <div className="relative mb-2 flex aspect-square items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] sm:mb-3 sm:aspect-auto sm:h-32">
+                    {/* Clean white packshot field, identical to the shared
+                        ProductCard's band, so the reference card and every other
+                        section present product images the same way. */}
+                    <div className="relative mb-2 flex aspect-square items-center justify-center overflow-hidden rounded-xl bg-white sm:mb-3 sm:aspect-auto sm:h-32 sm:ring-1 sm:ring-border/50 sm:ring-inset">
                       {product.imageUrl ? (
                         <img
                           src={product.imageUrl}
@@ -607,68 +610,12 @@ export default function Landing() {
       {/* ── Why Kalyan Chemist ── */}
       <WhyKalyanChemist />
 
-      {/* ── Testimonials: admin-approved only — public submission removed ── */}
-      <section className="border-y border-border/50 bg-gradient-to-b from-card/50 to-background">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 py-6 sm:py-14">
-          <div className="max-w-xl">
-            {/* Apollo-style compact heading on phones: pill + description
-                render from `sm` up exactly as before. */}
-            <div className="max-sm:hidden inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary mb-3 max-sm:mb-4">
-              <Star className="size-3" />
-              Testimonials
-            </div>
-            <h2 className="text-2xl font-bold tracking-tight sm:text-5xl max-sm:text-base max-sm:font-semibold max-sm:tracking-normal">
-              What Our Customers Say
-            </h2>
-            <p className="mt-2 text-sm sm:text-lg text-muted-foreground max-sm:hidden">
-              Trusted by thousands of families across India for their everyday
-              healthcare needs.
-            </p>
-          </div>
-          <div className="mt-6 grid gap-3 sm:mt-8 sm:gap-5 sm:grid-cols-3">
-            {(dbTestimonials && dbTestimonials.length > 0 ? dbTestimonials : []).map((t, i) => (
-              <motion.div
-                key={t._id}
-                initial={{ opacity: 0, y: 24 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-                className="flex flex-col justify-between rounded-2xl border border-border/70 bg-card p-4 sm:p-6 transition-all duration-500 hover:shadow-card-hover hover:border-primary/20 hover:-translate-y-0.5"
-              >
-                <div>
-                  <div className="mb-3 flex gap-0.5 text-amber-400">
-                    {Array.from({ length: t.rating }).map((_, i) => (
-                      <Star key={i} className="size-4 fill-amber-400" />
-                    ))}
-                  </div>
-                  {t.title && (
-                    <p className="text-sm font-semibold text-foreground mb-1">{t.title}</p>
-                  )}
-                  <p className="text-sm leading-relaxed text-muted-foreground">
-                    &ldquo;{t.message}&rdquo;
-                  </p>
-                </div>
-                <div className="mt-5 border-t border-border/60 pt-3">
-                  <p className="text-sm font-semibold text-foreground">{t.displayName}</p>
-                  {t.featured && (
-                    <span className="inline-flex items-center gap-1 text-[10px] font-medium text-primary mt-0.5">
-                      <Star className="size-2.5 fill-primary" /> Featured
-                    </span>
-                  )}
-                </div>
-              </motion.div>
-            ))}
-            {dbTestimonials && dbTestimonials.length === 0 && (
-              <div className="col-span-full text-center py-6">
-                <Star className="size-8 text-muted-foreground/30 mx-auto mb-2" />
-                <p className="text-sm text-muted-foreground">
-                  Verified customer stories are published here once approved.
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
+      {/* ── Minimum N% Off: the admin-configured exact-discount section ──
+          Owns the band the testimonials section used to occupy. The
+          percentage, the heading and the products all come from the Discount
+          Manager in the admin panel; the section shows a clean empty state when
+          nothing in the catalogue is at that exact discount. */}
+      <MinimumDiscount />
 
       {/* ── Shop By Brand ── */}
       {/* Occupies the position previously held by the bottom CTA band, ahead of

@@ -59,6 +59,7 @@ const AdminBrands = lazy(() => import("./pages/admin/AdminBrands"));
 const AdminInventory = lazy(() => import("./pages/admin/AdminInventory"));
 const AdminOrders = lazy(() => import("./pages/admin/AdminOrders"));
 const AdminCoupons = lazy(() => import("./pages/admin/AdminCoupons"));
+const AdminDiscountManager = lazy(() => import("./pages/admin/AdminDiscountManager"));
 const AdminReviews = lazy(() => import("./pages/admin/AdminReviews"));
 const AdminUsers = lazy(() => import("./pages/admin/AdminUsers"));
 const AdminReports = lazy(() => import("./pages/admin/AdminReports"));
@@ -515,6 +516,17 @@ function AnimatedRoutes() {
                 <AdminCoupons />
               </RequireAuth>
             
+          }
+        />
+        <Route
+          path="/admin/discounts"
+          element={
+            <RequireAuth adminOnly>
+                <Suspense fallback={<RouteLoading />}>
+                  <AdminDiscountManager />
+                </Suspense>
+              </RequireAuth>
+
           }
         />
         <Route

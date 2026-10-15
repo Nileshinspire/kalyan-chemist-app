@@ -34,6 +34,7 @@ import {
   Activity,
   Megaphone,
   Wallet,
+  BadgePercent,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -48,6 +49,7 @@ const NAV_ITEMS = [
   { label: "Expiring Medicines", path: "/admin/expiring", icon: CalendarClock },
   { label: "Customers", path: "/admin/users", icon: Users },
   { label: "Coupons", path: "/admin/coupons", icon: Ticket },
+  { label: "Discount Manager", path: "/admin/discounts", icon: BadgePercent },
   { label: "Reviews", path: "/admin/reviews", icon: Star },
   { label: "Reports", path: "/admin/reports", icon: BarChart3 },
   { label: "Delivery Settings", path: "/admin/delivery", icon: Truck },

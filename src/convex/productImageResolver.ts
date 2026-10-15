@@ -36,6 +36,7 @@ import { action, internalAction } from "./_generated/server";
 import type { ActionCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
+import type { Id } from "./_generated/dataModel";
 
 const USER_AGENT =
   "KalyanChemist/1.0 (https://kalyanchemist.com; product image retrieval)";
@@ -54,7 +55,11 @@ const WIKIDATA_API = "https://www.wikidata.org/w/api.php";
 
 export const SITE_TIMEOUT_MS = 8_000;
 const FETCH_TIMEOUT_MS = 12_000;
-/** Card-sized render of the stored asset — crisp, small, and CDN-supported. */
+/**
+ * The CDN's card-sized render of an asset, used only as a FALLBACK when the
+ * source's own full-resolution asset cannot be fetched. The original is always
+ * asked for first — see `originalAssetUrl` and `downloadFullResolutionAsset`.
+ */
 const IMAGE_DIM = "600x0";
 const MIN_IMAGE_BYTES = 2_000;
 const MAX_IMAGE_BYTES = 4_000_000;
@@ -1003,6 +1008,43 @@ function normalizeImageUrl(url: string): string | null {
     return `${clean}?dim=${IMAGE_DIM}&q=80`;
   }
   return base;
+}
+
+/**
+ * The source's OWN full-resolution asset behind a rendered/thumbnail URL, when
+ * the source is one this project knows publishes one. Returns null for a URL
+ * that is already an original, and for any host whose larger variant has not
+ * been verified — a guessed URL is never fetched.
+ *
+ * Verified against the live CDN before this mapping was added (same asset, same
+ * path, only the transform dropped):
+ *   …/dam/products_otc/V90675/…-1771400619.jpg?dim=600x0&q=80  → 600x600, 18 KB
+ *   …/dam/products_otc/V90675/…-1771400619.jpg                 → 1499x1499, 70 KB
+ *   …/dam/productsnowatermark/…-non-watermark.jpg?dim=600x0&q=80 → 600x464
+ *   …/dam/productsnowatermark/…-non-watermark.jpg                → 1499x1158
+ *   images.openproductsfacts.org/…/front_fr.3.400.jpg  → 400x302
+ *   images.openproductsfacts.org/…/front_fr.3.full.jpg → 1088x822
+ */
+export function originalAssetUrl(url: string | null | undefined): string | null {
+  const value = (url ?? "").trim();
+  if (!value) return null;
+  const base = value.split("?")[0];
+  if (!base) return null;
+
+  // The pharmacy CDN renders whatever `dim`/`q` ask for; without them the same
+  // path serves the uploaded asset at its own resolution.
+  if (base.includes("cdn01.pharmeasy.in")) {
+    return value.length === base.length ? null : base;
+  }
+
+  // The open product databases publish numbered variants (`400`, `full`, …) of
+  // the same uploaded photograph.
+  const openFacts = base.match(
+    /^(https:\/\/images\.open[a-z]+facts\.org\/.+)\.[0-9]+\.(jpe?g|png|webp)$/i,
+  );
+  if (openFacts) return `${openFacts[1]}.full.${openFacts[2]}`;
+
+  return null;
 }
 
 type ScoredCandidate = { candidate: Candidate; score: number; reasons: string[] };
@@ -2145,6 +2187,67 @@ async function downloadImage(
   return null;
 }
 
+/** An asset fetched at the highest resolution its own source publishes. */
+export type FullResolutionAsset = {
+  bytes: Uint8Array;
+  contentType: string;
+  /** The URL actually fetched — the source's original asset when it has one. */
+  sourceUrl: string;
+  width: number;
+  height: number;
+};
+
+/**
+ * Fetch the SAME picture at the highest resolution its source publishes.
+ *
+ * This is the resolution half of the image pipeline, used both when an image is
+ * first resolved and when an already-stored image is re-fetched. It never
+ * searches for a different picture: it takes one URL, asks its own source for
+ * the biggest verified variant of that exact asset, and accepts the result only
+ * when it is genuinely larger and keeps the same aspect ratio. So the product's
+ * picture and framing cannot change — it can only gain detail.
+ *
+ * `current` is the resolution already stored (null when unknown): when it is
+ * known, anything that is not strictly bigger is refused, which is what keeps a
+ * needless re-store out of the pipeline.
+ */
+export async function downloadFullResolutionAsset(
+  sourceUrl: string,
+  current: { width: number; height: number } | null,
+): Promise<FullResolutionAsset | null> {
+  const url = (sourceUrl ?? "").trim();
+  if (!url) return null;
+
+  const original = originalAssetUrl(url) ?? url;
+  // The render is a perfectly good fallback, so an original that is not served
+  // (or is too heavy) still yields a usable asset rather than a failure.
+  const downloaded =
+    (await downloadImage(original, url)) ??
+    (original !== url ? await downloadImage(url, original) : null);
+  if (!downloaded) return null;
+
+  const dims = imageDimensions(downloaded.bytes);
+  if (!dims || dims.width <= 0 || dims.height <= 0) return null;
+
+  if (current && current.width > 0 && current.height > 0) {
+    const bigger = dims.width > current.width || dims.height > current.height;
+    // Same picture means the same framing: a different aspect ratio would mean a
+    // different crop or a different asset altogether, so it is refused.
+    const ratioDrift = Math.abs(
+      dims.width / dims.height / (current.width / current.height) - 1,
+    );
+    if (!bigger || ratioDrift > 0.01) return null;
+  }
+
+  return {
+    bytes: downloaded.bytes,
+    contentType: downloaded.contentType,
+    sourceUrl: downloaded.sourceUrl,
+    width: dims.width,
+    height: dims.height,
+  };
+}
+
 /** Write verified bytes to permanent storage and return the public URL. */
 async function store(ctx: ActionCtx, image: DownloadedImage): Promise<string | null> {
   const storageId = await ctx.storage.store(
@@ -2245,8 +2348,11 @@ async function collectRecordViews(
     if (stored.length >= limit) return false;
     if (state.downloads.count >= MAX_IMAGE_DOWNLOADS) return false;
     state.downloads.count += 1;
-    const original = (entry.candidate.images[0]?.url ?? url).split("?")[0];
-    const downloaded = await downloadImage(url, original);
+    // Ask this asset's own source for its full-resolution original first and keep
+    // the card-sized render only as that request's fallback, so a stored packshot
+    // carries as much detail as the source publishes.
+    const original = originalAssetUrl(url);
+    const downloaded = await downloadImage(original ?? url, url);
     if (!downloaded) {
       failed.push(url);
       return false;
@@ -2264,13 +2370,15 @@ async function collectRecordViews(
     const existingUrl = state.existingByHash?.get(hash);
     if (existingUrl) {
       state.storedHashes.add(hash);
-      stored.push({ url: existingUrl, imageUrlSource: url, tier });
+      stored.push({ url: existingUrl, imageUrlSource: downloaded.sourceUrl, tier });
       return true;
     }
     const storedUrl = await store(ctx, downloaded);
     if (!storedUrl) return false;
     state.storedHashes.add(hash);
-    stored.push({ url: storedUrl, imageUrlSource: url, tier });
+    // Provenance is the URL that was actually fetched (the source's original when
+    // it served one), so an audit can tell a full-resolution asset from a render.
+    stored.push({ url: storedUrl, imageUrlSource: downloaded.sourceUrl, tier });
     return true;
   };
 
@@ -2653,6 +2761,22 @@ export const resolveImage = internalAction({
 export function isVerifiedProductImage(url: string | null | undefined): boolean {
   const value = (url ?? "").trim();
   return /^https:\/\/[a-z0-9-]+\.convex\.cloud\/api\/storage\//i.test(value);
+}
+
+/**
+ * The pixel size of an asset this pipeline already stored — read straight from
+ * Convex storage, so a size comparison never trusts a URL or a file name.
+ * Returns null when the URL is not one of our own stored assets.
+ */
+export async function storedAssetDimensions(
+  ctx: ActionCtx,
+  url: string | null | undefined,
+): Promise<{ width: number; height: number } | null> {
+  const storageId = storageIdFromImageUrl(url);
+  if (!storageId) return null;
+  const blob = await ctx.storage.get(storageId as Id<"_storage">);
+  if (!blob) return null;
+  return imageDimensions(new Uint8Array(await blob.arrayBuffer()));
 }
 
 /**

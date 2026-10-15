@@ -38,7 +38,7 @@ type SearchFilters = {
  * A catalogue page draws dozens of products that share a handful of categories
  * and brands, so without this the same document is re-read once per product.
  */
-async function createEnricher(ctx: QueryCtx) {
+export async function createEnricher(ctx: QueryCtx) {
   const categoryCache = new Map<string, { name: string; slug: string } | null>();
   const brandCache = new Map<string, { name: string; slug: string } | null>();
 

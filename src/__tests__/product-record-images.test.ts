@@ -236,6 +236,21 @@ describe("images come from the resolved product record", () => {
     expect(result.imageUrlSource).toContain("augmentin-duo-625mg-strip-1.jpg");
   });
 
+  it("stores the source's own full-resolution asset, not the CDN's card-sized render", async () => {
+    const result = await storeRecordImages(
+      fakeStorageCtx(),
+      IDENTITY,
+      augmentinRecord(),
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    // The record's asset URL is asked for without the `dim` transform, i.e. the
+    // uploaded original; the 600px render is only a fallback for a source that
+    // does not serve its original.
+    expect(result.imageUrlSource).not.toContain("dim=");
+    expect(result.imageUrlSource).toContain("augmentin-duo-625mg-strip-1.jpg");
+  });
+
   it("saves the record's other genuine views as additional images", async () => {
     const result = await storeRecordImages(
       fakeStorageCtx(),

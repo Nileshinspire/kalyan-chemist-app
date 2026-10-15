@@ -21,10 +21,12 @@ import type { FunctionReference } from "convex/server";
 import type { Id } from "./_generated/dataModel";
 import {
   contentHash,
+  downloadFullResolutionAsset,
   isPackshotLookingUrl,
   isVerifiedProductImage,
   resolveAndStore,
   storageIdFromImageUrl,
+  storedAssetDimensions,
   MAX_PRODUCT_IMAGES,
   type ProductIdentity,
 } from "./productImageResolver";
@@ -702,4 +704,111 @@ export const auditProductImages = action({
 export const auditProductImagesInternal = internalAction({
   args: imageAuditArgs,
   handler: runImageAudit,
+});
+
+// ── Resolution upgrade ──
+
+const resolutionUpgradeArgs = {
+  limit: v.optional(v.number()),
+  /** Report what would change without writing anything. */
+  dryRun: v.optional(v.boolean()),
+  /** Upgrade just these products. */
+  productIds: v.optional(v.array(v.id("products"))),
+};
+
+/**
+ * Re-store each product's EXISTING image from that product's own recorded
+ * source, at the highest resolution the source publishes.
+ *
+ * This is deliberately not a re-resolve: nothing is searched and no candidate is
+ * scored, so which picture a product shows — and how it is framed — cannot
+ * change. The asset already stored is measured in Convex storage, the source's
+ * own original is fetched from the provenance URL recorded when it was stored,
+ * and the new asset is accepted only when it is strictly larger with the same
+ * aspect ratio. A product whose source publishes nothing bigger, whose image was
+ * not stored by this pipeline, or whose provenance is unknown is left exactly as
+ * it was, and is reported as skipped with the reason.
+ *
+ *   bunx convex run productImageRepair:upgradeStoredImageResolution '{"dryRun":true}'
+ */
+export const upgradeStoredImageResolution = internalAction({
+  args: resolutionUpgradeArgs,
+  handler: async (ctx, args) => {
+    const rows: AuditRow[] = await ctx.runQuery(
+      internal.adminProducts.productsForImageAudit,
+      {},
+    );
+
+    const wanted = args.productIds ? new Set(args.productIds as string[]) : null;
+    const candidates = wanted ? rows.filter((row) => wanted.has(row.id as string)) : rows;
+    const batch = args.limit ? candidates.slice(0, args.limit) : candidates;
+
+    const upgraded: {
+      name: string;
+      from: string;
+      to: string;
+      imageUrlSource: string;
+    }[] = [];
+    const skipped: { name: string; reason: string; size: string }[] = [];
+    const failed: { name: string; reason: string }[] = [];
+    const dryRun = args.dryRun === true;
+
+    for (const row of batch) {
+      const current = await storedAssetDimensions(ctx, row.imageUrl);
+      if (!current) {
+        skipped.push({
+          name: row.name,
+          reason: "not-an-asset-this-pipeline-stored",
+          size: "-",
+        });
+        continue;
+      }
+      const size = `${current.width}x${current.height}`;
+      const source = (row.imageUrlSource || row.imageUrl).trim();
+
+      let asset;
+      try {
+        asset = await downloadFullResolutionAsset(source, current);
+      } catch {
+        failed.push({ name: row.name, reason: "source-unreachable" });
+        continue;
+      }
+      if (!asset) {
+        skipped.push({ name: row.name, reason: "source-has-no-larger-image", size });
+        continue;
+      }
+
+      const bigger = `${asset.width}x${asset.height}`;
+      if (dryRun) {
+        upgraded.push({ name: row.name, from: size, to: bigger, imageUrlSource: asset.sourceUrl });
+        continue;
+      }
+
+      const storageId = await ctx.storage.store(
+        new Blob([asset.bytes.buffer as ArrayBuffer], { type: asset.contentType }),
+      );
+      const storedUrl = await ctx.storage.getUrl(storageId);
+      if (!storedUrl) {
+        failed.push({ name: row.name, reason: "store-failed" });
+        continue;
+      }
+
+      await ctx.runMutation(internal.adminProducts.setProductImage, {
+        productId: row.id,
+        imageUrl: storedUrl,
+        additionalImages: row.additionalImages,
+        imageSource: row.imageSource || undefined,
+        imageUrlSource: asset.sourceUrl,
+      });
+      upgraded.push({ name: row.name, from: size, to: bigger, imageUrlSource: asset.sourceUrl });
+    }
+
+    return {
+      total: batch.length,
+      dryRun,
+      upgraded,
+      skipped,
+      failed,
+    };
+  },
 });
