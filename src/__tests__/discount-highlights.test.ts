@@ -3,15 +3,44 @@ import {
   isExactDiscountMatch,
   normalizeDiscountPercent,
   productDiscountPercent,
-  selectDiscountProducts,
+  discountedPriceFor,
+  resolveProductDiscount,
+  selectHomePageDiscounts,
+  type DiscountRow,
+  type EngineConfigInput,
 } from "@/lib/discount";
 
 /**
- * The homepage "Minimum N% Off" section is only correct if three things agree:
- * the percentage a product card renders, the percentage the section matches on,
- * and the set of products the section returns. All three read these helpers, so
- * these tests pin the behaviour that the section depends on.
+ * The discount engine's guarantee: whatever a customer sees (card badge,
+ * homepage section, cart line, checkout total) comes from ONE resolution.
+ * These tests pin the badge math, the percent validation, the rule precedence
+ * (never combined → never double-discounted), the rounding policy, and the
+ * homepage membership rule "Minimum {percent}% Off".
  */
+const NOW = 1_700_000_000_000;
+
+function row(overrides: Partial<DiscountRow> & { _id: string }): DiscountRow {
+  return {
+    price: 400,
+    discountPrice: null,
+    categoryId: "cat-1",
+    isActive: true,
+    ...overrides,
+  } as DiscountRow;
+}
+
+function engine(overrides: Partial<EngineConfigInput> = {}): EngineConfigInput {
+  return {
+    isActive: true,
+    discountPercent: 25,
+    manualProductIds: [],
+    excludedProductIds: [],
+    productOverrides: [],
+    categoryRules: [],
+    ...overrides,
+  };
+}
+
 describe("productDiscountPercent", () => {
   it("is 0 for a product with no discount price", () => {
     expect(productDiscountPercent(150)).toBe(0);
@@ -31,17 +60,15 @@ describe("productDiscountPercent", () => {
   });
 
   it("rounds the same way the card badge does", () => {
-    // 100 -> 74 is 26% exactly; 1000 -> 666 is 33.4% -> 33 on the badge.
     expect(productDiscountPercent(100, 74)).toBe(26);
     expect(productDiscountPercent(1000, 666)).toBe(33);
-    // 1/3 off rounds up to 33 and is reported as 33, not 33.33
     expect(productDiscountPercent(300, 200)).toBe(33);
-    // 24.6% rounds to 25, so a card showing "25% OFF" is matched by 25.
     expect(productDiscountPercent(1000, 754)).toBe(25);
   });
 
-  it("never divides by a zero price", () => {
+  it("never divides by a zero or negative price", () => {
     expect(productDiscountPercent(0, 0)).toBe(0);
+    expect(productDiscountPercent(-10, 5)).toBe(0);
   });
 });
 
@@ -53,12 +80,6 @@ describe("isExactDiscountMatch", () => {
     for (const other of [20, 24, 26, 30, 37, 50]) {
       expect(isExactDiscountMatch(product.price, product.discountPrice, other)).toBe(false);
     }
-  });
-
-  it("follows the configured percentage without any code change", () => {
-    const at37 = { price: 100, discountPrice: 63 };
-    expect(isExactDiscountMatch(at37.price, at37.discountPrice, 37)).toBe(true);
-    expect(isExactDiscountMatch(at37.price, at37.discountPrice, 25)).toBe(false);
   });
 
   it("rejects a product with no discount, and an inactive product", () => {
@@ -74,92 +95,246 @@ describe("isExactDiscountMatch", () => {
 });
 
 describe("normalizeDiscountPercent", () => {
-  it("accepts any whole percentage in range", () => {
-    for (const value of [1, 7, 25, 37, 63, 99, 100]) {
+  it("accepts any whole percentage in range (10, 20, 35, 42 …)", () => {
+    for (const value of [1, 7, 10, 20, 25, 35, 42, 63, 99]) {
       expect(normalizeDiscountPercent(value)).toBe(value);
     }
   });
 
-  it("refuses values that can never match a displayed percentage", () => {
+  it("refuses fractional, zero, 100 and out-of-range values", () => {
     expect(() => normalizeDiscountPercent(25.5)).toThrow(/whole number/i);
-    expect(() => normalizeDiscountPercent(0)).toThrow(/between 1 and 100/i);
-    expect(() => normalizeDiscountPercent(101)).toThrow(/between 1 and 100/i);
+    expect(() => normalizeDiscountPercent(0)).toThrow(/between 1 and 99/i);
+    expect(() => normalizeDiscountPercent(101)).toThrow(/between 1 and 99/i);
+    expect(() => normalizeDiscountPercent(100)).toThrow(/between 1 and 99/i);
     expect(() => normalizeDiscountPercent(Number.NaN)).toThrow(/whole number/i);
   });
 });
 
-describe("selectDiscountProducts", () => {
-  const rows = [
-    { _id: "a", price: 400, discountPrice: 300, isActive: true }, // 25%
-    { _id: "b", price: 100, discountPrice: 74, isActive: true }, // 26%
-    { _id: "c", price: 100, discountPrice: 75, isActive: true }, // 25%
-    { _id: "d", price: 300, discountPrice: 150, isActive: true }, // 50%
-    { _id: "e", price: 1000, discountPrice: 750, isActive: true }, // 25%
-    { _id: "f", price: 200, discountPrice: 150, isActive: true }, // 25%
-    { _id: "g", price: 100, discountPrice: 75, isActive: false }, // 25% but inactive
-    { _id: "h", price: 100, isActive: true }, // no discount
+describe("discountedPriceFor — the single rounding policy", () => {
+  it("rounds to the nearest paisa (2 decimals), never to 0 or above MRP", () => {
+    expect(discountedPriceFor(99, 20)).toBe(79.2);
+    expect(discountedPriceFor(59, 20)).toBe(47.2);
+    expect(discountedPriceFor(35, 42)).toBe(20.3);
+    expect(discountedPriceFor(9, 25)).toBe(6.75);
+  });
+
+  it("keeps the displayed badge equal to the configured percent", () => {
+    for (const price of [59, 99, 149, 350, 1250]) {
+      for (const percent of [10, 20, 25, 35, 42, 50, 75]) {
+        const effective = discountedPriceFor(price, percent);
+        expect(productDiscountPercent(price, effective)).toBe(percent);
+      }
+    }
+  });
+
+  it("refuses invalid input", () => {
+    expect(() => discountedPriceFor(0, 20)).toThrow();
+    expect(() => discountedPriceFor(-5, 20)).toThrow();
+    expect(() => discountedPriceFor(100, 100)).toThrow(/between 1 and 99/i);
+  });
+});
+
+describe("resolveProductDiscount — deterministic precedence", () => {
+  it("gives a price to a brand-new product from the global default rule", () => {
+    const r = resolveProductDiscount(row({ _id: "new", price: 149 }), engine({ discountPercent: 20 }), NOW);
+    expect(r.status).toBe("auto");
+    expect(r.percent).toBe(20);
+    expect(r.effectivePrice).toBe(119.2); // 149 × 0.80, paisa-rounded
+  });
+
+  it("never combines rules: override beats category, category beats default", () => {
+    const base = row({ _id: "x", price: 200 });
+    const engineWithAll = engine({
+      discountPercent: 25,
+      categoryRules: [{ categoryId: "cat-1", discountPercent: 35 }],
+      productOverrides: [{ productId: "x", discountPercent: 42 }],
+    });
+    expect(resolveProductDiscount(base, engineWithAll, NOW).status).toBe("override");
+    expect(resolveProductDiscount(base, engineWithAll, NOW).percent).toBe(42);
+
+    const noOverride = { ...engineWithAll, productOverrides: [] };
+    expect(resolveProductDiscount(base, noOverride, NOW).status).toBe("category");
+    expect(resolveProductDiscount(base, noOverride, NOW).percent).toBe(35);
+
+    const noCategory = { ...noOverride, categoryRules: [] };
+    expect(resolveProductDiscount(base, noCategory, NOW).status).toBe("auto");
+    expect(resolveProductDiscount(base, noCategory, NOW).percent).toBe(25);
+  });
+
+  it("exclusion wins over every rule", () => {
+    const r = resolveProductDiscount(
+      row({ _id: "x", price: 200, discountPrice: 100 }), // 50% stored
+      engine({ discountPercent: 25, excludedProductIds: ["x"] }),
+      NOW,
+    );
+    // Excluded products keep their explicit admin price, but never gain rules.
+    expect(r.status).toBe("excluded");
+    expect(r.effectivePrice).toBe(100);
+    expect(r.percent).toBe(50);
+  });
+
+  it("an inactive product is never discounted", () => {
+    const r = resolveProductDiscount(row({ _id: "x", isActive: false }), engine(), NOW);
+    expect(r.status).toBe("ineligible");
+    expect(r.effectivePrice).toBe(400);
+  });
+
+  it("preserves an explicit selling price when no rule governs the product", () => {
+    const r = resolveProductDiscount(
+      row({ _id: "x", price: 200, discountPrice: 150, discountSource: "manual" }),
+      engine({ isActive: false, discountPercent: 25 }),
+      NOW,
+    );
+    expect(r.status).toBe("manual-price");
+    expect(r.effectivePrice).toBe(150);
+    expect(r.percent).toBe(25);
+  });
+
+  it("stops rule pricing when the promotion window closes, but keeps overrides", () => {
+    const engineClosed = engine({
+      isActive: false,
+      categoryRules: [{ categoryId: "cat-1", discountPercent: 30 }],
+      productOverrides: [{ productId: "y", discountPercent: 42 }],
+    });
+    const autoRow = row({ _id: "x", price: 100 });
+    const overrideRow = row({ _id: "y", price: 100 });
+    expect(resolveProductDiscount(autoRow, engineClosed, NOW).status).toBe("ineligible");
+    const y = resolveProductDiscount(overrideRow, engineClosed, NOW);
+    expect(y.status).toBe("override");
+    expect(y.effectivePrice).toBe(58);
+  });
+
+  it("honours start/end dates", () => {
+    const engineWindow = engine({ startsAt: NOW + 1000 });
+    const r = resolveProductDiscount(row({ _id: "x", price: 100 }), engineWindow, NOW);
+    expect(r.status).toBe("ineligible"); // window not open yet
+    expect(resolveProductDiscount(row({ _id: "x", price: 100 }), engineWindow, NOW + 2000).status).toBe("auto");
+
+    const engineEnded = engine({ endsAt: NOW - 1000 });
+    expect(resolveProductDiscount(row({ _id: "x", price: 100 }), engineEnded, NOW).status).toBe("ineligible");
+  });
+
+  it("resolves the admin-set selling price when the engine has no percent saved yet", () => {
+    const r = resolveProductDiscount(
+      row({ _id: "x", price: 300, discountPrice: 225 }),
+      { isActive: false, discountPercent: 0 }, // no config saved
+      NOW,
+    );
+    expect(r.status).toBe("manual-price");
+    expect(r.percent).toBe(25);
+  });
+});
+
+describe("selectHomePageDiscounts — the storefront section", () => {
+  const rows: DiscountRow[] = [
+    row({ _id: "a", price: 400, discountPrice: 300 }), // 25%
+    row({ _id: "b", price: 100, discountPrice: 74 }), // 26%
+    row({ _id: "c", price: 100, discountPrice: 75 }), // 25%
+    row({ _id: "d", price: 300, discountPrice: 150 }), // 50%
+    row({ _id: "e", price: 1000, discountPrice: 750 }), // 25%
+    row({ _id: "g", price: 100, discountPrice: 75, isActive: false }), // inactive
+    row({ _id: "h", price: 100 }), // no discount
   ];
 
-  it("discovers every exactly matching product across categories, and nothing else", () => {
-    const { products, autoCount, manualCount } = selectDiscountProducts(rows, 25);
-    expect(products.map((p) => p._id)).toEqual(["a", "c", "e", "f"]);
-    expect(autoCount).toBe(4);
+  it("lists every product whose effective discount meets the advertised minimum", () => {
+    const { products, autoCount, manualCount } = selectHomePageDiscounts(rows, engine({ discountPercent: 25 }), NOW);
+    // "Minimum 25% Off": 26% and 50% products also meet the minimum, and "h"
+    // (no selling price of its own) is auto-priced at 25% by the default rule.
+    expect(products.map((p) => p._id).sort()).toEqual(["a", "b", "c", "d", "e", "h"]);
+    expect(autoCount).toBe(6);
     expect(manualCount).toBe(0);
   });
 
-  it("never returns a product at a different discount", () => {
-    const { products } = selectDiscountProducts(rows, 25);
-    expect(products.some((p) => p._id === "b" || p._id === "h")).toBe(false);
-    const at26 = selectDiscountProducts(rows, 26);
-    expect(at26.products.map((p) => p._id)).toEqual(["b"]);
+  it("keeps explicit stored prices ahead of the default rule", () => {
+    // "b" is at 26% off; the default rule says 25%. The stored, admin-set
+    // selling price wins — the rule must never silently rewrite it.
+    const res = resolveProductDiscount(rows[1]!, engine({ discountPercent: 25 }), NOW);
+    expect(res.status).toBe("manual-price");
+    expect(res.percent).toBe(26);
+    expect(res.effectivePrice).toBe(74);
   });
 
-  it("updates the whole set when the percentage changes", () => {
-    expect(selectDiscountProducts(rows, 50).products.map((p) => p._id)).toEqual(["d"]);
-    expect(selectDiscountProducts(rows, 37).products).toEqual([]);
+  it("tightens the section when the default rule changes", () => {
+    const { products } = selectHomePageDiscounts(rows, engine({ discountPercent: 42 }), NOW);
+    // "d" runs at its stored 50% price; "h" has no price of its own, so the
+    // changed default rule now prices it at 42% — exactly what should happen
+    // when the rule changes. Explicit 25%/26% prices are untouched.
+    expect(products.map((p) => p._id).sort()).toEqual(["d", "h"]);
+    const at50 = selectHomePageDiscounts(rows, engine({ discountPercent: 50 }), NOW);
+    // h is auto-priced at 50% too (50 × 0.5 = 25), d keeps its stored 50%.
+    expect(at50.products.map((p) => p._id).sort()).toEqual(["d", "h"]);
   });
 
-  it("includes a manual pick that matches, exactly once, ahead of the auto matches", () => {
-    const { products, autoCount, manualCount } = selectDiscountProducts(rows, 25, ["e", "c"]);
-    expect(products.map((p) => p._id)).toEqual(["e", "c", "a", "f"]);
-    expect(products.filter((p) => p._id === "c")).toHaveLength(1);
-    expect(products.filter((p) => p._id === "e")).toHaveLength(1);
+  it("pins manual picks to the front, exactly once", () => {
+    const { products, autoCount, manualCount } = selectHomePageDiscounts(
+      rows,
+      engine({ discountPercent: 25, manualProductIds: ["e", "c"] }),
+      NOW,
+    );
+    expect(products.map((p) => p._id)).toEqual(["e", "c", "a", "b", "d", "h"]);
     expect(manualCount).toBe(2);
-    expect(autoCount).toBe(2);
+    expect(autoCount).toBe(4);
   });
 
-  it("hides a manual pick whose price no longer matches and reports it", () => {
-    // Pick "d" (50% off) while the section advertises 25%: it must not render,
-    // and it must be reported so the admin can see why.
-    const { products, droppedManualIds, manualCount } = selectDiscountProducts(rows, 25, ["d", "f"]);
-    expect(products.map((p) => p._id)).toEqual(["f", "a", "c", "e"]);
-    expect(droppedManualIds).toEqual(["d"]);
+  it("reports a manual pick that no longer qualifies instead of showing it", () => {
+    const { products, droppedManualIds, manualCount } = selectHomePageDiscounts(
+      rows,
+      engine({ discountPercent: 42, manualProductIds: ["d", "e"] }),
+      NOW,
+    );
+    expect(products.map((p) => p._id).sort()).toEqual(["d", "h"]); // d stored 50%, h re-priced to 42
+    expect(droppedManualIds).toEqual(["e"]);
     expect(manualCount).toBe(1);
   });
 
-  it("drops a manual pick as soon as its price changes", () => {
-    const before = selectDiscountProducts(rows, 25, ["f"]);
-    expect(before.products.map((p) => p._id)).toContain("f");
-    const repriced = rows.map((r) => (r._id === "f" ? { ...r, discountPrice: 190 } : r)); // now 5%
-    const after = selectDiscountProducts(repriced, 25, ["f"]);
-    expect(after.products.map((p) => p._id)).not.toContain("f");
-    expect(after.droppedManualIds).toEqual(["f"]);
+  it("drops hand picks the moment their price rises above the minimum", () => {
+    const repriced = rows.map((r) => (r._id === "a" ? { ...r, discountPrice: 390 } : r)); // 2% off
+    const { products, droppedManualIds } = selectHomePageDiscounts(
+      repriced,
+      engine({ discountPercent: 25, manualProductIds: ["a"] }),
+      NOW,
+    );
+    expect(products.map((p) => p._id)).not.toContain("a");
+    expect(droppedManualIds).toEqual(["a"]);
   });
 
   it("lists a duplicated manual pick only once", () => {
-    const { products, manualCount } = selectDiscountProducts(rows, 25, ["a", "a"]);
+    const { products, manualCount } = selectHomePageDiscounts(
+      rows,
+      engine({ discountPercent: 25, manualProductIds: ["a", "a"] }),
+      NOW,
+    );
     expect(products.filter((p) => p._id === "a")).toHaveLength(1);
     expect(manualCount).toBe(1);
   });
 
-  it("ignores an inactive product even when it matches and was picked by hand", () => {
-    const { products, droppedManualIds } = selectDiscountProducts(rows, 25, ["g"]);
-    expect(products.map((p) => p._id)).not.toContain("g");
+  it("hides excluded products and inactive rows even when picked", () => {
+    const { products, droppedManualIds } = selectHomePageDiscounts(
+      rows,
+      engine({ discountPercent: 25, manualProductIds: ["g"], excludedProductIds: ["d", "e"] }),
+      NOW,
+    );
+    expect(products.map((p) => p._id).sort()).toEqual(["a", "b", "c", "h"]);
     expect(droppedManualIds).toEqual(["g"]);
   });
 
-  it("returns nothing when the catalogue has no such discount", () => {
-    const { products } = selectDiscountProducts(rows, 63);
+  it("shows rule-priced products created after the rule was saved", () => {
+    const fresh = [...rows, row({ _id: "new", price: 149 })]; // no selling price yet
+    const { products } = selectHomePageDiscounts(
+      fresh,
+      engine({ discountPercent: 20 }),
+      NOW,
+    );
+    // A product created after the rule was saved has no selling price of its
+    // own, so the default rule prices it immediately — it lists automatically.
+    const autoRow = resolveProductDiscount(fresh[rows.length]!, engine({ discountPercent: 20 }), NOW);
+    expect(autoRow.status).toBe("auto");
+    expect(autoRow.effectivePrice).toBe(119.2);
+    expect(products.some((p) => p._id === "new")).toBe(true);
+  });
+
+  it("returns nothing when no admin has configured a percent", () => {
+    const { products } = selectHomePageDiscounts(rows, engine({ discountPercent: 0 }), NOW);
     expect(products).toEqual([]);
   });
 });

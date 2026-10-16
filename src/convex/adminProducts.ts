@@ -3,6 +3,7 @@ import { query, mutation, internalQuery, internalMutation } from "./_generated/s
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { isVerifiedProductImage } from "./productImageResolver";
+import { syncProduct } from "./discountEngine";
 import {
   CATALOG_PROMOTION_SOURCE_LABEL,
   MAX_PROMOTION_MEDIA,
@@ -418,6 +419,26 @@ export const get = query({
 });
 
 // ── Admin: Create a new product ──
+
+/**
+ * Price validation shared by create and update: a base price must be positive
+ * and a selling price must be strictly lower than it, so the engine can never
+ * compute a zero/negative price or an upside-down “discount”.
+ */
+function assertValidPricing(price: number, discountPrice?: number) {
+  if (!Number.isFinite(price) || price <= 0) {
+    throw new Error("Base price (MRP) must be a number greater than zero.");
+  }
+  if (discountPrice !== undefined && discountPrice !== null) {
+    if (!Number.isFinite(discountPrice) || discountPrice <= 0) {
+      throw new Error("Selling price must be a number greater than zero.");
+    }
+    if (discountPrice >= price) {
+      throw new Error("Selling price must be lower than the base price (MRP).");
+    }
+  }
+}
+
 export const create = mutation({
   args: {
     name: v.string(),
@@ -460,6 +481,7 @@ export const create = mutation({
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
     assertVerifiedImageForNewProduct(args.imageUrl);
+    assertValidPricing(args.price, args.discountPrice);
 
     // Check for duplicate slug
     const existing = await ctx.db
@@ -480,7 +502,17 @@ export const create = mutation({
     const now = Date.now();
     const doc: any = { ...rest, createdAt: now, updatedAt: now };
     if (productPromotion) doc.productPromotion = productPromotion;
+    // An explicit selling price typed here belongs to the admin — the engine
+    // must never overwrite it. No selling price = the discount rules govern it.
+    if (args.discountPrice !== undefined) doc.discountSource = "manual";
     const productId: Id<"products"> = await ctx.db.insert("products", doc);
+    // Apply the active discount rules to the new product immediately, so it is
+    // priced and listed in the homepage discount section with no admin step.
+    try {
+      await syncProduct(ctx, productId);
+    } catch {
+      // Product creation must never fail because of pricing reconciliation.
+    }
     return productId;
   },
 });
@@ -529,6 +561,7 @@ export const update = mutation({
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
     assertRealImageUrl(args.imageUrl, false);
+    assertValidPricing(args.price, args.discountPrice);
 
     // An edit never downgrades a product that already has a verified packshot:
     // if the incoming form carries no new verified image, the stored one and its
@@ -571,7 +604,17 @@ export const update = mutation({
 
     const patch: any = { ...updates, updatedAt: Date.now() };
     if (productPromotion) patch.productPromotion = productPromotion;
+    // The form's selling price is an explicit admin override; its presence or
+    // absence retags provenance for the engine (no id →编辑 engine governs it).
+    if (args.discountPrice !== undefined) patch.discountSource = "manual";
     await ctx.db.patch(productId, patch);
+    // Reconcile with the rules: reprices engine-managed products after a
+    // base-price/category/active change, and leaves manual prices alone.
+    try {
+      await syncProduct(ctx, productId);
+    } catch {
+      // Product updates must never fail because of pricing reconciliation.
+    }
     return productId;
   },
 });

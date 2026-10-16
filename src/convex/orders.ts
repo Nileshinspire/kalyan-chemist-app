@@ -2,6 +2,8 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { handleOrderStatusChange, reserveWalletForOrder } from "./referralWallet";
+import { loadEngine } from "./discountEngine";
+import { resolveProductDiscount } from "../lib/discount";
 
 // ── List orders for current user (newest first) ──
 export const list = query({
@@ -116,6 +118,12 @@ export const create = mutation({
     let subtotal = 0;
     let discount = 0;
 
+    // One engine read for the whole order: every unit price below is settled
+    // through the SAME resolver the storefront prices come from, so a rule
+    // change between "add to cart" and "place order" is applied here too, and a
+    // client-sent price is never trusted.
+    const { engine, now: engineNow } = await loadEngine(ctx.db);
+
     for (const ci of cartItems) {
       const product = await ctx.db.get(ci.productId);
       if (!product || !product.isActive) {
@@ -128,10 +136,19 @@ export const create = mutation({
       }
 
       const originalPrice = product.price;
-      const effectivePrice =
-        product.discountPrice && product.discountPrice < product.price
-          ? product.discountPrice
-          : product.price;
+      const { percent: effectivePercent, effectivePrice } = resolveProductDiscount(
+        {
+          _id: product._id,
+          price: product.price,
+          discountPrice: product.discountPrice ?? null,
+          categoryId: product.categoryId,
+          isActive: product.isActive,
+          discountSource: product.discountSource ?? null,
+        },
+        engine,
+        engineNow,
+      );
+      void effectivePercent;
 
       orderItems.push({
         productId: ci.productId,
@@ -524,7 +541,22 @@ export const createDirectOrder = mutation({
     }
 
     const originalPrice = product.price;
-    const effectivePrice = product.discountPrice && product.discountPrice < product.price ? product.discountPrice : product.price;
+    // Settle through the discount engine — the same resolver every storefront
+    // price uses, so Buy Now, cart and checkout always agree with each other.
+    const { engine: buyNowEngine, now: buyNowNow } = await loadEngine(ctx.db);
+    const buyNowResolution = resolveProductDiscount(
+      {
+        _id: product._id,
+        price: product.price,
+        discountPrice: product.discountPrice ?? null,
+        categoryId: product.categoryId,
+        isActive: product.isActive,
+        discountSource: product.discountSource ?? null,
+      },
+      buyNowEngine,
+      buyNowNow,
+    );
+    const effectivePrice = buyNowResolution.effectivePrice;
 
     const orderItems = [{
       productId: args.productId,

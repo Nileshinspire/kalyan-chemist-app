@@ -7,127 +7,198 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { motion } from "framer-motion";
 import {
   BadgePercent,
+  CalendarClock,
   CheckCircle2,
+  EyeOff,
   Loader2,
   Percent,
+  Pin,
+  PinOff,
   Plus,
   Save,
   Search,
   Tag,
-  X,
-} from "lucide-react";
+  Trash2} from "lucide-react";
 import { toast } from "sonner";
-import { productDiscountPercent } from "@/lib/discount";
 
-/* ─── Discount Manager ───
- * Sets the ONE percentage the homepage "Minimum N% Off" section advertises.
- *
- * The admin can type any whole percentage, and the list below shows what the
- * homepage will show for that value BEFORE saving: every product whose own
- * calculated discount (price vs discountPrice) is exactly that percentage.
- * Hand-picked products are stored too, but they only render while their real
- * discount still matches, which is why a pick that no longer qualifies is
- * marked as hidden rather than counted.
- *
- * Reads/writes go through `api.discountHighlights` — the same table the
- * storefront section reads — and the write is admin-only on the server.
+/**
+ * Product-state label + palette, one per engine status. The admin sees HOW each
+ * product is priced: automatically by a rule, by an explicit override,
+ * preserved at its explicit selling price, excluded, or out of consideration.
  */
+const STATUS_META: Record<string, { label: string; className: string }> = {
+  auto: { label: "Auto · default rule", className: "border-primary/20 bg-primary/5 text-primary" },
+  override: { label: "Override rule", className: "border-violet-300 bg-violet-50 text-violet-700" },
+  category: { label: "Category promotion", className: "border-sky-300 bg-sky-50 text-sky-700" },
+  "manual-price": { label: "Explicit price (kept)", className: "border-emerald-300 bg-emerald-50 text-emerald-700" },
+  excluded: { label: "Excluded", className: "border-amber-300 bg-amber-50 text-amber-700" },
+  ineligible: { label: "Not discounted", className: "border-border bg-muted text-muted-foreground" },
+};
+
+type ProductState = {
+  _id: string;
+  name: string;
+  manufacturer: string;
+  categoryName: string;
+  isActive: boolean;
+  price: number;
+  discountPrice: number | null;
+  discountSource: string | null;
+  status: string;
+  label: string;
+  effectivePercent: number;
+  effectivePrice: number;
+  listed: boolean;
+};
+
+const toLocalInput = (ms: number | null | undefined) =>
+  ms ? new Date(ms - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : "";
+
+const fromLocalInput = (value: string) => {
+  const ms = new Date(value).getTime();
+  return Number.isFinite(ms) ? ms : undefined;
+};
+
 export default function AdminDiscountManager() {
   const config = useQuery(api.discountHighlights.getConfig);
-  const products = useQuery(api.adminProducts.list, {
-    sortBy: "name",
-    sortOrder: "asc",
-  });
+  const categories = useQuery(api.admin.listCategories);
   const saveConfig = useMutation(api.discountHighlights.setConfig);
 
+  // ── Local editing state, loaded once from the saved config ──
   const [percentInput, setPercentInput] = useState("");
+  const [engineActive, setEngineActive] = useState(true);
+  const [startsAtInput, setStartsAtInput] = useState("");
+  const [endsAtInput, setEndsAtInput] = useState("");
   const [manualIds, setManualIds] = useState<string[]>([]);
+  const [excludedIds, setExcludedIds] = useState<string[]>([]);
+  const [overridePercents, setOverridePercents] = useState<Record<string, string>>({});
+  const [categoryRules, setCategoryRules] = useState<{ categoryId: string; discountPercent: string }[]>([]);
   const [initialized, setInitialized] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [search, setSearch] = useState("");
+  const [newRuleCategory, setNewRuleCategory] = useState("");
+  const [newRulePercent, setNewRulePercent] = useState("");
 
-  // Load the saved configuration once, so a background refresh of the query
-  // never overwrites what the admin is currently typing.
+  // Load the saved configuration once so background refreshes never clobber
+  // what the admin is typing.
   useEffect(() => {
     if (config && !initialized) {
       setPercentInput(String(config.discountPercent));
+      setEngineActive(config.isActive);
+      setStartsAtInput(toLocalInput(config.startsAt));
+      setEndsAtInput(toLocalInput(config.endsAt));
       setManualIds(config.manualProductIds);
+      setExcludedIds(config.excludedProductIds);
+      setOverridePercents(
+        Object.fromEntries(
+          config.productOverrides.map((o) => [o.productId, String(o.discountPercent)]),
+        ),
+      );
+      setCategoryRules(
+        config.categoryRules.map((c) => ({
+          categoryId: c.categoryId,
+          discountPercent: String(c.discountPercent),
+        })),
+      );
       setInitialized(true);
     }
   }, [config, initialized]);
 
   const percent = Number(percentInput);
   const validPercent =
-    percentInput.trim() !== "" &&
-    Number.isInteger(percent) &&
-    percent >= 1 &&
-    percent <= 100;
+    percentInput.trim() !== "" && Number.isInteger(percent) && percent >= 1 && percent <= 99;
 
-  const rows = useMemo(() => products ?? [], [products]);
+  const states = useMemo(() => (config?.productStates ?? []) as ProductState[], [config]);
+  const statusCounts = config?.statusCounts ?? {};
 
-  // Exactly the rule the storefront section applies: an active product whose
-  // real, rounded discount equals the configured percentage.
-  const matching = useMemo(
-    () =>
-      rows.filter(
-        (p: any) =>
-          p.isActive && productDiscountPercent(p.price, p.discountPrice) === percent,
-      ),
-    [rows, percent],
-  );
-
-  const manualRows = useMemo(
-    () => manualIds.map((id) => rows.find((p: any) => p._id === id)).filter(Boolean) as any[],
-    [manualIds, rows],
-  );
-  const manualHidden = manualRows.filter(
-    (p) => !p.isActive || productDiscountPercent(p.price, p.discountPrice) !== percent,
-  );
-
-  const filteredRows = useMemo(() => {
+  const filteredStates = useMemo(() => {
     const term = search.trim().toLowerCase();
-    if (!term) return rows;
-    return rows.filter(
-      (p: any) =>
+    if (!term) return states;
+    return states.filter(
+      (p: ProductState) =>
         p.name.toLowerCase().includes(term) ||
-        (p.manufacturer ?? "").toLowerCase().includes(term) ||
-        (p.categoryName ?? "").toLowerCase().includes(term),
+        p.manufacturer.toLowerCase().includes(term),
     );
-  }, [rows, search]);
+  }, [states, search]);
 
-  const toggleManual = (id: string) => {
+  const dirtyOverride = (id: string) => overridePercents[id]?.trim() ?? "";
+
+  const addCategoryRule = () => {
+    if (!newRuleCategory) {
+      toast.error("Choose a category first.");
+      return;
+    }
+    const p = Number(newRulePercent);
+    if (!Number.isInteger(p) || p < 1 || p > 99) {
+      toast.error("Category percent must be a whole number from 1 to 99.");
+      return;
+    }
+    if (categoryRules.some((r) => r.categoryId === newRuleCategory)) {
+      toast.error("That category already has a promotion.");
+      return;
+    }
     setSaved(false);
-    setManualIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+    setCategoryRules((prev) => [...prev, { categoryId: newRuleCategory, discountPercent: newRulePercent }]);
+    setNewRuleCategory("");
+    setNewRulePercent("");
   };
 
   const handleSave = async () => {
     if (!validPercent) {
-      toast.error("Enter a whole percentage between 1 and 100.");
+      toast.error("Enter a whole percentage between 1 and 99.");
+      return;
+    }
+    const rulePercentBad = categoryRules.find(
+      (r) => !Number.isInteger(Number(r.discountPercent)) || Number(r.discountPercent) < 1 || Number(r.discountPercent) > 99,
+    );
+    if (rulePercentBad) {
+      toast.error("Every category promotion needs a whole percent between 1 and 99.");
+      return;
+    }
+    const overrideBad = Object.entries(overridePercents).find(
+      ([, v]) => v.trim() !== "" && (!Number.isInteger(Number(v)) || Number(v) < 1 || Number(v) > 99),
+    );
+    if (overrideBad) {
+      toast.error("Every product override needs a whole percent between 1 and 99, or an empty value to remove it.");
+      return;
+    }
+    const startsAt = fromLocalInput(startsAtInput);
+    const endsAt = fromLocalInput(endsAtInput);
+    if (startsAt && endsAt && endsAt < startsAt) {
+      toast.error("The promotion end must be after its start.");
       return;
     }
     setSaving(true);
     try {
       await saveConfig({
         discountPercent: percent,
-        manualProductIds: manualIds as any,
+        manualProductIds: manualIds as never,
+        isActive: engineActive,
+        startsAt,
+        endsAt,
+        excludedProductIds: excludedIds as never,
+        productOverrides: Object.entries(overridePercents)
+          .filter(([, v]) => v.trim() !== "")
+          .map(([productId, v]) => ({ productId: productId as never, discountPercent: Number(v) })),
+        categoryRules: categoryRules.map((r) => ({
+          categoryId: r.categoryId as never,
+          discountPercent: Number(r.discountPercent),
+        })),
       });
       setSaved(true);
-      toast.success(`Homepage discount set to exactly ${percent}%`);
+      toast.success(`Discount engine saved: ${engineActive ? "active" : "paused"}, ${percent}% default`);
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed to save the discount");
+      toast.error(err instanceof Error ? err.message : "Failed to save the discount rules");
     } finally {
       setSaving(false);
     }
-  };
-
-  const discountLabel = (p: any) => {
-    const pct = productDiscountPercent(p.price, p.discountPrice);
-    return pct > 0 ? `${pct}% off` : "No discount";
   };
 
   return (
@@ -139,60 +210,109 @@ export default function AdminDiscountManager() {
             Discount Manager
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            Exact Discount Deals
+            Discount engine
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Choose the exact discount percentage the homepage section advertises.
-            Products are discovered automatically from their real price and MRP —
-            no product list to maintain.
+            One engine prices the whole shop: a default rule for every eligible
+            product, per-product overrides, category promotions, manual pins for
+            the homepage section, and exclusions that beat everything.
           </p>
         </motion.div>
 
-        {/* ── The configured percentage ── */}
+        {/* ── Rule priority card ── */}
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
+          <Card className="border-border/60 rounded-2xl">
+            <CardHeader>
+              <CardTitle className="text-sm font-bold flex items-center gap-2">
+                <Tag className="size-4 text-primary" /> Which rule wins
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-2 text-xs">
+                {[
+                  ["1 · Exclusion", "excluded"],
+                  ["2 · Product override", "override"],
+                  ["3 · Category promotion", "category"],
+                  ["4 · Default rule", "auto"],
+                  ["5 · Explicit price kept", "manual-price"],
+                ].map(([label]) => (
+                  <Badge key={label} variant="outline" className="rounded-lg">{label}</Badge>
+                ))}
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">
+                One rule per product — never combined, so nothing is ever
+                discounted twice. Prices always rebuild from the product's MRP.
+              </p>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* ── Default rule + promotion window ── */}
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
           <Card className="border-border/60 rounded-2xl">
             <CardHeader>
               <CardTitle className="text-sm font-bold flex items-center gap-2">
-                <Percent className="size-4 text-primary" /> Discount percentage
+                <Percent className="size-4 text-primary" /> Default discount rule
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-[200px_1fr] sm:items-end">
+              <div className="grid gap-4 sm:grid-cols-[160px_1fr] sm:items-end">
                 <div className="space-y-2">
-                  <Label className="text-xs font-medium">Exact discount (%)</Label>
+                  <Label className="text-xs font-medium">Default discount (%)</Label>
                   <Input
                     type="number"
                     inputMode="numeric"
                     min={1}
-                    max={100}
+                    max={99}
                     step={1}
                     value={percentInput}
-                    onChange={(e) => {
-                      setPercentInput(e.target.value);
-                      setSaved(false);
-                    }}
+                    onChange={(e) => { setPercentInput(e.target.value); setSaved(false); }}
                     className="rounded-xl"
-                    placeholder="e.g. 37"
+                    placeholder="e.g. 20"
                   />
                 </div>
                 <div className="text-xs text-muted-foreground space-y-1">
                   <p>
-                    Any whole number from 1 to 100. A product is eligible only when
-                    its own calculated discount is exactly this value — 24%, 26% and
-                    30% off products are never shown for 25%.
-                  </p>
-                  <p>
-                    Current homepage heading:{" "}
-                    <span className="font-semibold text-foreground">
-                      Minimum {validPercent ? percent : "—"}% Off
-                    </span>
-                    {config && !config.configured && (
-                      <span className="ml-1">
-                        (showing the 50% default until you save a value)
-                      </span>
-                    )}
+                    Applies automatically to every active product without its own
+                    override, including newly created products — no manual step.
+                    The homepage section advertises
+                    {" "}<span className="font-semibold text-foreground">Minimum {validPercent ? percent : "—"}% Off</span>.
                   </p>
                 </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-4 rounded-xl border border-border/60 bg-muted/30 p-3">
+                <div className="flex items-center gap-2">
+                  <Switch
+                    checked={engineActive}
+                    onCheckedChange={(v) => { setEngineActive(v); setSaved(false); }}
+                    id="engine-active"
+                  />
+                  <Label htmlFor="engine-active" className="text-xs font-medium cursor-pointer">
+                    {engineActive ? "Promotion active" : "Promotion paused"}
+                  </Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <CalendarClock className="size-4 text-muted-foreground" />
+                  <Label className="text-xs text-muted-foreground">Starts</Label>
+                  <Input
+                    type="datetime-local"
+                    value={startsAtInput}
+                    onChange={(e) => { setStartsAtInput(e.target.value); setSaved(false); }}
+                    className="h-8 w-44 rounded-lg text-xs"
+                  />
+                  <Label className="text-xs text-muted-foreground">Ends</Label>
+                  <Input
+                    type="datetime-local"
+                    value={endsAtInput}
+                    onChange={(e) => { setEndsAtInput(e.target.value); setSaved(false); }}
+                    className="h-8 w-44 rounded-lg text-xs"
+                  />
+                </div>
+                <p className="text-[11px] text-muted-foreground w-full sm:w-auto">
+                  A paused or expired window stops the default and category rules;
+                  overrides and explicit prices stay as they are.
+                </p>
               </div>
 
               <div className="flex flex-wrap items-center gap-3">
@@ -215,7 +335,7 @@ export default function AdminDiscountManager() {
                 )}
                 {percentInput.trim() !== "" && !validPercent && (
                   <p className="text-sm text-destructive">
-                    Enter a whole percentage between 1 and 100.
+                    Enter a whole percentage between 1 and 99.
                   </p>
                 )}
                 {config?.updatedAt && (
@@ -228,178 +348,205 @@ export default function AdminDiscountManager() {
           </Card>
         </motion.div>
 
-        {/* ── What the homepage will show ── */}
+        {/* ── Category promotions ── */}
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
           <Card className="border-border/60 rounded-2xl">
             <CardHeader>
               <CardTitle className="text-sm font-bold flex items-center gap-2">
-                <Tag className="size-4 text-primary" /> Products at exactly{" "}
-                {validPercent ? percent : "—"}% off
+                <Tag className="size-4 text-primary" /> Category promotions
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex flex-wrap gap-3 text-xs">
-                <Badge variant="outline" className="rounded-lg">
-                  {matching.length} product{matching.length === 1 ? "" : "s"} will show
-                </Badge>
-                <Badge variant="outline" className="rounded-lg">
-                  {matching.length - manualRows.filter((p) => matching.some((m: any) => m._id === p._id)).length} found automatically
-                </Badge>
-                <Badge variant="outline" className="rounded-lg">
-                  {manualRows.filter((p) => matching.some((m: any) => m._id === p._id)).length} from your manual selection
-                </Badge>
-              </div>
-
-              {matching.length === 0 ? (
-                <p className="rounded-xl border border-dashed border-border/70 bg-muted/30 px-4 py-6 text-center text-sm text-muted-foreground">
-                  No product is at exactly {validPercent ? `${percent}%` : "that"} off right now, so the
-                  homepage shows its empty state. Set a product's selling price to
-                  match this percentage, or change the percentage above.
-                </p>
-              ) : (
-                <div className="max-h-80 overflow-y-auto rounded-xl border border-border/60">
-                  {matching.map((p: any) => (
-                    <div
-                      key={p._id}
-                      className="flex items-center justify-between gap-3 border-b border-border/50 px-4 py-2.5 last:border-b-0"
-                    >
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-medium text-foreground">{p.name}</p>
-                        <p className="truncate text-xs text-muted-foreground">
-                          {p.categoryName} · {p.manufacturer}
-                        </p>
-                      </div>
-                      <div className="shrink-0 text-right">
-                        <p className="text-xs font-semibold text-foreground">
-                          ₹{p.discountPrice ?? p.price}{" "}
-                          <span className="font-normal text-muted-foreground line-through">
-                            ₹{p.price}
-                          </span>
-                        </p>
-                        <p className="text-[11px] text-green-600">{discountLabel(p)}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {manualHidden.length > 0 && (
-                <p className="text-xs text-amber-600">
-                  {manualHidden.length} of your selected product
-                  {manualHidden.length === 1 ? " is" : "s are"} hidden because the real
-                  discount is not {validPercent ? `${percent}%` : "the configured value"}{" "}
-                  right now: {manualHidden.map((p: any) => `${p.name} (${discountLabel(p)})`).join(", ")}
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        {/* ── Manual selection ── */}
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
-          <Card className="border-border/60 rounded-2xl">
-            <CardHeader>
-              <CardTitle className="text-sm font-bold flex items-center gap-2">
-                <Plus className="size-4 text-primary" /> Manually selected products
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-3">
               <p className="text-xs text-muted-foreground">
-                Adding a product here keeps it in the section as long as its real
-                discount stays exactly{" "}
-                {validPercent ? `${percent}%` : "the configured percentage"}. If its price
-                changes, it drops out automatically instead of showing a wrong
-                discount.
+                While the window is open, products in these categories get the
+                category percent (overridden products keep their override).
               </p>
 
-              {manualRows.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                  {manualRows.map((p) => {
-                    const hidden = manualHidden.some((h) => h._id === p._id);
+              {categoryRules.length > 0 && (
+                <div className="space-y-2">
+                  {categoryRules.map((r) => {
+                    const catList = Array.isArray(categories) ? (categories as any[]) : [];
+                    const name = catList.find((c) => c._id === r.categoryId)?.name ?? r.categoryId;
                     return (
-                      <span
-                        key={p._id}
-                        className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs ${
-                          hidden
-                            ? "border-amber-300 bg-amber-50 text-amber-700"
-                            : "border-primary/20 bg-primary/5 text-primary"
-                        }`}
-                      >
-                        {p.name}
-                        <span className="text-[10px] opacity-80">({discountLabel(p)})</span>
-                        <button
-                          type="button"
-                          aria-label={`Remove ${p.name}`}
-                          className="rounded-full p-0.5 hover:bg-black/5"
-                          onClick={() => toggleManual(p._id)}
+                      <div key={r.categoryId} className="flex items-center gap-2 rounded-lg border border-border/60 px-3 py-2">
+                        <span className="text-sm font-medium flex-1 min-w-0 truncate">{name}</span>
+                        <Input
+                          type="number"
+                          min={1}
+                          max={99}
+                          value={r.discountPercent}
+                          onChange={(e) => {
+                            setSaved(false);
+                            setCategoryRules((prev) =>
+                              prev.map((x) => (x.categoryId === r.categoryId ? { ...x, discountPercent: e.target.value } : x)),
+                            );
+                          }}
+                          className="h-8 w-20 rounded-lg text-xs"
+                        />
+                        <span className="text-xs text-muted-foreground">% off</span>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="size-7 text-destructive hover:text-destructive"
+                          onClick={() => { setSaved(false); setCategoryRules((prev) => prev.filter((x) => x.categoryId !== r.categoryId)); }}
                         >
-                          <X className="size-3" />
-                        </button>
-                      </span>
+                          <Trash2 className="size-3.5" />
+                        </Button>
+                      </div>
                     );
                   })}
                 </div>
               )}
+
+              <div className="flex flex-wrap items-center gap-2">
+                <Select
+                  value={newRuleCategory || undefined}
+                  onValueChange={(v) => setNewRuleCategory(v)}
+                >
+                  <SelectTrigger className="h-9 w-56 rounded-xl">
+                    <SelectValue placeholder="Choose a category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(Array.isArray(categories) ? categories : []).map((c: any) => (
+                      <SelectItem key={c._id} value={c._id}>{c.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Input
+                  type="number"
+                  min={1}
+                  max={99}
+                  placeholder="%"
+                  value={newRulePercent}
+                  onChange={(e) => setNewRulePercent(e.target.value)}
+                  className="h-9 w-20 rounded-xl"
+                />
+                <Button size="sm" variant="outline" className="rounded-xl gap-1.5" onClick={addCategoryRule}>
+                  <Plus className="size-3.5" /> Add rule
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* ── Product states ── */}
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+          <Card className="border-border/60 rounded-2xl">
+            <CardHeader>
+              <CardTitle className="text-sm font-bold flex items-center gap-2">
+                <Search className="size-4 text-primary" /> Products — how each one is priced
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-wrap gap-2 text-xs">
+                <Badge variant="outline" className="rounded-lg">
+                  {config?.lineCounts?.auto ?? 0} in the homepage section ({config?.lineCounts?.manual ?? 0} pinned)
+                </Badge>
+                <Badge variant="outline" className="rounded-lg">{statusCounts.auto ?? 0} auto</Badge>
+                <Badge variant="outline" className="rounded-lg">{statusCounts.override ?? 0} override</Badge>
+                <Badge variant="outline" className="rounded-lg">{statusCounts.category ?? 0} category</Badge>
+                <Badge variant="outline" className="rounded-lg">{statusCounts["manual-price"] ?? 0} explicit price</Badge>
+                <Badge variant="outline" className="rounded-lg">{statusCounts.excluded ?? 0} excluded</Badge>
+                <Badge variant="outline" className="rounded-lg">{statusCounts.ineligible ?? 0} not discounted</Badge>
+                {config && !config.windowOpen && (
+                  <Badge variant="outline" className="rounded-lg border-amber-300 bg-amber-50 text-amber-700">
+                    Promotion window closed
+                  </Badge>
+                )}
+              </div>
 
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search products by name, manufacturer or category"
+                  placeholder="Search products by name or manufacturer"
                   className="rounded-xl pl-9"
                 />
               </div>
 
-              <div className="max-h-96 overflow-y-auto rounded-xl border border-border/60">
-                {filteredRows.length === 0 ? (
-                  <p className="px-4 py-6 text-center text-sm text-muted-foreground">
-                    No products match that search.
-                  </p>
-                ) : (
-                  filteredRows.map((p: any) => {
-                    const selected = manualIds.includes(p._id);
-                    const pct = productDiscountPercent(p.price, p.discountPrice);
-                    const qualifies = p.isActive && pct === percent;
-                    return (
-                      <div
-                        key={p._id}
-                        className="flex items-center justify-between gap-3 border-b border-border/50 px-4 py-2.5 last:border-b-0"
-                      >
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium text-foreground">{p.name}</p>
-                          <p className="truncate text-xs text-muted-foreground">
-                            {p.categoryName} · ₹{p.discountPrice ?? p.price} / ₹{p.price} ·{" "}
-                            {discountLabel(p)}
-                            {!p.isActive && " · inactive"}
-                          </p>
-                        </div>
-                        <Button
-                          size="sm"
-                          variant={selected ? "secondary" : "outline"}
-                          className="shrink-0 rounded-lg text-xs"
-                          onClick={() => toggleManual(p._id)}
+              {config === undefined ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="size-5 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <div className="max-h-[28rem] overflow-y-auto rounded-xl border border-border/60">
+                  {filteredStates.length === 0 ? (
+                    <p className="px-4 py-6 text-center text-sm text-muted-foreground">
+                      No products match that search.
+                    </p>
+                  ) : (
+                    filteredStates.map((p) => {
+                      const meta = STATUS_META[p.status] ?? STATUS_META.ineligible;
+                      const pinned = manualIds.includes(p._id);
+                      const excluded = excludedIds.includes(p._id);
+                      const overrideValue = dirtyOverride(p._id);
+                      return (
+                        <div
+                          key={p._id}
+                          className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-border/50 px-4 py-2.5 last:border-b-0"
                         >
-                          {selected ? (
-                            <>
-                              <X className="size-3 mr-1" /> Remove
-                            </>
-                          ) : (
-                            <>
-                              <Plus className="size-3 mr-1" /> Add
-                            </>
-                          )}
-                        </Button>
-                        {selected && !qualifies && (
-                          <span className="shrink-0 text-[11px] text-amber-600">
-                            Hidden at {validPercent ? `${percent}%` : "this value"}
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })
-                )}
-              </div>
+                          <div className="min-w-0 flex-1 basis-56">
+                            <p className="truncate text-sm font-medium text-foreground">
+                              {p.name}
+                              {p.listed && (
+                                <span className="ml-2 rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] text-primary">on homepage</span>
+                              )}
+                            </p>
+                            <p className="truncate text-xs text-muted-foreground">
+                              {p.categoryName} · {p.manufacturer}
+                              {!p.isActive && " · inactive"}
+                            </p>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className={`rounded-lg text-[10px] ${meta.className}`}>
+                              {meta.label}
+                            </Badge>
+                            <span className="text-xs text-muted-foreground">
+                              ₹{p.effectivePrice}
+                              {p.effectivePercent > 0 && (
+                                <span className="text-green-600"> · {p.effectivePercent}% off</span>
+                              )}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-1.5">
+                            <Input
+                              type="number"
+                              min={1}
+                              max={99}
+                              placeholder="override %"
+                              value={overrideValue}
+                              onChange={(e) => { setOverridePercents((prev) => ({ ...prev, [p._id]: e.target.value })); setSaved(false); }}
+                              className="h-7 w-24 rounded-lg text-xs"
+                              title="Set a product-specific override percent; clear it to remove the override"
+                            />
+                            <Button
+                              size="icon"
+                              variant={pinned ? "secondary" : "ghost"}
+                              className="size-7"
+                              title={pinned ? "Remove from the homepage section" : "Pin to the homepage section"}
+                              onClick={() => { setSaved(false); setManualIds((prev) => (pinned ? prev.filter((x) => x !== p._id) : [...prev, p._id])); }}
+                            >
+                              {pinned ? <PinOff className="size-3.5" /> : <Pin className="size-3.5" />}
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant={excluded ? "secondary" : "ghost"}
+                              className={`size-7 ${excluded ? "text-amber-700" : "text-muted-foreground"}`}
+                              title={excluded ? "Remove the exclusion" : "Exclude from all automatic discounts"}
+                              onClick={() => { setSaved(false); setExcludedIds((prev) => (excluded ? prev.filter((x) => x !== p._id) : [...prev, p._id])); }}
+                            >
+                              {excluded ? <EyeOff className="size-3.5" /> : <EyeOff className="size-3.5 opacity-40" />}
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              )}
 
               <div className="flex flex-wrap items-center gap-3 border-t border-border/50 pt-4">
                 <Button
@@ -410,8 +557,13 @@ export default function AdminDiscountManager() {
                   {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
                   {saving ? "Saving…" : "Save configuration"}
                 </Button>
+                {overridePercents && Object.values(overridePercents).some((v) => v.trim() === "") && (
+                  <span className="text-xs text-muted-foreground">
+                    Clearing an override percent removes that override on save.
+                  </span>
+                )}
                 <span className="text-xs text-muted-foreground">
-                  Saved settings stay in place after a refresh or a new sign-in.
+                  Saved settings persist after a refresh or a new sign-in, and every change is written to the audit log.
                 </span>
               </div>
             </CardContent>

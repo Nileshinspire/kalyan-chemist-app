@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, within, fireEvent } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { useQuery, useMutation } from "convex/react";
 import AdminDiscountManager from "@/pages/admin/AdminDiscountManager";
 
 vi.mock("convex/react", () => ({
   useQuery: vi.fn(),
-  useMutation: vi.fn(() => vi.fn()),
+  useMutation: vi.fn(),
   useConvex: vi.fn(() => ({ prewarmQuery: vi.fn() })),
 }));
 vi.mock("@/context/AuthContext", () => ({
@@ -20,60 +20,105 @@ vi.mock("@/context/AuthContext", () => ({
 }));
 
 const mockUseQuery = vi.mocked(useQuery);
+const mockSave = vi.fn();
+vi.mocked(useMutation).mockImplementation(() => mockSave as never);
 
-/** The page reads the config first, then the product catalogue. */
+/** Config exactly as the engine's getConfig returns it. */
 const config = {
   configured: true,
   discountPercent: 37,
+  isActive: true,
+  startsAt: null,
+  endsAt: null,
   manualProductIds: ["p3"],
+  excludedProductIds: ["p2"],
+  productOverrides: [{ productId: "p4", discountPercent: 55 }],
+  categoryRules: [{ categoryId: "c1", categoryName: "Wellness", discountPercent: 30 }],
   updatedAt: 1_700_000_000_000,
-  matchCount: 1,
-  autoCount: 1,
-  manualCount: 0,
-  droppedManualIds: [],
+  lineCounts: { products: 4, auto: 1, manual: 1, droppedManualIds: [] },
+  windowOpen: true,
+  statusCounts: {
+    auto: 1,
+    override: 1,
+    category: 1,
+    "manual-price": 1,
+    excluded: 1,
+    ineligible: 1,
+  },
+  productStates: [
+    {
+      _id: "p1",
+      name: "Auto-priced product",
+      manufacturer: "Cipla",
+      categoryName: "Wellness",
+      isActive: true,
+      price: 100,
+      discountPrice: 63,
+      discountSource: "rule",
+      status: "auto",
+      label: "Default rule: 37% off",
+      effectivePercent: 37,
+      effectivePrice: 63,
+      listed: true,
+      overriddenByOverride: false,
+    },
+    {
+      _id: "p2",
+      name: "Excluded product",
+      manufacturer: "Cipla",
+      categoryName: "Wellness",
+      isActive: true,
+      price: 100,
+      discountPrice: 75,
+      discountSource: null,
+      status: "excluded",
+      label: "Manually excluded from promotions",
+      effectivePercent: 25,
+      effectivePrice: 75,
+      listed: false,
+      overriddenByOverride: false,
+    },
+    {
+      _id: "p3",
+      name: "Pinned product",
+      manufacturer: "Cipla",
+      categoryName: "Wellness",
+      isActive: true,
+      price: 200,
+      discountPrice: 100,
+      discountSource: null,
+      status: "manual-price",
+      label: "Explicit selling price (preserved)",
+      effectivePercent: 50,
+      effectivePrice: 100,
+      listed: true,
+      overriddenByOverride: false,
+    },
+    {
+      _id: "p4",
+      name: "Overridden product",
+      manufacturer: "Cipla",
+      categoryName: "Wellness",
+      isActive: true,
+      price: 300,
+      discountPrice: 135,
+      discountSource: "rule",
+      status: "override",
+      label: "Product-specific override: 55% off",
+      effectivePercent: 55,
+      effectivePrice: 135,
+      listed: true,
+      overriddenByOverride: true,
+    },
+  ],
 };
 
-const catalogue = [
-  {
-    _id: "p1",
-    name: "At 37 percent",
-    price: 100,
-    discountPrice: 63,
-    isActive: true,
-    manufacturer: "Cipla",
-    categoryName: "Wellness",
-  },
-  {
-    _id: "p2",
-    name: "At 25 percent",
-    price: 100,
-    discountPrice: 75,
-    isActive: true,
-    manufacturer: "Cipla",
-    categoryName: "Wellness",
-  },
-  {
-    _id: "p3",
-    name: "Picked by admin",
-    price: 200,
-    discountPrice: 100, // 50% — picked, but no longer matches 37%
-    isActive: true,
-    manufacturer: "Cipla",
-    categoryName: "Wellness",
-  },
-  {
-    _id: "p4",
-    name: "No discount",
-    price: 50,
-    isActive: true,
-    manufacturer: "Cipla",
-    categoryName: "Wellness",
-  },
-];
+const categories = [{ _id: "c1", name: "Wellness" }];
 
 function renderPage() {
-  let call = 0;
-  mockUseQuery.mockImplementation((() => (++call === 1 ? config : catalogue)) as never);
+  // The config query is the page's first and only data dependency the tests
+  // need; the category list is optional and renders its fallback when absent.
+  mockUseQuery.mockReturnValue(config as never);
   return render(
     <MemoryRouter>
       <AdminDiscountManager />
@@ -82,42 +127,52 @@ function renderPage() {
 }
 
 describe("AdminDiscountManager", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockSave.mockResolvedValue({ discountPercent: 37, manualCount: 1, sync: { priced: 0, cleaned: 0, skipped: 0 } });
+  });
 
-  it("loads the saved percentage into the input and the heading", () => {
+  it("loads the saved percentage into the input", () => {
     renderPage();
-    expect(screen.getByText("Exact Discount Deals")).toBeInTheDocument();
+    expect(screen.getByText("Discount engine")).toBeInTheDocument();
     expect(screen.getByDisplayValue("37")).toBeInTheDocument();
     expect(screen.getByText(/Minimum 37% Off/)).toBeInTheDocument();
+    expect(screen.getByText(/Last saved/)).toBeInTheDocument();
   });
 
-  it("previews exactly the products whose own discount is the configured one", () => {
+  it("shows which rule prices each product and its effective price", () => {
     renderPage();
-    // The picker lists the whole catalogue on purpose; it is the preview card that
-    // must hold only the exact matches.
-    const preview = screen
-      .getByText(/Products at exactly/)
-      .closest('[data-slot="card"]') as HTMLElement;
-    expect(preview).not.toBeNull();
-    expect(within(preview).getByText("1 product will show")).toBeInTheDocument();
-    expect(within(preview).getByText("At 37 percent")).toBeInTheDocument();
-    // One product really is at 37%; the 25%, 50% and undiscounted ones are not.
-    expect(within(preview).queryByText("At 25 percent")).not.toBeInTheDocument();
-    expect(within(preview).queryByText("No discount")).not.toBeInTheDocument();
-    expect(within(preview).queryByText("Picked by admin")).not.toBeInTheDocument();
+    // Status labels also appear in the priority card, so match them anywhere.
+    for (const label of [/Auto · default rule/, /Override rule/, /Explicit price \(kept\)/, /Excluded/]) {
+      expect(screen.getAllByText(label).length).toBeGreaterThan(0);
+    }
+    // Effective prices and percents are surfaced next to each row.
+    expect(screen.getByText(/63/)).toBeInTheDocument();
+    expect(screen.getByText(/135/)).toBeInTheDocument();
+    expect(screen.getByText(/55% off/)).toBeInTheDocument();
   });
 
-  it("shows a selected product as hidden when its real discount no longer matches", () => {
+  it("surfaces the section counts and the exclusion state", () => {
     renderPage();
-    // "Picked by admin" is 50% off while the section advertises 37%, so it is
-    // listed as hidden (in the chip and in the picker row) rather than counted.
-    expect(screen.getAllByText(/50% off/).length).toBeGreaterThan(0);
-    expect(screen.getByText(/1 of your selected product is hidden/)).toBeInTheDocument();
-    expect(screen.getByText("Hidden at 37%")).toBeInTheDocument();
+    expect(screen.getByText(/in the homepage section/)).toBeInTheDocument();
+    expect(screen.getByDisplayValue("55")).toBeInTheDocument(); // override percent input
   });
 
-  it("marks the matching product as qualifying in the picker", () => {
+  it("sends the full normalized payload when saving", async () => {
     renderPage();
-    expect(screen.getByText("37% off")).toBeInTheDocument();
+    const saveButtons = screen.getAllByText("Save configuration");
+    fireEvent.click(saveButtons[0]!);
+    await vi.waitFor(() => {
+      expect(mockSave).toHaveBeenCalledTimes(1);
+    });
+    const args = mockSave.mock.calls[0]![0] as Record<string, unknown>;
+    expect(args.discountPercent).toBe(37);
+    expect(args.isActive).toBe(true);
+    expect(args.manualProductIds).toEqual(["p3"]);
+    expect(args.excludedProductIds).toEqual(["p2"]);
+    expect(args.productOverrides).toEqual([{ productId: "p4", discountPercent: 55 }]);
+    expect(args.categoryRules).toEqual([{ categoryId: "c1", discountPercent: 30 }]);
+    expect(args.startsAt).toBeUndefined();
+    expect(args.endsAt).toBeUndefined();
   });
 });

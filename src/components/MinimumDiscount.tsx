@@ -6,13 +6,14 @@ import ProductCard from "@/components/ProductCard";
 /* ─── Minimum N% Off — the admin-configured exact-discount section ───
  * Replaces the old "What Our Customers Say" band on the homepage.
  *
- * Everything here comes from `api.discountHighlights.getPublic`, which finds
- * the products whose OWN calculated discount is exactly the configured
- * percentage, across every active product in every category. Nothing is
- * hardcoded: the heading, the copy and the grid all follow the percentage the
- * admin saves in the Discount Manager, and products are rendered through the
- * shared `ProductCard` on the shared `.kc-card-track`, so navigation, cart,
- * wishlist and card dimensions are the same as every other section.
+ * Everything here comes from `api.discountHighlights.getPublic`, which lists
+ * the products the discount engine prices at the configured percentage or
+ * better, across every active product in every category — including products
+ * created after the rule was saved. Nothing is hardcoded: the heading, the copy
+ * and the grid all follow the percentage the admin saves in the Discount
+ * Manager, and products are rendered through the shared `ProductCard` on the
+ * shared `.kc-card-track`, so navigation, cart, wishlist and card dimensions
+ * are the same as every other section.
  *
  * When nothing matches, the section shows a clean empty state instead of
  * anything that is not genuinely at that exact discount.
@@ -21,11 +22,14 @@ export default function MinimumDiscount() {
   const section = useQuery(api.discountHighlights.getPublic);
 
   // Same loading behaviour as every other product section: nothing until the
-  // real data arrives, so no wrong percentage is ever flashed.
-  if (!section) return null;
+  // real data arrives, so no wrong percentage is ever flashed. An admin that
+  // has never saved a rule leaves the whole section out of the homepage.
+  if (!section || !section.configured) return null;
 
   const percent = section.discountPercent;
   const products = section.products;
+
+  if (percent < 1 || percent > 99) return null;
 
   return (
     <section className="border-y border-border/50 bg-gradient-to-b from-card/50 to-background">
@@ -41,7 +45,8 @@ export default function MinimumDiscount() {
             Minimum {percent}% Off
           </h2>
           <p className="mt-2 text-sm sm:text-lg text-muted-foreground max-sm:hidden">
-            Every product here is genuinely {percent}% off its MRP.
+            Every product here is at least {percent}% below its MRP — priced and
+            kept current by our discount engine.
           </p>
         </div>
 
@@ -57,11 +62,12 @@ export default function MinimumDiscount() {
               <Tag className="size-5" />
             </span>
             <p className="text-sm font-semibold text-foreground sm:text-base">
-              No products are at exactly {percent}% off right now.
+              No products are at {percent}% off or better right now.
             </p>
             <p className="mx-auto mt-1.5 max-w-md text-xs text-muted-foreground sm:text-sm">
-              We only list products that are genuinely {percent}% below MRP, so
-              this space stays empty until one qualifies. Please check back soon.
+              We only list products that are genuinely {percent}% or more below
+              MRP, so this space stays empty until one qualifies. Please check
+              back soon.
             </p>
           </div>
         )}

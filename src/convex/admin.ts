@@ -124,6 +124,26 @@ export const listProducts = query({
   },
 });
 
+/**
+ * Price validation for the legacy admin product form: a base price must be
+ * positive and a selling price strictly below it — the same rule the discount
+ * engine and the main product form enforce, so no path can store an invalid
+ * or negative price.
+ */
+function assertValidProductPricing(price: number, discountPrice?: number) {
+  if (!Number.isFinite(price) || price <= 0) {
+    throw new Error("Base price (MRP) must be a number greater than zero.");
+  }
+  if (discountPrice !== undefined && discountPrice !== null) {
+    if (!Number.isFinite(discountPrice) || discountPrice <= 0) {
+      throw new Error("Selling price must be a number greater than zero.");
+    }
+    if (discountPrice >= price) {
+      throw new Error("Selling price must be lower than the base price (MRP).");
+    }
+  }
+}
+
 export const upsertProduct = mutation({
   args: {
     id: v.optional(v.id("products")),
@@ -144,10 +164,17 @@ export const upsertProduct = mutation({
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
     const now = Date.now();
+    assertValidProductPricing(args.price, args.discountPrice);
 
     if (args.id) {
       const { id: _id, ...patchData } = args;
-      await ctx.db.patch(args.id, { ...patchData, updatedAt: now });
+      // An explicit selling price is an admin override ("manual", preserved
+      // by the engine); clearing it hands pricing back to the discount rules.
+      const patch: Record<string, unknown> = { ...patchData, updatedAt: now };
+      patch.discountSource = args.discountPrice !== undefined ? "manual" : undefined;
+      await ctx.db.patch(args.id, patch as any);
+      const { syncProduct } = await import("./discountEngine");
+      try { await syncProduct(ctx, args.id); } catch { /* never block the save on reconciliation */ }
       return { success: true, id: args.id };
     }
 
@@ -157,6 +184,9 @@ export const upsertProduct = mutation({
       description: args.description,
       price: args.price,
       discountPrice: args.discountPrice,
+      // An explicit selling price is the admin's one-off override; none means
+      // the product is priced by the active discount rules from birth.
+      discountSource: args.discountPrice !== undefined ? ("manual" as const) : undefined,
       categoryId: args.categoryId,
       imageUrl: args.imageUrl,
       manufacturer: args.manufacturer,
@@ -168,6 +198,8 @@ export const upsertProduct = mutation({
       createdAt: now,
       updatedAt: now,
     });
+    const { syncProduct } = await import("./discountEngine");
+    try { await syncProduct(ctx, id); } catch { /* never block the save on reconciliation */ }
     return { success: true, id };
   },
 });

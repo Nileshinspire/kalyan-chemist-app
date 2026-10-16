@@ -285,6 +285,14 @@ const schema = defineSchema(
       isActive: v.boolean(),
       createdAt: v.number(),
       updatedAt: v.number(),
+      /**
+       * Who wrote the selling price: "rule" = the discount engine manages it
+       * (safe to reprice when rules change), "manual" = an explicit admin
+       * price that the engine must never overwrite. Absent = legacy row.
+       */
+      discountSource: v.optional(
+        v.union(v.literal("rule"), v.literal("manual")),
+      ),
     })
       .index("by_slug", ["slug"])
       .index("by_category", ["categoryId"])
@@ -1077,17 +1085,38 @@ const schema = defineSchema(
     updatedAt: v.number(),
   }),
 
-    // ── Homepage exact-discount section (admin-owned, one row) ──
-    // The configured percentage is matched against each product's OWN
-    // calculated discount (price vs discountPrice), never against a label.
-    // `manualProductIds` only ever adds products whose real discount already
-    // equals `discountPercent`, so a price change can never keep showing a
-    // product that no longer qualifies.
+    // ── Homepage / promotion discount engine (admin-owned, one row) ──
+    // The engine resolves ONE rule per product (never combined, so a product
+    // can never be discounted twice), in this precedence:
+    //   product override > category rule > global default > explicit price.
+    // `discountPercent` is the global default; `productOverrides` and
+    // `categoryRules` are scoped rules; `excludedProductIds` wins outright;
+    // `manualProductIds` pins products to the front of the homepage section.
+    // `isActive` + `startsAt`/`endsAt` gate rule-driven pricing (window);
+    // explicit per-product overrides and admin-set selling prices survive
+    // a rule change or window closure untouched.
     discountHighlights: defineTable({
-      /** Whole percent, 1–99 — the exact discount the section advertises. */
+      /** Whole percent, 1–99 — the global default discount rule. */
       discountPercent: v.number(),
-      /** Products the admin picked by hand, in addition to the auto matches. */
+      /** Master switch for rule-driven pricing (legacy rows: treated as on). */
+      isActive: v.optional(v.boolean()),
+      /** Optional promotion window start/end (epoch ms). */
+      startsAt: v.optional(v.number()),
+      endsAt: v.optional(v.number()),
+      /** Products the admin pinned to the homepage discount section. */
       manualProductIds: v.array(v.id("products")),
+      /** Products excluded from all automatic discounts + the section. */
+      excludedProductIds: v.optional(v.array(v.id("products"))),
+      /** Product-specific rule, highest active precedence. */
+      productOverrides: v.optional(v.array(v.object({
+        productId: v.id("products"),
+        discountPercent: v.number(),
+      }))),
+      /** Category-scoped rule, between override and global default. */
+      categoryRules: v.optional(v.array(v.object({
+        categoryId: v.id("categories"),
+        discountPercent: v.number(),
+      }))),
       updatedBy: v.optional(v.id("users")),
       updatedAt: v.number(),
     }),
