@@ -8,7 +8,6 @@ import {
   Star,
   Sparkles,
   ArrowRight,
-  Zap,
   Search,
   ShoppingCart,
   MessageCircle,
@@ -32,7 +31,6 @@ import PromotionalCarousel from "@/components/PromotionalCarousel";
 import WhyKalyanChemist from "@/components/WhyKalyanChemist";
 import ShopByBrand from "@/components/ShopByBrand";
 import { beginProductTransition } from "@/lib/product-transition";
-import ProductCard from "@/components/ProductCard";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
@@ -153,7 +151,6 @@ export default function Landing() {
   // Real data from Convex
   const categories = useQuery(api.categories.list);
   const hotSellers = useQuery(api.publicProducts.hotSellers, { limit: 4 });
-  const featuredProducts = useQuery(api.publicProducts.featured, { limit: 4 });
 
   const handleAddToCart = async (productId: string) => {
     try {
@@ -575,34 +572,6 @@ export default function Landing() {
                 );
               })}
             </div>
-          </div>
-        </section>
-      )}
-
-      {/* ── Best Deals / Featured (from DB) ── */}
-      {featuredProducts && featuredProducts.length > 0 && (
-        <section className="mx-auto max-w-7xl px-4 sm:px-6 py-6 sm:py-24">
-          <div className="mb-6 sm:mb-10">
-            {/* Apollo-style compact heading on phones: pill + description
-                render from `sm` up exactly as before. */}
-            <div className="max-sm:hidden inline-flex items-center gap-2 rounded-full bg-primary/5 border border-primary/10 px-3 py-1 text-xs font-medium text-primary mb-4">
-              <Zap className="size-3" />
-              Limited Offers
-            </div>
-            <h2 className="text-2xl font-bold tracking-tight sm:text-5xl max-sm:text-base max-sm:font-semibold max-sm:tracking-normal">
-              Best Deals Right Now
-            </h2>
-            <p className="mt-2 text-sm sm:text-lg text-muted-foreground max-sm:hidden">
-              Save more on your healthcare essentials with our top discounts.
-            </p>
-          </div>
-          {/* Same shared track and shared ProductCard as every other product
-              section — this grid used to hand-roll a 160px-band, single-button
-              card, which is exactly the inconsistency this section now drops. */}
-          <div className="grid grid-cols-2 gap-3 sm:gap-4 kc-card-track">
-            {featuredProducts.map((product) => (
-              <ProductCard key={product._id} product={product} />
-            ))}
           </div>
         </section>
       )}
