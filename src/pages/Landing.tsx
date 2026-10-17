@@ -26,6 +26,7 @@ import HealthcareDevices from "@/components/HealthcareDevices";
 import NewArrivals from "@/components/NewArrivals";
 import ValueDeals from "@/components/ValueDeals";
 import MinimumDiscount from "@/components/MinimumDiscount";
+import { ProductRatingBadge } from "@/components/ProductCard";
 import HowItWorks from "@/components/HowItWorks";
 import PromotionalCarousel from "@/components/PromotionalCarousel";
 import WhyKalyanChemist from "@/components/WhyKalyanChemist";
@@ -551,6 +552,20 @@ export default function Landing() {
                         <Badge variant="secondary" className="absolute top-2 right-2 text-[10px] bg-red-50 text-red-700">Rx</Badge>
                       )}
                     </div>
+                    {/* Same compact pack/form labels as the shared card, from
+                        saved fields only. Phones keep their existing card. */}
+                    <div className="mb-1.5 hidden min-w-0 flex-nowrap items-center gap-1 overflow-hidden sm:flex">
+                      {product.packSize && (
+                        <span className="shrink-0 whitespace-nowrap rounded-md border border-border/70 bg-muted/40 px-1.5 py-0.5 text-[10px] leading-3 font-medium text-muted-foreground">
+                          {product.packSize}
+                        </span>
+                      )}
+                      {(product as any).form && (
+                        <span className="min-w-0 truncate rounded-md border border-border/70 bg-muted/40 px-1.5 py-0.5 text-[10px] leading-3 font-medium text-muted-foreground">
+                          {(product as any).form}
+                        </span>
+                      )}
+                    </div>
                     <h3 className="text-sm max-sm:text-[13px] font-semibold line-clamp-2 transition-colors group-hover:text-primary">{product.name}</h3>
                     <p className="mt-0.5 text-xs text-muted-foreground break-words max-sm:line-clamp-2">{product.manufacturer}</p>
                     <div className="mt-1.5 flex items-baseline gap-1.5 sm:mt-2">
@@ -558,6 +573,10 @@ export default function Landing() {
                       {hasDiscount && (
                         <span className="text-xs text-muted-foreground line-through">{formatCurrency(product.price)}</span>
                       )}
+                      {hasDiscount && discountPct > 0 && (
+                        <span className="hidden text-[11px] font-semibold text-emerald-600 sm:inline">{discountPct}% off</span>
+                      )}
+                      <ProductRatingBadge productId={product._id} className="ml-auto" />
                     </div>
                     <Button
                       size="sm"

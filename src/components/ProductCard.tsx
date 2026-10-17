@@ -5,7 +5,7 @@ import { useQuery, useMutation, useConvex } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Heart, ShoppingCart, Pill } from "lucide-react";
+import { Heart, ShoppingCart, Pill, Star } from "lucide-react";
 import { formatCurrency } from "@/lib/auth-utils";
 import { productDiscountPercent } from "@/lib/discount";
 import { preloadProductDetail } from "@/lib/route-preload";
@@ -77,6 +77,48 @@ function ProductImage({ src, alt }: { src: string; alt: string }) {
       decoding="async"
       className="absolute inset-0 h-full w-full object-center object-contain p-2.5 sm:p-1.5"
     />
+  );
+}
+
+/**
+ * The real review summary for one product, rendered as the compact reference
+ * badge (★ 4.3 (12)). It reads the existing `reviews.getAverageRating` query —
+ * the same one the product page uses — so the figure on a card is the average
+ * of that product's saved reviews and their count. With no saved reviews it
+ * renders nothing at all: no placeholder stars, no zero counts.
+ *
+ * Exported so the homepage's Hot Sellers strip, which has its own card markup,
+ * shows the identical treatment from the same data.
+ */
+export function ProductRatingBadge({
+  productId,
+  className = "",
+}: {
+  productId: string;
+  className?: string;
+}) {
+  const summary = useQuery(api.reviews.getAverageRating, {
+    productId: productId as any,
+  });
+  // Nothing renderable unless the review data actually carries a positive
+  // average and a positive count — never a placeholder for absent data.
+  if (
+    !summary ||
+    !Number.isFinite(summary.average) ||
+    !Number.isFinite(summary.count) ||
+    summary.average <= 0 ||
+    summary.count <= 0
+  )
+    return null;
+  return (
+    <span
+      aria-label={`Rated ${summary.average.toFixed(1)} out of 5 by ${summary.count} ${summary.count === 1 ? "review" : "reviews"}`}
+      className={`flex shrink-0 items-center gap-0.5 text-[10px] leading-3 font-semibold text-emerald-700 ${className}`}
+    >
+      <Star className="size-2.5 fill-emerald-600 text-emerald-600" aria-hidden />
+      {summary.average.toFixed(1)}
+      <span className="font-normal text-emerald-700/80">({summary.count})</span>
+    </span>
   );
 }
 
@@ -257,6 +299,30 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
             )}
           </div>
 
+          {/* Pack/packaging labels + rating — the reference's compact attribute
+              row, directly below the packshot. It is ONE fixed-height line:
+              the labels never wrap and the rating sits at the far right, so a
+              product with ratings and one without render the same box. Both
+              labels come from saved fields only (packSize is required; form is
+              shown only when it exists), and the rating only when the existing
+              review data actually has entries. */}
+          <div className="mb-1.5 hidden min-w-0 flex-nowrap items-center gap-1 overflow-hidden sm:flex">
+            {product.packSize && (
+              <span className="shrink-0 whitespace-nowrap rounded-md border border-border/70 bg-muted/40 px-1.5 py-0.5 text-[10px] leading-3 font-medium text-muted-foreground">
+                {product.packSize}
+              </span>
+            )}
+            {product.form && (
+              <span className="min-w-0 truncate rounded-md border border-border/70 bg-muted/40 px-1.5 py-0.5 text-[10px] leading-3 font-medium text-muted-foreground">
+                {product.form}
+              </span>
+            )}
+            <ProductRatingBadge
+              productId={product._id}
+              className="ml-auto rounded-md bg-emerald-50 px-1.5 py-0.5"
+            />
+          </div>
+
           <div>
             <h3 className="line-clamp-2 text-[13px] leading-tight font-semibold text-foreground transition-colors duration-300 group-hover:text-primary sm:line-clamp-none sm:truncate sm:text-sm sm:leading-5">
               {product.name}
@@ -273,6 +339,11 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
             </p>
           )}
 
+          {/* Price hierarchy: final effective price → struck-through MRP →
+              the same percentage the badge and the discount section use.
+              Mobile keeps its existing price + MRP pair and shows the rating on
+              the right of the same line; the percentage stays on the image
+              badge there, so nothing new can crowd a phone card. */}
           <div className="mt-1.5 flex items-baseline gap-1.5 sm:mt-2">
             <span className="text-base font-extrabold text-foreground">
               {formatCurrency(hasDiscount ? product.discountPrice! : product.price)}
@@ -282,6 +353,12 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
                 {formatCurrency(product.price)}
               </span>
             )}
+            {hasDiscount && discountPct > 0 && (
+              <span className="hidden text-[11px] font-semibold text-emerald-600 sm:inline">
+                {discountPct}% off
+              </span>
+            )}
+            <ProductRatingBadge productId={product._id} className="ml-auto sm:hidden" />
           </div>
         </div>
 

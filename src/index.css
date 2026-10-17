@@ -288,16 +288,18 @@ button, a, [role="button"], [role="link"], select, input[type="submit"], input[t
  * and its gaps, a card here is the reference card: 234px wide on a 1366/1440px
  * laptop, exactly like the Hot Sellers cards.
  *
- * The card HEIGHT comes from the card itself — `--kc-card-h`, the measured
- * 288px of the reference card, applied as a min-height from `sm` up. A name
- * cannot stretch a card (it is clamped to one line) and a missing manufacturer
- * cannot shrink one (the min-height holds the box).
+ * The card HEIGHT comes from the card itself — `--kc-card-h`, the reference
+ * card's box including the compact pack/rating attribute row, applied as a
+ * min-height from `sm` up. A name cannot stretch a card (it is clamped to one
+ * line), a missing manufacturer cannot shrink one, and a rating that some
+ * products have and others do not occupies the same single row — so the
+ * min-height always holds the box.
  *
  * Phones are untouched: the media queries never match below 640px, where the
  * card keeps its own mobile layout and each section keeps its own columns.
  */
 :root {
-  --kc-card-h: 288px;
+  --kc-card-h: 312px;
 }
 
 @media (min-width: 640px) {

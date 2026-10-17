@@ -81,9 +81,43 @@ describe("ProductCard component", () => {
     expect(screen.getByText(/500mg.*1 strip/)).toBeInTheDocument();
   });
 
-  it("hides pack size when no display info", () => {
+  it("shows the saved pack size as a compact label even without dosage info", () => {
+    // The card now carries the reference's attribute row: the saved pack size is
+    // always labelled, regardless of whether a dosage/strength line exists.
     const { container } = renderCard({ packSize: "1 strip" });
-    expect(container.textContent).not.toContain("1 strip");
+    expect(container.textContent).toContain("1 strip");
+    // The phone-only dosage line still needs display info, so it stays absent.
+    expect(container.querySelector("p.sm\\:hidden")).toBeNull();
+  });
+
+  it("shows the packaging form label only when the product has one", () => {
+    const withForm = renderCard({ form: "Tablet" });
+    expect(withForm.container.textContent).toContain("Tablet");
+    withForm.unmount();
+    const withoutForm = renderCard({ form: undefined });
+    expect(withoutForm.container.textContent).not.toContain("Tablet");
+  });
+
+  it("shows the real average rating and review count when reviews exist", () => {
+    // The generated `api` is a proxy, so query identity cannot be compared;
+    // this card's two queries are the wishlist flag and the rating summary.
+    // A truthy wishlist flag is harmless here — the rating aggregate is what
+    // this test asserts.
+    mockUseQuery.mockImplementation((() => ({ average: 4.3, count: 12 })) as any);
+    const { container } = renderCard();
+    // Rendered on the desktop attribute row and in the phone price row.
+    expect(screen.getAllByText("4.3").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("(12)").length).toBeGreaterThan(0);
+    expect(
+      container.querySelector('[aria-label="Rated 4.3 out of 5 by 12 reviews"]')
+    ).toBeTruthy();
+  });
+
+  it("shows no stars, rating or review count when there are no reviews", () => {
+    mockUseQuery.mockImplementation((() => ({ average: 0, count: 0 })) as any);
+    const { container } = renderCard();
+    expect(container.querySelector('[aria-label^="Rated"]')).toBeNull();
+    expect(container.querySelector(".lucide-star")).toBeNull();
   });
 
   it("keeps the mobile-only dosage line off the desktop card", () => {
