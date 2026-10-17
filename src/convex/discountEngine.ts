@@ -23,8 +23,10 @@ import {
   resolveProductDiscount,
   discountedPriceFor,
   normalizeDiscountPercent,
+  applyDisplayPrices,
   type EngineConfigInput,
   type DiscountRow,
+  type DisplayPriceRow,
 } from "../lib/discount";
 
 export type DiscountEngineDoc =
@@ -62,6 +64,29 @@ export async function loadEngine(db: MutationCtx["db"] | QueryCtx["db"]): Promis
 }> {
   const engine = await readEngine(db);
   return { engine, now: Date.now() };
+}
+
+/**
+ * Read-path pricing for every storefront surface: returns the same rows with
+ * the selling price the engine resolves right now, so badges, filters, section
+ * membership and totals all show the number checkout actually charges — even
+ * when the stored `discountPrice` snapshot has not been rewritten yet (a rule
+ * saved while the promotion window was closed, a config row that predates the
+ * manager, etc).
+ *
+ * READ-ONLY by design: it decorates rows for display and never patches them;
+ * stored prices are still reconciled by the write pass (`syncProduct` /
+ * `syncGoverned`), which is the only code allowed to touch the catalog.
+ */
+export async function withEnginePrices<
+  T extends DisplayPriceRow,
+>(
+  db: MutationCtx["db"] | QueryCtx["db"],
+  rows: readonly T[],
+): Promise<T[]> {
+  if (rows.length === 0) return rows as T[];
+  const { engine, now } = await loadEngine(db);
+  return applyDisplayPrices(rows, engine, now);
 }
 
 /**

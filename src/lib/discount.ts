@@ -268,6 +268,66 @@ export function resolveProductDiscount(
   return { status: "ineligible", percent: 0, effectivePrice: base, label: "No applicable discount" };
 }
 
+/** Shape of a product row as display pricing needs to read it. */
+export type DisplayPriceRow = {
+  _id: string;
+  price: number;
+  categoryId: string;
+  isActive: boolean;
+  discountPrice?: number | null | undefined;
+  discountSource?: "rule" | "manual" | null | undefined;
+};
+
+/**
+ * Read-path display pricing: the price fields every storefront surface serves
+ * for a row, resolved from the rules RIGHT NOW instead of the stored snapshot.
+ *
+ * `products.discountPrice` is written only by the engine's write pass, so a
+ * row can be listed by a rule before (or after) that pass touches it — for
+ * example when a promotion window opens by itself, or a config row that predates
+ * the current manager. Serving the resolved value means card badges, listing
+ * filters/sorts, section membership and the checkout charge can never disagree:
+ * they all read the same number the engine resolves.
+ *
+ * Pure and deterministic; a row whose stored price already matches is returned
+ * untouched (object identity preserved, so subscriptions don't churn).
+ */
+export function applyDisplayPrices<T extends DisplayPriceRow>(
+  rows: readonly T[],
+  engine: EngineConfigInput,
+  now: number,
+): T[] {
+  if (rows.length === 0) return rows as T[];
+  return rows.map((row) => {
+    const res = resolveProductDiscount(
+      {
+        _id: row._id,
+        price: row.price,
+        discountPrice: row.discountPrice ?? null,
+        categoryId: row.categoryId,
+        isActive: row.isActive,
+        discountSource: row.discountSource ?? null,
+      },
+      engine,
+      now,
+    );
+    // What the customer pays, only when it is actually a discount.
+    const target =
+      Number.isFinite(res.effectivePrice) && res.effectivePrice < row.price
+        ? res.effectivePrice
+        : undefined;
+    const stored =
+      typeof row.discountPrice === "number" &&
+      Number.isFinite(row.discountPrice) &&
+      row.discountPrice > 0 &&
+      row.discountPrice < row.price
+        ? row.discountPrice
+        : undefined;
+    if (target === stored) return row;
+    return { ...row, discountPrice: target } as T;
+  });
+}
+
 /**
  * The homepage discount listing. Deterministic; manual picks come first in the
  * admin's chosen order, everything else follows catalog recency.

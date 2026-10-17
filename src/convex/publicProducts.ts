@@ -1,6 +1,8 @@
 import { query, QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { Id } from "./_generated/dataModel";
+import { applyDisplayPrices, type DisplayPriceRow } from "../lib/discount";
+import { loadEngine, withEnginePrices } from "./discountEngine";
 
 // Shared filter args for the catalogue search — used by both the full
 // `search` query and the paginated `searchPage` query below.
@@ -41,10 +43,18 @@ type SearchFilters = {
 export async function createEnricher(ctx: QueryCtx) {
   const categoryCache = new Map<string, { name: string; slug: string } | null>();
   const brandCache = new Map<string, { name: string; slug: string } | null>();
+  // One engine snapshot per query, so every row this enricher serves carries
+  // the same rule-resolved selling price that section membership and checkout
+  // (`orders.ts`) resolve with — a stale stored `discountPrice` snapshot can
+  // never make a card's badge, price or total disagree with the charge.
+  const { engine, now } = await loadEngine(ctx.db);
 
-  return async function enrich<T extends { categoryId: Id<"categories">; brandId?: Id<"brands"> }>(
+  return async function enrich<
+    T extends DisplayPriceRow & { categoryId: Id<"categories">; brandId?: Id<"brands"> },
+  >(
     product: T
   ) {
+    const [priced] = applyDisplayPrices([product], engine, now);
     const categoryKey = product.categoryId as string;
     let category = categoryCache.get(categoryKey);
     if (category === undefined) {
@@ -67,7 +77,7 @@ export async function createEnricher(ctx: QueryCtx) {
     }
 
     return {
-      ...product,
+      ...priced,
       categoryName: category?.name ?? "Uncategorized",
       categorySlug: category?.slug ?? "",
       brandName: brand?.name ?? null,
@@ -115,6 +125,12 @@ async function runProductSearch(ctx: QueryCtx, args: SearchFilters) {
     if (args.brandId) {
       products = products.filter((p) => p.brandId === args.brandId);
     }
+
+    // Resolve engine pricing BEFORE the price filters and sorts below: they
+    // must see the number checkout will actually charge, not a stored
+    // snapshot that may lag the rules.
+    products = await withEnginePrices(ctx.db, products);
+
     if (args.minPrice !== undefined) {
       products = products.filter(
         (p) => (p.discountPrice ?? p.price) >= args.minPrice!
@@ -392,10 +408,15 @@ const VALUE_DEAL_MAX_PRICE = 100;
 export const valueDeals = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
-    const products = await ctx.db
-      .query("products")
-      .withIndex("by_isActive", (q) => q.eq("isActive", true))
-      .collect();
+    // Engine-resolved selling prices first, so the ₹100 eligibility cutoff
+    // below judges the price checkout charges, not a stale stored snapshot.
+    const products = await withEnginePrices(
+      ctx.db,
+      await ctx.db
+        .query("products")
+        .withIndex("by_isActive", (q) => q.eq("isActive", true))
+        .collect(),
+    );
 
     // Real popularity signal from existing order history (same approach as `popular`).
     const orders = await ctx.db.query("orders").collect();
@@ -443,10 +464,16 @@ export const valueDeals = query({
 export const featured = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
-    const products = await ctx.db
-      .query("products")
-      .withIndex("by_isActive", (q) => q.eq("isActive", true))
-      .collect();
+    // Price the rows first: "Best Deals" must rank by the discount customers
+    // can actually use, which is engine-resolved — a storewide rule priced
+    // product has no stored discountPrice yet would vanish otherwise.
+    const products = await withEnginePrices(
+      ctx.db,
+      await ctx.db
+        .query("products")
+        .withIndex("by_isActive", (q) => q.eq("isActive", true))
+        .collect(),
+    );
 
     const withDiscount = products
       .filter((p) => p.discountPrice && p.discountPrice < p.price)

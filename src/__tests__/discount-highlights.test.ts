@@ -6,6 +6,7 @@ import {
   discountedPriceFor,
   resolveProductDiscount,
   selectHomePageDiscounts,
+  applyDisplayPrices,
   type DiscountRow,
   type EngineConfigInput,
 } from "@/lib/discount";
@@ -336,5 +337,88 @@ describe("selectHomePageDiscounts — the storefront section", () => {
   it("returns nothing when no admin has configured a percent", () => {
     const { products } = selectHomePageDiscounts(rows, engine({ discountPercent: 0 }), NOW);
     expect(products).toEqual([]);
+  });
+});
+
+describe("applyDisplayPrices — read-path pricing (what you see = what checkout charges)", () => {
+  it("prices a row the rules govern but whose stored snapshot is empty", () => {
+    const [priced] = applyDisplayPrices(
+      [row({ _id: "fresh", price: 120 })], // no discountPrice at all
+      engine({ discountPercent: 80 }),
+      NOW,
+    );
+    expect(priced!.discountPrice).toBe(24); // 120 × 0.20
+    expect(productDiscountPercent(120, priced!.discountPrice)).toBe(80);
+  });
+
+  it("returns a row whose stored price already matches untouched (identity)", () => {
+    const stored = row({
+      _id: "synced",
+      price: 400,
+      discountPrice: 300,
+      discountSource: "rule",
+    });
+    const [out] = applyDisplayPrices([stored], engine({ discountPercent: 25 }), NOW);
+    expect(out).toBe(stored); // no rewrite → subscribers don't churn
+  });
+
+  it("never replaces an admin's manual selling price with a rule price", () => {
+    const manual = row({
+      _id: "manual",
+      price: 400,
+      discountPrice: 380, // deliberately 5% off
+      discountSource: "manual",
+    });
+    const [out] = applyDisplayPrices([manual], engine({ discountPercent: 80 }), NOW);
+    expect(out!.discountPrice).toBe(380);
+    expect(productDiscountPercent(400, out!.discountPrice)).toBe(5);
+  });
+
+  it("clears an engine-owned price once its promotion window has closed", () => {
+    const stale = row({
+      _id: "stale",
+      price: 400,
+      discountPrice: 300, // written when the 25% sale was live
+      discountSource: "rule",
+    });
+    const [out] = applyDisplayPrices(
+      [stale],
+      engine({ discountPercent: 25, endsAt: NOW - 1 }), // window shut
+      NOW,
+    );
+    expect(out!.discountPrice).toBeUndefined();
+    expect(productDiscountPercent(400, out!.discountPrice)).toBe(0);
+  });
+
+  it("keeps a legacy stored price (no provenance) when the engine is off", () => {
+    const legacy = row({ _id: "legacy", price: 400, discountPrice: 300 });
+    const [out] = applyDisplayPrices(
+      [legacy],
+      engine({ isActive: false, discountPercent: 0 }),
+      NOW,
+    );
+    expect(out).toBe(legacy);
+    expect(productDiscountPercent(400, out!.discountPrice)).toBe(25);
+  });
+
+  it("serves every section-listed row with a badge ≥ the advertised percent", () => {
+    const rows = [
+      row({ _id: "a", price: 400 }), // fresh → rule-priced
+      row({ _id: "b", price: 100, discountPrice: 74 }), // 26% stored → below 80%
+      row({ _id: "c", price: 300, discountPrice: 150, discountSource: "manual" }), // 50% manual
+      row({ _id: "d", price: 300 }), // fresh → rule-priced
+    ];
+    const cfg = engine({ discountPercent: 80 });
+    const { products, percent } = selectHomePageDiscounts(rows, cfg, NOW);
+    expect(products.length).toBeGreaterThanOrEqual(2);
+
+    const served = applyDisplayPrices(products, cfg, NOW);
+    for (const p of served) {
+      expect(p.discountPrice).toBeDefined();
+      expect(p.discountPrice!).toBeGreaterThan(0);
+      expect(p.discountPrice!).toBeLessThan(p.price);
+      // The exact invariant the storefront QA check enforces.
+      expect(productDiscountPercent(p.price, p.discountPrice)).toBeGreaterThanOrEqual(percent);
+    }
   });
 });

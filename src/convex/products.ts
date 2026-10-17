@@ -1,6 +1,7 @@
 import { query } from "./_generated/server";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
+import { withEnginePrices } from "./discountEngine";
 
 // ── List active products (with optional category filter) ──
 export const list = query({
@@ -24,10 +25,14 @@ export const list = query({
 export const getById = query({
   args: { productId: v.id("products") },
   handler: async (ctx, args) => {
-    const product = await ctx.db.get(args.productId);
-    if (!product) return null;
+    const product = await ctx.db.get(args.productId);    if (!product) return null;
+
     const category = await ctx.db.get(product.categoryId);
-    return { ...product, category };
+    // The detail page renders badge, MRP and sale price from this row, so it
+    // must show the number checkout will charge (orders re-resolve the same
+    // rules when the order is placed).
+    const [priced] = await withEnginePrices(ctx.db, [product]);
+    return { ...priced, category };
   },
 });
 
@@ -38,12 +43,10 @@ export const getBySlug = query({
     const product = await ctx.db
       .query("products")
       .withIndex("by_slug", (q) => q.eq("slug", args.slug))
-      .first();
-
-    if (!product) return null;
-
+      .first();    if (!product) return null;
     const category = await ctx.db.get(product.categoryId);
-    return { ...product, category };
+    const [priced] = await withEnginePrices(ctx.db, [product]);
+    return { ...priced, category };
   },
 });
 
@@ -138,9 +141,10 @@ export const getRelated = query({
       .withIndex("by_category", (q) => q.eq("categoryId", args.categoryId))
       .collect();
 
-    return products
+    const related = products
       .filter((p) => p._id !== args.productId && p.isActive)
       .slice(0, 4);
+    return await withEnginePrices(ctx.db, related);
   },
 });
 

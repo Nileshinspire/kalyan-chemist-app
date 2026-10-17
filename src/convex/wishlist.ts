@@ -1,6 +1,8 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import type { Doc } from "./_generated/dataModel";
+import { withEnginePrices } from "./discountEngine";
 
 // ── List wishlist items with product details ──
 export const list = query({
@@ -17,11 +19,24 @@ export const list = query({
     const itemsWithProducts = await Promise.all(
       items.map(async (item) => {
         const product = await ctx.db.get(item.productId);
-        return { ...item, product };
+        return { item, product };
       })
     );
 
-    return itemsWithProducts.filter((item) => item.product !== null);
+    const present = itemsWithProducts.filter(
+      (row): row is { item: (typeof items)[number]; product: Doc<"products"> } =>
+        row.product !== null,
+    );
+
+    // Wishlist cards show the same engine-resolved price as everywhere else.
+    const pricedProducts = await withEnginePrices(
+      ctx.db,
+      present.map((row) => row.product),
+    );
+    return present.map((row, index) => ({
+      ...row.item,
+      product: pricedProducts[index],
+    }));
   },
 });
 
