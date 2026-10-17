@@ -5,11 +5,12 @@
  * with the DB adapter in `./discountEngine`. This module exposes exactly three
  * things, all backed by the single `discountHighlights` config row:
  *
- *   getPublic  — what the homepage "Minimum {percent}% Off" section renders.
- *                Eligible = active, not excluded, effective discount ≥ the
- *                configured percent, or manually pinned by the admin (still
- *                with a real discount). New products appear here automatically
- *                because the engine prices them the moment they are created.
+ *   getPublic  — what the homepage discount section renders. Eligible = products
+ *                the configured rule is ASSIGNED to (the admin's explicit
+ *                selection, plus new products while auto-eligibility is on),
+ *                active and not excluded — never a global "any product this
+ *                discounted" list. Each row carries its actual resolved
+ *                discount.
  *   getConfig  — admin-only: stored config plus a per-product state preview
  *                (which rule applies, effective price) so the Discount Manager
  *                can show auto/override/category/manual/excluded states.
@@ -93,6 +94,7 @@ export const getPublic = query({
         discountPercent: number;
       }[],
       manualProductIds: (config.manualProductIds ?? []) as string[],
+      autoEligibleFrom: config.autoEligibleFrom ?? 0,
     };
 
     const rows = (await productRows(ctx)).filter((p) => p.isActive);
@@ -135,6 +137,7 @@ export const getConfig = query({
             discountPercent: number;
           }[],
           manualProductIds: (config.manualProductIds ?? []) as string[],
+          autoEligibleFrom: config.autoEligibleFrom ?? 0,
         }
       : { isActive: false, discountPercent: 0 };
 
@@ -159,6 +162,7 @@ export const getConfig = query({
           categoryId: p.categoryId,
           isActive: p.isActive,
           discountSource: p.discountSource ?? null,
+          createdAt: p.createdAt,
         },
         engine,
         now,
@@ -201,6 +205,7 @@ export const getConfig = query({
       startsAt: config?.startsAt ?? null,
       endsAt: config?.endsAt ?? null,
       manualProductIds: (engine.manualProductIds ?? []).map(String),
+      autoEligibleFrom: engine.autoEligibleFrom ?? 0,
       excludedProductIds: (engine.excludedProductIds ?? []).map(String),
       productOverrides: (engine.productOverrides ?? []).map((o) => ({
         productId: String(o.productId),
@@ -234,6 +239,12 @@ const setConfigArgs = {
   endsAt: v.optional(v.number()),
   /** Omitted = keep the stored list; empty array = clear the list. */
   excludedProductIds: v.optional(v.array(v.id("products"))),
+  /**
+   * Auto-eligibility for products added after this save:
+   * true = enable (keeps an existing boundary), false = disable, omitted = keep.
+   * Never applies the percent to existing unselected products.
+   */
+  autoEligible: v.optional(v.boolean()),
   productOverrides: v.optional(
     v.array(
       v.object({
@@ -350,6 +361,17 @@ export const setConfig = mutation({
     if (excludedProductIds !== undefined) patch.excludedProductIds = excludedProductIds;
     if (productOverrides !== undefined) patch.productOverrides = productOverrides;
     if (categoryRules !== undefined) patch.categoryRules = categoryRules;
+    // ── Eligibility for NEW products: explicit opt-in, default OFF ──
+    if (args.autoEligible !== undefined) {
+      const previousAutoFrom = existing?.autoEligibleFrom ?? 0;
+      patch.autoEligibleFrom = args.autoEligible
+        ? // Keep the original boundary when already on, so saving other
+          // settings never re-scopes (re-dates) the eligible set.
+          previousAutoFrom > 0
+          ? previousAutoFrom
+          : now
+        : 0; // OFF — only explicit selections (or scoped rules) stay eligible
+    }
 
     if (existing) {
       await ctx.db.patch(existing._id, patch);
@@ -361,9 +383,16 @@ export const setConfig = mutation({
     const sync = await syncGoverned(ctx);
 
     // ── Audit trail (existing auditLogs table) ──
+    const effectiveAutoFrom =
+      typeof patch.autoEligibleFrom === "number"
+        ? patch.autoEligibleFrom
+        : (existing?.autoEligibleFrom ?? 0);
     const changes: string[] = [
-      `Default rule: ${previousPercent}% → ${patch.discountPercent}%, window ${
+      `Configured percent: ${previousPercent}% → ${patch.discountPercent}%, window ${
         args.isActive === undefined ? "unchanged" : args.isActive ? "active" : "paused"
+      }`,
+      `Eligibility: ${manualProductIds.length} selected product(s), new-product auto-eligibility ${
+        effectiveAutoFrom > 0 ? "ON" : "OFF"
       }`,
       `${manualProductIds.length} pinned, ${
         excludedProductIds?.length ?? "(unchanged)"

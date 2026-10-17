@@ -7,9 +7,10 @@ import ProductCard from "@/components/ProductCard";
  * Replaces the old "What Our Customers Say" band on the homepage.
  *
  * Everything here comes from `api.discountHighlights.getPublic`, which lists
- * the products the discount engine prices at the configured percentage or
- * better, across every active product in every category — including products
- * created after the rule was saved. Nothing is hardcoded: the heading, the copy
+ * exactly the products the configured promotion rule is ASSIGNED to: the
+ * admin's explicit selection in the Discount Manager, plus newly added
+ * products only while that opt-in is enabled. It is not a global
+ * minimum-percentage filter — other discounts never admit a product here. Nothing is hardcoded: the heading, the copy
  * and the grid all follow the percentage the admin saves in the Discount
  * Manager, and products are rendered through the shared `ProductCard` on the
  * shared `.kc-card-track`, so navigation, cart, wishlist and card dimensions
@@ -45,8 +46,8 @@ export default function MinimumDiscount() {
             Minimum {percent}% Off
           </h2>
           <p className="mt-2 text-sm sm:text-lg text-muted-foreground max-sm:hidden">
-            Every product here is at least {percent}% below its MRP — priced and
-            kept current by our discount engine.
+            Every product here is selected for our {percent}% off promotion —
+            priced and kept current by our discount engine.
           </p>
         </div>
 
@@ -62,12 +63,12 @@ export default function MinimumDiscount() {
               <Tag className="size-5" />
             </span>
             <p className="text-sm font-semibold text-foreground sm:text-base">
-              No products are at {percent}% off or better right now.
+              No products are in the {percent}% off promotion right now.
             </p>
             <p className="mx-auto mt-1.5 max-w-md text-xs text-muted-foreground sm:text-sm">
-              We only list products that are genuinely {percent}% or more below
-              MRP, so this space stays empty until one qualifies. Please check
-              back soon.
+              We only list products selected for the {percent}% off promotion,
+              so this space stays empty until the promotion covers something.
+              Please check back soon.
             </p>
           </div>
         )}

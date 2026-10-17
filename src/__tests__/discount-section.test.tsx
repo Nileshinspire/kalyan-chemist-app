@@ -54,7 +54,7 @@ describe("MinimumDiscount section", () => {
   it("reflects the configured percentage in the heading", () => {
     renderSection({ configured: true, discountPercent: 37, products: [], autoCount: 0, manualCount: 0 });
     expect(screen.getByText("Minimum 37% Off")).toBeInTheDocument();
-    expect(screen.getByText(/at least 37% below its MRP/)).toBeInTheDocument();
+    expect(screen.getByText(/selected for our 37% off promotion/)).toBeInTheDocument();
   });
 
   it("renders nothing when no admin has configured a rule", () => {
@@ -65,7 +65,7 @@ describe("MinimumDiscount section", () => {
   it("shows a clean empty state instead of unrelated products", () => {
     renderSection({ configured: true, discountPercent: 50, products: [], autoCount: 0, manualCount: 0 });
     expect(
-      screen.getByText("No products are at 50% off or better right now."),
+      screen.getByText("No products are in the 50% off promotion right now."),
     ).toBeInTheDocument();
     expect(screen.queryByText("Add to Cart")).not.toBeInTheDocument();
   });
@@ -81,7 +81,7 @@ describe("MinimumDiscount section", () => {
     expect(screen.getByText("Lacto Calamine Sunscreen")).toBeInTheDocument();
     expect(screen.getByText("Add to Cart")).toBeInTheDocument();
     expect(screen.getByText("50% OFF")).toBeInTheDocument();
-    expect(screen.queryByText(/No products are at/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/No products are in/)).not.toBeInTheDocument();
   });
 
   it("follows a changed percentage without a code change", () => {

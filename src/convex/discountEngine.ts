@@ -24,6 +24,7 @@ import {
   discountedPriceFor,
   normalizeDiscountPercent,
   applyDisplayPrices,
+  isRuleEligible,
   type EngineConfigInput,
   type DiscountRow,
   type DisplayPriceRow,
@@ -54,6 +55,7 @@ export async function readEngine(db: MutationCtx["db"] | QueryCtx["db"]): Promis
       discountPercent: number;
     }[],
     manualProductIds: (row.manualProductIds ?? []) as string[],
+    autoEligibleFrom: row.autoEligibleFrom ?? 0,
   };
 }
 
@@ -106,6 +108,7 @@ export async function engineEffectivePrice(
       categoryId: product.categoryId,
       isActive: product.isActive,
       discountSource: product.discountSource ?? null,
+      createdAt: product.createdAt,
     },
     engine,
     now,
@@ -142,6 +145,7 @@ async function syncProductRow(
     categoryId: product.categoryId,
     isActive: product.isActive,
     discountSource: product.discountSource ?? null,
+    createdAt: product.createdAt,
   };
   const res = resolveProductDiscount(row, engine, now);
 
@@ -232,6 +236,9 @@ function engineCouldPrice(
   )
     return false;
   if ((engine.categoryRules ?? []).some((c) => c.categoryId === product.categoryId)) return true;
+  // The configured percent only ever reaches products the rule is assigned to:
+  // the explicit selection, or a new product while auto-eligibility is on.
+  if (!isRuleEligible(product, engine)) return false;
   const globalPercent = engine.discountPercent ?? 0;
   return Number.isInteger(globalPercent) && globalPercent >= 1;
 }

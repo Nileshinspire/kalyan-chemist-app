@@ -4,8 +4,8 @@
  *
  * Verifies, against the real Convex deployment the storefront talks to:
  *   1. The homepage discount section resolves and every product it lists has a
- *      consistent price/badge pair (badge % ≥ advertised minimum, final price
- *      strictly below MRP, nothing free or negative).
+ *      real, valid discount (final price strictly below MRP and above zero,
+ *      badge ≥ 1%, no duplicates, counts mirror the rule's assignment).
  *   2. The admin config query refuses non-admin callers (read-side guard).
  *   3. Rule changes require an admin: an unauthenticated `setConfig` call is
  *      rejected, and a signed-in non-admin customer session is rejected too.
@@ -81,17 +81,37 @@ if (pub.status !== 200 || pub.json?.status !== "success") {
       fail("configured percent sane", `got ${pct}`);
     } else pass(`configured percent sane (${pct}%)`);
 
+    // The section lists products ASSIGNED to the configured rule and shows each
+    // one's ACTUAL discount (a selected product may keep a smaller explicit
+    // price of its own). This check therefore asserts, per listed row: a real,
+    // valid, correctly calculated discount (>0, strictly below MRP — the exact
+    // class of bug that made every listed row show 0% while the section
+    // advertised a percent, plus duplicate/assignment-count sanity). It does
+    // NOT require badge ≥ the headline percent, because the spec explicitly
+    // requires displaying actual discounts for assigned products instead of a
+    // global minimum-percentage filter.
     let consistent = true;
+    const seenIds = new Set();
     for (const p of value.products) {
       const badge = p.discountPrice && p.discountPrice < p.price && p.price > 0
         ? Math.round(((p.price - p.discountPrice) / p.price) * 100)
         : 0;
-      if (badge < pct || p.discountPrice == null || p.discountPrice <= 0 || p.discountPrice >= p.price) {
+      if (p.discountPrice == null || p.discountPrice <= 0 || p.discountPrice >= p.price || badge < 1) {
         consistent = false;
-        fail("listed product price/badge consistent", `${p.name}: badge ${badge}% < min ${pct}% or price invalid`);
+        fail("listed product has a real, valid discount", `${p.name}: price ${p.price} → ${p.discountPrice} (badge ${badge}%)`);
       }
+      if (seenIds.has(p._id)) {
+        consistent = false;
+        fail("listed product appears only once", `${p.name} is duplicated in the section`);
+      }
+      seenIds.add(p._id);
     }
-    if (consistent) pass(`all ${value.products.length} listed product(s) priced ≥ ${pct}% with a valid final price`);
+    const assigned = (value.manualCount ?? 0) + (value.autoCount ?? 0);
+    if (assigned !== (value.products ?? []).length) {
+      consistent = false;
+      fail("section mirrors assignment counts", `listed=${value.products.length} selected=${value.manualCount} autoNew=${value.autoCount}`);
+    }
+    if (consistent) pass(`all ${value.products.length} listed product(s) carry a real valid discount; counts mirror assignment`);
   }
 }
 

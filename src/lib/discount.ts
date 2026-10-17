@@ -20,13 +20,21 @@
  *                     windowed rules, so changing the default can never
  *                     silently alter an independent product discount.
  *   4. `category`   — the product's category has an active category rule
- *                     (only while the promotion window is open).
- *   5. `auto`       — the global default percent (only while the window is
- *                     open). This is what prices brand-new eligible products
- *                     and anything else that has no selling price of its own.
+ *                     (only while the promotion window is open). An explicit
+ *                     assignment, so it is an eligibility grant of its own.
+ *   5. `auto`       — the configured promotion percent, and ONLY for products
+ *                     the rule is assigned to (see `isRuleEligible`): products
+ *                     the admin selected in the Discount Manager, plus — when
+ *                     the admin opts in — products created after
+ *                     `autoEligibleFrom`. A product is NEVER eligible merely
+ *                     because it is active; the auto option defaults to OFF
+ *                     (`autoEligibleFrom === 0`). Only active while the window
+ *                     is open.
  *   6. otherwise    — no discount (sells at base price).
  *   Rows the engine itself priced ("rule") never fall back to 3: their price
- *   belongs to rules 4/5 and is cleaned up when those rules go away.
+ *   belongs to rules 4/5 and is cleaned up when those rules go away — which is
+ *   how a stale global-discount price returns to the original MRP once the
+ *   product is no longer assigned to any rule.
  *
  * Rounding policy (single place, so badge and price can never disagree):
  *   effective price = products.price × (100 − percent) / 100, rounded to the
@@ -124,6 +132,8 @@ export type DiscountRow = {
   isActive: boolean;
   /** Provenance of the stored selling price: engine-managed or admin price. */
   discountSource?: "rule" | "manual" | null;
+  /** Product creation time (epoch ms) — decides auto-eligibility for new rows. */
+  createdAt?: number;
 };
 
 /** Admin config exactly as stored in the `discountHighlights` table row. */
@@ -139,10 +149,19 @@ export type EngineConfigInput = {
   excludedProductIds?: readonly string[];
   /** Explicit per-product rule (highest active precedence). */
   productOverrides?: readonly { productId: string; discountPercent: number }[];
-  /** Category-scoped rules (below override, above global default). */
+  /** Category-scoped rules (below override, above the selection rule). */
   categoryRules?: readonly { categoryId: string; discountPercent: number }[];
-  /** Manual homepage inclusions (pinned to the front of the section). */
+  /**
+   * The products the admin explicitly selected for the configured promotion
+   * percent (also pinned to the front of the homepage section). This is the
+   * rule's eligibility list — the percent never applies to anything else.
+   */
   manualProductIds?: readonly string[];
+  /**
+   * Auto-eligibility for products added after this moment (epoch ms), or 0/absent
+   * for the default: OFF. Nothing is eligible merely by being active.
+   */
+  autoEligibleFrom?: number | null;
 };
 
 /** Why/how the engine priced a product. */
@@ -181,6 +200,37 @@ export function isEngineWindowOpen(
 }
 
 /**
+ * Whether the configured promotion percent is ASSIGNED to a product.
+ *
+ * Eligibility is explicit, never "the product happens to be active":
+ *   • the admin selected the product in the Discount Manager, or
+ *   • auto-eligibility for newly added products is ON (autoEligibleFrom > 0)
+ *     and the product was created at or after the moment it was switched on.
+ * Excluded products are never eligible.
+ */
+export function isRuleEligible(
+  product: { _id: string; createdAt?: number },
+  engine: EngineConfigInput,
+): boolean {
+  if (
+    (engine.excludedProductIds ?? []).some((id) => String(id) === product._id)
+  ) {
+    return false;
+  }
+  if (
+    (engine.manualProductIds ?? []).some((id) => String(id) === product._id)
+  ) {
+    return true;
+  }
+  const autoFrom = engine.autoEligibleFrom ?? 0;
+  return (
+    autoFrom > 0 &&
+    typeof product.createdAt === "number" &&
+    product.createdAt >= autoFrom
+  );
+}
+
+/**
  * Resolve one product against the engine. Deterministic and side-effect free:
  * the same row always resolves to the same status/percent/price.
  */
@@ -195,8 +245,12 @@ export function resolveProductDiscount(
   }
 
   if ((engine.excludedProductIds ?? []).includes(product._id)) {
-    // Excluded from promotions: explicit admin price is honoured as-is.
-    const stored = product.discountPrice ?? null;
+    // Excluded from promotions: only a price the admin set themselves is
+    // honoured as-is. A snapshot the ENGINE wrote ("rule") is not an explicit
+    // price — honouring it would let a stale automatic discount survive the
+    // exclusion, so it is ignored here and the product sells at its MRP.
+    const stored =
+      product.discountSource === "rule" ? null : product.discountPrice ?? null;
     const pct = productDiscountPercent(base, stored);
     return {
       status: "excluded",
@@ -253,13 +307,18 @@ export function resolveProductDiscount(
   }
 
   const globalPercent = engine.discountPercent ?? 0;
-  if (windowOpen && Number.isInteger(globalPercent) && globalPercent >= MIN_DISCOUNT_PERCENT) {
+  if (
+    windowOpen &&
+    Number.isInteger(globalPercent) &&
+    globalPercent >= MIN_DISCOUNT_PERCENT &&
+    isRuleEligible(product, engine)
+  ) {
     const pct = normalizeDiscountPercent(globalPercent);
     return {
       status: "auto",
       percent: pct,
       effectivePrice: discountedPriceFor(base, pct),
-      label: `Default rule: ${pct}% off`,
+      label: `Promotion rule: ${pct}% off (selected product)`,
     };
   }
 
@@ -276,6 +335,7 @@ export type DisplayPriceRow = {
   isActive: boolean;
   discountPrice?: number | null | undefined;
   discountSource?: "rule" | "manual" | null | undefined;
+  createdAt?: number | undefined;
 };
 
 /**
@@ -307,6 +367,7 @@ export function applyDisplayPrices<T extends DisplayPriceRow>(
         categoryId: row.categoryId,
         isActive: row.isActive,
         discountSource: row.discountSource ?? null,
+        createdAt: row.createdAt,
       },
       engine,
       now,
@@ -329,15 +390,17 @@ export function applyDisplayPrices<T extends DisplayPriceRow>(
 }
 
 /**
- * The homepage discount listing. Deterministic; manual picks come first in the
- * admin's chosen order, everything else follows catalog recency.
+ * The homepage discount section. Deterministic: products the admin selected
+ * come first in the chosen order, then auto-eligible additions by recency.
  *
- * Membership: the section advertises "Minimum {percent}% Off", so a product
- * qualifies when it is active, not excluded, and its effective discount is at
- * least the configured percent — which automatically includes every product the
- * default/category/override rules discount, including ones created after the
- * rule was saved. Duplicate picks (manual ∪ automatic) collapse to one row, and
- * manual picks with too small a discount are reported instead of shown.
+ * Membership follows ASSIGNMENT, never a percentage threshold: a row is listed
+ * when the configured rule is assigned to it (selected, or an auto-eligible
+ * newly added product while that option is on), it is active, and it resolves
+ * to a real discount right now. A product never enters this section merely
+ * because it carries some other discount, duplicates collapse to one row, and
+ * selected rows that cannot be shown (excluded, inactive, window closed with no
+ * explicit price) are reported in `droppedManualIds`. Each listed row carries
+ * its ACTUAL resolved discount, not an assumed one.
  */
 export function selectHomePageDiscounts<T extends DiscountRow & { createdAt?: number }>(
   rows: T[],
@@ -348,31 +411,31 @@ export function selectHomePageDiscounts<T extends DiscountRow & { createdAt?: nu
   products: T[];
   autoCount: number;
   manualCount: number;
-  /** Manual picks that no longer qualify, so they are not shown. */
+  /** Selected products that cannot be listed right now, so the admin sees why. */
   droppedManualIds: string[];
   /** Whether the rule window is open (for admin surfaces). */
   windowOpen: boolean;
 } {
   const featuredPercent = Math.max(0, Math.floor(engine.discountPercent ?? 0));
-  const excluded = new Set(engine.excludedProductIds ?? []);
-  const manualPicks = [...(engine.manualProductIds ?? [])];
+  const selected = (engine.manualProductIds ?? []).map(String);
 
   const products: T[] = [];
   const taken = new Set<string>();
   let manualCount = 0;
   const droppedManualIds: string[] = [];
 
-  // Manual picks first, newest-catalog order afterwards.
-  for (const rawId of manualPicks) {
-    const id = String(rawId);
-    if (taken.has(id)) continue; // dedupe picks and picks ∪ automatic
+  /** Listed only when the rule is assigned to the row AND prices it now. */
+  const listedRow = (row: T): boolean => {
+    if (!(featuredPercent > 0)) return false;
+    if (!row.isActive || !isRuleEligible(row, engine)) return false;
+    return resolveProductDiscount(row, engine, now).percent > 0;
+  };
+
+  // Selected products first, in the admin's chosen order.
+  for (const id of selected) {
+    if (taken.has(id)) continue; // dedupe the selection ∪ auto-eligible pass
     const row = rows.find((r) => r._id === id);
-    if (!row || excluded.has(id)) {
-      droppedManualIds.push(id);
-      continue;
-    }
-    const res = resolveProductDiscount(row, engine, now);
-    if (!row.isActive || res.percent < featuredPercent || !(featuredPercent > 0)) {
+    if (!row || !listedRow(row)) {
       droppedManualIds.push(id);
       continue;
     }
@@ -381,15 +444,15 @@ export function selectHomePageDiscounts<T extends DiscountRow & { createdAt?: nu
     products.push(row);
   }
 
+  // Auto-eligible additions (only when that opt-in is on), catalog order.
   if (featuredPercent > 0) {
     for (const row of rows) {
       const id = row._id;
-      if (taken.has(id) || excluded.has(id)) continue;
-      const res = resolveProductDiscount(row, engine, now);
-      if (res.percent >= featuredPercent) {
-        taken.add(id);
-        products.push(row);
-      }
+      if (taken.has(id)) continue;
+      if (selected.includes(id)) continue; // selected rows were judged above
+      if (!listedRow(row)) continue;
+      taken.add(id);
+      products.push(row);
     }
   }
 

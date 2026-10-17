@@ -143,7 +143,7 @@ describe("AdminDiscountManager", () => {
   it("shows which rule prices each product and its effective price", () => {
     renderPage();
     // Status labels also appear in the priority card, so match them anywhere.
-    for (const label of [/Auto · default rule/, /Override rule/, /Explicit price \(kept\)/, /Excluded/]) {
+    for (const label of [/Selected · promotion rule/, /Override rule/, /Explicit price \(kept\)/, /Excluded/]) {
       expect(screen.getAllByText(label).length).toBeGreaterThan(0);
     }
     // Effective prices and percents are surfaced next to each row.
@@ -172,7 +172,20 @@ describe("AdminDiscountManager", () => {
     expect(args.excludedProductIds).toEqual(["p2"]);
     expect(args.productOverrides).toEqual([{ productId: "p4", discountPercent: 55 }]);
     expect(args.categoryRules).toEqual([{ categoryId: "c1", discountPercent: 30 }]);
+    // Auto-eligibility for new products is OFF unless the admin opts in.
+    expect(args.autoEligible).toBe(false);
     expect(args.startsAt).toBeUndefined();
     expect(args.endsAt).toBeUndefined();
+  });
+
+  it("sends autoEligible=true when the admin switches it on", async () => {
+    renderPage();
+    fireEvent.click(screen.getByText(/Newly added products are auto-eligible/));
+    fireEvent.click(screen.getAllByText("Save configuration")[0]!);
+    await vi.waitFor(() => {
+      expect(mockSave).toHaveBeenCalledTimes(1);
+    });
+    const args = mockSave.mock.calls[0]![0] as Record<string, unknown>;
+    expect(args.autoEligible).toBe(true);
   });
 });

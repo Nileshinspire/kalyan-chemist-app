@@ -1088,23 +1088,33 @@ const schema = defineSchema(
     // ── Homepage / promotion discount engine (admin-owned, one row) ──
     // The engine resolves ONE rule per product (never combined, so a product
     // can never be discounted twice), in this precedence:
-    //   product override > category rule > global default > explicit price.
-    // `discountPercent` is the global default; `productOverrides` and
-    // `categoryRules` are scoped rules; `excludedProductIds` wins outright;
-    // `manualProductIds` pins products to the front of the homepage section.
+    //   product override > explicit price > category rule > selected promotion.
+    // `discountPercent` is the configured promotion percent and applies ONLY
+    // to products the rule is assigned to: `manualProductIds` (the admin's
+    // explicit selection, which is also the homepage section) plus — when
+    // opted in — products created after `autoEligibleFrom` (0/absent = OFF,
+    // the default). A product is never eligible merely for being active.
+    // `excludedProductIds` wins outright; `productOverrides` and
+    // `categoryRules` are scoped rules of their own.
     // `isActive` + `startsAt`/`endsAt` gate rule-driven pricing (window);
     // explicit per-product overrides and admin-set selling prices survive
     // a rule change or window closure untouched.
     discountHighlights: defineTable({
-      /** Whole percent, 1–99 — the global default discount rule. */
+      /** Whole percent, 1–99 — the configured promotion discount. */
       discountPercent: v.number(),
       /** Master switch for rule-driven pricing (legacy rows: treated as on). */
       isActive: v.optional(v.boolean()),
       /** Optional promotion window start/end (epoch ms). */
       startsAt: v.optional(v.number()),
       endsAt: v.optional(v.number()),
-      /** Products the admin pinned to the homepage discount section. */
+      /** Products the admin explicitly selected for the configured percent. */
       manualProductIds: v.array(v.id("products")),
+      /**
+       * Auto-eligibility for products added after this instant (epoch ms):
+       * 0/absent = OFF (the default). Never enrols pre-existing products and
+       * never applies the percent to unselected active products.
+       */
+      autoEligibleFrom: v.optional(v.number()),
       /** Products excluded from all automatic discounts + the section. */
       excludedProductIds: v.optional(v.array(v.id("products"))),
       /** Product-specific rule, highest active precedence. */

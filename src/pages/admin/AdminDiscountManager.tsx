@@ -32,7 +32,7 @@ import { toast } from "sonner";
  * preserved at its explicit selling price, excluded, or out of consideration.
  */
 const STATUS_META: Record<string, { label: string; className: string }> = {
-  auto: { label: "Auto · default rule", className: "border-primary/20 bg-primary/5 text-primary" },
+  auto: { label: "Selected · promotion rule", className: "border-primary/20 bg-primary/5 text-primary" },
   override: { label: "Override rule", className: "border-violet-300 bg-violet-50 text-violet-700" },
   category: { label: "Category promotion", className: "border-sky-300 bg-sky-50 text-sky-700" },
   "manual-price": { label: "Explicit price (kept)", className: "border-emerald-300 bg-emerald-50 text-emerald-700" },
@@ -72,6 +72,7 @@ export default function AdminDiscountManager() {
   // ── Local editing state, loaded once from the saved config ──
   const [percentInput, setPercentInput] = useState("");
   const [engineActive, setEngineActive] = useState(true);
+  const [autoEligible, setAutoEligible] = useState(false);
   const [startsAtInput, setStartsAtInput] = useState("");
   const [endsAtInput, setEndsAtInput] = useState("");
   const [manualIds, setManualIds] = useState<string[]>([]);
@@ -91,6 +92,7 @@ export default function AdminDiscountManager() {
     if (config && !initialized) {
       setPercentInput(String(config.discountPercent));
       setEngineActive(config.isActive);
+      setAutoEligible((config.autoEligibleFrom ?? 0) > 0);
       setStartsAtInput(toLocalInput(config.startsAt));
       setEndsAtInput(toLocalInput(config.endsAt));
       setManualIds(config.manualProductIds);
@@ -180,6 +182,7 @@ export default function AdminDiscountManager() {
         discountPercent: percent,
         manualProductIds: manualIds as never,
         isActive: engineActive,
+        autoEligible,
         startsAt,
         endsAt,
         excludedProductIds: excludedIds as never,
@@ -192,7 +195,9 @@ export default function AdminDiscountManager() {
         })),
       });
       setSaved(true);
-      toast.success(`Discount engine saved: ${engineActive ? "active" : "paused"}, ${percent}% default`);
+      toast.success(
+        `Promotion saved: ${engineActive ? "active" : "paused"}, ${percent}% on ${manualIds.length} selected product(s)${autoEligible ? ", new products auto-eligible" : ""}`,
+      );
       setTimeout(() => setSaved(false), 3000);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to save the discount rules");
@@ -213,9 +218,11 @@ export default function AdminDiscountManager() {
             Discount engine
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            One engine prices the whole shop: a default rule for every eligible
-            product, per-product overrides, category promotions, manual pins for
-            the homepage section, and exclusions that beat everything.
+            Configure one promotion percent, then choose exactly which products
+            receive it. Per-product overrides, category promotions and
+            exclusions keep working as separate rules — nothing is discounted
+            just for being active, and unselected products keep their own
+            pricing.
           </p>
         </motion.div>
 
@@ -232,9 +239,9 @@ export default function AdminDiscountManager() {
                 {[
                   ["1 · Exclusion", "excluded"],
                   ["2 · Product override", "override"],
-                  ["3 · Category promotion", "category"],
-                  ["4 · Default rule", "auto"],
-                  ["5 · Explicit price kept", "manual-price"],
+                  ["3 · Explicit price kept", "manual-price"],
+                  ["4 · Category promotion", "category"],
+                  ["5 · Selected products", "auto"],
                 ].map(([label]) => (
                   <Badge key={label} variant="outline" className="rounded-lg">{label}</Badge>
                 ))}
@@ -258,7 +265,7 @@ export default function AdminDiscountManager() {
             <CardContent className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-[160px_1fr] sm:items-end">
                 <div className="space-y-2">
-                  <Label className="text-xs font-medium">Default discount (%)</Label>
+                  <Label className="text-xs font-medium">Promotion discount (%)</Label>
                   <Input
                     type="number"
                     inputMode="numeric"
@@ -273,10 +280,12 @@ export default function AdminDiscountManager() {
                 </div>
                 <div className="text-xs text-muted-foreground space-y-1">
                   <p>
-                    Applies automatically to every active product without its own
-                    override, including newly created products — no manual step.
-                    The homepage section advertises
-                    {" "}<span className="font-semibold text-foreground">Minimum {validPercent ? percent : "—"}% Off</span>.
+                    Configures the rule only — it never applies to every active
+                    product. Select in the table below exactly which products
+                    receive it; everything else keeps its own pricing. The
+                    homepage section advertises
+                    {" "}<span className="font-semibold text-foreground">Minimum {validPercent ? percent : "—"}% Off</span>{" "}
+                    and lists exactly those selected products.
                   </p>
                 </div>
               </div>
@@ -290,6 +299,16 @@ export default function AdminDiscountManager() {
                   />
                   <Label htmlFor="engine-active" className="text-xs font-medium cursor-pointer">
                     {engineActive ? "Promotion active" : "Promotion paused"}
+                  </Label>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    checked={autoEligible}
+                    onCheckedChange={(v) => { setAutoEligible(v); setSaved(false); }}
+                    id="auto-eligible"
+                  />
+                  <Label htmlFor="auto-eligible" className="text-xs font-medium cursor-pointer">
+                    Newly added products are auto-eligible {autoEligible ? "(on)" : "(off)"}
                   </Label>
                 </div>
                 <div className="flex items-center gap-2">
@@ -310,8 +329,11 @@ export default function AdminDiscountManager() {
                   />
                 </div>
                 <p className="text-[11px] text-muted-foreground w-full sm:w-auto">
-                  A paused or expired window stops the default and category rules;
-                  overrides and explicit prices stay as they are.
+                  Off by default: a new product gets no discount until you
+                  select it. Switch it on and products added from that moment
+                  are included automatically — existing products stay out.
+                  A paused or expired window stops the configured and category
+                  rules; overrides and explicit prices stay as they are.
                 </p>
               </div>
 
@@ -440,9 +462,9 @@ export default function AdminDiscountManager() {
             <CardContent className="space-y-4">
               <div className="flex flex-wrap gap-2 text-xs">
                 <Badge variant="outline" className="rounded-lg">
-                  {config?.lineCounts?.auto ?? 0} in the homepage section ({config?.lineCounts?.manual ?? 0} pinned)
+                  {config?.lineCounts?.auto ?? 0} in the homepage section ({config?.lineCounts?.manual ?? 0} selected)
                 </Badge>
-                <Badge variant="outline" className="rounded-lg">{statusCounts.auto ?? 0} auto</Badge>
+                <Badge variant="outline" className="rounded-lg">{statusCounts.auto ?? 0} selected</Badge>
                 <Badge variant="outline" className="rounded-lg">{statusCounts.override ?? 0} override</Badge>
                 <Badge variant="outline" className="rounded-lg">{statusCounts.category ?? 0} category</Badge>
                 <Badge variant="outline" className="rounded-lg">{statusCounts["manual-price"] ?? 0} explicit price</Badge>
@@ -526,7 +548,7 @@ export default function AdminDiscountManager() {
                               size="icon"
                               variant={pinned ? "secondary" : "ghost"}
                               className="size-7"
-                              title={pinned ? "Remove from the homepage section" : "Pin to the homepage section"}
+                              title={pinned ? "Deselect from the promotion" : "Select this product for the promotion (also adds it to the homepage section)"}
                               onClick={() => { setSaved(false); setManualIds((prev) => (pinned ? prev.filter((x) => x !== p._id) : [...prev, p._id])); }}
                             >
                               {pinned ? <PinOff className="size-3.5" /> : <Pin className="size-3.5" />}
