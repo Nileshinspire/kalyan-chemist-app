@@ -513,22 +513,30 @@ export default function Landing() {
               {hotSellers.map((product) => {
                 const hasDiscount = product.discountPrice && product.discountPrice < product.price;
                 const discountPct = hasDiscount ? Math.round(((product.price - product.discountPrice!) / product.price) * 100) : 0;
+                // Same compact attribute line as the shared card: saved fields
+                // only, de-duplicated, joined like "150 ml Spray · Bottle".
+                const attributes = [product.packSize, (product as any).form]
+                  .filter((v): v is string => Boolean(v && String(v).trim()))
+                  .filter((v) => !/^n\/?a$/i.test(String(v).trim()))
+                  .filter((v, i, all) => all.indexOf(v) === i)
+                  .join(" · ");
                 return (
                   <motion.div
                     key={product._id}
                     initial={{ opacity: 0, y: 16 }}
                     whileInView={{ opacity: 1, y: 0 }}
                     viewport={{ once: true }}
-                    className="group min-w-[calc(50%-0.5rem)] shrink-0 snap-start rounded-2xl border border-border/70 bg-card p-2.5 sm:min-w-0 sm:p-4 cursor-pointer transition-all duration-500 hover:shadow-card-hover hover:border-primary/20 hover:-translate-y-1 max-sm:min-w-[calc(42%-0.375rem)]"
+                    className="group flex min-w-[calc(50%-0.5rem)] shrink-0 snap-start flex-col rounded-2xl border border-border/70 bg-card p-2.5 sm:min-h-[var(--kc-card-h)] sm:min-w-0 sm:p-4 cursor-pointer transition-all duration-500 hover:shadow-card-hover hover:border-primary/20 hover:-translate-y-1 max-sm:min-w-[calc(42%-0.375rem)]"
                     onClick={() => {
                       beginProductTransition();
                       navigate(`/products/${product.slug}`, { state: { from: location.pathname + location.search } });
                     }}
                   >
-                    {/* Media: clean white packshot field with the compact `Add`
-                        control beside it, matching the shared card. */}
+                    {/* Media: near-square white packshot field with the real
+                        rating pill and the compact `Add` control on its bottom
+                        edge, matching the shared card. */}
                     <div className="relative shrink-0">
-                      <div className="relative flex aspect-square items-center justify-center overflow-hidden rounded-xl bg-white max-sm:rounded-b-none max-sm:border-b max-sm:border-border/40 sm:aspect-auto sm:h-32 sm:ring-1 sm:ring-border/50 sm:ring-inset">
+                      <div className="relative flex aspect-square items-center justify-center overflow-hidden rounded-xl bg-white max-sm:rounded-b-none max-sm:border-b max-sm:border-border/40 sm:aspect-auto sm:h-36 sm:ring-1 sm:ring-border/50 sm:ring-inset xl:h-40">
                         {product.imageUrl ? (
                           <img
                             src={product.imageUrl}
@@ -541,17 +549,17 @@ export default function Landing() {
                           <Pill className="size-10 text-primary/20 group-hover:text-primary/30 transition-all duration-500" />
                         )}
                         {product.prescriptionRequired && (
-                          <Badge variant="secondary" className="absolute top-2 left-2 z-[1] text-[10px] bg-red-50 text-red-700 max-sm:hidden">Rx</Badge>
+                          <Badge variant="secondary" className="absolute top-2 left-2 z-[1] text-[10px] bg-red-50 text-red-700">Rx</Badge>
                         )}
-                        <div className="pointer-events-none absolute bottom-1.5 left-1.5 z-[1]">
-                          <ProductRatingBadge productId={product._id} />
-                        </div>
                       </div>
-                      <div className="absolute right-1.5 bottom-1.5 z-[2] max-sm:hidden">
+                      <div className="pointer-events-none absolute bottom-1.5 left-2 z-[1] sm:-bottom-2">
+                        <ProductRatingBadge productId={product._id} />
+                      </div>
+                      <div className="absolute right-0 bottom-1.5 z-[2] max-sm:hidden sm:-bottom-3">
                         <Button
                           size="sm"
                           aria-label={product.stockQuantity === 0 ? `${product.name} is out of stock` : `Add ${product.name} to cart`}
-                          className={`h-7 w-[52px] rounded-lg px-1 font-semibold gradient-primary text-white shadow-sm transition-all duration-300 hover:shadow-glow hover:scale-[1.03] active:scale-[0.97] ${product.stockQuantity === 0 ? "text-[8px]" : "text-[11px]"}`}
+                          className={`h-8 w-[58px] rounded-lg px-1 text-[11px] font-semibold gradient-primary text-white shadow-sm transition-all duration-300 hover:shadow-glow hover:scale-[1.03] active:scale-[0.97] ${product.stockQuantity === 0 ? "text-[8px]" : ""}`}
                           onClick={(e) => { e.stopPropagation(); handleAddToCart(product._id); }}
                           disabled={product.stockQuantity === 0}
                         >
@@ -559,29 +567,11 @@ export default function Landing() {
                         </Button>
                       </div>
                     </div>
-                    {/* Same compact pack/form labels as the shared card, from
-                        saved fields only. */}
-                    <div className="mt-2 mb-1.5 hidden min-w-0 flex-nowrap items-center gap-1 overflow-hidden sm:mt-2.5 sm:flex">
-                      {product.packSize && (
-                        <span className="shrink-0 whitespace-nowrap rounded-md border border-border/70 bg-muted/40 px-1.5 py-0.5 text-[10px] leading-3 font-medium text-muted-foreground">
-                          {product.packSize}
-                        </span>
-                      )}
-                      {(product as any).form && (
-                        <span className="min-w-0 truncate rounded-md border border-border/70 bg-muted/40 px-1.5 py-0.5 text-[10px] leading-3 font-medium text-muted-foreground">
-                          {(product as any).form}
-                        </span>
-                      )}
-                    </div>
-                    <h3 className="text-sm max-sm:text-[13px] font-semibold line-clamp-2 transition-colors group-hover:text-primary">{product.name}</h3>
-                    <p className="mt-0.5 text-xs text-muted-foreground break-words max-sm:line-clamp-2">{product.manufacturer}</p>
-                    {/* Phones get the same saved pack/form attributes as a
-                        compact line (the desktop chips are hidden there). */}
-                    {(product.packSize || (product as any).form) && (
-                      <p className="mt-0.5 text-[10px] leading-snug text-muted-foreground sm:hidden">
-                        {[product.packSize, (product as any).form].filter(Boolean).join(" · ")}
-                      </p>
+                    {attributes && (
+                      <p className="mt-5 truncate text-[11px] leading-4 text-muted-foreground sm:mt-6">{attributes}</p>
                     )}
+                    <h3 className="mt-1 line-clamp-2 min-h-[2.5rem] text-sm max-sm:text-[13px] font-semibold transition-colors group-hover:text-primary">{product.name}</h3>
+                    <p className="mt-0.5 truncate text-[11px] leading-4 text-muted-foreground sm:text-xs">{product.manufacturer}</p>
                     {deliveryEstimate && (
                       <p className="mt-1 flex items-center gap-1 text-[10px] leading-3 text-muted-foreground sm:mt-1.5 sm:text-[11px]">
                         <Truck className="size-3 shrink-0 text-primary/80" aria-hidden />

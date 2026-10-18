@@ -190,11 +190,6 @@ export default function Wishlist() {
                         }}
                       >
                         <Pill className="size-12 text-primary/20 group-hover:scale-110 transition-all duration-500" />
-                        {hasDiscount && (
-                          <Badge className="absolute top-3 left-3 text-[10px] font-bold bg-gradient-to-r from-green-500 to-emerald-500 text-white border-0 shadow-md">
-                            {Math.round(((product.price - product.discountPrice!) / product.price) * 100)}% OFF
-                          </Badge>
-                        )}
                       </div>
                       <Button
                         variant="ghost"
@@ -248,11 +243,18 @@ export default function Wishlist() {
                         {product.manufacturer}
                       </p>
 
-                      {/* Price */}
-                      <div className="flex items-baseline gap-1.5 mt-2">
+                      {/* Price — the discount percentage lives here, once,
+                          next to the struck-through MRP. It is no longer drawn
+                          over the product image. */}
+                      <div className="mt-2 flex flex-wrap items-baseline gap-x-1.5">
                         <span className="text-lg font-extrabold">{formatCurrency(displayPrice)}</span>
                         {hasDiscount && (
-                          <span className="text-xs text-muted-foreground line-through">{formatCurrency(product.price)}</span>
+                          <>
+                            <span className="text-xs text-muted-foreground line-through">{formatCurrency(product.price)}</span>
+                            <span className="text-[11px] font-semibold text-emerald-600">
+                              {Math.round(((product.price - product.discountPrice!) / product.price) * 100)}% off
+                            </span>
+                          </>
                         )}
                       </div>
 

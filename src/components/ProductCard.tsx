@@ -45,22 +45,26 @@ interface ProductCardProps {
 }
 
 /* ─── The one product card ───
- * Information hierarchy follows the Apollo Pharmacy reference sheet:
+ * Information hierarchy follows the Apollo Pharmacy reference card, top-down:
  *
- *   media        clean white packshot field, `object-contain` so the product
- *                keeps its aspect ratio, with a compact `Add` control in a
- *                narrow column beside it (vertically centred on the image)
- *   rating       real average + review count, as a green pill on the media
- *   attributes   pack size / form chips, from saved fields only
- *   name         two clamped lines
- *   brand        manufacturer, one clamped line
- *   delivery     the store's own admin-configured estimate, when set
- *   price        MRP struck through + discount % once, then the effective price
+ *   1. media      near-square white packshot field, `object-contain` so the
+ *                 product keeps its aspect ratio and is never cropped
+ *   2. rating     real average + review count, green pill on the media's
+ *                 bottom-left, straddling its edge
+ *   3. add        compact `Add` control beside the product, on the media's
+ *                 bottom-right, straddling its edge like the reference
+ *   4. attributes one compact pack/form line under the media, saved data only
+ *   5. name       two clamped lines, then the manufacturer, one clamped line
+ *   6. delivery   the store's own admin-configured estimate, when set
+ *   7. price      struck-through MRP + the single discount percentage, then
+ *                 the effective selling price
  *
- * The box is pinned with `min-h-[var(--kc-card-h)]`, and the price block is
- * anchored to the bottom, so two cards side by side stay identical. Every
- * desktop-only value below is an `sm:` utility, so phones keep their existing
- * full-bleed media band and Buy Now / Cart row.
+ * The discount percentage is rendered in exactly ONE place (the price block).
+ * There is no discount badge on or over the media in any product card.
+ *
+ * The box is pinned with `min-h-[var(--kc-card-h)]` and the price block is
+ * anchored to the bottom, so two cards side by side stay identical. Phones
+ * keep the full-bleed square media and their own Buy Now / Cart row.
  */
 
 function ProductImage({ src, alt }: { src: string; alt: string }) {
@@ -188,7 +192,15 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
   // percentage a customer sees is exactly the percentage the section matches on.
   const discountPct = productDiscountPercent(product.price, product.discountPrice);
 
-  const displayInfo = product.dosage || product.strength || product.form || "";
+  // One compact attribute line, exactly like the reference's
+  // "150 ml Spray · Bottle": the saved pack size, then the saved packaging
+  // form. Fields that are blank or recorded as "N/A" are omitted, and nothing
+  // is inferred.
+  const attributeLine = [product.packSize, product.form]
+    .filter((value): value is string => Boolean(value && value.trim()))
+    .filter((value) => !/^n\/?a$/i.test(value.trim()))
+    .filter((value, index, all) => all.indexOf(value) === index)
+    .join(" · ");
   const isLowStock = product.stockQuantity > 0 && product.stockQuantity < 10;
 
   const warmProductDetail = useCallback(() => {
@@ -223,14 +235,13 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
         <Heart className={`size-3.5 transition-colors ${isWishlisted ? "fill-rose-500 text-rose-500" : "text-muted-foreground group-hover:text-rose-500"}`} />
       </Button>
 
-      {/* Media — clean white packshot field with the compact `Add` control on
-          its bottom-right edge, beside the product (the reference placement).
-          The button is overlaid, not in a side column, so the packshot keeps
-          its full width even in the narrowest grid at 1024px. Phones keep the
-          full-bleed square band and their own Buy Now / Cart row, so neither
-          the image nor the controls can get cramped. */}
+      {/* Media — near-square white packshot field. The rating pill and the
+          compact `Add` control sit on its bottom edge (left and right, like
+          the reference) and deliberately straddle it, so the packshot keeps
+          its full width at every grid size. Phones keep the full-bleed square
+          band and their own Buy Now / Cart row. */}
       <div className="relative shrink-0">
-        <div className="relative flex aspect-square items-center justify-center overflow-hidden rounded-xl bg-white max-sm:rounded-b-none max-sm:border-b max-sm:border-border/40 sm:aspect-auto sm:h-32 sm:ring-1 sm:ring-border/50 sm:ring-inset">
+        <div className="relative flex aspect-square items-center justify-center overflow-hidden rounded-xl bg-white max-sm:rounded-b-none max-sm:border-b max-sm:border-border/40 sm:aspect-auto sm:h-36 sm:ring-1 sm:ring-border/50 sm:ring-inset xl:h-40">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.08] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
           {realImage ? (
             <ProductImage src={realImage} alt={product.name} />
@@ -246,29 +257,31 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
               </Badge>
             </div>
           )}
-          {/* Rx rides on the band from `sm` up. Phones keep their chip row.
-              The discount badge that used to live here is gone: the percentage
-              is printed once, beside the price below. */}
+          {/* Rx rides on the media. There is deliberately no discount badge
+              here: the percentage is printed once, in the price block below. */}
           {product.prescriptionRequired && (
-            <div className={`absolute left-2 z-[1] max-sm:hidden ${newArrival ? "top-9" : "top-2"}`}>
+            <div className={`absolute left-2 z-[1] ${newArrival ? "top-9" : "top-2"}`}>
               <Badge variant="secondary" className="text-[10px] font-medium bg-red-50 text-red-700 border-red-200">
                 Rx
               </Badge>
             </div>
           )}
-          {/* The real review summary, on the media like the reference. Nothing
-              renders when the product has no saved reviews. */}
-          <div className="pointer-events-none absolute bottom-1.5 left-1.5 z-[1]">
-            <ProductRatingBadge productId={product._id} />
-          </div>
         </div>
 
-        {/* Compact add control, beside the product image on its bottom edge. */}
-        <div className="absolute right-1.5 bottom-1.5 z-[2] max-sm:hidden">
+        {/* The real review summary, on the media's bottom-left edge like the
+            reference. It renders nothing at all when the product has no saved
+            reviews — no placeholder stars, no zero counts. */}
+        <div className="pointer-events-none absolute bottom-1.5 left-2 z-[1] sm:-bottom-2">
+          <ProductRatingBadge productId={product._id} />
+        </div>
+
+        {/* Compact add control beside the product image, on its bottom-right
+            edge like the reference. Phones use their own Buy Now / Cart row. */}
+        <div className="absolute right-0 bottom-1.5 z-[2] max-sm:hidden sm:-bottom-3">
           <Button
             size="sm"
             aria-label={product.stockQuantity === 0 ? `${product.name} is out of stock` : `Add ${product.name} to cart`}
-            className={`h-7 w-[52px] rounded-lg px-1 font-semibold gradient-primary text-white shadow-sm transition-all duration-300 hover:shadow-glow hover:scale-[1.03] active:scale-[0.97] ${product.stockQuantity === 0 ? "text-[8px]" : "text-[11px]"}`}
+            className={`h-8 w-[58px] rounded-lg px-1 text-[11px] font-semibold gradient-primary text-white shadow-sm transition-all duration-300 hover:shadow-glow hover:scale-[1.03] active:scale-[0.97] ${product.stockQuantity === 0 ? "text-[8px]" : ""}`}
             onClick={handleAddToCart}
             disabled={product.stockQuantity === 0}
           >
@@ -281,56 +294,24 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
           10px card padding (exactly as before); from `sm` up the card itself is
           padded and this block adds nothing. */}
       <div data-slot="card-content" className="flex flex-1 flex-col max-sm:p-2.5">
-        <div className="max-sm:space-y-1">
-          {/* Phones keep the existing chip row; the reference card has none. */}
-          <div className="flex flex-wrap gap-1.5 sm:hidden">
-            {product.prescriptionRequired ? (
-              <Badge variant="secondary" className="text-[10px] font-medium bg-red-50 text-red-700 border-red-200">
-                Rx Required
-              </Badge>
-            ) : (
-              <Badge variant="outline" className="text-[10px] font-medium text-green-700 border-green-200 bg-green-50/50">
-                OTC
-              </Badge>
-            )}
-            {product.brandName && (
-              <Badge variant="outline" className="text-[10px] font-medium">
-                {product.brandName}
-              </Badge>
-            )}
-          </div>
-
-          {/* Pack/packaging labels — compact attribute row directly below the
-              media, from saved fields only (packSize is required, form only
-              when it exists). One non-wrapping line, so cards stay aligned. */}
-          <div className="mt-2 mb-1 hidden min-w-0 flex-nowrap items-center gap-1 overflow-hidden sm:mt-2.5 sm:flex">
-            {product.packSize && (
-              <span className="shrink-0 whitespace-nowrap rounded-md border border-border/70 bg-muted/40 px-1.5 py-0.5 text-[10px] leading-3 font-medium text-muted-foreground">
-                {product.packSize}
-              </span>
-            )}
-            {product.form && (
-              <span className="min-w-0 truncate rounded-md border border-border/70 bg-muted/40 px-1.5 py-0.5 text-[10px] leading-3 font-medium text-muted-foreground">
-                {product.form}
-              </span>
-            )}
-          </div>
-
-          <div>
-            <h3 className="line-clamp-2 text-[13px] leading-tight font-semibold text-foreground transition-colors duration-300 group-hover:text-primary sm:text-sm sm:leading-5">
-              {product.name}
-            </h3>
-            <p className="mt-0.5 line-clamp-2 break-words text-[10px] leading-snug text-muted-foreground sm:line-clamp-none sm:truncate sm:text-xs sm:leading-4">
-              {product.manufacturer}
-            </p>
-          </div>
-
-          {/* Phones keep the dosage · pack line; the reference card has none. */}
-          {displayInfo && (
-            <p className="text-[10px] leading-snug text-muted-foreground sm:hidden">
-              {displayInfo}{product.packSize ? ` · ${product.packSize}` : ""}
+        <div className="flex flex-1 flex-col">
+          {/* Pack/packaging attributes — one compact line under the media,
+              exactly like the reference's "150 ml Spray · Bottle". Saved
+              fields only; the line is omitted if none are stored. */}
+          {attributeLine && (
+            <p className="mt-5 truncate text-[11px] leading-4 text-muted-foreground sm:mt-6">
+              {attributeLine}
             </p>
           )}
+
+          {/* Name, then manufacturer. Two clamped lines are reserved so cards
+              keep the same rhythm whether a name is short or long. */}
+          <h3 className="mt-1 line-clamp-2 min-h-[2.5rem] text-[13px] leading-tight font-semibold text-foreground transition-colors duration-300 group-hover:text-primary sm:text-sm sm:leading-5">
+            {product.name}
+          </h3>
+          <p className="mt-0.5 truncate text-[11px] leading-4 text-muted-foreground sm:text-xs sm:leading-4">
+            {product.manufacturer}
+          </p>
 
           {/* One availability line: the store's own admin-configured delivery
               estimate (only when that setting exists — never invented) and the
@@ -356,13 +337,16 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
           {/* Price hierarchy, reference order: struck-through MRP with the one
               and only discount percentage, then the effective selling price.
               Anchored to the bottom of the card so the block stays aligned. */}
-          <div className="mt-auto pt-1.5">
+          <div className="mt-auto pt-2">
             {hasDiscount && (
               <div className="flex flex-wrap items-baseline gap-x-1.5 text-[10px] leading-3 text-muted-foreground sm:text-[11px]">
                 <span>MRP</span>
                 <span className="line-through">{formatCurrency(product.price)}</span>
+                {/* The one and only discount percentage on the card. */}
                 {discountPct > 0 && (
-                  <span className="font-semibold text-emerald-600">{discountPct}% off</span>
+                  <span data-slot="discount-pct" className="font-semibold text-emerald-600">
+                    {discountPct}% off
+                  </span>
                 )}
               </div>
             )}
