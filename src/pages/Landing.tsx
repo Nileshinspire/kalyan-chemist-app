@@ -145,7 +145,9 @@ export default function Landing() {
   useTransform(scrollYProgress, [0, 0.8], [1, 0]);
 
   useMutation(api.whatsappEnquiries.log);
-  useQuery(api.deliveryConfig.getPublic);
+  const deliveryConfig = useQuery(api.deliveryConfig.getPublic);
+  // Store-wide estimate set by the admin; shown on cards only when it exists.
+  const deliveryEstimate = deliveryConfig?.estimatedDeliveryTime?.trim() || null;
 
   const addToCart = useMutation(api.cart.addItem);
 
@@ -523,38 +525,43 @@ export default function Landing() {
                       navigate(`/products/${product.slug}`, { state: { from: location.pathname + location.search } });
                     }}
                   >
-                    {/* Apollo-style vertical product card: a short image band
-                        with a centred, contained packshot, then a compact
-                        details block. Mobile keeps the short band and tight
-                        padding; from `sm` up the original band height and
-                        padding are restored exactly. */}
-                    {/* Clean white packshot field, identical to the shared
-                        ProductCard's band, so the reference card and every other
-                        section present product images the same way. */}
-                    <div className="relative mb-2 flex aspect-square items-center justify-center overflow-hidden rounded-xl bg-white sm:mb-3 sm:aspect-auto sm:h-32 sm:ring-1 sm:ring-border/50 sm:ring-inset">
-                      {product.imageUrl ? (
-                        <img
-                          src={product.imageUrl}
-                          alt={product.name}
-                          loading="lazy"
-                          decoding="async"
-                          className="absolute inset-0 h-full w-full object-contain p-1.5"
-                        />
-                      ) : (
-                        <Pill className="size-10 text-primary/20 group-hover:text-primary/30 transition-all duration-500" />
-                      )}
-                      {hasDiscount && (
-                        <Badge className="absolute top-2 left-2 text-[10px] font-bold bg-gradient-to-r from-green-500 to-emerald-500 text-white border-0">
-                          {discountPct}% OFF
-                        </Badge>
-                      )}
-                      {product.prescriptionRequired && (
-                        <Badge variant="secondary" className="absolute top-2 right-2 text-[10px] bg-red-50 text-red-700">Rx</Badge>
-                      )}
+                    {/* Media: clean white packshot field with the compact `Add`
+                        control beside it, matching the shared card. */}
+                    <div className="relative shrink-0">
+                      <div className="relative flex aspect-square items-center justify-center overflow-hidden rounded-xl bg-white max-sm:rounded-b-none max-sm:border-b max-sm:border-border/40 sm:aspect-auto sm:h-32 sm:ring-1 sm:ring-border/50 sm:ring-inset">
+                        {product.imageUrl ? (
+                          <img
+                            src={product.imageUrl}
+                            alt={product.name}
+                            loading="lazy"
+                            decoding="async"
+                            className="absolute inset-0 h-full w-full object-contain p-1.5"
+                          />
+                        ) : (
+                          <Pill className="size-10 text-primary/20 group-hover:text-primary/30 transition-all duration-500" />
+                        )}
+                        {product.prescriptionRequired && (
+                          <Badge variant="secondary" className="absolute top-2 left-2 z-[1] text-[10px] bg-red-50 text-red-700 max-sm:hidden">Rx</Badge>
+                        )}
+                        <div className="pointer-events-none absolute bottom-1.5 left-1.5 z-[1]">
+                          <ProductRatingBadge productId={product._id} />
+                        </div>
+                      </div>
+                      <div className="absolute right-1.5 bottom-1.5 z-[2] max-sm:hidden">
+                        <Button
+                          size="sm"
+                          aria-label={product.stockQuantity === 0 ? `${product.name} is out of stock` : `Add ${product.name} to cart`}
+                          className={`h-7 w-[52px] rounded-lg px-1 font-semibold gradient-primary text-white shadow-sm transition-all duration-300 hover:shadow-glow hover:scale-[1.03] active:scale-[0.97] ${product.stockQuantity === 0 ? "text-[8px]" : "text-[11px]"}`}
+                          onClick={(e) => { e.stopPropagation(); handleAddToCart(product._id); }}
+                          disabled={product.stockQuantity === 0}
+                        >
+                          {product.stockQuantity === 0 ? "Sold out" : "Add"}
+                        </Button>
+                      </div>
                     </div>
                     {/* Same compact pack/form labels as the shared card, from
-                        saved fields only. Phones keep their existing card. */}
-                    <div className="mb-1.5 hidden min-w-0 flex-nowrap items-center gap-1 overflow-hidden sm:flex">
+                        saved fields only. */}
+                    <div className="mt-2 mb-1.5 hidden min-w-0 flex-nowrap items-center gap-1 overflow-hidden sm:mt-2.5 sm:flex">
                       {product.packSize && (
                         <span className="shrink-0 whitespace-nowrap rounded-md border border-border/70 bg-muted/40 px-1.5 py-0.5 text-[10px] leading-3 font-medium text-muted-foreground">
                           {product.packSize}
@@ -568,19 +575,38 @@ export default function Landing() {
                     </div>
                     <h3 className="text-sm max-sm:text-[13px] font-semibold line-clamp-2 transition-colors group-hover:text-primary">{product.name}</h3>
                     <p className="mt-0.5 text-xs text-muted-foreground break-words max-sm:line-clamp-2">{product.manufacturer}</p>
-                    <div className="mt-1.5 flex items-baseline gap-1.5 sm:mt-2">
-                      <span className="text-base font-extrabold">{formatCurrency(hasDiscount ? product.discountPrice! : product.price)}</span>
+                    {/* Phones get the same saved pack/form attributes as a
+                        compact line (the desktop chips are hidden there). */}
+                    {(product.packSize || (product as any).form) && (
+                      <p className="mt-0.5 text-[10px] leading-snug text-muted-foreground sm:hidden">
+                        {[product.packSize, (product as any).form].filter(Boolean).join(" · ")}
+                      </p>
+                    )}
+                    {deliveryEstimate && (
+                      <p className="mt-1 flex items-center gap-1 text-[10px] leading-3 text-muted-foreground sm:mt-1.5 sm:text-[11px]">
+                        <Truck className="size-3 shrink-0 text-primary/80" aria-hidden />
+                        <span className="min-w-0 truncate">Delivery: {deliveryEstimate}</span>
+                      </p>
+                    )}
+                    {/* Price hierarchy: struck-through MRP + the one discount
+                        percentage, then the effective selling price. */}
+                    <div className="mt-auto pt-2">
                       {hasDiscount && (
-                        <span className="text-xs text-muted-foreground line-through">{formatCurrency(product.price)}</span>
+                        <div className="flex flex-wrap items-baseline gap-x-1.5 text-[10px] leading-3 text-muted-foreground sm:text-[11px]">
+                          <span>MRP</span>
+                          <span className="line-through">{formatCurrency(product.price)}</span>
+                          {discountPct > 0 && (
+                            <span className="font-semibold text-emerald-600">{discountPct}% off</span>
+                          )}
+                        </div>
                       )}
-                      {hasDiscount && discountPct > 0 && (
-                        <span className="hidden text-[11px] font-semibold text-emerald-600 sm:inline">{discountPct}% off</span>
-                      )}
-                      <ProductRatingBadge productId={product._id} className="ml-auto" />
+                      <div className="mt-0.5 text-base leading-6 font-extrabold">
+                        {formatCurrency(hasDiscount ? product.discountPrice! : product.price)}
+                      </div>
                     </div>
                     <Button
                       size="sm"
-                      className="mt-2 h-8 w-full rounded-lg text-xs font-semibold gradient-primary text-white max-sm:h-9 max-sm:min-h-9 sm:mt-3"
+                      className="mt-2 h-9 w-full rounded-lg text-xs font-semibold gradient-primary text-white max-sm:min-h-9 sm:hidden"
                       onClick={(e) => { e.stopPropagation(); handleAddToCart(product._id); }}
                       disabled={product.stockQuantity === 0}
                     >
