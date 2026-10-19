@@ -598,10 +598,6 @@ export default function ProductDetail() {
 
   const p = product;
   const cat = product.category;
-  const hasDiscount = p.discountPrice && p.discountPrice < p.price;
-  const discountPct = hasDiscount
-    ? Math.round(((p.price - p.discountPrice!) / p.price) * 100)
-    : 0;
   const isInStock = p.stockQuantity > 0;
   const isLowStock = p.stockQuantity > 0 && p.stockQuantity < 10;
 
@@ -987,13 +983,8 @@ export default function ProductDetail() {
                 ) : (
                   <Pill className="size-24 text-primary/15" />
                 )}
-                {hasDiscount && (
-                  <div className="absolute top-4 left-4 pointer-events-none">
-                    <Badge className="text-sm font-bold bg-gradient-to-r from-green-500 to-emerald-500 text-white border-0 shadow-md">
-                      {discountPct}% OFF
-                    </Badge>
-                  </div>
-                )}
+                {/* No discount badge over the image: the percentage is shown
+                    exactly once, in the price block below, beside the MRP. */}
               </div>
             </div>
 
@@ -1132,6 +1123,12 @@ export default function ProductDetail() {
               {activeDiscount && (
                 <>
                   <span className="text-lg text-muted-foreground line-through">{formatCurrency(activeDiscount.price)}</span>
+                  {/* The one and only discount percentage on this page — beside
+                      the MRP, computed from the effective (variant-aware)
+                      selling price so it can never disagree with the charge. */}
+                  <span className="text-sm font-bold text-emerald-600">
+                    {Math.round(((activeDiscount.price - activeDiscount.discountPrice!) / activeDiscount.price) * 100)}% off
+                  </span>
                   <Badge className="bg-green-100 text-green-700 border-green-200 font-bold">
                     Save {formatCurrency(activeDiscount.price - activeDiscount.discountPrice!)}
                   </Badge>
@@ -1916,7 +1913,12 @@ export default function ProductDetail() {
                     <div className="flex items-baseline gap-1.5 mt-2">
                       <span className="text-base font-extrabold">{formatCurrency(hasDisc ? rp.discountPrice! : rp.price)}</span>
                       {hasDisc && (
-                        <span className="text-xs text-muted-foreground line-through">{formatCurrency(rp.price)}</span>
+                        <>
+                          <span className="text-xs text-muted-foreground line-through">{formatCurrency(rp.price)}</span>
+                          <span className="text-[11px] font-semibold text-emerald-600">
+                            {Math.round(((rp.price - rp.discountPrice!) / rp.price) * 100)}% off
+                          </span>
+                        </>
                       )}
                     </div>
                   </div>
