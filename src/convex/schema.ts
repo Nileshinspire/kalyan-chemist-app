@@ -617,10 +617,175 @@ const schema = defineSchema(
       link: v.optional(v.string()),
       metadata: v.optional(v.string()), // JSON string for extra data
       createdAt: v.number(),
+      // ── Message Center campaign notifications (all optional, so every
+      // existing notification row stays valid) ──
+      campaignId: v.optional(v.id("message_campaigns")),
+      category: v.optional(v.string()),
+      imageUrl: v.optional(v.string()),
+      expiresAt: v.optional(v.number()),
     })
       .index("by_user", ["userId"])
       .index("by_user_read", ["userId", "read"])
-      .index("by_user_created", ["userId", "createdAt"]),
+      .index("by_user_created", ["userId", "createdAt"])
+      // Used to guarantee one notification per customer per campaign.
+      .index("by_campaign_user", ["campaignId", "userId"]),
+
+    // ══════════════════════════════════════════════════════════════════
+    //  ADMIN MESSAGE CENTER
+    //  Additive data model for admin-authored customer communications.
+    //  A campaign is the message; recipients/deliveries record exactly what
+    //  was attempted per customer and per channel so retries cannot duplicate
+    //  a send and one channel failing never marks another as failed.
+    // ══════════════════════════════════════════════════════════════════
+    message_campaigns: defineTable({
+      title: v.string(),
+      body: v.string(),
+      category: v.union(
+        v.literal("festival"),
+        v.literal("announcement"),
+        v.literal("health"),
+        v.literal("offer"),
+      ),
+      imageUrl: v.optional(v.string()),
+      channels: v.object({
+        inApp: v.boolean(),
+        popup: v.boolean(),
+        whatsapp: v.boolean(),
+        email: v.boolean(),
+      }),
+      // Top-level mirror of channels.popup so it can be indexed.
+      popupEnabled: v.boolean(),
+      audience: v.object({
+        type: v.union(
+          v.literal("all"),
+          v.literal("with_orders"),
+          v.literal("no_orders"),
+          v.literal("category_buyers"),
+          v.literal("selected"),
+        ),
+        categoryId: v.optional(v.id("categories")),
+        userIds: v.optional(v.array(v.id("users"))),
+      }),
+      status: v.union(
+        v.literal("draft"),
+        v.literal("scheduled"),
+        v.literal("processing"),
+        v.literal("completed"),
+        v.literal("partially_failed"),
+        v.literal("failed"),
+        v.literal("cancelled"),
+      ),
+      scheduledAt: v.optional(v.number()),
+      expiresAt: v.optional(v.number()),
+      createdBy: v.id("users"),
+      createdAt: v.number(),
+      updatedAt: v.number(),
+      startedAt: v.optional(v.number()),
+      completedAt: v.optional(v.number()),
+      cancelledAt: v.optional(v.number()),
+      /** Set atomically when dispatch starts; prevents a second execution. */
+      claimedAt: v.optional(v.number()),
+      /** Convex scheduled-function id for a future send (cancelled on cancel). */
+      scheduledJobId: v.optional(v.id("_scheduled_functions")),
+      /** Unique id supplied by the admin client to make create retries safe. */
+      requestKey: v.optional(v.string()),
+      audienceSize: v.number(),
+      /** Snapshot counts, updated as deliveries settle. */
+      stats: v.optional(v.object({
+        inAppSent: v.number(),
+        inAppRead: v.number(),
+        popupSent: v.number(),
+        popupSeen: v.number(),
+        whatsappQueued: v.number(),
+        whatsappSent: v.number(),
+        whatsappDelivered: v.number(),
+        whatsappFailed: v.number(),
+        emailQueued: v.number(),
+        emailSent: v.number(),
+        emailDelivered: v.number(),
+        emailFailed: v.number(),
+      })),
+      /** Sanitised, human-readable failure summary (never contains contacts). */
+      errorSummary: v.optional(v.string()),
+    })
+      .index("by_status_scheduledAt", ["status", "scheduledAt"])
+      .index("by_createdAt", ["createdAt"])
+      .index("by_popup_status", ["popupEnabled", "status"])
+      .index("by_requestKey", ["requestKey"]),
+
+    campaign_recipients: defineTable({
+      campaignId: v.id("message_campaigns"),
+      userId: v.id("users"),
+      status: v.union(
+        v.literal("queued"),
+        v.literal("processed"),
+        v.literal("skipped"),
+        v.literal("failed"),
+      ),
+      reason: v.optional(v.string()),
+      createdAt: v.number(),
+      updatedAt: v.number(),
+    })
+      .index("by_campaign", ["campaignId"])
+      .index("by_campaign_status", ["campaignId", "status"])
+      .index("by_campaign_user", ["campaignId", "userId"]),
+
+    campaign_deliveries: defineTable({
+      campaignId: v.id("message_campaigns"),
+      userId: v.id("users"),
+      channel: v.union(
+        v.literal("in_app"),
+        v.literal("popup"),
+        v.literal("whatsapp"),
+        v.literal("email"),
+      ),
+      status: v.union(
+        v.literal("queued"),
+        v.literal("sending"),
+        v.literal("sent"),
+        v.literal("delivered"),
+        v.literal("read"),
+        v.literal("failed"),
+        v.literal("skipped"),
+      ),
+      providerMessageId: v.optional(v.string()),
+      providerStatus: v.optional(v.string()),
+      /** Sanitised error code/message — never stores addresses or tokens. */
+      error: v.optional(v.string()),
+      attempts: v.number(),
+      createdAt: v.number(),
+      updatedAt: v.number(),
+      sentAt: v.optional(v.number()),
+    })
+      .index("by_campaign", ["campaignId"])
+      .index("by_campaign_channel", ["campaignId", "channel"])
+      .index("by_campaign_channel_status", ["campaignId", "channel", "status"])
+      .index("by_campaign_user_channel", ["campaignId", "userId", "channel"]),
+
+    campaign_popup_state: defineTable({
+      campaignId: v.id("message_campaigns"),
+      userId: v.id("users"),
+      seenAt: v.optional(v.number()),
+      dismissedAt: v.optional(v.number()),
+      updatedAt: v.number(),
+    })
+      .index("by_campaign_user", ["campaignId", "userId"])
+      .index("by_user", ["userId"]),
+
+    communication_prefs: defineTable({
+      userId: v.id("users"),
+      inApp: v.boolean(),
+      popup: v.boolean(),
+      whatsapp: v.boolean(),
+      email: v.boolean(),
+      promotional: v.boolean(),
+      /** Opaque random token used only for one-click email unsubscribe. */
+      unsubscribeToken: v.string(),
+      unsubscribedAt: v.optional(v.number()),
+      updatedAt: v.number(),
+    })
+      .index("by_user", ["userId"])
+      .index("by_token", ["unsubscribeToken"]),
 
     // Medicine refill reminders
     refill_reminders: defineTable({
@@ -1273,7 +1438,7 @@ const schema = defineSchema(
       .index("by_status", ["status"])
       .index("by_createdAt", ["createdAt"]),
 
-    // ── Promotional Campaigns ──
+    // ── Promotional Campaigns (homepage carousel) ──
     campaigns: defineTable({
       title: v.string(),
       subtitle: v.optional(v.string()),

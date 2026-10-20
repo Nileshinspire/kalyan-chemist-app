@@ -14,6 +14,7 @@ import { installRoutePrefetch } from "@/lib/route-preload";
 import { PageErrorBoundary } from "@/components/PageErrorBoundary";
 import AIChatbotFloat from "@/components/AIChatbotFloat";
 import MobileBottomNav from "@/components/layout/MobileBottomNav";
+import LoginMessagePopup from "@/components/LoginMessagePopup";
 import RouteLoading from "@/components/RouteLoading";
 import "./index.css";
 
@@ -103,6 +104,7 @@ import AIChatbot from "./pages/AIChatbot";
 const AdminRefills = lazy(() => import("./pages/admin/AdminRefills"));
 const AdminChatbot = lazy(() => import("./pages/admin/AdminChatbot"));
 const AdminCampaigns = lazy(() => import("./pages/admin/AdminCampaigns"));
+const AdminMessageCenter = lazy(() => import("./pages/admin/AdminMessageCenter"));
 // Footer-linked informational pages — lightweight, always immediately available.
 import ContactUs from "./pages/ContactUs";
 import Faqs from "./pages/Faqs";
@@ -111,6 +113,7 @@ import Careers from "./pages/Careers";
 import SitemapPage from "./pages/Sitemap";
 import HotSellers from "./pages/HotSellers";
 import PolicyPage from "./pages/PolicyPage";
+import Unsubscribe from "./pages/Unsubscribe";
 
 /** Silent error boundary — if VlyToolbar crashes it renders nothing */
 class ToolbarErrorBoundary extends React.Component<
@@ -632,6 +635,16 @@ function AnimatedRoutes() {
           }
         />
         <Route
+          path="/admin/messages"
+          element={
+            <RequireAuth adminOnly>
+              <Suspense fallback={<RouteLoading />}>
+                <AdminMessageCenter />
+              </Suspense>
+            </RequireAuth>
+          }
+        />
+        <Route
           path="/admin/chatbot"
           element={
             <RequireAuth adminOnly>
@@ -705,6 +718,12 @@ function AnimatedRoutes() {
           element={
             <SitemapPage />
             
+          }
+        />
+        <Route
+          path="/unsubscribe"
+          element={
+            <Unsubscribe />
           }
         />
         <Route
@@ -796,6 +815,8 @@ createRoot(document.getElementById("root")!).render(
           <PageErrorBoundary>
             <AnimatedRoutes />
           </PageErrorBoundary>
+          {/* Eligible login popup campaigns — suppressed on checkout/critical flows */}
+          <LoginMessagePopup />
           {/* Global floating AI assistant — one instance, customer side only */}
           <AIChatbotFloat />
           {/* Mobile-only bottom navigation — hidden on desktop/laptop (`md:hidden`) */}

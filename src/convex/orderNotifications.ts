@@ -212,6 +212,18 @@ export const updateWhatsAppOptIn = mutation({
     if (userId === null) throw new Error("Not authenticated");
 
     await ctx.db.patch(userId, { whatsappOptIn: args.optIn });
+    // Keep the Message Center preference in sync so a later campaign does not
+    // ignore an opt-in the customer just enabled from their profile.
+    const prefs = await ctx.db
+      .query("communication_prefs")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .first();
+    if (prefs) {
+      await ctx.db.patch(prefs._id, {
+        whatsapp: args.optIn,
+        updatedAt: Date.now(),
+      });
+    }
     return { success: true };
   },
 });

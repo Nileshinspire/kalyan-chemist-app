@@ -1,6 +1,11 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { query, mutation } from "./_generated/server";
+import { query, mutation, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
+
+/** Expired campaign notifications stay stored but are no longer shown. */
+function isVisible(notification: any, now: number): boolean {
+  return !notification.expiresAt || notification.expiresAt > now;
+}
 
 // ── List notifications for current user (newest first) ──
 export const list = query({
@@ -23,7 +28,8 @@ export const list = query({
         .order("desc");
     }
 
-    return await q.collect();
+    const now = Date.now();
+    return (await q.collect()).filter((n) => isVisible(n, now));
   },
 });
 
@@ -41,7 +47,8 @@ export const unreadCount = query({
       )
       .collect();
 
-    return unread.length;
+    const now = Date.now();
+    return unread.filter((n) => isVisible(n, now)).length;
   },
 });
 
@@ -84,8 +91,11 @@ export const markAllRead = mutation({
   },
 });
 
-// ── Create a notification (called internally from other mutations) ──
-export const create = mutation({
+// ── Create a notification ──
+// Internal only: notifications must be created by trusted server workflows
+// (order updates, refund reminders, Message Center dispatch), never directly
+// by a client for an arbitrary userId.
+export const create = internalMutation({
   args: {
     userId: v.id("users"),
     type: v.union(
@@ -98,6 +108,10 @@ export const create = mutation({
     body: v.string(),
     link: v.optional(v.string()),
     metadata: v.optional(v.string()),
+    campaignId: v.optional(v.id("message_campaigns")),
+    category: v.optional(v.string()),
+    imageUrl: v.optional(v.string()),
+    expiresAt: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const id = await ctx.db.insert("notifications", {
@@ -108,6 +122,10 @@ export const create = mutation({
       read: false,
       link: args.link,
       metadata: args.metadata,
+      campaignId: args.campaignId,
+      category: args.category,
+      imageUrl: args.imageUrl,
+      expiresAt: args.expiresAt,
       createdAt: Date.now(),
     });
     return { success: true, id };

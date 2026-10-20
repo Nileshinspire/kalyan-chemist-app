@@ -7,6 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import BrandMark from "@/components/BrandMark";
+import NotificationBell from "@/components/NotificationBell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -207,6 +208,8 @@ const Navbar = memo(function Navbar() {
             Medicines
           </Button>
 
+          <NotificationBell />
+
           <Button
             variant="ghost"
             size="icon"
@@ -307,6 +310,7 @@ const Navbar = memo(function Navbar() {
 
         {/* Mobile menu button */}
         <div className="flex md:hidden items-center gap-2 ml-auto">
+          <NotificationBell />
           <Button
             variant="ghost"
             size="icon"

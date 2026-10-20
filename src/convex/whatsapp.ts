@@ -1,6 +1,6 @@
 import { action } from "./_generated/server";
 import { v } from "convex/values";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 
 // ── WhatsApp Business Platform integration ──
 // Architecture: uses the WhatsApp Cloud API (Meta Business Platform).
@@ -134,7 +134,7 @@ export const notifyOrderStatus = action({
     if (!msg) return { success: false, error: "Unknown status" };
 
     // 1. Create in-app notification
-    await ctx.runMutation(api.notifications.create, {
+    await ctx.runMutation(internal.notifications.create, {
       userId: args.userId,
       type: "order_status",
       title: msg.title,

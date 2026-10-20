@@ -1,6 +1,6 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { query, mutation, action } from "./_generated/server";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import { v } from "convex/values";
 
 // ── List active reminders for current user ──
@@ -147,7 +147,7 @@ export const processDueReminders = action({
         );
 
         // Create in-app notification
-        await ctx.runMutation(api.notifications.create, {
+        await ctx.runMutation(internal.notifications.create, {
           userId: reminder.userId,
           type: "refill_reminder",
           title: "Time to Refill 💊",
