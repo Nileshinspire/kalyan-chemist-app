@@ -43,8 +43,14 @@ function channelLabel(channel: string): string {
 
 function missingProviderConfig(channels: any): string[] {
   const missing: string[] = [];
-  if (channels?.email && !process.env.RESEND_API_KEY) {
-    missing.push("Email is not configured (missing RESEND_API_KEY).");
+  if (
+    channels?.email &&
+    !process.env.RESEND_API_KEY &&
+    !process.env.VLY_INTEGRATION_KEY
+  ) {
+    missing.push(
+      "Email is not configured (needs RESEND_API_KEY or VLY_INTEGRATION_KEY)."
+    );
   }
   if (channels?.whatsapp && !(process.env.WHATSAPP_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID)) {
     missing.push(

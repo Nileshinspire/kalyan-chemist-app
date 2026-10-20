@@ -185,4 +185,43 @@ describe("Admin Message Center", () => {
       within(dialog).getByRole("button", { name: /confirm & send/i })
     ).toBeDisabled();
   });
+
+  it("treats the built-in email gateway as ready without extra setup", () => {
+    const status = queryData.get("messageCenter:integrationStatus") as any;
+    queryData.set("messageCenter:integrationStatus", {
+      ...status,
+      email: {
+        configured: true,
+        credential: "VLY_INTEGRATION_KEY",
+        viaResend: false,
+        viaGateway: true,
+        from: "Managed by the email gateway",
+        note: "Sending through the built-in email gateway — no further setup required.",
+      },
+    });
+
+    render(<AdminMessageCenter />);
+    expect(screen.getByText(/built-in email gateway/i)).toBeInTheDocument();
+    expect(screen.queryByText(/add RESEND_API_KEY/i)).not.toBeInTheDocument();
+
+    // Enabling email must not raise a setup block when the gateway is ready.
+    fireEvent.click(screen.getByRole("button", { name: /new message/i }));
+    fireEvent.change(screen.getByLabelText(/message title/i), {
+      target: { value: "Festival offer" },
+    });
+    fireEvent.change(screen.getByLabelText(/message body/i), {
+      target: { value: "A message that would use email." },
+    });
+    fireEvent.click(screen.getByRole("switch", { name: /enable email/i }));
+    fireEvent.click(screen.getByRole("button", { name: /review & send/i }));
+
+    const dialogs = screen.getAllByRole("dialog");
+    const dialog = dialogs[dialogs.length - 1];
+    expect(
+      within(dialog).queryByText(/setup required/i)
+    ).not.toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("button", { name: /confirm & send/i })
+    ).toBeEnabled();
+  });
 });

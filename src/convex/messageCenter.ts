@@ -80,12 +80,17 @@ export const adminGuard = internalQuery({
 // ── Provider configuration (presence only — never the secret values) ─
 function providerConfig() {
   const resendKey = Boolean(process.env.RESEND_API_KEY);
+  // Without a Resend account, email goes through the project's own integration
+  // gateway (VLY_INTEGRATION_KEY — the key that already sends sign-in codes).
+  const gatewayEmail = Boolean(process.env.VLY_INTEGRATION_KEY);
   const whatsappCredentials = Boolean(
     process.env.WHATSAPP_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID
   );
   const whatsappTemplate = Boolean(process.env.WHATSAPP_CAMPAIGN_TEMPLATE_NAME);
   return {
-    email: resendKey,
+    email: resendKey || gatewayEmail,
+    emailViaResend: resendKey,
+    emailViaGateway: !resendKey && gatewayEmail,
     whatsappCredentials,
     whatsappTemplate,
     whatsapp: whatsappCredentials && whatsappTemplate,
@@ -100,7 +105,9 @@ function missingProviderConfig(channels: CampaignChannelSelection): string[] {
   const config = providerConfig();
   const missing: string[] = [];
   if (channels.email && !config.email) {
-    missing.push("Email: add RESEND_API_KEY (and verify the sending domain).");
+    missing.push(
+      "Email: add RESEND_API_KEY with a verified sending domain, or VLY_INTEGRATION_KEY to use the built-in email gateway."
+    );
   }
   if (channels.whatsapp && !config.whatsappCredentials) {
     missing.push(
@@ -198,11 +205,15 @@ export const integrationStatus = query({
       popup: { configured: true },
       email: {
         configured: config.email,
-        credential: "RESEND_API_KEY",
-        from: config.from,
-        note: config.email
-          ? "API key is present. Delivery still requires a verified sending domain in Resend."
-          : "Setup required: add RESEND_API_KEY and verify a sending domain in Resend.",
+        credential: config.emailViaResend ? "RESEND_API_KEY" : "VLY_INTEGRATION_KEY",
+        viaResend: config.emailViaResend,
+        viaGateway: config.emailViaGateway,
+        from: config.emailViaResend ? config.from : "Managed by the email gateway",
+        note: config.emailViaResend
+          ? "Sending through your Resend account. Delivery still requires a verified sending domain in Resend."
+          : config.emailViaGateway
+            ? "Sending through the built-in email gateway — no further setup required."
+            : "Setup required: add RESEND_API_KEY (verified sending domain), or VLY_INTEGRATION_KEY for the built-in email gateway.",
       },
       whatsapp: {
         configured: config.whatsapp,

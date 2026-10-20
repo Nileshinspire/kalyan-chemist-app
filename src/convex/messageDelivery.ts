@@ -51,14 +51,6 @@ type AttemptResult =
 async function sendEmail(
   payload: any
 ): Promise<AttemptResult> {
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) {
-    return {
-      ok: false,
-      retryable: false,
-      error: "Email is not configured (RESEND_API_KEY missing).",
-    };
-  }
   if (!payload.userEmail) {
     return { ok: false, retryable: false, error: "No email address on file." };
   }
@@ -85,6 +77,31 @@ async function sendEmail(
     unsubscribeUrl: link,
   });
 
+  // Prefer the project's own Resend account when configured; otherwise send
+  // through the built-in integration gateway (the same VLY_INTEGRATION_KEY that
+  // delivers sign-in codes), so email works without separate credentials.
+  const apiKey = process.env.RESEND_API_KEY;
+  if (apiKey) {
+    return await sendViaResend(apiKey, payload, html, text, link);
+  }
+  if (process.env.VLY_INTEGRATION_KEY) {
+    return await sendViaGateway(payload, html, text);
+  }
+  return {
+    ok: false,
+    retryable: false,
+    error:
+      "Email is not configured (set RESEND_API_KEY or the built-in VLY_INTEGRATION_KEY).",
+  };
+}
+
+async function sendViaResend(
+  apiKey: string,
+  payload: any,
+  html: string,
+  text: string,
+  link: string
+): Promise<AttemptResult> {
   const { Resend } = await import("resend");
   const resend = new Resend(apiKey);
 
@@ -130,6 +147,48 @@ async function sendEmail(
     }
   }
   return { ok: false, retryable: false, error: lastError };
+}
+
+/**
+ * Fallback transport: the project's integration gateway. It owns the sending
+ * identity, so no custom `from` is passed (an unverified domain would bounce).
+ * The API exposes no HTTP status, so a failed call is never auto-retried.
+ */
+async function sendViaGateway(
+  payload: any,
+  html: string,
+  text: string
+): Promise<AttemptResult> {
+  try {
+    const { vly } = await import("../lib/vly-integrations");
+    const result = await vly.email.send({
+      to: payload.userEmail,
+      subject: payload.title,
+      html,
+      text,
+    });
+    if (result.success && result.data?.status !== "failed") {
+      const id = result.data?.messageId || result.data?.id;
+      return {
+        ok: true,
+        providerMessageId: id ? String(id) : undefined,
+        providerStatus: result.data?.status ?? "accepted",
+      };
+    }
+    return {
+      ok: false,
+      retryable: false,
+      error: sanitizeError(
+        result.error || result.data?.error || "Email gateway rejected the request."
+      ),
+    };
+  } catch (error: any) {
+    return {
+      ok: false,
+      retryable: false,
+      error: `Email gateway request failed (${sanitizeError(error)}). Not retried to avoid duplicates.`,
+    };
+  }
 }
 
 async function sendWhatsApp(payload: any): Promise<AttemptResult> {
@@ -320,13 +379,45 @@ export const verifyIntegrations = action({
       checkedAt: Date.now(),
     };
 
-    // ── Resend ──
+    // ── Email: the project's Resend account, or the built-in gateway ──
     const resendKey = process.env.RESEND_API_KEY;
-    if (!resendKey) {
+    const gatewayKey = process.env.VLY_INTEGRATION_KEY;
+    if (!resendKey && gatewayKey) {
+      try {
+        const { vly } = await import("../lib/vly-integrations");
+        const domains: any = await vly.email.listDomains();
+        if (domains?.success) {
+          const list: any[] = Array.isArray(domains.data) ? domains.data : [];
+          const verified = list.find((d: any) => d.verified);
+          result.email = {
+            configured: true,
+            verified: true,
+            detail: verified
+              ? `Built-in email gateway connected (sending domain: ${verified.domain}).`
+              : "Built-in email gateway connected. No further setup is required.",
+          };
+        } else {
+          result.email = {
+            configured: true,
+            verified: false,
+            detail: sanitizeError(
+              domains?.error ?? "The email gateway did not respond."
+            ),
+          };
+        }
+      } catch (error: any) {
+        result.email = {
+          configured: true,
+          verified: false,
+          detail: sanitizeError(error),
+        };
+      }
+    } else if (!resendKey) {
       result.email = {
         configured: false,
         verified: false,
-        detail: "RESEND_API_KEY is not set.",
+        detail:
+          "Set RESEND_API_KEY (your own Resend account) or VLY_INTEGRATION_KEY (built-in gateway).",
       };
     } else {
       try {
