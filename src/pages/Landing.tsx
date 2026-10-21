@@ -611,6 +611,12 @@ export default function Landing() {
         </section>
       )}
 
+      {/* ── Shop By Brand ── */}
+      {/* Original homepage slot: the band that sat ahead of Why Choose Us /
+          Testimonials. Renders from the existing brands table and returns
+          nothing when no brand is published to the homepage. */}
+      <ShopByBrand />
+
       {/* ── Why Kalyan Chemist ── */}
       <WhyKalyanChemist />
 
@@ -620,12 +626,6 @@ export default function Landing() {
           Manager in the admin panel; the section shows a clean empty state when
           nothing in the catalogue is at that exact discount. */}
       <MinimumDiscount />
-
-      {/* ── Shop By Brand ── */}
-      {/* Occupies the position previously held by the bottom CTA band, ahead of
-          Why Choose Us / Testimonials. Renders from the existing brands table
-          and returns nothing when no brand is published to the homepage. */}
-      <ShopByBrand />
 
       {/* ── Footer ── */}
       {/* Uses the shared footer system so every route shows the same
