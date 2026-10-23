@@ -955,8 +955,9 @@ function CampaignComposer({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[92vh] max-w-5xl overflow-y-auto p-0">
-        <div className="border-b border-border/60 px-6 py-4">
+      <DialogContent className="flex max-h-[calc(100dvh-1.5rem)] w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-5xl">
+        {/* Fixed header: stays visible while the form below scrolls. */}
+        <div className="shrink-0 border-b border-border/60 px-4 py-4 pr-12 sm:px-6 sm:pr-14">
           <DialogTitle className="flex items-center gap-2">
             <Send className="size-4 text-primary" />
             {editingId ? "Edit campaign" : "New message"}
@@ -967,14 +968,17 @@ function CampaignComposer({
           </DialogDescription>
         </div>
 
+        {/* Only this region scrolls, so the header and the action bar stay put. */}
         {editingId && !existing ? (
-          <div className="flex justify-center py-20">
-            <Loader2 className="size-5 animate-spin text-muted-foreground" />
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <div className="flex justify-center py-20">
+              <Loader2 className="size-5 animate-spin text-muted-foreground" />
+            </div>
           </div>
         ) : (
-          <div className="grid gap-6 p-6 lg:grid-cols-[1.35fr_1fr]">
+          <div className="grid min-h-0 flex-1 gap-6 overflow-y-auto overscroll-contain px-4 py-5 pb-8 sm:px-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
             {/* ── Left: fields ── */}
-            <div className="space-y-5">
+            <div className="min-w-0 space-y-5">
               <div className="space-y-1.5">
                 <Label htmlFor="mc-title">Message title</Label>
                 <Input
@@ -1006,23 +1010,26 @@ function CampaignComposer({
 
               <div className="space-y-2">
                 <Label>Category</Label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   {MESSAGE_CATEGORIES.map((option) => (
                     <button
                       key={option.value}
                       type="button"
+                      aria-pressed={category === option.value}
                       onClick={() => setCategory(option.value)}
                       className={cn(
-                        "flex items-start gap-2 rounded-xl border p-2.5 text-left transition-colors",
+                        "flex w-full min-w-0 items-start gap-2 overflow-hidden rounded-xl border p-2.5 text-left transition-colors",
                         category === option.value
                           ? "border-primary bg-primary/5"
                           : "border-border/60 hover:bg-muted/40"
                       )}
                     >
-                      <span>{option.emoji}</span>
-                      <span className="min-w-0">
-                        <span className="block text-xs font-semibold">{option.label}</span>
-                        <span className="block text-[10px] leading-tight text-muted-foreground">
+                      <span className="shrink-0 leading-none">{option.emoji}</span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block break-words text-xs font-semibold leading-snug">
+                          {option.label}
+                        </span>
+                        <span className="mt-0.5 block break-words text-[10px] leading-snug text-muted-foreground">
                           {option.description}
                         </span>
                       </span>
@@ -1251,7 +1258,7 @@ function CampaignComposer({
             </div>
 
             {/* ── Right: live preview + summary ── */}
-            <div className="space-y-4">
+            <div className="min-w-0 space-y-4 lg:self-start">
               <Card className="border-border/60">
                 <CardHeader className="pb-2">
                   <CardTitle className="flex items-center justify-between text-xs">
@@ -1361,7 +1368,8 @@ function CampaignComposer({
           </div>
         )}
 
-        <DialogFooter className="sticky bottom-0 gap-2 border-t border-border/60 bg-background/95 px-6 py-3 backdrop-blur sm:justify-between">
+        {/* In-flow footer: it can never cover the form content. */}
+        <DialogFooter className="shrink-0 flex-col gap-2 border-t border-border/60 bg-background px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <Button
             variant="ghost"
             size="sm"
