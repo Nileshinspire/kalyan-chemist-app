@@ -12,19 +12,29 @@ import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import {
   buildCampaignEmailHtml,
+  BODY_MAX,
+  BODY_MIN,
+  TITLE_MAX,
+  TITLE_MIN,
   categoryLabel,
   channelEligibility,
+  evaluateAbTest,
   isAdminRole,
   isRegisteredCustomer,
   maskEmail,
   maskPhone,
   normalizePhone,
   plainTextEmail,
+  retryEligibility,
   validateCampaignInput,
   type CampaignAudienceInput,
   type CampaignChannelSelection,
   type MessageCategory,
 } from "./messageCenterCore";
+import { recordAudit } from "./campaignAudit";
+
+/** Customers registered within this window count as "new". */
+const NEW_CUSTOMER_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 
 // ── Shared validators ───────────────────────────────────────────────
 const categoryArg = v.union(
@@ -39,6 +49,8 @@ const audienceArg = v.object({
     v.literal("all"),
     v.literal("with_orders"),
     v.literal("no_orders"),
+    v.literal("new_users"),
+    v.literal("existing_users"),
     v.literal("category_buyers"),
     v.literal("selected")
   ),
@@ -54,7 +66,7 @@ const channelsArg = v.object({
 });
 
 // ── Authorization ───────────────────────────────────────────────────
-async function requireAdmin(ctx: any): Promise<any> {
+export async function requireAdmin(ctx: any): Promise<any> {
   const userId = await getAuthUserId(ctx);
   if (userId === null) throw new Error("Not authenticated");
   const user = await ctx.db.get(userId);
@@ -63,6 +75,16 @@ async function requireAdmin(ctx: any): Promise<any> {
   }
   return userId;
 }
+
+/** Admin identity for actions that must audit who performed them. */
+export const adminIdentity = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await requireAdmin(ctx);
+    const user: any = await ctx.db.get(userId);
+    return { userId, name: user?.name ?? "Administrator" };
+  },
+});
 
 /** Used by node actions (e.g. provider verification) to re-check admin. */
 export const adminGuard = internalQuery({
@@ -128,7 +150,7 @@ function randomToken(): string {
   return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-async function prefsFor(ctx: any, userId: any) {
+export async function prefsFor(ctx: any, userId: any) {
   return await ctx.db
     .query("communication_prefs")
     .withIndex("by_user", (q: any) => q.eq("userId", userId))
@@ -139,7 +161,9 @@ async function prefsFor(ctx: any, userId: any) {
 function audienceMatcher(
   audience: CampaignAudienceInput,
   orderUserIds: Set<string>,
-  categoryUserIds: Set<string>
+  categoryUserIds: Set<string>,
+  creationTimes: Map<string, number>,
+  now: number
 ) {
   const selected = new Set((audience.userIds ?? []).map(String));
   return (userId: string): boolean => {
@@ -150,6 +174,14 @@ function audienceMatcher(
         return orderUserIds.has(userId);
       case "no_orders":
         return !orderUserIds.has(userId);
+      case "new_users": {
+        const createdAt = creationTimes.get(userId);
+        return createdAt !== undefined && now - createdAt <= NEW_CUSTOMER_WINDOW_MS;
+      }
+      case "existing_users": {
+        const createdAt = creationTimes.get(userId);
+        return createdAt !== undefined && now - createdAt > NEW_CUSTOMER_WINDOW_MS;
+      }
       case "category_buyers":
         return categoryUserIds.has(userId);
       case "selected":
@@ -160,12 +192,15 @@ function audienceMatcher(
   };
 }
 
-async function resolveAudience(ctx: any, audience: CampaignAudienceInput) {
+export async function resolveAudience(ctx: any, audience: CampaignAudienceInput) {
   const users = (await ctx.db.query("users").collect()).filter((u: any) =>
     isRegisteredCustomer(u)
   );
   const orders = await ctx.db.query("orders").collect();
   const orderUserIds = new Set<string>(orders.map((o: any) => String(o.userId)));
+  const creationTimes = new Map<string, number>(
+    users.map((u: any) => [String(u._id), Number(u._creationTime ?? 0)])
+  );
 
   const categoryUserIds = new Set<string>();
   if (audience.type === "category_buyers" && audience.categoryId) {
@@ -182,7 +217,13 @@ async function resolveAudience(ctx: any, audience: CampaignAudienceInput) {
     }
   }
 
-  const matches = audienceMatcher(audience, orderUserIds, categoryUserIds);
+  const matches = audienceMatcher(
+    audience,
+    orderUserIds,
+    categoryUserIds,
+    creationTimes,
+    Date.now()
+  );
   return {
     matched: users.filter((u: any) => matches(String(u._id))),
     orderUserIds,
@@ -254,10 +295,17 @@ export const audienceCounts = query({
     }
 
     const categories = await ctx.db.query("categories").collect();
+    const now = Date.now();
     return {
       all: matched.length,
       withOrders: matched.filter((u: any) => withOrders.has(String(u._id))).length,
       noOrders: matched.filter((u: any) => !withOrders.has(String(u._id))).length,
+      newUsers: matched.filter(
+        (u: any) => now - Number(u._creationTime ?? 0) <= NEW_CUSTOMER_WINDOW_MS
+      ).length,
+      existingUsers: matched.filter(
+        (u: any) => now - Number(u._creationTime ?? 0) > NEW_CUSTOMER_WINDOW_MS
+      ).length,
       categories: categories
         .map((c: any) => ({
           _id: c._id,
@@ -437,16 +485,55 @@ function summarize(counts: Record<string, Record<string, number>>, channel: stri
 }
 
 export const listCampaigns = query({
-  args: {},
-  handler: async (ctx) => {
+  args: {
+    search: v.optional(v.string()),
+    status: v.optional(
+      v.union(
+        v.literal("draft"),
+        v.literal("scheduled"),
+        v.literal("processing"),
+        v.literal("completed"),
+        v.literal("partially_failed"),
+        v.literal("failed"),
+        v.literal("cancelled")
+      )
+    ),
+    channel: v.optional(
+      v.union(
+        v.literal("inApp"),
+        v.literal("popup"),
+        v.literal("whatsapp"),
+        v.literal("email")
+      )
+    ),
+    category: v.optional(categoryArg),
+    from: v.optional(v.number()),
+    to: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
     await requireAdmin(ctx);
+    const term = (args.search ?? "").trim().toLowerCase();
     const campaigns = await ctx.db
       .query("message_campaigns")
       .withIndex("by_createdAt")
       .order("desc")
-      .take(80);
+      .take(200);
 
-    return campaigns.map((campaign: any) => ({
+    const filtered = campaigns.filter((campaign: any) => {
+      if (args.status && campaign.status !== args.status) return false;
+      if (args.category && campaign.category !== args.category) return false;
+      if (args.channel && !campaign.channels?.[args.channel]) return false;
+      if (term) {
+        const haystack = `${campaign.title ?? ""} ${campaign.body ?? ""}`.toLowerCase();
+        if (!haystack.includes(term)) return false;
+      }
+      const when = campaign.scheduledAt ?? campaign.createdAt;
+      if (args.from !== undefined && when < args.from) return false;
+      if (args.to !== undefined && when > args.to) return false;
+      return true;
+    });
+
+    return filtered.slice(0, 80).map((campaign: any) => ({
       _id: campaign._id,
       title: campaign.title,
       category: campaign.category,
@@ -458,6 +545,8 @@ export const listCampaigns = query({
       scheduledAt: campaign.scheduledAt,
       createdAt: campaign.createdAt,
       expiresAt: campaign.expiresAt,
+      abTest: Boolean(campaign.variantB),
+      abWinner: campaign.abWinner ?? null,
       stats: campaign.stats ?? null,
       errorSummary: campaign.errorSummary ?? null,
     }));
@@ -486,9 +575,30 @@ export const getCampaign = query({
           error: row.error ?? "Delivery failed",
           attempts: row.attempts,
           customerName: user?.name || "Customer",
+          retryable: retryEligibility(row).eligible,
         };
       })
     );
+
+    const abCounts = (variant: "A" | "B") => {
+      const rows = failures.filter((d: any) => d.variant === variant);
+      return {
+        targeted: rows.length,
+        accepted: rows.filter((d: any) => d.status === "sent").length,
+        delivered: rows.filter((d: any) => d.status === "delivered").length,
+        read: rows.filter((d: any) => d.status === "read").length,
+        failed: rows.filter((d: any) => d.status === "failed").length,
+      };
+    };
+    const abSummary = campaign.variantB
+      ? {
+          splitPercent: campaign.abSplit ?? 50,
+          evaluation: evaluateAbTest(abCounts("A"), abCounts("B")),
+          winner: campaign.abWinner ?? null,
+          winnerDecidedBy: campaign.abWinnerDecidedBy ?? null,
+          winnerDecidedAt: campaign.abWinnerDecidedAt ?? null,
+        }
+      : null;
 
     const popupStates = await ctx.db
       .query("campaign_popup_state")
@@ -523,6 +633,12 @@ export const getCampaign = query({
       notifications: { total: notificationRows.length, read: notificationsRead },
       popup: { seen: popupSeen, dismissed: popupDismissed },
       failures: failureDetails,
+      retryableFailures: failures.filter((row: any) => retryEligibility(row).eligible)
+        .length,
+      /** Only a scheduled campaign has a pending execution time. */
+      nextExecutionAt:
+        campaign.status === "scheduled" ? (campaign.scheduledAt ?? null) : null,
+      abSummary,
       previewHtml,
     };
   },
@@ -544,6 +660,9 @@ export const saveCampaign = mutation({
     audience: audienceArg,
     scheduledAt: v.optional(v.number()),
     expiresAt: v.optional(v.number()),
+    /** Optional variation B; variant A is the main title/body. */
+    variantB: v.optional(v.object({ title: v.string(), body: v.string() })),
+    abSplit: v.optional(v.number()),
     mode: v.union(v.literal("draft"), v.literal("schedule"), v.literal("send_now")),
     confirmed: v.optional(v.boolean()),
   },
@@ -580,6 +699,31 @@ export const saveCampaign = mutation({
       throw new Error(validation.errors.join(" "));
     }
     const input = validation.normalized;
+
+    let variantB: { title: string; body: string } | undefined;
+    let abSplit: number | undefined;
+    if (args.variantB) {
+      const bTitle = (args.variantB.title ?? "").trim();
+      const bBody = (args.variantB.body ?? "").replace(/\r\n/g, "\n").trim();
+      if (bTitle.length < TITLE_MIN || bTitle.length > TITLE_MAX) {
+        throw new Error(
+          `Variant B title must be ${TITLE_MIN}–${TITLE_MAX} characters.`
+        );
+      }
+      if (bBody.length < BODY_MIN || bBody.length > BODY_MAX) {
+        throw new Error(
+          `Variant B message must be ${BODY_MIN}–${BODY_MAX} characters.`
+        );
+      }
+      if (bTitle === input.title && bBody === input.body) {
+        throw new Error("Variant B must differ from variant A.");
+      }
+      variantB = { title: bTitle, body: bBody };
+      const split = Number(args.abSplit ?? 50);
+      abSplit = Number.isFinite(split)
+        ? Math.min(90, Math.max(10, Math.round(split)))
+        : 50;
+    }
 
     if (args.mode !== "draft" && args.confirmed !== true) {
       throw new Error("Please confirm the audience and channels before sending.");
@@ -641,6 +785,12 @@ export const saveCampaign = mutation({
       channels: input.channels,
       popupEnabled: input.channels.popup,
       audience: input.audience,
+      variantB,
+      abSplit,
+      // A changed message invalidates any earlier winner choice.
+      abWinner: undefined,
+      abWinnerDecidedBy: undefined,
+      abWinnerDecidedAt: undefined,
       status,
       scheduledAt:
         args.mode === "schedule"
@@ -685,6 +835,36 @@ export const saveCampaign = mutation({
       });
     }
 
+    const actor: any = await ctx.db.get(adminId);
+    const channelNames = Object.entries(input.channels)
+      .filter(([, enabled]) => enabled)
+      .map(([key]) => key)
+      .join(", ");
+    await recordAudit(ctx, {
+      campaignId,
+      campaignTitle: input.title,
+      action: existing
+        ? args.mode === "schedule"
+          ? "campaign_rescheduled"
+          : "campaign_updated"
+        : args.mode === "schedule"
+          ? "campaign_scheduled"
+          : args.mode === "send_now"
+            ? "campaign_send_requested"
+            : "campaign_created",
+      actorId: adminId,
+      actorName: actor?.name ?? "Administrator",
+      detail: [
+        `Mode: ${args.mode.replace("_", " ")}`,
+        `Channels: ${channelNames}`,
+        `Audience: ${input.audience.type} (${audienceSize})`,
+        input.scheduledAt ? `Send at: ${new Date(input.scheduledAt).toISOString()}` : null,
+        variantB ? `A/B split: ${abSplit}% A / ${100 - (abSplit ?? 50)}% B` : null,
+      ]
+        .filter(Boolean)
+        .join(" · "),
+    });
+
     return { campaignId, status, audienceSize, deduplicated: false };
   },
 });
@@ -692,7 +872,7 @@ export const saveCampaign = mutation({
 export const cancelCampaign = mutation({
   args: { campaignId: v.id("message_campaigns") },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    const adminId = await requireAdmin(ctx);
     const campaign = await ctx.db.get(args.campaignId);
     if (!campaign) throw new Error("Campaign not found.");
     if (campaign.status !== "draft" && campaign.status !== "scheduled") {
@@ -705,12 +885,21 @@ export const cancelCampaign = mutation({
         // Already executed — the worker's claim still prevents a duplicate run.
       }
     }
+    const actor: any = await ctx.db.get(adminId);
     await ctx.db.patch(args.campaignId, {
       status: "cancelled",
       cancelledAt: Date.now(),
       updatedAt: Date.now(),
       scheduledJobId: undefined,
       errorSummary: "Cancelled by an administrator before sending.",
+    });
+    await recordAudit(ctx, {
+      campaignId: campaign._id,
+      campaignTitle: campaign.title,
+      action: "campaign_cancelled",
+      actorId: adminId,
+      actorName: actor?.name ?? "Administrator",
+      detail: "Campaign cancelled before dispatch. Nothing further will be sent.",
     });
     return { success: true };
   },
@@ -719,7 +908,7 @@ export const cancelCampaign = mutation({
 export const deleteCampaign = mutation({
   args: { campaignId: v.id("message_campaigns") },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    const adminId = await requireAdmin(ctx);
     const campaign = await ctx.db.get(args.campaignId);
     if (!campaign) return { success: true };
     if (campaign.status !== "draft" && campaign.status !== "cancelled") {
@@ -748,6 +937,14 @@ export const deleteCampaign = mutation({
       .collect();
     for (const row of popupStates) await ctx.db.delete(row._id);
     await ctx.db.delete(args.campaignId);
+    const actor: any = await ctx.db.get(adminId);
+    await recordAudit(ctx, {
+      campaignTitle: campaign.title,
+      action: "campaign_deleted",
+      actorId: adminId,
+      actorName: actor?.name ?? "Administrator",
+      detail: `Deleted a ${campaign.status} campaign and its delivery records.`,
+    });
     return { success: true };
   },
 });
@@ -765,6 +962,14 @@ async function matchesCampaignAudience(
   if (audience.type === "all") return true;
   if (audience.type === "selected") {
     return (audience.userIds ?? []).some((id: any) => String(id) === String(userId));
+  }
+  if (audience.type === "new_users" || audience.type === "existing_users") {
+    const user: any = await ctx.db.get(userId);
+    if (!user) return false;
+    const age = Date.now() - Number(user._creationTime ?? 0);
+    return audience.type === "new_users"
+      ? age <= NEW_CUSTOMER_WINDOW_MS
+      : age > NEW_CUSTOMER_WINDOW_MS;
   }
   if (audience.type === "category_buyers") {
     const products = await ctx.db.query("products").collect();
@@ -858,11 +1063,14 @@ export const activePopup = query({
 
       if (!(await matchesCampaignAudience(ctx, campaign, userId))) continue;
 
+      const variant =
+        recipient.variant === "B" && campaign.variantB ? campaign.variantB : null;
       return {
         campaignId: campaign._id,
-        title: campaign.title,
-        body: campaign.body,
+        title: variant?.title ?? campaign.title,
+        body: variant?.body ?? campaign.body,
         category: campaign.category,
+        variant: recipient.variant ?? null,
         imageUrl: campaign.imageUrl ?? null,
         expiresAt: campaign.expiresAt ?? null,
         seen: Boolean(state?.seenAt),

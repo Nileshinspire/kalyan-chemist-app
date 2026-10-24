@@ -17,17 +17,21 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import {
   AlertTriangle,
+  BarChart3,
   Bell,
   CalendarClock,
+  CalendarDays,
   CheckCheck,
   CheckCircle2,
   ChevronRight,
   Eye,
+  FileText,
+  FlaskConical,
   Globe,
   Image as ImageIcon,
   Loader2,
@@ -37,7 +41,9 @@ import {
   Megaphone,
   Plus,
   RefreshCw,
+  ScrollText,
   Send,
+  Settings2,
   Trash2,
   Users,
   XCircle,
@@ -58,30 +64,51 @@ import {
   type MessageCategory,
 } from "@/convex/messageCenterCore";
 import { cn } from "@/lib/utils";
+import CampaignCalendar from "@/components/admin/message-center/CampaignCalendar";
+import CampaignAnalytics from "@/components/admin/message-center/CampaignAnalytics";
+import CampaignTemplates from "@/components/admin/message-center/CampaignTemplates";
+import CampaignAuditLog from "@/components/admin/message-center/CampaignAuditLog";
+import MessagingSettings from "@/components/admin/message-center/MessagingSettings";
+
+const IST_OFFSET_MS = 330 * 60_000;
 
 // ── Formatting helpers ──────────────────────────────────────────────
+/** Scheduled times are always shown in the store's time zone (IST). */
 function formatDateTime(ts?: number | null) {
   if (!ts) return "—";
-  return new Date(ts).toLocaleString("en-IN", {
+  return `${new Date(ts).toLocaleString("en-IN", {
+    timeZone: "Asia/Kolkata",
     day: "numeric",
     month: "short",
     year: "numeric",
     hour: "numeric",
     minute: "2-digit",
-  });
+  })} IST`;
 }
 
+/** datetime-local value representing an IST wall-clock time. */
 function toLocalInput(ts?: number) {
-  const date = ts ? new Date(ts) : new Date(Date.now() + 60 * 60 * 1000);
+  const date = new Date((ts ?? Date.now() + 60 * 60 * 1000) + IST_OFFSET_MS);
   const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(
-    date.getHours()
-  )}:${pad(date.getMinutes())}`;
+  return `${date.getUTCFullYear()}-${pad(date.getUTCMonth() + 1)}-${pad(
+    date.getUTCDate()
+  )}T${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}`;
 }
 
+/** Interpret an admin-entered datetime as IST, not the browser's time zone. */
 function fromLocalInput(value: string): number | undefined {
   if (!value) return undefined;
-  const ts = new Date(value).getTime();
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(value);
+  if (!match) return undefined;
+  const [, year, month, day, hour, minute] = match;
+  const ts =
+    Date.UTC(
+      Number(year),
+      Number(month) - 1,
+      Number(day),
+      Number(hour),
+      Number(minute)
+    ) - IST_OFFSET_MS;
   return Number.isFinite(ts) ? ts : undefined;
 }
 
@@ -125,18 +152,63 @@ const DEFAULT_EXPIRY_INPUT = toLocalInput(Date.now() + 7 * 24 * 60 * 60 * 1000);
 //  PAGE
 // ══════════════════════════════════════════════════════════════════
 
+type CampaignTab =
+  | "campaigns"
+  | "calendar"
+  | "analytics"
+  | "templates"
+  | "audit"
+  | "settings";
+
+type CampaignFilters = {
+  search: string;
+  status: string;
+  channel: "" | ChannelKey;
+  category: "" | MessageCategory;
+  from: string;
+  to: string;
+};
+
+const EMPTY_FILTERS: CampaignFilters = {
+  search: "",
+  status: "",
+  channel: "",
+  category: "",
+  from: "",
+  to: "",
+};
+
 export default function AdminMessageCenter() {
-  const campaigns = useQuery(api.messageCenter.listCampaigns, {});
+  const [tab, setTab] = useState<CampaignTab>("campaigns");
+  const [filters, setFilters] = useState<CampaignFilters>(EMPTY_FILTERS);
+  const listArgs = useMemo(
+    () => ({
+      search: filters.search.trim() || undefined,
+      status: (filters.status || undefined) as any,
+      channel: (filters.channel || undefined) as ChannelKey | undefined,
+      category: (filters.category || undefined) as MessageCategory | undefined,
+      // Date filters are interpreted as IST calendar days, like every other
+      // campaign time shown in the admin.
+      from: filters.from ? fromLocalInput(`${filters.from}T00:00`) : undefined,
+      to: filters.to
+        ? (fromLocalInput(`${filters.to}T23:59`) ?? 0) + 59_999
+        : undefined,
+    }),
+    [filters]
+  );
+  const campaigns = useQuery(api.messageCenter.listCampaigns, listArgs);
   const status = useQuery(api.messageCenter.integrationStatus, {});
   const verifyIntegrations = useAction(api.messageDelivery.verifyIntegrations);
   const [filter, setFilter] = useState<"all" | "open" | "sent" | "failed">("all");
   const [composerOpen, setComposerOpen] = useState(false);
   const [editingId, setEditingId] = useState<Id<"message_campaigns"> | null>(null);
   const [detailId, setDetailId] = useState<Id<"message_campaigns"> | null>(null);
+  const [templateDefaults, setTemplateDefaults] = useState<any>(null);
   const [verifying, setVerifying] = useState(false);
   const [verifyResult, setVerifyResult] = useState<Awaited<
     ReturnType<typeof verifyIntegrations>
   > | null>(null);
+  const filtersActive = Object.values(filters).some(Boolean);
 
   const filtered = useMemo(() => {
     if (!campaigns) return [];
@@ -342,6 +414,35 @@ export default function AdminMessageCenter() {
           ))}
         </div>
 
+        <Tabs value={tab} onValueChange={(value) => setTab(value as CampaignTab)}>
+          <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1">
+            <TabsTrigger value="campaigns" className="gap-1.5">
+              <Megaphone className="size-3.5" />
+              Campaigns
+            </TabsTrigger>
+            <TabsTrigger value="calendar" className="gap-1.5">
+              <CalendarDays className="size-3.5" />
+              Calendar
+            </TabsTrigger>
+            <TabsTrigger value="analytics" className="gap-1.5">
+              <BarChart3 className="size-3.5" />
+              Analytics
+            </TabsTrigger>
+            <TabsTrigger value="templates" className="gap-1.5">
+              <FileText className="size-3.5" />
+              Templates
+            </TabsTrigger>
+            <TabsTrigger value="audit" className="gap-1.5">
+              <ScrollText className="size-3.5" />
+              Audit
+            </TabsTrigger>
+            <TabsTrigger value="settings" className="gap-1.5">
+              <Settings2 className="size-3.5" />
+              Settings
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="campaigns" className="mt-4">
         {/* Campaign history */}
         <Card className="border-border/60">
           <CardHeader className="flex flex-col gap-3 pb-3 sm:flex-row sm:items-center sm:justify-between">
@@ -352,7 +453,13 @@ export default function AdminMessageCenter() {
                 tracking is shown only for website notifications and popups.
               </p>
             </div>
-            <Tabs value={filter} onValueChange={(v) => setFilter(v as typeof filter)}>
+            <Tabs
+              value={filter}
+              onValueChange={(v) => {
+                setFilter(v as typeof filter);
+                setFilters((current) => ({ ...current, status: "" }));
+              }}
+            >
               <TabsList>
                 <TabsTrigger value="all">All</TabsTrigger>
                 <TabsTrigger value="open">Open</TabsTrigger>
@@ -362,6 +469,102 @@ export default function AdminMessageCenter() {
             </Tabs>
           </CardHeader>
           <CardContent>
+            <div className="mb-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
+              <Input
+                value={filters.search}
+                placeholder="Search campaigns"
+                aria-label="Search campaigns"
+                className="lg:col-span-2"
+                onChange={(event) =>
+                  setFilters((current) => ({ ...current, search: event.target.value }))
+                }
+              />
+              <select
+                value={filters.status}
+                aria-label="Filter by status"
+                onChange={(event) => {
+                  setFilter("all");
+                  setFilters((current) => ({
+                    ...current,
+                    status: event.target.value,
+                  }));
+                }}
+                className="w-full rounded-lg border border-border/70 bg-background px-3 py-2 text-sm"
+              >
+                <option value="">All statuses</option>
+                <option value="draft">Draft</option>
+                <option value="scheduled">Scheduled</option>
+                <option value="processing">Processing</option>
+                <option value="completed">Completed</option>
+                <option value="partially_failed">Partially failed</option>
+                <option value="failed">Failed</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+              <select
+                value={filters.channel}
+                aria-label="Filter by channel"
+                onChange={(event) =>
+                  setFilters((current) => ({
+                    ...current,
+                    channel: event.target.value as CampaignFilters["channel"],
+                  }))
+                }
+                className="w-full rounded-lg border border-border/70 bg-background px-3 py-2 text-sm"
+              >
+                <option value="">All channels</option>
+                {CHANNELS.map((channel) => (
+                  <option key={channel.value} value={channel.value}>
+                    {channel.label}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={filters.category}
+                aria-label="Filter by category"
+                onChange={(event) =>
+                  setFilters((current) => ({
+                    ...current,
+                    category: event.target.value as CampaignFilters["category"],
+                  }))
+                }
+                className="w-full rounded-lg border border-border/70 bg-background px-3 py-2 text-sm"
+              >
+                <option value="">All categories</option>
+                {MESSAGE_CATEGORIES.map((category) => (
+                  <option key={category.value} value={category.value}>
+                    {category.label}
+                  </option>
+                ))}
+              </select>
+              <Input
+                type="date"
+                value={filters.from}
+                aria-label="Filter from date"
+                onChange={(event) =>
+                  setFilters((current) => ({ ...current, from: event.target.value }))
+                }
+              />
+              <Input
+                type="date"
+                value={filters.to}
+                aria-label="Filter to date"
+                onChange={(event) =>
+                  setFilters((current) => ({ ...current, to: event.target.value }))
+                }
+              />
+              {filtersActive && (
+                <div className="sm:col-span-2 lg:col-span-6">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => setFilters(EMPTY_FILTERS)}
+                  >
+                    Clear filters
+                  </Button>
+                </div>
+              )}
+            </div>
             {campaigns === undefined ? (
               <div className="flex items-center justify-center py-16">
                 <Loader2 className="size-5 animate-spin text-muted-foreground" />
@@ -444,6 +647,34 @@ export default function AdminMessageCenter() {
             )}
           </CardContent>
         </Card>
+          </TabsContent>
+
+          <TabsContent value="calendar" className="mt-4">
+            <CampaignCalendar campaigns={campaigns ?? []} onOpen={setDetailId} />
+          </TabsContent>
+
+          <TabsContent value="analytics" className="mt-4">
+            <CampaignAnalytics onOpen={setDetailId} />
+          </TabsContent>
+
+          <TabsContent value="templates" className="mt-4">
+            <CampaignTemplates
+              onUse={(template) => {
+                setEditingId(null);
+                setTemplateDefaults(template);
+                setComposerOpen(true);
+              }}
+            />
+          </TabsContent>
+
+          <TabsContent value="audit" className="mt-4">
+            <CampaignAuditLog />
+          </TabsContent>
+
+          <TabsContent value="settings" className="mt-4">
+            <MessagingSettings />
+          </TabsContent>
+        </Tabs>
       </div>
 
       {composerOpen && (
@@ -451,12 +682,17 @@ export default function AdminMessageCenter() {
           open={composerOpen}
           onOpenChange={(open) => {
             setComposerOpen(open);
-            if (!open) setEditingId(null);
+            if (!open) {
+              setEditingId(null);
+              setTemplateDefaults(null);
+            }
           }}
           editingId={editingId}
+          templateDefaults={templateDefaults}
           onSaved={() => {
             setComposerOpen(false);
             setEditingId(null);
+            setTemplateDefaults(null);
           }}
         />
       )}
@@ -493,9 +729,54 @@ function CampaignDetail({
   );
   const cancelCampaign = useMutation(api.messageCenter.cancelCampaign);
   const deleteCampaign = useMutation(api.messageCenter.deleteCampaign);
+  const retryDeliveries = useMutation(api.messageCampaigns.retryFailedDeliveries);
+  const chooseWinner = useMutation(api.messageCampaigns.chooseAbWinner);
+  const analytics = useQuery(
+    api.messageCampaigns.campaignAnalytics,
+    campaignId ? { campaignId } : "skip"
+  );
+  const activity = useQuery(
+    api.messageCampaigns.listCampaignAudit,
+    campaignId ? { campaignId, limit: 8 } : "skip"
+  );
   const [busy, setBusy] = useState(false);
+  const [retrying, setRetrying] = useState(false);
+  const [choosingWinner, setChoosingWinner] = useState(false);
 
   const campaign: any = detail?.campaign;
+  const abSummary: any = detail?.abSummary ?? null;
+
+  async function handleRetry() {
+    if (!campaignId) return;
+    setRetrying(true);
+    try {
+      const result = await retryDeliveries({ campaignId });
+      toast.success(
+        result.retried > 0
+          ? `${result.retried} failed ${
+              result.retried === 1 ? "delivery" : "deliveries"
+            } re-queued`
+          : result.message ?? "No retryable failures"
+      );
+    } catch (error: any) {
+      toast.error(error?.message ?? "Could not retry deliveries");
+    } finally {
+      setRetrying(false);
+    }
+  }
+
+  async function handleWinner(winner: "A" | "B", source: "manual" | "rule") {
+    if (!campaignId) return;
+    setChoosingWinner(true);
+    try {
+      await chooseWinner({ campaignId, winner, source });
+      toast.success(`Variant ${winner} saved as the winner`);
+    } catch (error: any) {
+      toast.error(error?.message ?? "Could not save the winner");
+    } finally {
+      setChoosingWinner(false);
+    }
+  }
 
   async function handleCancel() {
     if (!campaignId) return;
@@ -574,6 +855,11 @@ function CampaignDetail({
                   Expires: {formatDateTime(campaign.expiresAt)}
                 </span>
               )}
+              {detail.nextExecutionAt && (
+                <span className="text-xs font-medium text-blue-700">
+                  Next scheduled execution: {formatDateTime(detail.nextExecutionAt)}
+                </span>
+              )}
             </div>
 
             <div className="rounded-xl border border-border/60 bg-muted/30 p-4">
@@ -629,6 +915,138 @@ function CampaignDetail({
               })}
             </div>
 
+            {analytics && (
+              <div className="rounded-xl border border-border/60 p-3">
+                <p className="flex items-center gap-1.5 text-xs font-semibold">
+                  <BarChart3 className="size-3.5 text-primary" />
+                  Performance (recorded data only)
+                </p>
+                <div className="mt-2 grid grid-cols-2 gap-2 text-[11px] sm:grid-cols-4">
+                  <div className="rounded-lg bg-muted/40 p-2">
+                    <p className="text-base font-bold leading-none">
+                      {analytics.totals.targeted}
+                    </p>
+                    <p className="mt-1 text-[10px] text-muted-foreground">
+                      Targeted deliveries
+                    </p>
+                  </div>
+                  <div className="rounded-lg bg-muted/40 p-2">
+                    <p className="text-base font-bold leading-none">
+                      {analytics.totals.reached}
+                    </p>
+                    <p className="mt-1 text-[10px] text-muted-foreground">
+                      Accepted / delivered
+                    </p>
+                  </div>
+                  <div className="rounded-lg bg-muted/40 p-2">
+                    <p className="text-base font-bold leading-none text-red-600">
+                      {analytics.totals.failed}
+                    </p>
+                    <p className="mt-1 text-[10px] text-muted-foreground">Failed</p>
+                  </div>
+                  <div className="rounded-lg bg-muted/40 p-2">
+                    <p className="text-base font-bold leading-none">
+                      {analytics.readTrackingAvailable
+                        ? `${Math.round((analytics.totals.readRate ?? 0) * 100)}%`
+                        : "—"}
+                    </p>
+                    <p className="mt-1 text-[10px] text-muted-foreground">
+                      Read rate (web/popup)
+                    </p>
+                  </div>
+                </div>
+                <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">
+                  Opens, link clicks and purchases cannot be attributed by the current
+                  providers, so they are not shown.
+                </p>
+              </div>
+            )}
+
+            {abSummary && (
+              <div className="rounded-xl border border-border/60 p-3">
+                <p className="flex flex-wrap items-center gap-2 text-xs font-semibold">
+                  A/B result
+                  <Badge variant="outline" className="text-[9px]">
+                    Split A {abSummary.splitPercent}% / B{" "}
+                    {100 - abSummary.splitPercent}%
+                  </Badge>
+                  {abSummary.winner && (
+                    <Badge className="border-emerald-200 bg-emerald-50 text-[9px] text-emerald-700" variant="outline">
+                      Winner {abSummary.winner}
+                      {abSummary.winnerDecidedBy === "rule"
+                        ? " (suggested)"
+                        : " (manual)"}
+                    </Badge>
+                  )}
+                </p>
+                <div className="mt-2 overflow-x-auto">
+                  <table className="w-full min-w-[340px] text-left text-[11px]">
+                    <thead>
+                      <tr className="text-[9px] uppercase tracking-wide text-muted-foreground">
+                        <th className="py-1 pr-2 font-semibold">Variation</th>
+                        <th className="px-1 py-1 font-semibold">Recipients</th>
+                        <th className="px-1 py-1 font-semibold">Sent</th>
+                        <th className="px-1 py-1 font-semibold">Read</th>
+                        <th className="px-1 py-1 font-semibold">Failed</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(["a", "b"] as const).map((key) => {
+                        const counts = abSummary.evaluation[key];
+                        return (
+                          <tr key={key} className="border-t border-border/40">
+                            <td className="py-1.5 pr-2 font-semibold uppercase">{key}</td>
+                            <td className="px-1 py-1.5">{counts.targeted}</td>
+                            <td className="px-1 py-1.5">{counts.accepted}</td>
+                            <td className="px-1 py-1.5">{counts.read}</td>
+                            <td className="px-1 py-1.5 text-red-600">{counts.failed}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="mt-2 text-[10px] leading-relaxed text-muted-foreground">
+                  {abSummary.evaluation.reason}
+                </p>
+                {(campaign?.status === "completed" ||
+                  campaign?.status === "partially_failed") && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {abSummary.evaluation.leading && !abSummary.winner && (
+                      <Button
+                        size="sm"
+                        className="h-7 text-[10px]"
+                        disabled={choosingWinner}
+                        onClick={() =>
+                          handleWinner(abSummary.evaluation.leading, "rule")
+                        }
+                      >
+                        Use suggested winner {abSummary.evaluation.leading}
+                      </Button>
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-[10px]"
+                      disabled={choosingWinner}
+                      onClick={() => handleWinner("A", "manual")}
+                    >
+                      Mark A as winner
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-[10px]"
+                      disabled={choosingWinner}
+                      onClick={() => handleWinner("B", "manual")}
+                    >
+                      Mark B as winner
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+
             <p className="text-[10px] leading-relaxed text-muted-foreground">
               For WhatsApp and email, “Sent” means the provider accepted the
               request. Delivery receipts are shown only when the provider reports
@@ -674,12 +1092,57 @@ function CampaignDetail({
                     ))}
                   </ul>
                 )}
+                {(detail.retryableFailures ?? 0) > 0 && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-2 h-7 gap-1 text-[10px]"
+                    disabled={retrying}
+                    onClick={handleRetry}
+                  >
+                    {retrying ? (
+                      <Loader2 className="size-3 animate-spin" />
+                    ) : (
+                      <RefreshCw className="size-3" />
+                    )}
+                    Retry {detail.retryableFailures} failed{" "}
+                    {detail.retryableFailures === 1 ? "delivery" : "deliveries"}
+                  </Button>
+                )}
+                <p className="mt-2 text-[9px] leading-relaxed text-muted-foreground">
+                  Only temporary failures can be retried. Opt-outs, missing addresses
+                  and configuration errors are never retried.
+                </p>
               </div>
             </div>
 
             {campaign.errorSummary && (
               <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-[11px] text-amber-800">
                 {campaign.errorSummary}
+              </div>
+            )}
+
+            {(activity?.length ?? 0) > 0 && (
+              <div className="rounded-xl border border-border/60 p-3">
+                <p className="flex items-center gap-1.5 text-xs font-semibold">
+                  <ScrollText className="size-3.5 text-primary" />
+                  Recent activity
+                </p>
+                <ul className="mt-1.5 space-y-1 text-[10px] text-muted-foreground">
+                  {(activity ?? []).map((entry: any) => (
+                    <li key={entry._id} className="flex justify-between gap-2">
+                      <span className="min-w-0 truncate">
+                        <span className="font-medium text-foreground">
+                          {entry.action.replaceAll("_", " ")}
+                        </span>
+                        {entry.detail ? ` · ${entry.detail}` : ""}
+                      </span>
+                      <span className="shrink-0">
+                        {entry.actorName} · {formatDateTime(entry.createdAt)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
               </div>
             )}
 
@@ -751,11 +1214,13 @@ function CampaignComposer({
   open,
   onOpenChange,
   editingId,
+  templateDefaults,
   onSaved,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingId: Id<"message_campaigns"> | null;
+  templateDefaults?: any;
   onSaved: () => void;
 }) {
   const existing = useQuery(
@@ -765,13 +1230,41 @@ function CampaignComposer({
   const existingCampaign: any = existing?.campaign;
   const audienceCounts = useQuery(api.messageCenter.audienceCounts, {});
   const saveCampaign = useMutation(api.messageCenter.saveCampaign);
+  const templates = useQuery(api.messageCampaigns.listTemplates, {});
+  const saveTemplate = useMutation(api.messageCampaigns.saveTemplate);
+  const recommendation = useQuery(api.messageCampaigns.sendTimeRecommendation, {});
+  const sendTestMessage = useAction(api.messageDelivery.sendTestMessage);
 
-  const [title, setTitle] = useState(existingCampaign?.title ?? "");
-  const [body, setBody] = useState(existingCampaign?.body ?? "");
-  const [category, setCategory] = useState<MessageCategory>(
-    existingCampaign?.category ?? "announcement"
+  const [title, setTitle] = useState(
+    existingCampaign?.title ?? templateDefaults?.title ?? ""
   );
-  const [imageUrl, setImageUrl] = useState(existingCampaign?.imageUrl ?? "");
+  const [body, setBody] = useState(
+    existingCampaign?.body ?? templateDefaults?.body ?? ""
+  );
+  const [category, setCategory] = useState<MessageCategory>(
+    existingCampaign?.category ?? templateDefaults?.category ?? "announcement"
+  );
+  const [imageUrl, setImageUrl] = useState(
+    existingCampaign?.imageUrl ?? templateDefaults?.imageUrl ?? ""
+  );
+  const [abEnabled, setAbEnabled] = useState(Boolean(existingCampaign?.variantB));
+  const [variantBTitle, setVariantBTitle] = useState(
+    existingCampaign?.variantB?.title ?? ""
+  );
+  const [variantBBody, setVariantBBody] = useState(
+    existingCampaign?.variantB?.body ?? ""
+  );
+  const [abSplit, setAbSplit] = useState<number>(existingCampaign?.abSplit ?? 50);
+  const [templateSaveOpen, setTemplateSaveOpen] = useState(false);
+  const [templateName, setTemplateName] = useState(
+    templateDefaults?.name ?? ""
+  );
+  const [testChannel, setTestChannel] = useState<"email" | "whatsapp">("email");
+  const [testRecipient, setTestRecipient] = useState("");
+  const [testSending, setTestSending] = useState(false);
+  const [previewVariant, setPreviewVariant] = useState<"A" | "B">("A");
+  // Stable reference time for the "send now" quiet-hours check.
+  const [quietCheckNow] = useState(() => Date.now());
   const [channels, setChannels] = useState<Record<ChannelKey, boolean>>(
     existingCampaign?.channels ?? EMPTY_CHANNELS
   );
@@ -813,6 +1306,10 @@ function CampaignComposer({
     setBody(existingCampaign.body ?? "");
     setCategory(existingCampaign.category ?? "announcement");
     setImageUrl(existingCampaign.imageUrl ?? "");
+    setAbEnabled(Boolean(existingCampaign.variantB));
+    setVariantBTitle(existingCampaign.variantB?.title ?? "");
+    setVariantBBody(existingCampaign.variantB?.body ?? "");
+    setAbSplit(existingCampaign.abSplit ?? 50);
     setChannels({ ...EMPTY_CHANNELS, ...(existingCampaign.channels ?? {}) });
     setAudienceType(existingCampaign.audience?.type ?? "all");
     setCategoryId(existingCampaign.audience?.categoryId ?? "");
@@ -847,12 +1344,27 @@ function CampaignComposer({
     channels,
   });
 
+  const scheduledAtValue = scheduleEnabled ? fromLocalInput(scheduledAt) : undefined;
+  const suggestions = useQuery(api.messageCampaigns.campaignSuggestions, {
+    audience: audienceArg,
+    channels,
+    // For an immediate send, check the current moment so a quiet-hours send is
+    // flagged before the dispatcher defers it.
+    scheduledAt: scheduledAtValue ?? quietCheckNow,
+    category,
+  });
+
+  const previewContent =
+    abEnabled && previewVariant === "B"
+      ? { title: variantBTitle, body: variantBBody }
+      : { title, body };
+
   const emailPreview = useQuery(
     api.messageCenter.renderPreview,
-    title.trim() && body.trim()
+    previewContent.title.trim() && previewContent.body.trim()
       ? {
-          title,
-          body,
+          title: previewContent.title,
+          body: previewContent.body,
           category,
           imageUrl: imageUrl.trim() || undefined,
         }
@@ -891,13 +1403,90 @@ function CampaignComposer({
     ]
   );
 
+  const abError = useMemo(() => {
+    if (!abEnabled) return null;
+    const bTitle = variantBTitle.trim();
+    const bBody = variantBBody.trim();
+    if (bTitle.length < 3) return "Variant B needs a title of at least 3 characters.";
+    if (bBody.length < 3) return "Variant B needs a message of at least 3 characters.";
+    if (bTitle.length > TITLE_MAX) return `Variant B title must be at most ${TITLE_MAX} characters.`;
+    if (bBody.length > BODY_MAX) return `Variant B message must be at most ${BODY_MAX} characters.`;
+    if (bTitle === title.trim() && bBody === body.trim()) {
+      return "Variant B must differ from variant A.";
+    }
+    return null;
+  }, [abEnabled, variantBTitle, variantBBody, title, body]);
+
+  const ready = validation.valid && !abError;
+
   function toggleChannel(channel: ChannelKey, enabled: boolean) {
     setChannels((prev) => ({ ...prev, [channel]: enabled }));
   }
 
+  function applyTemplate(templateId: string) {
+    const template = (templates ?? []).find(
+      (entry: any) => String(entry._id) === templateId
+    );
+    if (!template) return;
+    setTitle(template.title);
+    setBody(template.body);
+    setCategory(template.category);
+    setImageUrl(template.imageUrl ?? "");
+    setTemplateName(template.name);
+    toast.success(`Loaded template “${template.name}”`);
+  }
+
+  async function saveAsTemplate() {
+    const name = (templateName || title).trim().slice(0, 80);
+    if (!name) {
+      toast.error("Give the template a name first.");
+      return;
+    }
+    try {
+      await saveTemplate({
+        name,
+        category,
+        title,
+        body,
+        imageUrl: imageUrl.trim() || undefined,
+      });
+      toast.success("Saved to the template library");
+      setTemplateSaveOpen(false);
+    } catch (error: any) {
+      toast.error(error?.message ?? "Could not save template");
+    }
+  }
+
+  async function sendTest() {
+    setTestSending(true);
+    try {
+      const result = await sendTestMessage({
+        channel: testChannel,
+        recipient: testRecipient,
+        title: previewContent.title,
+        body: previewContent.body,
+        category,
+        imageUrl: imageUrl.trim() || undefined,
+      });
+      if (result.success) {
+        toast.success(
+          `Test ${testChannel} accepted by the provider for ${testRecipient}.`
+        );
+      } else {
+        toast.error(result.error ?? "Test send failed");
+      }
+    } catch (error: any) {
+      toast.error(error?.message ?? "Test send failed");
+    } finally {
+      setTestSending(false);
+    }
+  }
+
   async function submit(mode: SendMode) {
-    if (mode !== "draft" && !validation.valid) {
-      toast.error(validation.errors[0] ?? "Please complete the message first");
+    if (mode !== "draft" && !ready) {
+      toast.error(
+        abError ?? validation.errors[0] ?? "Please complete the message first"
+      );
       return;
     }
     if (mode !== "draft" && (preview?.missingConfig.length ?? 0) > 0) {
@@ -915,8 +1504,12 @@ function CampaignComposer({
         imageUrl: imageUrl.trim() || undefined,
         channels,
         audience: audienceArg,
-        scheduledAt: mode === "schedule" ? fromLocalInput(scheduledAt) : undefined,
+        scheduledAt: mode === "schedule" ? scheduledAtValue : undefined,
         expiresAt: expiryEnabled ? fromLocalInput(expiresAt) : undefined,
+        variantB: abEnabled
+          ? { title: variantBTitle.trim(), body: variantBBody.trim() }
+          : undefined,
+        abSplit: abEnabled ? abSplit : undefined,
         mode,
         confirmed: mode !== "draft" ? true : undefined,
       });
@@ -925,7 +1518,7 @@ function CampaignComposer({
           ? "Draft saved"
           : mode === "schedule"
             ? `Scheduled for ${formatDateTime(fromLocalInput(scheduledAt))}`
-            : "Campaign is being sent"
+            : "Campaign queued for dispatch"
       );
       if (result.deduplicated) {
         toast.message("This campaign was already saved.");
@@ -940,8 +1533,10 @@ function CampaignComposer({
   }
 
   function requestSend(mode: SendMode) {
-    if (mode !== "draft" && !validation.valid) {
-      toast.error(validation.errors[0] ?? "Please complete the message first");
+    if (mode !== "draft" && !ready) {
+      toast.error(
+        abError ?? validation.errors[0] ?? "Please complete the message first"
+      );
       return;
     }
     if (mode === "schedule" && !scheduleEnabled) {
@@ -979,6 +1574,43 @@ function CampaignComposer({
           <div className="grid min-h-0 flex-1 gap-6 overflow-y-auto overscroll-contain px-4 py-5 pb-8 sm:px-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
             {/* ── Left: fields ── */}
             <div className="min-w-0 space-y-5">
+              <div className="space-y-2 rounded-xl border border-border/60 bg-muted/20 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <Label
+                    htmlFor="mc-template"
+                    className="flex items-center gap-1.5 text-xs"
+                  >
+                    <FileText className="size-3.5" />
+                    Reusable template
+                  </Label>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-[11px]"
+                    disabled={!title.trim() || !body.trim()}
+                    onClick={() => {
+                      setTemplateName(title.trim().slice(0, 80));
+                      setTemplateSaveOpen(true);
+                    }}
+                  >
+                    Save as template
+                  </Button>
+                </div>
+                <select
+                  id="mc-template"
+                  value=""
+                  onChange={(event) => applyTemplate(event.target.value)}
+                  className="w-full rounded-lg border border-border/70 bg-background px-3 py-2 text-sm"
+                >
+                  <option value="">Load a saved template…</option>
+                  {(templates ?? []).map((template: any) => (
+                    <option key={template._id} value={template._id}>
+                      {template.name} · {categoryLabel(template.category)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div className="space-y-1.5">
                 <Label htmlFor="mc-title">Message title</Label>
                 <Input
@@ -1106,6 +1738,75 @@ function CampaignComposer({
               </div>
 
               <div className="space-y-2">
+                <Label>A/B test (optional)</Label>
+                <div className="rounded-xl border border-border/60 p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-semibold">Test two variations</p>
+                      <p className="mt-0.5 text-[10px] text-muted-foreground">
+                        Variant A is the message above. Recipients are split
+                        deterministically and the same person always gets the same
+                        variation, including on retries.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={abEnabled}
+                      onCheckedChange={setAbEnabled}
+                      aria-label="Enable A/B test"
+                    />
+                  </div>
+                  {abEnabled && (
+                    <div className="mt-3 space-y-3 border-t border-border/60 pt-3">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="mc-variant-b-title">Variant B title</Label>
+                        <Input
+                          id="mc-variant-b-title"
+                          value={variantBTitle}
+                          maxLength={TITLE_MAX}
+                          placeholder="Alternative subject or title"
+                          onChange={(event) => setVariantBTitle(event.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="mc-variant-b-body">Variant B message</Label>
+                        <Textarea
+                          id="mc-variant-b-body"
+                          value={variantBBody}
+                          rows={4}
+                          maxLength={BODY_MAX}
+                          placeholder="Alternative wording for the second variation"
+                          onChange={(event) => setVariantBBody(event.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor="mc-ab-split">
+                          Split — variant A {abSplit}% / variant B {100 - abSplit}%
+                        </Label>
+                        <input
+                          id="mc-ab-split"
+                          type="range"
+                          min={10}
+                          max={90}
+                          step={5}
+                          value={abSplit}
+                          onChange={(event) => setAbSplit(Number(event.target.value))}
+                          className="w-full accent-[var(--primary)]"
+                        />
+                        <p className="text-[10px] text-muted-foreground">
+                          A winner is suggested only when each variation has at least 30
+                          recipients and read tracking is available. You can always choose
+                          manually.
+                        </p>
+                      </div>
+                      {abError && (
+                        <p className="text-[10px] text-red-600">{abError}</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-2">
                 <Label>Audience</Label>
                 <div className="space-y-2">
                   {AUDIENCES.map((option) => (
@@ -1135,7 +1836,11 @@ function CampaignComposer({
                                 ? `${audienceCounts?.withOrders ?? 0} customers`
                                 : option.value === "no_orders"
                                   ? `${audienceCounts?.noOrders ?? 0} customers`
-                                  : ""}
+                                  : option.value === "new_users"
+                                    ? `${audienceCounts?.newUsers ?? 0} customers`
+                                    : option.value === "existing_users"
+                                      ? `${audienceCounts?.existingUsers ?? 0} customers`
+                                      : ""}
                           </span>
                         </span>
                         <span className="mt-0.5 block text-[10px] text-muted-foreground">
@@ -1229,12 +1934,17 @@ function CampaignComposer({
                     />
                   </div>
                   {scheduleEnabled && (
-                    <Input
-                      type="datetime-local"
-                      value={scheduledAt}
-                      onChange={(event) => setScheduledAt(event.target.value)}
-                      className="mt-3"
-                    />
+                    <div className="mt-3 space-y-1">
+                      <Label htmlFor="mc-scheduled-at" className="text-[10px]">
+                        Send time (IST)
+                      </Label>
+                      <Input
+                        id="mc-scheduled-at"
+                        type="datetime-local"
+                        value={scheduledAt}
+                        onChange={(event) => setScheduledAt(event.target.value)}
+                      />
+                    </div>
                   )}
                   <div className="mt-3 flex items-center justify-between border-t border-border/60 pt-3">
                     <div>
@@ -1246,12 +1956,67 @@ function CampaignComposer({
                     <Switch checked={expiryEnabled} onCheckedChange={setExpiryEnabled} />
                   </div>
                   {expiryEnabled && (
-                    <Input
-                      type="datetime-local"
-                      value={expiresAt}
-                      onChange={(event) => setExpiresAt(event.target.value)}
-                      className="mt-3"
-                    />
+                    <div className="mt-3 space-y-1">
+                      <Label htmlFor="mc-expires-at" className="text-[10px]">
+                        Expiry time (IST)
+                      </Label>
+                      <Input
+                        id="mc-expires-at"
+                        type="datetime-local"
+                        value={expiresAt}
+                        onChange={(event) => setExpiresAt(event.target.value)}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <div className="rounded-xl border border-border/60 p-3">
+                  <p className="flex flex-wrap items-center gap-1.5 text-xs font-semibold">
+                    <CalendarClock className="size-3.5 text-primary" />
+                    Suggested send time
+                    <Badge variant="outline" className="text-[9px] font-normal">
+                      estimate
+                    </Badge>
+                  </p>
+                  {recommendation?.sufficient ? (
+                    <div className="mt-2 space-y-2">
+                      {recommendation.slots.map((slot: any) => (
+                        <div
+                          key={`${slot.weekday}-${slot.hour}`}
+                          className="flex items-center justify-between gap-2"
+                        >
+                          <div className="min-w-0">
+                            <p className="text-[11px] font-medium">
+                              {slot.weekdayLabel} · {slot.hourLabel}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground">
+                              {Math.round((slot.readRate ?? 0) * 100)}% read ·{" "}
+                              {slot.deliveries} deliveries across {slot.campaigns}{" "}
+                              campaigns
+                            </p>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-7 shrink-0 text-[10px]"
+                            onClick={() => {
+                              setScheduleEnabled(true);
+                              setScheduledAt(toLocalInput(slot.nextOccurrence));
+                            }}
+                          >
+                            Use
+                          </Button>
+                        </div>
+                      ))}
+                      <p className="text-[10px] text-muted-foreground">
+                        {recommendation.reason}
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="mt-1.5 text-[10px] leading-relaxed text-muted-foreground">
+                      {recommendation?.reason ?? "Checking past campaign data…"}
+                    </p>
                   )}
                 </div>
               </div>
@@ -1260,12 +2025,33 @@ function CampaignComposer({
             {/* ── Right: live preview + summary ── */}
             <div className="min-w-0 space-y-4 lg:self-start">
               <Card className="border-border/60">
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center justify-between text-xs">
-                    Live preview
-                    <Badge variant="outline" className="text-[10px]">
-                      {categoryLabel(category)}
-                    </Badge>
+                <CardHeader className="pb-2">                    <CardTitle className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                      Live preview
+                    <span className="flex items-center gap-1">
+                      {abEnabled && (
+                        <span className="flex overflow-hidden rounded-md border border-border/60 text-[9px]">
+                          {(["A", "B"] as const).map((variant) => (
+                            <button
+                              key={variant}
+                              type="button"
+                              aria-pressed={previewVariant === variant}
+                              onClick={() => setPreviewVariant(variant)}
+                              className={cn(
+                                "px-1.5 py-0.5 font-semibold transition-colors",
+                                previewVariant === variant
+                                  ? "bg-primary text-primary-foreground"
+                                  : "text-muted-foreground hover:bg-muted"
+                              )}
+                            >
+                              {variant}
+                            </button>
+                          ))}
+                        </span>
+                      )}
+                      <Badge variant="outline" className="text-[10px]">
+                        {categoryLabel(category)}
+                      </Badge>
+                    </span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -1276,10 +2062,16 @@ function CampaignComposer({
                       </div>
                       <div className="min-w-0">
                         <p className="truncate text-xs font-semibold">
-                          {title.trim() || "Your message title"}
+                          {previewContent.title.trim() ||
+                            (previewVariant === "B"
+                              ? "Variant B title"
+                              : "Your message title")}
                         </p>
                         <p className="mt-0.5 line-clamp-3 whitespace-pre-wrap text-[11px] leading-relaxed text-muted-foreground">
-                          {body.trim() || "Your message body will appear here."}
+                          {previewContent.body.trim() ||
+                            (previewVariant === "B"
+                              ? "Variant B message will appear here."
+                              : "Your message body will appear here.")}
                         </p>
                         <p className="mt-1 text-[9px] uppercase tracking-wide text-muted-foreground/70">
                           Kalyan Chemist · Now
@@ -1354,6 +2146,41 @@ function CampaignComposer({
                 </CardContent>
               </Card>
 
+              <Card className="border-border/60">
+                <CardHeader className="pb-2">
+                  <CardTitle className="flex items-center gap-1.5 text-xs">
+                    <AlertTriangle className="size-3.5 text-amber-600" />
+                    Smart suggestions
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {(suggestions?.suggestions ?? []).length === 0 && (
+                    <p className="text-[11px] text-muted-foreground">
+                      No audience, timing or frequency concerns detected for this
+                      draft.
+                    </p>
+                  )}
+                  {(suggestions?.suggestions ?? []).map((suggestion: any) => (
+                    <div
+                      key={`${suggestion.level}-${suggestion.title}`}
+                      className={cn(
+                        "rounded-lg p-2 text-[10px] leading-relaxed",
+                        suggestion.level === "warning"
+                          ? "bg-amber-50 text-amber-800"
+                          : "bg-muted/50 text-muted-foreground"
+                      )}
+                    >
+                      <p className="font-semibold">{suggestion.title}</p>
+                      <p className="mt-0.5">{suggestion.detail}</p>
+                    </div>
+                  ))}
+                  <p className="text-[9px] leading-relaxed text-muted-foreground/80">
+                    Suggestions are optional guidance based on campaign history and
+                    saved settings. Nothing is scheduled or sent automatically.
+                  </p>
+                </CardContent>
+              </Card>
+
               <div className="rounded-xl border border-border/60 bg-muted/30 p-3 text-[10px] leading-relaxed text-muted-foreground">
                 <p className="mb-1 flex items-center gap-1 font-semibold text-foreground">
                   <CheckCheck className="size-3" />
@@ -1385,7 +2212,7 @@ function CampaignComposer({
               variant="outline"
               size="sm"
               onClick={() => submit("draft")}
-              disabled={saving || !validation.valid}
+              disabled={saving || !ready}
             >
               {saving && pendingMode === "draft" ? (
                 <Loader2 className="size-3.5 animate-spin" />
@@ -1397,7 +2224,7 @@ function CampaignComposer({
               size="sm"
               className="gap-1.5"
               onClick={() => requestSend("schedule")}
-              disabled={saving || !validation.valid}
+              disabled={saving || !ready}
             >
               <CalendarClock className="size-3.5" />
               Schedule
@@ -1406,7 +2233,7 @@ function CampaignComposer({
               size="sm"
               className="gap-1.5 gradient-primary text-white"
               onClick={() => requestSend("send_now")}
-              disabled={saving || !validation.valid}
+              disabled={saving || !ready}
             >
               {saving && pendingMode === "send_now" ? (
                 <Loader2 className="size-3.5 animate-spin" />
@@ -1429,6 +2256,27 @@ function CampaignComposer({
               is personalised per recipient.
             </DialogDescription>
           </DialogHeader>
+          {abEnabled && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[11px] text-muted-foreground">Variation</span>
+              {(["A", "B"] as const).map((variant) => (
+                <Button
+                  key={variant}
+                  type="button"
+                  size="sm"
+                  variant={previewVariant === variant ? "default" : "outline"}
+                  className="h-7 px-2.5 text-[11px]"
+                  aria-pressed={previewVariant === variant}
+                  onClick={() => setPreviewVariant(variant)}
+                >
+                  {variant}
+                </Button>
+              ))}
+              <span className="ml-auto text-[10px] text-muted-foreground">
+                Test sends use the selected variation.
+              </span>
+            </div>
+          )}
           {emailPreview ? (
             <iframe
               title="Email preview"
@@ -1441,6 +2289,59 @@ function CampaignComposer({
               <Loader2 className="size-5 animate-spin text-muted-foreground" />
             </div>
           )}
+          <div className="rounded-xl border border-border/60 p-3">
+            <p className="flex items-center gap-1.5 text-xs font-semibold">
+              <FlaskConical className="size-3.5 text-primary" />
+              Send a test
+            </p>
+            <p className="mt-0.5 text-[10px] leading-relaxed text-muted-foreground">
+              A test goes only to the address or number entered here — never to the
+              campaign audience. Use your own contact details.
+            </p>
+            <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+              <select
+                value={testChannel}
+                aria-label="Test channel"
+                onChange={(event) =>
+                  setTestChannel(event.target.value as "email" | "whatsapp")
+                }
+                className="rounded-lg border border-border/70 bg-background px-3 py-2 text-sm sm:w-36"
+              >
+                <option value="email">Email</option>
+                <option value="whatsapp">WhatsApp</option>
+              </select>
+              <Input
+                value={testRecipient}
+                aria-label="Test recipient"
+                placeholder={
+                  testChannel === "email" ? "you@example.com" : "+91 98765 43210"
+                }
+                onChange={(event) => setTestRecipient(event.target.value)}
+              />
+              <Button
+                size="sm"
+                className="shrink-0 gap-1.5"
+                onClick={sendTest}
+                disabled={
+                  testSending ||
+                  !testRecipient.trim() ||
+                  !title.trim() ||
+                  !body.trim()
+                }
+              >
+                {testSending ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <Send className="size-3.5" />
+                )}
+                Send test
+              </Button>
+            </div>
+            <p className="mt-2 text-[9px] text-muted-foreground">
+              Limited to 5 tests per admin every 10 minutes. Test sends are recorded
+              in the audit trail without the recipient's contact details.
+            </p>
+          </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setPreviewOpen(false)}>
               Close
@@ -1492,6 +2393,14 @@ function CampaignComposer({
                   </span>
                 </div>
               )}
+              {abEnabled && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">A/B variation split</span>
+                  <span className="font-medium">
+                    A {abSplit}% / B {100 - abSplit}%
+                  </span>
+                </div>
+              )}
               <div className="border-t border-border/60 pt-2">
                 <p className="mb-1 text-muted-foreground">Estimated recipients per channel</p>
                 {(preview?.perChannel ?? []).map((row: any) => (
@@ -1538,6 +2447,37 @@ function CampaignComposer({
                 <Send className="size-4" />
               )}
               {pendingMode === "schedule" ? "Confirm & schedule" : "Confirm & send"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Save current copy to the template library */}
+      <Dialog open={templateSaveOpen} onOpenChange={setTemplateSaveOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Save as template</DialogTitle>
+            <DialogDescription>
+              Store this title and message for reuse. Templates never send anything
+              on their own.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1.5">
+            <Label htmlFor="mc-template-name">Template name</Label>
+            <Input
+              id="mc-template-name"
+              value={templateName}
+              maxLength={80}
+              placeholder="e.g. Festival greeting"
+              onChange={(event) => setTemplateName(event.target.value)}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTemplateSaveOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={saveAsTemplate} disabled={!templateName.trim()}>
+              Save template
             </Button>
           </DialogFooter>
         </DialogContent>

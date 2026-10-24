@@ -13,19 +13,86 @@
 import { internalMutation, internalQuery } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
+import { recordAudit } from "./campaignAudit";
 import {
-  channelEligibility,
-  isRegisteredCustomer,
+  abVariantFor,
   campaignOutcome,
+  channelEligibility,
+  DEFAULT_QUIET_HOURS,
+  formatStoreDateTime,
+  isQuietHours,
+  isRegisteredCustomer,
+  MAX_DELIVERY_ATTEMPTS,
+  nextAllowedSendTime,
   type CampaignAudienceInput,
+  type QuietHoursSettings,
 } from "./messageCenterCore";
 
 const BATCH_SIZE = 40;
+const NEW_CUSTOMER_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+const FREQUENCY_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+
+/** Messaging policy (quiet hours + weekly promotional cap), singleton row. */
+async function messagingSettings(ctx: any): Promise<QuietHoursSettings> {
+  const row: any = await ctx.db
+    .query("communication_settings")
+    .withIndex("by_key", (q: any) => q.eq("key", "default"))
+    .first();
+  if (!row) return DEFAULT_QUIET_HOURS;
+  return {
+    quietHoursEnabled: row.quietHoursEnabled,
+    quietStartHour: row.quietStartHour,
+    quietEndHour: row.quietEndHour,
+    maxPromotionalPerWeek: row.maxPromotionalPerWeek,
+  };
+}
+
+/**
+ * How many distinct promotional campaigns already reached this customer in the
+ * last 7 days. Counts real sends only — never queued or failed attempts.
+ */
+async function recentPromotionalCampaigns(
+  ctx: any,
+  userId: any,
+  excludeCampaignId: any
+): Promise<number> {
+  const since = Date.now() - FREQUENCY_WINDOW_MS;
+  const rows = await ctx.db
+    .query("campaign_deliveries")
+    .withIndex("by_user_created", (q: any) =>
+      q.eq("userId", userId).gt("createdAt", since)
+    )
+    .take(300);
+  const campaigns = new Set<string>();
+  for (const row of rows) {
+    if (row.campaignId === excludeCampaignId) continue;
+    if (!["sent", "delivered", "read"].includes(row.status)) continue;
+    campaigns.add(String(row.campaignId));
+  }
+  return campaigns.size;
+}
 
 function randomToken(): string {
   const bytes = new Uint8Array(24);
   crypto.getRandomValues(bytes);
   return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/** Records automatic dispatch events against the campaign's creator. */
+async function auditDispatch(
+  ctx: any,
+  campaign: any,
+  action: string,
+  detail: string
+) {
+  await recordAudit(ctx, {
+    campaignId: campaign._id,
+    campaignTitle: campaign.title,
+    action,
+    actorId: campaign.createdBy,
+    actorName: "System (automatic)",
+    detail,
+  });
 }
 
 function channelLabel(channel: string): string {
@@ -76,8 +143,16 @@ async function prefsFor(ctx: any, userId: any) {
 async function audienceSets(ctx: any, audience: CampaignAudienceInput) {
   const orderUserIds = new Set<string>();
   const categoryUserIds = new Set<string>();
+  const creationTimes = new Map<string, number>();
+  if (audience.type === "new_users" || audience.type === "existing_users") {
+    const users = await ctx.db.query("users").collect();
+    for (const user of users) {
+      creationTimes.set(String(user._id), Number(user._creationTime ?? 0));
+    }
+    return { orderUserIds, categoryUserIds, creationTimes };
+  }
   if (audience.type === "all" || audience.type === "selected") {
-    return { orderUserIds, categoryUserIds };
+    return { orderUserIds, categoryUserIds, creationTimes };
   }
   const orders = await ctx.db.query("orders").collect();
   for (const order of orders) orderUserIds.add(String(order.userId));
@@ -94,13 +169,17 @@ async function audienceSets(ctx: any, audience: CampaignAudienceInput) {
       }
     }
   }
-  return { orderUserIds, categoryUserIds };
+  return { orderUserIds, categoryUserIds, creationTimes };
 }
 
 function matchesAudience(
   userId: string,
   audience: CampaignAudienceInput,
-  sets: { orderUserIds: Set<string>; categoryUserIds: Set<string> }
+  sets: {
+    orderUserIds: Set<string>;
+    categoryUserIds: Set<string>;
+    creationTimes: Map<string, number>;
+  }
 ): boolean {
   switch (audience.type) {
     case "all":
@@ -109,6 +188,14 @@ function matchesAudience(
       return sets.orderUserIds.has(userId);
     case "no_orders":
       return !sets.orderUserIds.has(userId);
+    case "new_users": {
+      const createdAt = sets.creationTimes.get(userId);
+      return createdAt !== undefined && Date.now() - createdAt <= NEW_CUSTOMER_WINDOW_MS;
+    }
+    case "existing_users": {
+      const createdAt = sets.creationTimes.get(userId);
+      return createdAt !== undefined && Date.now() - createdAt > NEW_CUSTOMER_WINDOW_MS;
+    }
     case "category_buyers":
       return sets.categoryUserIds.has(userId);
     case "selected":
@@ -176,6 +263,35 @@ async function startCampaignImpl(ctx: any, campaignId: any, now: number) {
     });
     return { started: false, reason: "expired" };
   }
+
+  // Promotional campaigns never go out during the store's quiet hours. The
+  // campaign stays scheduled and resumes at the first allowed minute — no
+  // recipients are touched until then. Order/account notifications are separate
+  // workflows and are not affected by this policy.
+  const quietSettings = await messagingSettings(ctx);
+  if (isQuietHours(now, quietSettings)) {
+    const resumeAt = nextAllowedSendTime(now, quietSettings);
+    const jobId = await ctx.scheduler.runAt(
+      resumeAt,
+      internal.messageDispatch.dispatchScheduled,
+      {}
+    );
+    await ctx.db.patch(campaignId, {
+      scheduledAt: resumeAt,
+      scheduledJobId: jobId,
+      updatedAt: now,
+      errorSummary: `Deferred from ${formatStoreDateTime(
+        campaign.scheduledAt ?? now
+      )} to ${formatStoreDateTime(resumeAt)} by quiet hours.`,
+    });
+    await auditDispatch(
+      ctx,
+      campaign,
+      "campaign_deferred",
+      `Quiet hours deferred dispatch to ${formatStoreDateTime(resumeAt)}.`
+    );
+    return { started: false, reason: "quiet_hours", resumeAt };
+  }
   const missing = missingProviderConfig(campaign.channels);
   if (missing.length > 0) {
     await ctx.db.patch(campaignId, {
@@ -208,6 +324,17 @@ async function startCampaignImpl(ctx: any, campaignId: any, now: number) {
     scheduledJobId: undefined,
     errorSummary: undefined,
   });
+  await auditDispatch(
+    ctx,
+    campaign,
+    "campaign_dispatch_started",
+    `Dispatch started for ${campaign.audienceSize} customers across ${Object.entries(
+      campaign.channels ?? {}
+    )
+      .filter(([, enabled]) => enabled)
+      .map(([key]) => channelLabel(key))
+      .join(", ")}.`
+  );
   await ctx.scheduler.runAfter(0, internal.messageDispatch.materializeBatch, {
     campaignId,
     cursor: null,
@@ -246,6 +373,8 @@ export const materializeBatch = internalMutation({
       cursor: args.cursor,
     });
     const sets = await audienceSets(ctx, campaign.audience as CampaignAudienceInput);
+    const settings = await messagingSettings(ctx);
+    const frequencyCap = Number(settings.maxPromotionalPerWeek) || 0;
 
     const emailIds: any[] = [];
     const whatsappIds: any[] = [];
@@ -270,6 +399,34 @@ export const materializeBatch = internalMutation({
       const prefs = await prefsFor(ctx, user._id);
       const eligibility = channelEligibility(user, prefs);
 
+      // Deterministic A/B assignment: retries and re-runs keep the same variant.
+      const variant: "A" | "B" | undefined = campaign.variantB
+        ? abVariantFor(String(campaign._id), userId, campaign.abSplit ?? 50)
+        : undefined;
+      const content =
+        variant === "B" && campaign.variantB
+          ? campaign.variantB
+          : { title: campaign.title, body: campaign.body };
+
+      // Frequency cap: count real promotional sends in the last seven days. A
+      // customer at the limit is skipped — never queued and never retried.
+      if (frequencyCap > 0) {
+        const recent = await recentPromotionalCampaigns(ctx, user._id, campaign._id);
+        if (recent >= frequencyCap) {
+          await ctx.db.insert("campaign_recipients", {
+            campaignId: campaign._id,
+            userId: user._id,
+            status: "skipped",
+            variant,
+            reason: `Promotional frequency limit reached (${recent} of ${frequencyCap} in the last 7 days).`,
+            createdAt: now,
+            updatedAt: now,
+          });
+          processedThisBatch += 1;
+          continue;
+        }
+      }
+
       // Every promotional email needs a working one-click unsubscribe token,
       // even for customers who have never opened notification preferences.
       if (campaign.channels.email && eligibility.email && !prefs) {
@@ -289,6 +446,7 @@ export const materializeBatch = internalMutation({
         campaignId: campaign._id,
         userId: user._id,
         status: "queued",
+        variant,
         createdAt: now,
         updatedAt: now,
       });
@@ -309,8 +467,8 @@ export const materializeBatch = internalMutation({
             await ctx.db.insert("notifications", {
               userId: user._id,
               type: notificationTypeFor(campaign.category),
-              title: campaign.title,
-              body: campaign.body,
+              title: content.title,
+              body: content.body,
               read: false,
               link: "/account/notifications",
               campaignId: campaign._id,
@@ -325,6 +483,7 @@ export const materializeBatch = internalMutation({
             userId: user._id,
             channel: "in_app",
             status: "sent",
+            variant,
             attempts: 1,
             createdAt: now,
             updatedAt: now,
@@ -344,6 +503,7 @@ export const materializeBatch = internalMutation({
             userId: user._id,
             channel: "popup",
             status: "sent",
+            variant,
             attempts: 1,
             createdAt: now,
             updatedAt: now,
@@ -363,6 +523,7 @@ export const materializeBatch = internalMutation({
             userId: user._id,
             channel: "whatsapp",
             status: "queued",
+            variant,
             attempts: 0,
             createdAt: now,
             updatedAt: now,
@@ -381,6 +542,7 @@ export const materializeBatch = internalMutation({
             userId: user._id,
             channel: "email",
             status: "queued",
+            variant,
             attempts: 0,
             createdAt: now,
             updatedAt: now,
@@ -442,14 +604,17 @@ export const getDeliveryPayloads = internalQuery({
       const user = await ctx.db.get(delivery.userId);
       if (!campaign || !user) continue;
       const prefs = await prefsFor(ctx, user._id);
+      const content =
+        delivery.variant === "B" && campaign.variantB ? campaign.variantB : campaign;
       payloads.push({
         deliveryId,
         campaignId: campaign._id,
         channel: delivery.channel,
         status: delivery.status,
         attempts: delivery.attempts,
-        title: campaign.title,
-        body: campaign.body,
+        variant: delivery.variant ?? null,
+        title: content.title,
+        body: content.body,
         category: campaign.category,
         imageUrl: campaign.imageUrl ?? null,
         expiresAt: campaign.expiresAt ?? null,
@@ -479,7 +644,7 @@ export const beginDelivery = internalMutation({
     const delivery = await ctx.db.get(args.deliveryId);
     if (!delivery) return { claimed: false, reason: "missing" };
     if (delivery.status !== "queued") return { claimed: false, reason: "not_queued" };
-    if (delivery.attempts >= 3) {
+    if (delivery.attempts >= MAX_DELIVERY_ATTEMPTS) {
       // Close the row so the campaign can finalize instead of staying queued
       // forever after repeated provider failures.
       await ctx.db.patch(args.deliveryId, {
@@ -719,7 +884,7 @@ async function finalizeCampaignImpl(ctx: any, campaignId: any) {
     .first();
   const unreachableNote =
     deliveries.length === 0 && skippedRecipient
-      ? "Completed, but no selected recipient was eligible for any chosen channel."
+      ? "Completed, but no selected recipient could be contacted (eligibility, preferences or frequency limits)."
       : undefined;
 
   await ctx.db.patch(campaignId, {
@@ -731,6 +896,18 @@ async function finalizeCampaignImpl(ctx: any, campaignId: any) {
       : unreachableNote,
     stats,
   });
+  await auditDispatch(
+    ctx,
+    campaign,
+    outcome === "completed"
+      ? "campaign_completed"
+      : outcome === "partially_failed"
+        ? "campaign_partially_failed"
+        : "campaign_failed",
+    `${deliveries.length} delivery attempts settled (sent ${
+      counts.sent + counts.delivered + counts.read
+    }, failed ${counts.failed}, skipped ${counts.skipped}).`
+  );
   return { finalized: true, status: outcome };
 }
 

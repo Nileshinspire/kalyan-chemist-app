@@ -7,6 +7,23 @@ function isVisible(notification: any, now: number): boolean {
   return !notification.expiresAt || notification.expiresAt > now;
 }
 
+/**
+ * Reading a campaign notification is the only real "engagement" signal the
+ * app has for the website channel, so it updates the matching delivery row.
+ * Provider-based channels are never touched here — they report their own state.
+ */
+async function markCampaignDeliveryRead(ctx: any, userId: any, campaignId: any) {
+  const delivery = await ctx.db
+    .query("campaign_deliveries")
+    .withIndex("by_campaign_user_channel", (q: any) =>
+      q.eq("campaignId", campaignId).eq("userId", userId).eq("channel", "in_app")
+    )
+    .first();
+  if (delivery && (delivery.status === "sent" || delivery.status === "delivered")) {
+    await ctx.db.patch(delivery._id, { status: "read", updatedAt: Date.now() });
+  }
+}
+
 // ── List notifications for current user (newest first) ──
 export const list = query({
   args: { unreadOnly: v.optional(v.boolean()) },
@@ -65,6 +82,9 @@ export const markRead = mutation({
     if (!notif.read) {
       await ctx.db.patch(args.notificationId, { read: true });
     }
+    if (notif.campaignId) {
+      await markCampaignDeliveryRead(ctx, userId, notif.campaignId);
+    }
     return { success: true };
   },
 });
@@ -85,6 +105,9 @@ export const markAllRead = mutation({
 
     for (const notif of unread) {
       await ctx.db.patch(notif._id, { read: true });
+      if (notif.campaignId) {
+        await markCampaignDeliveryRead(ctx, userId, notif.campaignId);
+      }
     }
 
     return { success: true, count: unread.length };

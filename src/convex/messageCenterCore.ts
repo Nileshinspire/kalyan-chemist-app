@@ -61,6 +61,16 @@ export const AUDIENCES = [
     description: "Registered customers who have not ordered yet",
   },
   {
+    value: "new_users",
+    label: "New customers",
+    description: "Accounts created in the last 30 days",
+  },
+  {
+    value: "existing_users",
+    label: "Existing customers",
+    description: "Accounts older than 30 days",
+  },
+  {
     value: "category_buyers",
     label: "Buyers of a category",
     description: "Customers who ordered from a chosen category",
@@ -409,6 +419,247 @@ export function isAdminRole(role: string | null | undefined): boolean {
 /** A registered customer may receive admin communications. */
 export function isRegisteredCustomer(user: CustomerLike | null | undefined): boolean {
   return Boolean(user) && user?.isAnonymous !== true && !isAdminRole(user?.role);
+}
+
+// ── Time zone, quiet hours and frequency limits ─────────────────────
+
+/**
+ * All campaign times are presented and enforced in India Standard Time, the
+ * store's operating time zone. It is a fixed offset (no DST), which keeps the
+ * quiet-hours arithmetic deterministic on the server.
+ */
+export const STORE_TIME_ZONE = "Asia/Kolkata (IST)";
+export const IST_OFFSET_MINUTES = 330;
+
+export interface QuietHoursSettings {
+  quietHoursEnabled: boolean;
+  /** 0–23 in IST. */
+  quietStartHour: number;
+  /** 0–23 in IST; the first allowed hour. */
+  quietEndHour: number;
+  /** Maximum promotional campaigns one customer may receive in 7 days. */
+  maxPromotionalPerWeek: number;
+}
+
+export const DEFAULT_QUIET_HOURS: QuietHoursSettings = {
+  quietHoursEnabled: true,
+  quietStartHour: 21,
+  quietEndHour: 9,
+  maxPromotionalPerWeek: 3,
+};
+
+export function clampHour(value: unknown, fallback: number): number {
+  const hour = Number(value);
+  return Number.isInteger(hour) && hour >= 0 && hour <= 23 ? hour : fallback;
+}
+
+/** Wall-clock parts of a timestamp in IST. */
+export function storeTimeParts(ts: number) {
+  const date = new Date(ts + IST_OFFSET_MINUTES * 60_000);
+  return {
+    year: date.getUTCFullYear(),
+    month: date.getUTCMonth(),
+    day: date.getUTCDate(),
+    weekday: date.getUTCDay(),
+    hour: date.getUTCHours(),
+    minute: date.getUTCMinutes(),
+  };
+}
+
+function minutesOfHour(hour: number): number {
+  return clampHour(hour, 0) * 60;
+}
+
+/** True when the timestamp falls inside the configured quiet window (IST). */
+export function isQuietHours(ts: number, settings: QuietHoursSettings): boolean {
+  if (!settings.quietHoursEnabled) return false;
+  const start = minutesOfHour(settings.quietStartHour);
+  const end = minutesOfHour(settings.quietEndHour);
+  if (start === end) return false;
+  const parts = storeTimeParts(ts);
+  const minute = parts.hour * 60 + parts.minute;
+  if (start < end) return minute >= start && minute < end;
+  // Window wraps midnight (e.g. 21:00 → 09:00).
+  return minute >= start || minute < end;
+}
+
+/**
+ * First instant at or after `ts` that is outside the quiet window. Hour steps
+ * keep the minute offset stable, so a 21:30 campaign resumes at 09:30.
+ */
+export function nextAllowedSendTime(ts: number, settings: QuietHoursSettings): number {
+  if (!isQuietHours(ts, settings)) return ts;
+  let candidate = ts;
+  for (let i = 0; i < 48 && isQuietHours(candidate, settings); i++) {
+    candidate += 60 * 60 * 1000;
+  }
+  return candidate;
+}
+
+/** Friendly IST label used in admin copy, e.g. "27 Oct 2026, 9:30 am". */
+export function formatStoreDateTime(ts: number): string {
+  return new Date(ts).toLocaleString("en-IN", {
+    timeZone: "Asia/Kolkata",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+// ── A/B testing ─────────────────────────────────────────────────────
+
+/** Maximum number of manual retry rounds allowed per delivery. */
+export const MAX_DELIVERY_ATTEMPTS = 3;
+/** Minimum per-variant sample before a winner may be suggested. */
+export const AB_MIN_SAMPLE = 30;
+
+export function stableBucket(key: string): number {
+  let hash = 2166136261;
+  for (let i = 0; i < key.length; i++) {
+    hash ^= key.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0) % 100;
+}
+
+/** Deterministic variant so retries and re-materialisation never reshuffle. */
+export function abVariantFor(
+  campaignId: string,
+  userId: string,
+  splitPercent: number
+): "A" | "B" {
+  const split = Math.min(90, Math.max(10, Math.round(splitPercent)));
+  return stableBucket(`${campaignId}:${userId}`) < split ? "A" : "B";
+}
+
+export interface AbCounts {
+  targeted: number;
+  accepted: number;
+  delivered: number;
+  read: number;
+  failed: number;
+}
+
+export interface AbEvaluation {
+  a: AbCounts;
+  b: AbCounts;
+  sufficient: boolean;
+  leading: "A" | "B" | null;
+  reason: string;
+  readRateA: number | null;
+  readRateB: number | null;
+}
+
+function rate(value: number, total: number): number | null {
+  return total > 0 ? value / total : null;
+}
+
+/**
+ * Compares variants using only recorded outcomes. A winner is only suggested
+ * when each variant has a real sample and the read rate differs by more than a
+ * trivial margin; otherwise the result is explicitly inconclusive.
+ */
+export function evaluateAbTest(a: AbCounts, b: AbCounts): AbEvaluation {
+  const readRateA = rate(a.read, a.targeted);
+  const readRateB = rate(b.read, b.targeted);
+  const sufficient =
+    a.targeted >= AB_MIN_SAMPLE &&
+    b.targeted >= AB_MIN_SAMPLE &&
+    a.accepted + a.delivered + a.read + a.failed > 0 &&
+    b.accepted + b.delivered + b.read + b.failed > 0;
+
+  if (!sufficient) {
+    return {
+      a,
+      b,
+      sufficient: false,
+      leading: null,
+      reason: `Not enough data: each variant needs at least ${AB_MIN_SAMPLE} recipients before a winner can be suggested.`,
+      readRateA,
+      readRateB,
+    };
+  }
+  if (readRateA === null || readRateB === null) {
+    return {
+      a,
+      b,
+      sufficient: false,
+      leading: null,
+      reason: "Read tracking is not available for these channels, so no winner can be suggested.",
+      readRateA,
+      readRateB,
+    };
+  }
+  const gap = Math.abs(readRateA - readRateB);
+  if (gap < 0.05) {
+    return {
+      a,
+      b,
+      sufficient: true,
+      leading: null,
+      reason: `Read rates are within 5 percentage points (${Math.round(
+        readRateA * 100
+      )}% vs ${Math.round(readRateB * 100)}%), so the test is inconclusive.`,
+      readRateA,
+      readRateB,
+    };
+  }
+  return {
+    a,
+    b,
+    sufficient: true,
+    leading: readRateA > readRateB ? "A" : "B",
+    reason: `Variant ${readRateA > readRateB ? "A" : "B"} has the higher read rate (${Math.round(
+      Math.max(readRateA, readRateB) * 100
+    )}% vs ${Math.round(Math.min(readRateA, readRateB) * 100)}%).`,
+    readRateA,
+    readRateB,
+  };
+}
+
+// ── Manual retry eligibility ────────────────────────────────────────
+
+/**
+ * Failures that will fail again for the same reason. They are never offered for
+ * retry, so an admin cannot accidentally repeat a permanent rejection.
+ */
+const PERMANENT_FAILURE =
+  /opted out|unsubscribed|disabled|no email address|no valid|not opted in|not configured|approved whatsapp template|invalid|not retried to avoid duplicates|interrupted/i;
+
+export function retryEligibility(delivery: {
+  channel?: string;
+  status?: string;
+  attempts?: number;
+  error?: string | null;
+}): { eligible: boolean; reason?: string } {
+  if (delivery.channel !== "email" && delivery.channel !== "whatsapp") {
+    return { eligible: false, reason: "Built-in channels are delivered by the app itself." };
+  }
+  if (delivery.status !== "failed") {
+    return { eligible: false, reason: "Only failed deliveries can be retried." };
+  }
+  if (PERMANENT_FAILURE.test(delivery.error ?? "")) {
+    return {
+      eligible: false,
+      reason: "This failure is permanent (consent or configuration), so retrying would fail again.",
+    };
+  }
+  return { eligible: true };
+}
+
+/** Promotional reach for a channel set — used for quiet hours/frequency copy. */
+export function promotionalChannels(channels: CampaignChannelSelection): string[] {
+  const labels: Record<keyof CampaignChannelSelection, string> = {
+    inApp: "Website notification",
+    popup: "Login popup",
+    whatsapp: "WhatsApp",
+    email: "Email",
+  };
+  return (Object.keys(labels) as (keyof CampaignChannelSelection)[])
+    .filter((key) => channels[key])
+    .map((key) => labels[key]);
 }
 
 // ── Campaign outcome ────────────────────────────────────────────────

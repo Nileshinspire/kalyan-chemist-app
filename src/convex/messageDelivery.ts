@@ -13,6 +13,7 @@ import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import {
   buildCampaignEmailHtml,
+  isValidEmail,
   normalizePhone,
   plainTextEmail,
   whatsappTemplateParams,
@@ -356,6 +357,77 @@ export const sendWhatsAppBatch = internalAction({
   },
   handler: async (ctx, args) => {
     return await runBatch(ctx, "whatsapp", args);
+  },
+});
+
+/**
+ * Test send to one explicitly entered recipient.
+ *
+ * This never resolves an audience: the address/number in the request is the
+ * only destination, so a test can never reach the full customer list. Admin
+ * identity is re-checked server-side and sends are rate limited per admin.
+ */
+export const sendTestMessage = action({
+  args: {
+    channel: v.union(v.literal("email"), v.literal("whatsapp")),
+    recipient: v.string(),
+    title: v.string(),
+    body: v.string(),
+    category: v.string(),
+    imageUrl: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.runQuery(internal.messageCenter.adminIdentity, {});
+    const recent = await ctx.runQuery(internal.messageCampaigns.recentTestSendCount, {
+      actorId: identity.userId,
+    });
+    if (recent >= 5) {
+      throw new Error(
+        "Test limit reached (5 in 10 minutes). Please wait before sending another test."
+      );
+    }
+
+    const title = args.title.trim();
+    const body = args.body.trim();
+    if (title.length < 3 || body.length < 3) {
+      throw new Error("Add a title and message before sending a test.");
+    }
+    const recipient = args.recipient.trim();
+    if (args.channel === "email" && !isValidEmail(recipient)) {
+      throw new Error("Enter a valid email address for the test.");
+    }
+    if (args.channel === "whatsapp" && !normalizePhone(recipient)) {
+      throw new Error("Enter a valid mobile number for the test.");
+    }
+
+    const payload = {
+      userEmail: args.channel === "email" ? recipient : null,
+      userPhone: args.channel === "whatsapp" ? recipient : null,
+      whatsappOptIn: true,
+      prefs: null,
+      title,
+      body,
+      category: args.category,
+      imageUrl: args.imageUrl ?? null,
+    };
+
+    const result =
+      args.channel === "email" ? await sendEmail(payload) : await sendWhatsApp(payload);
+
+    await ctx.runMutation(internal.campaignAudit.record, {
+      action: "test_send",
+      actorId: identity.userId,
+      actorName: identity.name,
+      detail: `Test ${args.channel} sent to a manually entered recipient.`,
+    });
+
+    return result.ok
+      ? {
+          success: true as const,
+          providerMessageId: result.providerMessageId ?? null,
+          providerStatus: result.providerStatus ?? "accepted",
+        }
+      : { success: false as const, error: result.error };
   },
 });
 

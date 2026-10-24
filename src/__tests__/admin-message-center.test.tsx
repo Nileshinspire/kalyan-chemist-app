@@ -114,6 +114,57 @@ beforeEach(() => {
     text: "Preview",
   });
   queryData.set("messageCenter:customerOptions", []);
+  queryData.set("messageCampaigns:listTemplates", []);
+  queryData.set("messageCampaigns:listCampaignAudit", []);
+  queryData.set("messageCampaigns:sendTimeRecommendation", {
+    sufficient: false,
+    slots: [],
+    sample: { campaigns: 0, deliveries: 0 },
+    reason: "Not enough completed campaigns with read tracking yet.",
+    timeZone: "Asia/Kolkata (IST)",
+  });
+  queryData.set("messageCampaigns:campaignSuggestions", {
+    suggestions: [],
+    audienceSize: 42,
+    settings: {
+      quietHoursEnabled: true,
+      quietStartHour: 21,
+      quietEndHour: 9,
+      maxPromotionalPerWeek: 3,
+    },
+    timeZone: "Asia/Kolkata (IST)",
+  });
+  queryData.set("messageCampaigns:getMessagingSettings", {
+    quietHoursEnabled: true,
+    quietStartHour: 21,
+    quietEndHour: 9,
+    maxPromotionalPerWeek: 3,
+    timeZone: "Asia/Kolkata (IST)",
+    updatedAt: now,
+  });
+  queryData.set("messageCampaigns:compareCampaigns", {
+    from: now - 30 * 86_400_000,
+    to: now,
+    campaigns: [],
+    aggregate: {
+      targeted: 0,
+      attempted: 0,
+      queued: 0,
+      accepted: 0,
+      delivered: 0,
+      read: 0,
+      failed: 0,
+      skipped: 0,
+      reached: 0,
+      failureRate: null,
+      readRate: null,
+    },
+    channels: [],
+    readTrackingAvailable: false,
+    unavailable: { opens: "Not tracked.", clicks: "Not tracked.", conversions: "Not tracked." },
+    optOuts: { count: 0, note: "Account-level." },
+    timeZone: "Asia/Kolkata (IST)",
+  });
 });
 
 describe("Admin Message Center", () => {
@@ -184,6 +235,61 @@ describe("Admin Message Center", () => {
     expect(
       within(dialog).getByRole("button", { name: /confirm & send/i })
     ).toBeDisabled();
+  });
+
+  it("renders the calendar, analytics, templates, audit and policy tabs", () => {
+    render(<AdminMessageCenter />);
+
+    // Radix tabs activate on mouse down, which is what a real click sends.
+    const openTab = (name: RegExp) => {
+      fireEvent.mouseDown(screen.getByRole("tab", { name }), { button: 0 });
+    };
+
+    openTab(/calendar/i);
+    expect(screen.getByText("Next scheduled executions")).toBeInTheDocument();
+
+    openTab(/analytics/i);
+    expect(screen.getByText("Campaign performance")).toBeInTheDocument();
+    expect(screen.getByText("Campaign comparison")).toBeInTheDocument();
+
+    openTab(/templates/i);
+    expect(screen.getByText("Template library")).toBeInTheDocument();
+
+    openTab(/audit/i);
+    expect(screen.getByText("Campaign audit trail")).toBeInTheDocument();
+
+    openTab(/settings/i);
+    expect(screen.getByText("Messaging policy")).toBeInTheDocument();
+    expect(screen.getByLabelText(/maximum campaigns per customer/i)).toBeInTheDocument();
+  });
+
+  it("supports A/B variations and blocks sending until variant B is valid", () => {
+    render(<AdminMessageCenter />);
+    fireEvent.click(screen.getByRole("button", { name: /new message/i }));
+
+    fireEvent.change(screen.getByLabelText(/message title/i), {
+      target: { value: "Festive offer" },
+    });
+    fireEvent.change(screen.getByLabelText(/message body/i), {
+      target: { value: "Save 20% on all health essentials this week." },
+    });
+
+    const review = screen.getByRole("button", { name: /review & send/i });
+    expect(review).toBeEnabled();
+
+    fireEvent.click(screen.getByRole("switch", { name: /enable a\/b test/i }));
+    expect(screen.getByLabelText(/variant b title/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/variant b message/i)).toBeInTheDocument();
+    expect(screen.getByText(/split — variant a 50% \/ variant b 50%/i)).toBeInTheDocument();
+    expect(review).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText(/variant b title/i), {
+      target: { value: "A festive thank-you" },
+    });
+    fireEvent.change(screen.getByLabelText(/variant b message/i), {
+      target: { value: "Wishing you a healthy festive season from our family." },
+    });
+    expect(review).toBeEnabled();
   });
 
   it("treats the built-in email gateway as ready without extra setup", () => {

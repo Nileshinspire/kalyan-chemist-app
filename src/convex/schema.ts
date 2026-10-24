@@ -677,6 +677,18 @@ const schema = defineSchema(
       ),
       scheduledAt: v.optional(v.number()),
       expiresAt: v.optional(v.number()),
+      // ── Optional A/B test: variant A is `title`/`body` above. ──
+      variantB: v.optional(v.object({
+        title: v.string(),
+        body: v.string(),
+      })),
+      /** Percentage of recipients assigned to variant A (10–90). */
+      abSplit: v.optional(v.number()),
+      abWinner: v.optional(v.union(v.literal("A"), v.literal("B"))),
+      abWinnerDecidedBy: v.optional(v.string()),
+      abWinnerDecidedAt: v.optional(v.number()),
+      /** Last time an admin explicitly retried failed deliveries. */
+      lastRetriedAt: v.optional(v.number()),
       createdBy: v.id("users"),
       createdAt: v.number(),
       updatedAt: v.number(),
@@ -722,6 +734,8 @@ const schema = defineSchema(
         v.literal("skipped"),
         v.literal("failed"),
       ),
+      /** Which variation this recipient received, when A/B testing is on. */
+      variant: v.optional(v.union(v.literal("A"), v.literal("B"))),
       reason: v.optional(v.string()),
       createdAt: v.number(),
       updatedAt: v.number(),
@@ -750,6 +764,8 @@ const schema = defineSchema(
       ),
       providerMessageId: v.optional(v.string()),
       providerStatus: v.optional(v.string()),
+      /** Which variation was sent on this channel, for A/B reporting. */
+      variant: v.optional(v.union(v.literal("A"), v.literal("B"))),
       /** Sanitised error code/message — never stores addresses or tokens. */
       error: v.optional(v.string()),
       attempts: v.number(),
@@ -760,7 +776,11 @@ const schema = defineSchema(
       .index("by_campaign", ["campaignId"])
       .index("by_campaign_channel", ["campaignId", "channel"])
       .index("by_campaign_channel_status", ["campaignId", "channel", "status"])
-      .index("by_campaign_user_channel", ["campaignId", "userId", "channel"]),
+      .index("by_campaign_user_channel", ["campaignId", "userId", "channel"])
+      // Frequency-limit lookback for one customer.
+      .index("by_user_created", ["userId", "createdAt"])
+      // Frequency-limit lookback across all customers (admin suggestions).
+      .index("by_createdAt", ["createdAt"]),
 
     campaign_popup_state: defineTable({
       campaignId: v.id("message_campaigns"),
@@ -786,6 +806,54 @@ const schema = defineSchema(
     })
       .index("by_user", ["userId"])
       .index("by_token", ["unsubscribeToken"]),
+
+    /** Reusable campaign messages, managed only by admins. */
+    message_templates: defineTable({
+      name: v.string(),
+      category: v.union(
+        v.literal("festival"),
+        v.literal("announcement"),
+        v.literal("health"),
+        v.literal("offer"),
+      ),
+      title: v.string(),
+      body: v.string(),
+      imageUrl: v.optional(v.string()),
+      createdBy: v.id("users"),
+      createdAt: v.number(),
+      updatedAt: v.number(),
+    })
+      .index("by_createdAt", ["createdAt"])
+      .index("by_category", ["category"]),
+
+    /**
+     * Admin action trail for campaigns. Deliberately stores no recipient
+     * contact details or message bodies — only who did what and when.
+     */
+    campaign_audit_log: defineTable({
+      campaignId: v.optional(v.id("message_campaigns")),
+      campaignTitle: v.optional(v.string()),
+      action: v.string(),
+      actorId: v.id("users"),
+      actorName: v.optional(v.string()),
+      /** Short, sanitised description of the change. */
+      detail: v.optional(v.string()),
+      createdAt: v.number(),
+    })
+      .index("by_createdAt", ["createdAt"])
+      .index("by_campaign", ["campaignId"]),
+
+    /** Singleton messaging policy: quiet hours + promotional frequency cap. */
+    communication_settings: defineTable({
+      key: v.string(),
+      quietHoursEnabled: v.boolean(),
+      /** IST hours, 0–23. */
+      quietStartHour: v.number(),
+      quietEndHour: v.number(),
+      maxPromotionalPerWeek: v.number(),
+      updatedBy: v.optional(v.id("users")),
+      updatedAt: v.number(),
+    }).index("by_key", ["key"]),
 
     // Medicine refill reminders
     refill_reminders: defineTable({
