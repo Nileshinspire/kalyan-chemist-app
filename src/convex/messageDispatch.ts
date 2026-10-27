@@ -67,6 +67,8 @@ async function recentPromotionalCampaigns(
   for (const row of rows) {
     if (row.campaignId === excludeCampaignId) continue;
     if (!["sent", "delivered", "read"].includes(row.status)) continue;
+    // Service announcements are not promotional and never consume the quota.
+    if (row.category === "announcement") continue;
     campaigns.add(String(row.campaignId));
   }
   return campaigns.size;
@@ -269,7 +271,9 @@ async function startCampaignImpl(ctx: any, campaignId: any, now: number) {
   // recipients are touched until then. Order/account notifications are separate
   // workflows and are not affected by this policy.
   const quietSettings = await messagingSettings(ctx);
-  if (isQuietHours(now, quietSettings)) {
+  // Important announcements are operational/service messages, not promotional
+  // campaigns, so they follow the same exemption as the promotional cap.
+  if (campaign.category !== "announcement" && isQuietHours(now, quietSettings)) {
     const resumeAt = nextAllowedSendTime(now, quietSettings);
     const jobId = await ctx.scheduler.runAt(
       resumeAt,
@@ -321,6 +325,7 @@ async function startCampaignImpl(ctx: any, campaignId: any, now: number) {
     claimedAt: now,
     startedAt: now,
     updatedAt: now,
+    materializationDone: false,
     scheduledJobId: undefined,
     errorSummary: undefined,
   });
@@ -355,6 +360,10 @@ export const materializeBatch = internalMutation({
     const campaign = await ctx.db.get(args.campaignId);
     if (!campaign || campaign.status !== "processing") {
       return { done: true, reason: "not_processing" };
+    }
+    if (campaign.materializationDone === true) {
+      // A duplicate/recovery run must not recreate recipients after the final page.
+      return { done: true, reason: "already_materialized" };
     }
     const now = Date.now();
     if (campaign.expiresAt !== undefined && campaign.expiresAt <= now) {
@@ -410,7 +419,7 @@ export const materializeBatch = internalMutation({
 
       // Frequency cap: count real promotional sends in the last seven days. A
       // customer at the limit is skipped — never queued and never retried.
-      if (frequencyCap > 0) {
+      if (frequencyCap > 0 && campaign.category !== "announcement") {
         const recent = await recentPromotionalCampaigns(ctx, user._id, campaign._id);
         if (recent >= frequencyCap) {
           await ctx.db.insert("campaign_recipients", {
@@ -484,6 +493,7 @@ export const materializeBatch = internalMutation({
             channel: "in_app",
             status: "sent",
             variant,
+            category: campaign.category,
             attempts: 1,
             createdAt: now,
             updatedAt: now,
@@ -504,6 +514,7 @@ export const materializeBatch = internalMutation({
             channel: "popup",
             status: "sent",
             variant,
+            category: campaign.category,
             attempts: 1,
             createdAt: now,
             updatedAt: now,
@@ -524,6 +535,7 @@ export const materializeBatch = internalMutation({
             channel: "whatsapp",
             status: "queued",
             variant,
+            category: campaign.category,
             attempts: 0,
             createdAt: now,
             updatedAt: now,
@@ -543,6 +555,7 @@ export const materializeBatch = internalMutation({
             channel: "email",
             status: "queued",
             variant,
+            category: campaign.category,
             attempts: 0,
             createdAt: now,
             updatedAt: now,
@@ -575,12 +588,20 @@ export const materializeBatch = internalMutation({
       });
     }
 
+    // Heartbeat so recovery only restarts materialisation when this run has
+    // genuinely stopped making progress (large audiences span many pages).
+    await ctx.db.patch(campaign._id, { updatedAt: Date.now() });
+
     if (!page.isDone) {
       await ctx.scheduler.runAfter(0, internal.messageDispatch.materializeBatch, {
         campaignId: campaign._id,
         cursor: page.continueCursor,
       });
     } else {
+      await ctx.db.patch(campaign._id, {
+        materializationDone: true,
+        updatedAt: Date.now(),
+      });
       await finalizeCampaignImpl(ctx, campaign._id);
     }
 
@@ -727,7 +748,20 @@ export const resumeStuck = internalMutation({
 
     let resumed = 0;
     for (const campaign of processing) {
-      if (campaign.startedAt !== undefined && now - campaign.startedAt < 5 * 60_000) continue;
+      const lastProgress = campaign.updatedAt ?? campaign.startedAt ?? 0;
+      if (now - lastProgress < 10 * 60_000) continue;
+
+      // Audience pagination stopped: restart it from the beginning. Recipient
+      // rows make this idempotent, and a campaign is never finalised before
+      // every page has been processed.
+      if (campaign.materializationDone !== true) {
+        await ctx.scheduler.runAfter(0, internal.messageDispatch.materializeBatch, {
+          campaignId: campaign._id,
+          cursor: null,
+        });
+        resumed += 1;
+        continue;
+      }
 
       // A worker that died between claiming and recording a result leaves the
       // row in `sending`. It is never retried automatically (that could send
@@ -739,7 +773,7 @@ export const resumeStuck = internalMutation({
       for (const delivery of campaignDeliveries) {
         if (
           delivery.status === "sending" &&
-          now - delivery.updatedAt > 5 * 60_000
+          now - delivery.updatedAt > 15 * 60_000
         ) {
           await ctx.db.patch(delivery._id, {
             status: "failed",
@@ -826,6 +860,9 @@ async function finalizeCampaignImpl(ctx: any, campaignId: any) {
   const campaign = await ctx.db.get(campaignId);
   if (!campaign) return { finalized: false };
   if (campaign.status !== "processing") return { finalized: false, reason: "not_processing" };
+  if (campaign.materializationDone !== true) {
+    return { finalized: false, reason: "materialization_pending" };
+  }
 
   const pendingRecipients = await ctx.db
     .query("campaign_recipients")
@@ -882,6 +919,11 @@ async function finalizeCampaignImpl(ctx: any, campaignId: any) {
       q.eq("campaignId", campaignId).eq("status", "skipped")
     )
     .first();
+  const reached = counts.sent + counts.delivered + counts.read;
+  const noReachNote =
+    reached === 0 && (deliveries.length > 0 || skippedRecipient)
+      ? "Completed, but no message was delivered. Every selected recipient was skipped because of consent, contact details, preferences or frequency limits."
+      : undefined;
   const unreachableNote =
     deliveries.length === 0 && skippedRecipient
       ? "Completed, but no selected recipient could be contacted (eligibility, preferences or frequency limits)."
@@ -893,7 +935,7 @@ async function finalizeCampaignImpl(ctx: any, campaignId: any) {
     updatedAt: Date.now(),
     errorSummary: errors.length
       ? errors.join(" · ").slice(0, 500)
-      : unreachableNote,
+      : (noReachNote ?? unreachableNote),
     stats,
   });
   await auditDispatch(

@@ -21,6 +21,7 @@ const ACTION_LABELS: Record<string, string> = {
   campaign_completed: "Campaign completed",
   campaign_partially_failed: "Campaign partially failed",
   campaign_failed: "Campaign failed",
+  campaign_recovery_requested: "Recovery requested",
   deliveries_retried: "Failed deliveries retried",
   ab_winner_selected: "A/B winner selected",
   test_send: "Test message sent",

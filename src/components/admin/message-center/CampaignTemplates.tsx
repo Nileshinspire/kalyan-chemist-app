@@ -62,6 +62,7 @@ export default function CampaignTemplates({
   const duplicateTemplate = useMutation(api.messageCampaigns.duplicateTemplate);
 
   const [draft, setDraft] = useState<TemplateDraft | null>(null);
+  const [deleting, setDeleting] = useState<any | null>(null);
   const [saving, setSaving] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -103,6 +104,7 @@ export default function CampaignTemplates({
     try {
       await deleteTemplate({ templateId: template._id });
       toast.success("Template deleted");
+      setDeleting(null);
     } catch (error: any) {
       toast.error(error?.message ?? "Could not delete template");
     } finally {
@@ -199,7 +201,7 @@ export default function CampaignTemplates({
                     className="size-7 text-destructive"
                     aria-label={`Delete ${template.name}`}
                     disabled={busyId === String(template._id)}
-                    onClick={() => handleDelete(template)}
+                    onClick={() => setDeleting(template)}
                   >
                     <Trash2 className="size-3.5" />
                   </Button>
@@ -209,6 +211,33 @@ export default function CampaignTemplates({
           ))}
         </div>
       )}
+
+      <Dialog open={Boolean(deleting)} onOpenChange={(open) => !open && setDeleting(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete this template?</DialogTitle>
+            <DialogDescription>
+              “{deleting?.name}” will be removed from the library. Campaigns that
+              already used it are not affected.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleting(null)}>
+              Keep template
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={busyId === String(deleting?._id)}
+              onClick={() => handleDelete(deleting)}
+            >
+              {busyId === String(deleting?._id) && (
+                <Loader2 className="size-4 animate-spin" />
+              )}
+              Delete template
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={Boolean(draft)}

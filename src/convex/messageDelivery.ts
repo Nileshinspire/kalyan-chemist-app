@@ -14,6 +14,7 @@ import { v } from "convex/values";
 import {
   buildCampaignEmailHtml,
   isValidEmail,
+  MAX_DELIVERY_ATTEMPTS,
   normalizePhone,
   plainTextEmail,
   whatsappTemplateParams,
@@ -29,6 +30,16 @@ function fromAddress() {
 function unsubscribeUrl(token: string | null | undefined) {
   if (!token) return "https://kalyanchemist.com/#/account/notifications";
   return `https://kalyanchemist.com/#/unsubscribe?token=${encodeURIComponent(token)}`;
+}
+
+/**
+ * RFC 8058 endpoint. Only advertised when Convex exposes its HTTP site URL;
+ * otherwise the header would point at a page that cannot accept a POST.
+ */
+function oneClickUnsubscribeUrl(token: string | null | undefined) {
+  const site = process.env.CONVEX_SITE_URL;
+  if (!site || !token) return null;
+  return `${site.replace(/\/$/, "")}/unsubscribe?token=${encodeURIComponent(token)}`;
 }
 
 function sanitizeError(value: unknown): string {
@@ -47,24 +58,51 @@ function sanitizeError(value: unknown): string {
 
 type AttemptResult =
   | { ok: true; providerMessageId?: string; providerStatus?: string }
-  | { ok: false; error: string; retryable: boolean };
+  | {
+      ok: false;
+      error: string;
+      /** True for temporary failures the worker may retry. */
+      retryable: boolean;
+      /**
+       * True when the recipient cannot/should not receive this message
+       * (consent, opt-out, missing address). This is not a provider failure,
+       * so it is recorded as "skipped" rather than inflating failure counts.
+       */
+      skipped?: boolean;
+    };
 
 async function sendEmail(
   payload: any
 ): Promise<AttemptResult> {
   if (!payload.userEmail) {
-    return { ok: false, retryable: false, error: "No email address on file." };
+    return {
+      ok: false,
+      retryable: false,
+      skipped: true,
+      error: "No email address on file.",
+    };
   }
   if (payload.prefs) {
     if (payload.prefs.email === false || payload.prefs.promotional === false) {
-      return { ok: false, retryable: false, error: "Recipient opted out of email." };
+      return {
+        ok: false,
+        retryable: false,
+        skipped: true,
+        error: "Recipient opted out of email.",
+      };
     }
     if (payload.prefs.unsubscribedAt) {
-      return { ok: false, retryable: false, error: "Recipient unsubscribed." };
+      return {
+        ok: false,
+        retryable: false,
+        skipped: true,
+        error: "Recipient unsubscribed.",
+      };
     }
   }
 
   const link = unsubscribeUrl(payload.prefs?.unsubscribeToken);
+  const oneClickLink = oneClickUnsubscribeUrl(payload.prefs?.unsubscribeToken);
   const html = buildCampaignEmailHtml({
     title: payload.title,
     body: payload.body,
@@ -83,7 +121,7 @@ async function sendEmail(
   // delivers sign-in codes), so email works without separate credentials.
   const apiKey = process.env.RESEND_API_KEY;
   if (apiKey) {
-    return await sendViaResend(apiKey, payload, html, text, link);
+    return await sendViaResend(apiKey, payload, html, text, link, oneClickLink);
   }
   if (process.env.VLY_INTEGRATION_KEY) {
     return await sendViaGateway(payload, html, text);
@@ -101,7 +139,8 @@ async function sendViaResend(
   payload: any,
   html: string,
   text: string,
-  link: string
+  link: string,
+  oneClickLink: string | null
 ): Promise<AttemptResult> {
   const { Resend } = await import("resend");
   const resend = new Resend(apiKey);
@@ -109,16 +148,20 @@ async function sendViaResend(
   let lastError = "Email provider rejected the request.";
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
+      const headers: Record<string, string> = {
+        "List-Unsubscribe": `<${oneClickLink ?? link}>`,
+      };
+      if (oneClickLink) {
+        headers["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click";
+      }
+
       const result: any = await resend.emails.send({
         from: fromAddress(),
         to: payload.userEmail,
         subject: payload.title,
         html,
         text,
-        headers: {
-          "List-Unsubscribe": `<${link}>`,
-          "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
-        },
+        headers,
       });
 
       if (result?.error) {
@@ -129,7 +172,18 @@ async function sendViaResend(
           await sleep(1200);
           continue;
         }
-        return { ok: false, retryable: false, error: lastError };
+        // Only an explicit rate-limit response is safe to retry later: the
+        // provider rejected it without queueing a message. A 5xx response is
+        // ambiguous, so it is surfaced as a failure instead of risking a
+        // duplicate email.
+        return {
+          ok: false,
+          retryable: status === 429,
+          error:
+            status === 429
+              ? `${lastError} Rate limited; a later attempt will be scheduled.`
+              : lastError,
+        };
       }
 
       return {
@@ -214,13 +268,28 @@ async function sendWhatsApp(payload: any): Promise<AttemptResult> {
   }
   const to = normalizePhone(payload.userPhone);
   if (!to) {
-    return { ok: false, retryable: false, error: "No valid WhatsApp phone number on file." };
+    return {
+      ok: false,
+      retryable: false,
+      skipped: true,
+      error: "No valid WhatsApp phone number on file.",
+    };
   }
   if (payload.whatsappOptIn !== true) {
-    return { ok: false, retryable: false, error: "Customer has not opted in to WhatsApp." };
+    return {
+      ok: false,
+      retryable: false,
+      skipped: true,
+      error: "Customer has not opted in to WhatsApp.",
+    };
   }
   if (payload.prefs?.whatsapp === false) {
-    return { ok: false, retryable: false, error: "Customer disabled WhatsApp messages." };
+    return {
+      ok: false,
+      retryable: false,
+      skipped: true,
+      error: "Customer disabled WhatsApp messages.",
+    };
   }
 
   const params = whatsappTemplateParams(payload.title, payload.body);
@@ -271,8 +340,13 @@ async function sendWhatsApp(payload: any): Promise<AttemptResult> {
         }
         return {
           ok: false,
-          retryable: false,
-          error: sanitizeError(message),
+          // A 429 is rejected, never queued; 5xx may be ambiguous, so it is not
+          // retried automatically to avoid sending the same template twice.
+          retryable: response.status === 429,
+          error:
+            response.status === 429
+              ? `${sanitizeError(message)} Rate limited; a later attempt will be scheduled.`
+              : sanitizeError(message),
         };
       }
 
@@ -311,8 +385,19 @@ async function runBatch(
     if (!claim.claimed) continue;
     attempted += 1;
 
-    const result =
-      channel === "email" ? await sendEmail(payload) : await sendWhatsApp(payload);
+    // A single unexpected provider/transport exception must not abandon the
+    // rest of the batch: record it against this delivery and keep going.
+    let result: AttemptResult;
+    try {
+      result =
+        channel === "email" ? await sendEmail(payload) : await sendWhatsApp(payload);
+    } catch (error: any) {
+      result = {
+        ok: false,
+        retryable: false,
+        error: `Unexpected delivery error (${sanitizeError(error)}).`,
+      };
+    }
 
     if (result.ok) {
       await ctx.runMutation(internal.messageDispatch.markDelivery, {
@@ -321,6 +406,32 @@ async function runBatch(
         providerMessageId: result.providerMessageId,
         providerStatus: result.providerStatus ?? "accepted",
       });
+    } else if (result.skipped) {
+      await ctx.runMutation(internal.messageDispatch.markDelivery, {
+        deliveryId: payload.deliveryId,
+        status: "skipped",
+        error: result.error,
+      });
+    } else if (result.retryable && claim.attempt < MAX_DELIVERY_ATTEMPTS) {
+      // Backoff: 1 min, then 2 min. The row returns to the queue and is
+      // claimed atomically again, so overlapping workers cannot double-send.
+      const waitMs = Math.min(60_000 * 2 ** (claim.attempt - 1), 5 * 60_000);
+      const retryArgs = {
+        campaignId: payload.campaignId,
+        deliveryIds: [payload.deliveryId],
+      };
+      await ctx.runMutation(internal.messageDispatch.markDelivery, {
+        deliveryId: payload.deliveryId,
+        status: "queued",
+        error: `${result.error} Retrying in ${Math.round(waitMs / 60_000)} min.`,
+      });
+      await ctx.scheduler.runAfter(
+        waitMs,
+        channel === "email"
+          ? internal.messageDelivery.sendEmailBatch
+          : internal.messageDelivery.sendWhatsAppBatch,
+        retryArgs
+      );
     } else {
       await ctx.runMutation(internal.messageDispatch.markDelivery, {
         deliveryId: payload.deliveryId,

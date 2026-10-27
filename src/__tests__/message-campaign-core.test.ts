@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_QUIET_HOURS,
   abVariantFor,
+  channelEligibility,
   evaluateAbTest,
   isQuietHours,
   nextAllowedSendTime,
@@ -50,6 +51,52 @@ describe("campaign quiet hours", () => {
   it("leaves an allowed timestamp untouched", () => {
     const allowed = ist(2026, 10, 24, 12, 0);
     expect(nextAllowedSendTime(allowed, quiet)).toBe(allowed);
+  });
+});
+
+describe("channel eligibility and consent", () => {
+  const customer = {
+    email: "customer@example.com",
+    phone: "9876543210",
+    whatsappOptIn: true,
+    role: "customer",
+    isAnonymous: false,
+  };
+
+  it("allows all channels for a consenting customer with contact details", () => {
+    const result = channelEligibility(customer, null);
+    expect(result).toMatchObject({
+      inApp: true,
+      popup: true,
+      email: true,
+      whatsapp: true,
+    });
+  });
+
+  it("a promotional opt-out suppresses every campaign channel", () => {
+    const result = channelEligibility(customer, { promotional: false });
+    expect(result.inApp).toBe(false);
+    expect(result.popup).toBe(false);
+    expect(result.email).toBe(false);
+    expect(result.whatsapp).toBe(false);
+    expect(result.reasons.inApp).toMatch(/promotional/i);
+    expect(result.reasons.whatsapp).toMatch(/promotional/i);
+  });
+
+  it("an email unsubscribe suppresses email without needing a global opt-out", () => {
+    const result = channelEligibility(customer, { unsubscribedAt: Date.now() });
+    expect(result.email).toBe(false);
+    expect(result.inApp).toBe(true);
+    expect(result.popup).toBe(true);
+    expect(result.whatsapp).toBe(true);
+  });
+
+  it("requires an explicit WhatsApp opt-in and a usable phone number", () => {
+    expect(
+      channelEligibility({ ...customer, whatsappOptIn: false }, { whatsapp: false })
+        .whatsapp
+    ).toBe(false);
+    expect(channelEligibility({ ...customer, phone: "123" }, null).whatsapp).toBe(false);
   });
 });
 

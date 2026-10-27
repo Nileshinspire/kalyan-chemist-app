@@ -68,6 +68,7 @@ import CampaignCalendar from "@/components/admin/message-center/CampaignCalendar
 import CampaignAnalytics from "@/components/admin/message-center/CampaignAnalytics";
 import CampaignTemplates from "@/components/admin/message-center/CampaignTemplates";
 import CampaignAuditLog from "@/components/admin/message-center/CampaignAuditLog";
+import CampaignHealth from "@/components/admin/message-center/CampaignHealth";
 import MessagingSettings from "@/components/admin/message-center/MessagingSettings";
 
 const IST_OFFSET_MS = 330 * 60_000;
@@ -413,6 +414,8 @@ export default function AdminMessageCenter() {
             </Card>
           ))}
         </div>
+
+        <CampaignHealth onOpen={setDetailId} />
 
         <Tabs value={tab} onValueChange={(value) => setTab(value as CampaignTab)}>
           <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1">
@@ -1092,7 +1095,10 @@ function CampaignDetail({
                     ))}
                   </ul>
                 )}
-                {(detail.retryableFailures ?? 0) > 0 && (
+                {(detail.retryableFailures ?? 0) > 0 &&
+                  ["completed", "partially_failed", "failed"].includes(
+                    campaign?.status
+                  ) && (
                   <Button
                     variant="outline"
                     size="sm"
@@ -1418,6 +1424,14 @@ function CampaignComposer({
   }, [abEnabled, variantBTitle, variantBBody, title, body]);
 
   const ready = validation.valid && !abError;
+  const canPreview = Boolean(
+    previewContent.title.trim() && previewContent.body.trim()
+  );
+  // A send is not useful when every chosen channel has zero eligible recipients.
+  const noEligibleChannel =
+    Boolean(preview) &&
+    (preview?.perChannel.length ?? 0) > 0 &&
+    preview!.perChannel.every((row: any) => row.eligible === 0);
 
   function toggleChannel(channel: ChannelKey, enabled: boolean) {
     setChannels((prev) => ({ ...prev, [channel]: enabled }));
@@ -1483,9 +1497,19 @@ function CampaignComposer({
   }
 
   async function submit(mode: SendMode) {
+    if (mode === "draft" && abError) {
+      toast.error(abError);
+      return;
+    }
     if (mode !== "draft" && !ready) {
       toast.error(
         abError ?? validation.errors[0] ?? "Please complete the message first"
+      );
+      return;
+    }
+    if (mode !== "draft" && noEligibleChannel) {
+      toast.error(
+        "No customer in this audience is eligible for the selected channels."
       );
       return;
     }
@@ -1536,6 +1560,12 @@ function CampaignComposer({
     if (mode !== "draft" && !ready) {
       toast.error(
         abError ?? validation.errors[0] ?? "Please complete the message first"
+      );
+      return;
+    }
+    if (mode !== "draft" && noEligibleChannel) {
+      toast.error(
+        "No customer in this audience is eligible for the selected channels."
       );
       return;
     }
@@ -2143,6 +2173,12 @@ function CampaignComposer({
                       {validation.errors[0]}
                     </div>
                   )}
+                  {noEligibleChannel && (
+                    <div className="rounded-lg bg-red-50 p-2 text-[10px] text-red-700">
+                      No customer is eligible for any selected channel. Check contact
+                      details, opt-outs and channel preferences.
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
@@ -2202,7 +2238,7 @@ function CampaignComposer({
             size="sm"
             className="gap-1.5"
             onClick={() => setPreviewOpen(true)}
-            disabled={!title.trim() && !body.trim()}
+            disabled={!canPreview}
           >
             <Eye className="size-3.5" />
             Preview email
@@ -2277,7 +2313,15 @@ function CampaignComposer({
               </span>
             </div>
           )}
-          {emailPreview ? (
+          {!canPreview ? (
+            <div className="rounded-xl border border-dashed border-border/70 py-10 text-center">
+              <p className="text-xs font-medium">Nothing to preview yet</p>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Add a title and message
+                {abEnabled ? " (or complete the selected variation)" : ""} first.
+              </p>
+            </div>
+          ) : emailPreview ? (
             <iframe
               title="Email preview"
               srcDoc={emailPreview.html}
@@ -2323,10 +2367,7 @@ function CampaignComposer({
                 className="shrink-0 gap-1.5"
                 onClick={sendTest}
                 disabled={
-                  testSending ||
-                  !testRecipient.trim() ||
-                  !title.trim() ||
-                  !body.trim()
+                  testSending || !testRecipient.trim() || !canPreview
                 }
               >
                 {testSending ? (
@@ -2435,12 +2476,15 @@ function CampaignComposer({
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setConfirmOpen(false)}>
               Go back
-            </Button>
-            <Button
-              className="gap-1.5 gradient-primary text-white"
-              disabled={saving || (preview?.missingConfig.length ?? 0) > 0}
-              onClick={() => submit(pendingMode)}
-            >
+            </Button>              <Button
+                className="gap-1.5 gradient-primary text-white"
+                disabled={
+                  saving ||
+                  (preview?.missingConfig.length ?? 0) > 0 ||
+                  noEligibleChannel
+                }
+                onClick={() => submit(pendingMode)}
+              >
               {saving ? (
                 <Loader2 className="size-4 animate-spin" />
               ) : (

@@ -697,6 +697,12 @@ const schema = defineSchema(
       cancelledAt: v.optional(v.number()),
       /** Set atomically when dispatch starts; prevents a second execution. */
       claimedAt: v.optional(v.number()),
+      /**
+       * True only after the last audience page has been materialised. Recovery
+       * must never finalise a campaign before this marker, or recipients on
+       * later pages would be silently dropped.
+       */
+      materializationDone: v.optional(v.boolean()),
       /** Convex scheduled-function id for a future send (cancelled on cancel). */
       scheduledJobId: v.optional(v.id("_scheduled_functions")),
       /** Unique id supplied by the admin client to make create retries safe. */
@@ -766,6 +772,12 @@ const schema = defineSchema(
       providerStatus: v.optional(v.string()),
       /** Which variation was sent on this channel, for A/B reporting. */
       variant: v.optional(v.union(v.literal("A"), v.literal("B"))),
+      /**
+       * Campaign category at send time. Used to keep promotional frequency
+       * limits separate from important service announcements. Optional so every
+       * earlier delivery row remains valid.
+       */
+      category: v.optional(v.string()),
       /** Sanitised error code/message — never stores addresses or tokens. */
       error: v.optional(v.string()),
       attempts: v.number(),

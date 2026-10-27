@@ -331,6 +331,12 @@ function summarizeRows(rows: any[]) {
   const skipped = rows.filter((r) => r.status === "skipped").length;
   const queued = rows.filter((r) => r.status === "queued" || r.status === "sending").length;
   const reached = accepted + delivered + read;
+  // Only website notifications and popups expose a real read signal. Using all
+  // deliveries as the denominator would silently dilute the rate with email and
+  // WhatsApp recipients who have no read tracking at all.
+  const readTracked = rows.filter(
+    (r) => r.channel === "in_app" || r.channel === "popup"
+  ).length;
   return {
     targeted,
     attempted,
@@ -343,7 +349,7 @@ function summarizeRows(rows: any[]) {
     reached,
     failureRate: rate(failed, targeted),
     /** Read rate is only meaningful for channels with real read tracking. */
-    readRate: rate(read, targeted),
+    readRate: rate(read, readTracked),
   };
 }
 
@@ -490,6 +496,173 @@ export const compareCampaigns = query({
 });
 
 // ══════════════════════════════════════════════════════════════════
+//  CAMPAIGN HEALTH
+// ══════════════════════════════════════════════════════════════════
+
+const STALE_SCHEDULE_MS = 5 * 60_000;
+const STUCK_PROCESSING_MS = 60 * 60_000;
+const RECENT_FAILURE_MS = 7 * 24 * 60 * 60_000;
+
+/**
+ * Detects conditions the app can actually verify:
+ *  - a scheduled campaign whose send time has passed and still has not started
+ *  - a processing campaign that has been running for over an hour
+ *  - recent failed / partially failed campaigns with retryable deliveries
+ *  - a scheduled campaign with no send time
+ * It never guesses; every issue is derived from stored campaign/delivery state.
+ */
+export const campaignHealth = query({
+  args: {},
+  handler: async (ctx) => {
+    await requireAdmin(ctx);
+    const now = Date.now();
+    const campaigns = await ctx.db
+      .query("message_campaigns")
+      .withIndex("by_createdAt")
+      .order("desc")
+      .take(60);
+
+    const issues: {
+      campaignId: any;
+      title: string;
+      status: string;
+      kind: string;
+      detail: string;
+      since: number | null;
+    }[] = [];
+
+    for (const campaign of campaigns) {
+      if (campaign.status === "scheduled") {
+        if (!campaign.scheduledAt) {
+          issues.push({
+            campaignId: campaign._id,
+            title: campaign.title,
+            status: campaign.status,
+            kind: "missing_send_time",
+            detail: "Scheduled campaign has no send time, so it cannot run.",
+            since: campaign.updatedAt,
+          });
+        } else if (campaign.scheduledAt < now - STALE_SCHEDULE_MS) {
+          issues.push({
+            campaignId: campaign._id,
+            title: campaign.title,
+            status: campaign.status,
+            kind: "missed_schedule",
+            detail: `Scheduled for ${formatStoreDateTime(
+              campaign.scheduledAt
+            )} but dispatch has not started.`,
+            since: campaign.scheduledAt,
+          });
+        }
+        continue;
+      }
+
+      if (campaign.status === "processing") {
+        // `updatedAt` doubles as a progress heartbeat while audience pages are
+        // being written, so a large but healthy run is not reported as stuck.
+        const lastProgress = Math.max(
+          campaign.startedAt ?? 0,
+          campaign.updatedAt ?? 0
+        );
+        if (now - lastProgress > STUCK_PROCESSING_MS) {
+          const deliveries = await ctx.db
+            .query("campaign_deliveries")
+            .withIndex("by_campaign", (q: any) => q.eq("campaignId", campaign._id))
+            .collect();
+          const pending = deliveries.filter((row: any) =>
+            ["queued", "sending"].includes(row.status)
+          ).length;
+          const audiencePending = campaign.materializationDone !== true;
+          issues.push({
+            campaignId: campaign._id,
+            title: campaign.title,
+            status: campaign.status,
+            kind: "stuck_processing",
+            detail: `No progress for over an hour.${
+              audiencePending ? " Audience preparation never completed." : ""
+            } ${pending} delivery attempt${pending === 1 ? "" : "s"} still pending.`,
+            since: lastProgress,
+          });
+        }
+        continue;
+      }
+
+      if (
+        campaign.status === "failed" ||
+        campaign.status === "partially_failed"
+      ) {
+        const deliveries = await ctx.db
+          .query("campaign_deliveries")
+          .withIndex("by_campaign", (q: any) => q.eq("campaignId", campaign._id))
+          .collect();
+        const retryable = deliveries.filter((row: any) =>
+          retryEligibility(row).eligible
+        ).length;
+        if (retryable > 0) {
+          issues.push({
+            campaignId: campaign._id,
+            title: campaign.title,
+            status: campaign.status,
+            kind: "retryable_failures",
+            detail: `${retryable} failed deliver${
+              retryable === 1 ? "y" : "ies"
+            } can be retried safely.`,
+            since: campaign.completedAt ?? campaign.updatedAt,
+          });
+        } else if (
+          campaign.status === "failed" &&
+          campaign.createdAt >= now - RECENT_FAILURE_MS
+        ) {
+          issues.push({
+            campaignId: campaign._id,
+            title: campaign.title,
+            status: campaign.status,
+            kind: "failed",
+            detail:
+              campaign.errorSummary ?? "The campaign failed before completion.",
+            since: campaign.completedAt ?? campaign.updatedAt,
+          });
+        }
+      }
+    }
+
+    return {
+      issues,
+      checkedAt: now,
+      counts: {
+        missed: issues.filter((issue) => issue.kind === "missed_schedule").length,
+        stuck: issues.filter((issue) => issue.kind === "stuck_processing").length,
+        retryable: issues.filter((issue) => issue.kind === "retryable_failures")
+          .length,
+        failed: issues.filter((issue) => issue.kind === "failed").length,
+      },
+    };
+  },
+});
+
+/**
+ * Nudges the existing idempotent dispatch/recovery workers. This does not mark
+ * anything as fixed — the workers re-check real state and the admin UI updates
+ * from the reactive health query.
+ */
+export const runCampaignRecovery = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const adminId = await requireAdmin(ctx);
+    await ctx.scheduler.runAfter(0, internal.messageDispatch.dispatchScheduled, {});
+    await ctx.scheduler.runAfter(0, internal.messageDispatch.resumeStuck, {});
+    const actor: any = await ctx.db.get(adminId);
+    await recordAudit(ctx, {
+      action: "campaign_recovery_requested",
+      actorId: adminId,
+      actorName: actor?.name ?? "Administrator",
+      detail: "Queued the scheduled-dispatch and stuck-run recovery workers.",
+    });
+    return { scheduled: true };
+  },
+});
+
+// ══════════════════════════════════════════════════════════════════
 //  SMART SEND TIME (historical read evidence only)
 // ══════════════════════════════════════════════════════════════════
 
@@ -509,6 +682,7 @@ export const sendTimeRecommendation = query({
     >();
     let usableCampaigns = 0;
     let usableDeliveries = 0;
+    let usableReads = 0;
 
     for (const campaign of campaigns) {
       if (!["completed", "partially_failed"].includes(campaign.status)) continue;
@@ -540,10 +714,12 @@ export const sendTimeRecommendation = query({
       buckets.set(key, bucket);
       usableCampaigns += 1;
       usableDeliveries += tracked.length;
+      usableReads += tracked.filter((r: any) => r.status === "read").length;
     }
 
     const slots = Array.from(buckets.values())
-      .filter((bucket) => bucket.deliveries >= 5)
+      // One campaign in a slot is an anecdote, not a pattern.
+      .filter((bucket) => bucket.deliveries >= 5 && bucket.campaigns >= 2)
       .map((bucket) => ({
         weekday: bucket.weekday,
         weekdayLabel: WEEKDAYS[bucket.weekday],
@@ -559,17 +735,24 @@ export const sendTimeRecommendation = query({
       }))
       .sort((a, b) => (b.readRate ?? 0) - (a.readRate ?? 0));
 
-    const sufficient = usableCampaigns >= 3 && usableDeliveries >= 30;
+    const sufficient =
+      usableCampaigns >= 3 &&
+      usableDeliveries >= 30 &&
+      usableReads >= 3 &&
+      slots.length > 0;
     return {
       sufficient,
       slots: sufficient ? slots.slice(0, 3) : [],
       sample: {
         campaigns: usableCampaigns,
         deliveries: usableDeliveries,
+        reads: usableReads,
       },
       reason: sufficient
         ? "Based on recorded website-notification and popup read rates for past campaigns. This is an estimate, not a guarantee."
-        : "Not enough completed campaigns with read tracking yet. At least 3 campaigns and 30 tracked deliveries are needed before a time can be suggested.",
+        : !usableReads
+          ? "Past campaigns have no recorded reads yet, so no sending time can be recommended reliably."
+          : "Not enough repeated evidence yet. At least 3 completed campaigns, 30 tracked deliveries, some recorded reads and two campaigns in the same time slot are needed.",
       timeZone: STORE_TIME_ZONE,
     };
   },
@@ -592,7 +775,11 @@ export const campaignSuggestions = query({
       [];
     const settings = await resolvedSettings(ctx);
 
-    if (args.scheduledAt && isQuietHours(args.scheduledAt, settings)) {
+    if (
+      args.scheduledAt &&
+      args.category !== "announcement" &&
+      isQuietHours(args.scheduledAt, settings)
+    ) {
       const resumeAt = nextAllowedSendTime(args.scheduledAt, settings);
       suggestions.push({
         level: "warning",
@@ -625,6 +812,8 @@ export const campaignSuggestions = query({
       const reachedByUser = new Map<string, Set<string>>();
       for (const row of recent) {
         if (!["sent", "delivered", "read"].includes(row.status)) continue;
+        // Service announcements do not consume the promotional quota.
+        if (row.category === "announcement") continue;
         const key = String(row.userId);
         if (!reachedByUser.has(key)) reachedByUser.set(key, new Set());
         reachedByUser.get(key)!.add(String(row.campaignId));
@@ -847,6 +1036,36 @@ export const chooseAbWinner = mutation({
     if (!["completed", "partially_failed"].includes(campaign.status)) {
       throw new Error("Choose a winner only after the test has run.");
     }
+
+    // A rule-based winner must come from the same recorded evidence the admin
+    // sees. This cannot be bypassed by calling the mutation directly.
+    if (args.source === "rule") {
+      const rows = await ctx.db
+        .query("campaign_deliveries")
+        .withIndex("by_campaign", (q: any) => q.eq("campaignId", args.campaignId))
+        .collect();
+      const countsFor = (variant: "A" | "B") => {
+        const summary = summarizeRows(
+          rows.filter((row: any) => row.variant === variant)
+        );
+        return {
+          targeted: summary.targeted,
+          accepted: summary.accepted,
+          delivered: summary.delivered,
+          read: summary.read,
+          failed: summary.failed,
+        };
+      };
+      const evaluation = evaluateAbTest(countsFor("A"), countsFor("B"));
+      if (!evaluation.sufficient || evaluation.leading !== args.winner) {
+        throw new Error(
+          evaluation.leading && evaluation.leading !== args.winner
+            ? `Recorded results point to variant ${evaluation.leading}, not ${args.winner}.`
+            : evaluation.reason
+        );
+      }
+    }
+
     const now = Date.now();
     await ctx.db.patch(args.campaignId, {
       abWinner: args.winner,

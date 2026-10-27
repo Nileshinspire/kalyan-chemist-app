@@ -368,31 +368,50 @@ export function channelEligibility(
   customer: CustomerLike,
   prefs: PrefLike | null | undefined
 ): ChannelEligibility {
-  const inApp = prefs?.inApp !== false;
-  const popup = prefs?.popup !== false;
-  const promotional = prefs?.promotional !== false && !prefs?.unsubscribedAt;
+  // The global promotional preference applies to every campaign channel, not
+  // just email. `unsubscribedAt` is an additional email-specific suppression.
+  const promotional = prefs?.promotional !== false;
+  const inApp = prefs?.inApp !== false && promotional;
+  const popup = prefs?.popup !== false && promotional;
   const emailWanted = prefs?.email !== false;
   const whatsappWanted =
-    prefs?.whatsapp !== false && (customer.whatsappOptIn === true || prefs?.whatsapp === true);
+    prefs?.whatsapp !== false &&
+    promotional &&
+    (customer.whatsappOptIn === true || prefs?.whatsapp === true);
 
-  const email = emailWanted && promotional && isValidEmail(customer.email);
+  const email =
+    emailWanted && promotional && !prefs?.unsubscribedAt && isValidEmail(customer.email);
   const whatsapp = whatsappWanted && Boolean(normalizePhone(customer.phone));
   const reasons: ChannelEligibility["reasons"] = {};
-  if (!inApp) reasons.inApp = "Customer disabled website notifications";
-  if (!popup) reasons.popup = "Customer disabled login popups";
+  if (!inApp) {
+    reasons.inApp =
+      !promotional
+        ? "Customer opted out of promotional messages"
+        : "Customer disabled website notifications";
+  }
+  if (!popup) {
+    reasons.popup =
+      !promotional
+        ? "Customer opted out of promotional messages"
+        : "Customer disabled login popups";
+  }
   if (!email) {
     reasons.email = !isValidEmail(customer.email)
       ? "No valid email on file"
       : !promotional
-        ? "Customer unsubscribed from email"
-        : "Customer disabled email notifications";
+        ? "Customer opted out of promotional messages"
+        : prefs?.unsubscribedAt
+          ? "Customer unsubscribed from email"
+          : "Customer disabled email notifications";
   }
   if (!whatsapp) {
     reasons.whatsapp = !normalizePhone(customer.phone)
       ? "No valid phone on file"
-      : !whatsappWanted
-        ? "Customer has not opted in to WhatsApp"
-        : "Customer disabled WhatsApp notifications";
+      : !promotional
+        ? "Customer opted out of promotional messages"
+        : !whatsappWanted
+          ? "Customer has not opted in to WhatsApp"
+          : "Customer disabled WhatsApp notifications";
   }
 
   return { inApp, popup, whatsapp, email, reasons };

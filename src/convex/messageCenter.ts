@@ -745,12 +745,38 @@ export const saveCampaign = mutation({
       throw new Error("Expiry must be after the campaign's send time.");
     }
 
-    const audienceSize =
+    const audience =
       args.mode === "draft"
-        ? 0
-        : (await resolveAudience(ctx, input.audience)).matched.length;
+        ? { matched: [] as any[] }
+        : await resolveAudience(ctx, input.audience);
+    const audienceSize = args.mode === "draft" ? 0 : audience.matched.length;
     if (args.mode !== "draft" && audienceSize === 0) {
       throw new Error("No eligible registered customers match this audience.");
+    }
+
+    // Pre-send validation: an audience can exist while nobody in it can receive
+    // any selected channel (for example an email-only campaign with no email
+    // addresses). Reject that honestly instead of recording a pile of skips.
+    if (args.mode !== "draft" && audienceSize > 0) {
+      const selectedChannels = (
+        ["inApp", "popup", "whatsapp", "email"] as const
+      ).filter((channel) => input.channels[channel]);
+      const allPrefs = await ctx.db.query("communication_prefs").collect();
+      const prefsByUser = new Map(
+        allPrefs.map((prefs: any) => [String(prefs.userId), prefs])
+      );
+      const anyEligible = audience.matched.some((user: any) => {
+        const eligibility = channelEligibility(
+          user,
+          prefsByUser.get(String(user._id)) ?? null
+        );
+        return selectedChannels.some((channel) => eligibility[channel]);
+      });
+      if (!anyEligible) {
+        throw new Error(
+          "No customer in this audience is eligible for the selected channels. Check contact details, opt-outs and channel preferences."
+        );
+      }
     }
 
     let existing: any = null;
@@ -1003,13 +1029,16 @@ export const activePopup = query({
     if (!user) return null;
 
     const prefs = await prefsFor(ctx, userId);
-    if (prefs && prefs.popup === false) return null;
+    if (prefs && (prefs.popup === false || prefs.promotional === false)) return null;
 
     const now = Date.now();
+    // Popups are only relevant while they are recent, so read the newest
+    // campaigns instead of every popup campaign ever created.
     const campaigns = await ctx.db
       .query("message_campaigns")
-      .withIndex("by_popup_status", (q: any) => q.eq("popupEnabled", true))
-      .collect();
+      .withIndex("by_createdAt")
+      .order("desc")
+      .take(80);
 
     const candidates = campaigns
       .filter(

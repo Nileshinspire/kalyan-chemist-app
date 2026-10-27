@@ -46,7 +46,7 @@ export const list = query({
     }
 
     const now = Date.now();
-    return (await q.collect()).filter((n) => isVisible(n, now));
+    return (await q.take(200)).filter((n) => isVisible(n, now));
   },
 });
 
@@ -62,7 +62,7 @@ export const unreadCount = query({
       .withIndex("by_user_read", (q) =>
         q.eq("userId", userId).eq("read", false)
       )
-      .collect();
+      .take(1_000);
 
     const now = Date.now();
     return unread.filter((n) => isVisible(n, now)).length;
@@ -103,14 +103,18 @@ export const markAllRead = mutation({
       )
       .collect();
 
-    for (const notif of unread) {
+    // Expired notifications were never visible, so marking them read would
+    // fabricate engagement in campaign analytics.
+    const now = Date.now();
+    const visible = unread.filter((n) => isVisible(n, now));
+    for (const notif of visible) {
       await ctx.db.patch(notif._id, { read: true });
       if (notif.campaignId) {
         await markCampaignDeliveryRead(ctx, userId, notif.campaignId);
       }
     }
 
-    return { success: true, count: unread.length };
+    return { success: true, count: visible.length };
   },
 });
 
