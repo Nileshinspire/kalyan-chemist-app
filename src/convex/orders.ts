@@ -129,6 +129,14 @@ export const create = mutation({
       if (!product || !product.isActive) {
         throw new Error(`Product "${ci.productId}" is no longer available`);
       }
+      // Block expired medicines at the final checkout step: the stored expiry
+      // date decides, never a label, so nothing expired can be purchased even
+      // if it is still active with stock.
+      if (product.expiryDate && product.expiryDate <= Date.now()) {
+        throw new Error(
+          `"${product.name}" has expired and cannot be sold. Please remove it from your cart.`
+        );
+      }
       if (product.stockQuantity < ci.quantity) {
         throw new Error(
           `Insufficient stock for "${product.name}". Available: ${product.stockQuantity}`
@@ -315,7 +323,8 @@ export const reorder = mutation({
 
     for (const item of order.items) {
       const product = await ctx.db.get(item.productId);
-      if (!product || !product.isActive || product.stockQuantity < item.quantity) {
+      const expired = !!product?.expiryDate && product.expiryDate <= Date.now();
+      if (!product || !product.isActive || expired || product.stockQuantity < item.quantity) {
         skipped++;
         continue;
       }
@@ -512,6 +521,10 @@ export const createDirectOrder = mutation({
 
     const product = await ctx.db.get(args.productId);
     if (!product || !product.isActive) throw new Error("Product is no longer available");
+    // Buy Now bypasses the cart, so it needs the same expiry gate as checkout.
+    if (product.expiryDate && product.expiryDate <= Date.now()) {
+      throw new Error(`"${product.name}" has expired and cannot be sold.`);
+    }
     if (product.stockQuantity < args.quantity) {
       throw new Error(`Insufficient stock for "${product.name}". Available: ${product.stockQuantity}`);
     }

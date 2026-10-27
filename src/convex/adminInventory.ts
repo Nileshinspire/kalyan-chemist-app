@@ -169,6 +169,45 @@ export const adjustStock = mutation({
   },
 });
 
+// ── Admin: Update a medicine's expiry date ──
+// Used by the Expiring Medicines "Manage" view. The expiry STATUS shown across
+// the app is always derived from this stored date (expired = date <= now), so
+// editing it here is the single authoritative way to change a medicine's
+// expiry — no separate label field exists or is trusted.
+export const updateExpiry = mutation({
+  args: {
+    productId: v.id("products"),
+    expiryDate: v.number(),
+  },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+
+    const product = await ctx.db.get(args.productId);
+    if (!product) throw new Error("Product not found");
+
+    if (!Number.isFinite(args.expiryDate) || args.expiryDate <= 0) {
+      throw new Error("Invalid expiry date");
+    }
+
+    await ctx.db.patch(args.productId, {
+      expiryDate: args.expiryDate,
+      updatedAt: Date.now(),
+    });
+
+    // Return the derived status so the caller can show what actually changed.
+    const now = Date.now();
+    const THREE_MONTHS_MS = 90 * 24 * 60 * 60 * 1000;
+    const expiryStatus =
+      args.expiryDate <= now
+        ? "expired"
+        : args.expiryDate <= now + THREE_MONTHS_MS
+        ? "expiring_soon"
+        : "ok";
+
+    return { success: true, expiryStatus };
+  },
+});
+
 // ── Admin: Get low stock summary ──
 export const getLowStockSummary = query({
   args: {

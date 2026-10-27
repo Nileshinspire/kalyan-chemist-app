@@ -677,6 +677,9 @@ type ExpiringProduct = {
 export const getExpiringMedicines = query({
   args: {},
   handler: async (ctx): Promise<ExpiringProduct[]> => {
+    // Full product names, stock and expiry dates — admin data, so it is gated
+    // on the backend rather than only by hiding the admin page.
+    await requireAdmin(ctx);
     const now = Date.now();
     const allProducts = await ctx.db.query("products").collect();
 

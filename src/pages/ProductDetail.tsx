@@ -600,6 +600,10 @@ export default function ProductDetail() {
   const cat = product.category;
   const isInStock = p.stockQuantity > 0;
   const isLowStock = p.stockQuantity > 0 && p.stockQuantity < 10;
+  // Expiry status derives from the stored date (same rule the admin Expiring
+  // Medicines list uses): a past date blocks purchase everywhere — buttons
+  // here, and cart/checkout on the backend.
+  const isExpired = !!p.expiryDate && p.expiryDate <= Date.now();
 
   // Product Details table shows a SHORT consume-type label only. p.consumeType
   // now holds full directions copy, and table cells are `whitespace-nowrap`, so
@@ -1179,7 +1183,14 @@ export default function ProductDetail() {
             )}
 
             <div>
-              {activeStock > 0 ? (
+              {isExpired ? (
+                <div className="flex items-center gap-2">
+                  <div className="size-2 rounded-full bg-red-500" />
+                  <span className="text-sm font-medium text-red-600">
+                    Expired — not available for sale
+                  </span>
+                </div>
+              ) : activeStock > 0 ? (
                 <div className="flex items-center gap-2">
                   <div className={`size-2 rounded-full ${activeStock < 10 ? "bg-amber-500" : "bg-green-500"}`} />
                   <span className={`text-sm font-medium ${activeStock < 10 ? "text-amber-600" : "text-green-600"}`}>
@@ -1218,7 +1229,7 @@ export default function ProductDetail() {
                 size="lg"
                 className="flex-1 h-12 text-sm font-semibold gap-2 gradient-primary text-white shadow-glow hover:shadow-card-hover transition-all hover:scale-[1.02] active:scale-[0.98] rounded-xl"
                 onClick={handleBuyNow}
-                disabled={activeStock <= 0}
+                disabled={activeStock <= 0 || isExpired}
               >
                 <Zap className="size-4" />
                 Buy Now
@@ -1228,10 +1239,10 @@ export default function ProductDetail() {
                 variant="outline"
                 className="h-12 text-sm font-semibold gap-2 rounded-xl"
                 onClick={handleAddToCart}
-                disabled={activeStock <= 0}
+                disabled={activeStock <= 0 || isExpired}
               >
                 <ShoppingCart className="size-4" />
-                {isInStock ? "Add to Cart" : "Out of Stock"}
+                {isExpired ? "Expired" : isInStock ? "Add to Cart" : "Out of Stock"}
               </Button>
               <Button
                 size="lg"
@@ -2006,7 +2017,7 @@ export default function ProductDetail() {
             size="lg"
             className="flex-1 min-w-0 h-11 px-2.5 text-sm font-semibold gap-1.5 gradient-primary text-white shadow-glow rounded-xl"
             onClick={handleBuyNow}
-            disabled={activeStock <= 0}
+            disabled={activeStock <= 0 || isExpired}
           >
             <Zap className="size-4" />
             Buy Now
@@ -2016,10 +2027,10 @@ export default function ProductDetail() {
             variant="outline"
             className="h-11 px-2.5 text-sm font-semibold gap-1.5 rounded-xl"
             onClick={handleAddToCart}
-            disabled={activeStock <= 0}
+            disabled={activeStock <= 0 || isExpired}
           >
             <ShoppingCart className="size-4" />
-            {isInStock ? "Add to Cart" : "Out of Stock"}
+            {isExpired ? "Expired" : isInStock ? "Add to Cart" : "Out of Stock"}
           </Button>
           <Button
             size="lg"

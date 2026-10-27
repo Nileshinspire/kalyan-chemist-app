@@ -69,6 +69,12 @@ export const addItem = mutation({
 
     const product = await ctx.db.get(args.productId);
     if (!product || !product.isActive) throw new Error("Product not available");
+    // Expired medicines must never reach the cart: expiryDate on the product
+    // record is the source of truth, so a past date blocks the sale even while
+    // the product is still active and has stock.
+    if (product.expiryDate && product.expiryDate <= Date.now()) {
+      throw new Error(`"${product.name}" has expired and can no longer be sold.`);
+    }
     if (product.stockQuantity < args.quantity) throw new Error("Insufficient stock");
 
     // Check if item already in cart
