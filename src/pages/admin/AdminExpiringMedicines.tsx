@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useNavigate } from "react-router";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import AdminLayout from "@/components/admin/AdminLayout";
@@ -39,6 +40,7 @@ function getDaysLabel(days: number): string {
 }
 
 export default function AdminExpiringMedicines() {
+  const navigate = useNavigate();
   const [filter, setFilter] = useState<"all" | "expired" | "expiring_soon">("all");
   const [search, setSearch] = useState("");
 
@@ -315,12 +317,7 @@ export default function AdminExpiringMedicines() {
                             variant="outline"
                             size="sm"
                             className="text-xs gap-1.5 rounded-xl"
-                            onClick={() =>
-                              window.open(
-                                `/admin/products`,
-                                "_self"
-                              )
-                            }
+                            onClick={() => navigate("/admin/products")}
                           >
                             Manage
                             <ArrowRight className="size-3" />
