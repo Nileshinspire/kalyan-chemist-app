@@ -51,8 +51,8 @@ interface ProductCardProps {
  *                 product keeps its aspect ratio and is never cropped
  *   2. rating     real average + review count, green pill on the media's
  *                 bottom-left, straddling its edge
- *   3. add        compact `Add` control beside the product, on the media's
- *                 bottom-right, straddling its edge like the reference
+ *   3. add        compact `Add` control on the price row, bottom-right of
+ *                 the card, aligned horizontally with the price
  *   4. attributes one compact pack/form line under the media, saved data only
  *   5. name       two clamped lines, then the manufacturer, one clamped line
  *   6. delivery   the store's own admin-configured estimate, when set
@@ -235,11 +235,10 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
         <Heart className={`size-3.5 transition-colors ${isWishlisted ? "fill-rose-500 text-rose-500" : "text-muted-foreground group-hover:text-rose-500"}`} />
       </Button>
 
-      {/* Media — near-square white packshot field. The rating pill and the
-          compact `Add` control sit on its bottom edge (left and right, like
-          the reference) and deliberately straddle it, so the packshot keeps
-          its full width at every grid size. Phones keep the full-bleed square
-          band and their own Buy Now / Cart row. */}
+      {/* Media — near-square white packshot field. The rating pill sits on
+          its bottom-left edge and deliberately straddles it, so the packshot
+          keeps its full width at every grid size. Phones keep the full-bleed
+          square band and their own Buy Now / Cart row. */}
       <div className="relative shrink-0">
         <div className="relative flex aspect-square items-center justify-center overflow-hidden rounded-xl bg-white max-sm:rounded-b-none max-sm:border-b max-sm:border-border/40 sm:aspect-auto sm:h-36 sm:ring-1 sm:ring-border/50 sm:ring-inset xl:h-40">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.08] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
@@ -275,19 +274,6 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
           <ProductRatingBadge productId={product._id} />
         </div>
 
-        {/* Compact add control beside the product image, on its bottom-right
-            edge like the reference. Phones use their own Buy Now / Cart row. */}
-        <div className="absolute right-0 bottom-1.5 z-[2] max-sm:hidden sm:-bottom-3">
-          <Button
-            size="sm"
-            aria-label={product.stockQuantity === 0 ? `${product.name} is out of stock` : `Add ${product.name} to cart`}
-            className={`h-8 w-[58px] rounded-lg px-1 text-[11px] font-semibold gradient-primary text-white shadow-sm transition-all duration-300 hover:shadow-glow hover:scale-[1.03] active:scale-[0.97] ${product.stockQuantity === 0 ? "text-[8px]" : ""}`}
-            onClick={handleAddToCart}
-            disabled={product.stockQuantity === 0}
-          >
-            {product.stockQuantity === 0 ? "Sold out" : "Add"}
-          </Button>
-        </div>
       </div>
 
       {/* On phones the image band is full-bleed and this block carries the
@@ -316,8 +302,8 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
           {/* One availability line: the store's own admin-configured delivery
               estimate (only when that setting exists — never invented) and the
               saved low-stock count. Both live here, on one fixed-height line,
-              so neither can sit under the media's rating pill or Add control,
-              and a card never changes height because of them. */}
+              so neither can sit under the media's rating pill or the Add
+              control, and a card never changes height because of them. */}
           {(deliveryEstimate || isLowStock) && (
             <p className="mt-1 flex min-w-0 items-center gap-1 text-[10px] leading-3 text-muted-foreground sm:text-[11px]">
               {deliveryEstimate && (
@@ -350,13 +336,29 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
                 )}
               </div>
             )}
-            <div className="mt-0.5 text-base leading-6 font-extrabold text-foreground">
-              {formatCurrency(hasDiscount ? product.discountPrice! : product.price)}
+            {/* Price on the left, `Add` on the right, one row — the button
+                sits at the card's bottom-right aligned with the price.
+                Phones keep their own Buy Now / Cart row below. */}
+            <div className="mt-0.5 flex items-center justify-between gap-2">
+              <div className="min-w-0 text-base leading-6 font-extrabold text-foreground">
+                {formatCurrency(hasDiscount ? product.discountPrice! : product.price)}
+              </div>
+              <div className="max-sm:hidden shrink-0">
+                <Button
+                  size="sm"
+                  aria-label={product.stockQuantity === 0 ? `${product.name} is out of stock` : `Add ${product.name} to cart`}
+                  className={`h-8 w-[58px] rounded-lg px-1 text-[11px] font-semibold gradient-primary text-white shadow-sm transition-all duration-300 hover:shadow-glow hover:scale-[1.03] active:scale-[0.97] ${product.stockQuantity === 0 ? "text-[8px]" : ""}`}
+                  onClick={handleAddToCart}
+                  disabled={product.stockQuantity === 0}
+                >
+                  {product.stockQuantity === 0 ? "Sold out" : "Add"}
+                </Button>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Phone action row. The desktop control sits beside the image. */}
+        {/* Phone action row. The desktop `Add` control sits beside the price. */}
         <div className="flex flex-wrap max-sm:gap-1.5 max-sm:pt-2">
           {/* Phones: the unchanged two-button row. */}
           <Button
