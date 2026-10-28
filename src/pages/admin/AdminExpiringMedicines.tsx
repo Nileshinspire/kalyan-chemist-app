@@ -467,7 +467,7 @@ export default function AdminExpiringMedicines() {
           if (!open) setManageId(null);
         }}
       >
-        <DialogContent className="max-w-lg sm:max-w-xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-w-lg sm:max-w-xl max-h-[calc(100dvh-1.5rem)] flex flex-col overflow-hidden">
           {managedProduct === undefined ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="size-6 animate-spin text-muted-foreground" />
