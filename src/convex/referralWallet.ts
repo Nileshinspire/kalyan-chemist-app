@@ -22,6 +22,7 @@ import {
 } from "./_generated/server";
 import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
+import { releaseRedemptionForOrder } from "./couponRedemptions";
 import {
   allocateSpend,
   assessReferralRisk,
@@ -1149,6 +1150,15 @@ export async function handleOrderStatusChange(
     // A referral that never paid out simply stops; one that did is unwound.
     await cancelUnrewardedReferral(ctx, order);
     await reverseReferralReward(ctx, order);
+    // A final cancellation or refund also hands back any coupon the order
+    // was holding, so the customer can use it again and the usage slot is
+    // not burned by an order that never went through. Idempotent: it only
+    // touches redemptions that are still `active`, so repeated status events
+    // (double clicks, retries) can never free the same slot twice. Refunds
+    // that are only *initiated* are left alone until they complete.
+    if (newStatus !== "refund_initiated") {
+      await releaseRedemptionForOrder(ctx, orderId, `Order ${newStatus}`);
+    }
   }
 }
 

@@ -3,6 +3,7 @@ import { query, mutation } from "./_generated/server";
 import { api } from "./_generated/api";
 import { v } from "convex/values";
 import { handleOrderStatusChange } from "./referralWallet";
+import { couponStatus } from "./couponLogic";
 
 // ── Helper: verify admin ──
 async function requireAdmin(ctx: { db: any; auth: any }) {
@@ -419,11 +420,21 @@ export const listCoupons = query({
   },
 });
 
+/**
+ * Create or update a coupon with full backend validation.
+ * The UI validates too, but nothing here trusts the client: the code is
+ * normalized, format-checked, de-duplicated, and every numeric field is
+ * range-checked before anything is written.
+ */
 export const upsertCoupon = mutation({
   args: {
     id: v.optional(v.id("coupons")),
     code: v.string(),
-    discountType: v.union(v.literal("percentage"), v.literal("fixed")),
+    discountType: v.union(
+      v.literal("percentage"),
+      v.literal("fixed"),
+      v.literal("free_delivery")
+    ),
     discountPercent: v.number(),
     fixedDiscount: v.number(),
     maxDiscount: v.number(),
@@ -431,48 +442,213 @@ export const upsertCoupon = mutation({
     usageLimit: v.number(),
     isActive: v.boolean(),
     expiresAt: v.number(),
+    // ── Extended fields (all optional; existing coupons keep working) ──
+    name: v.optional(v.string()),
+    description: v.optional(v.string()),
+    startsAt: v.optional(v.number()),
+    perUserLimit: v.optional(v.number()),
+    firstOrderOnly: v.optional(v.boolean()),
+    eligibleCategoryIds: v.optional(v.array(v.id("categories"))),
+    archived: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
 
+    // ── Normalize + validate the code ──
+    const code = (args.code || "").trim().toUpperCase();
+    if (!/^[A-Z0-9]{3,20}$/.test(code)) {
+      throw new Error(
+        "Coupon code must be 3-20 letters or numbers (no spaces or symbols)."
+      );
+    }
+    const existing = await ctx.db
+      .query("coupons")
+      .withIndex("by_code", (q) => q.eq("code", code))
+      .first();
+    if (existing && existing._id !== args.id) {
+      throw new Error(`Coupon code "${code}" already exists.`);
+    }
+
+    // ── Validate the discount definition ──
+    if (args.discountType === "percentage") {
+      if (
+        !Number.isFinite(args.discountPercent) ||
+        args.discountPercent < 1 ||
+        args.discountPercent > 100
+      ) {
+        throw new Error("Percentage discount must be between 1 and 100.");
+      }
+    } else if (args.discountType === "fixed") {
+      if (!Number.isFinite(args.fixedDiscount) || args.fixedDiscount <= 0) {
+        throw new Error("Flat discount must be greater than ₹0.");
+      }
+    }
+
+    const finiteNonNegative = (value: number, label: string) => {
+      if (!Number.isFinite(value) || value < 0) {
+        throw new Error(`${label} must be zero or more.`);
+      }
+    };
+    finiteNonNegative(args.maxDiscount, "Maximum discount");
+    finiteNonNegative(args.minOrder, "Minimum order");
+    finiteNonNegative(args.usageLimit, "Usage limit");
+    if (args.perUserLimit !== undefined) {
+      finiteNonNegative(args.perUserLimit, "Per-customer limit");
+    }
+    if (!Number.isFinite(args.expiresAt) || args.expiresAt <= 0) {
+      throw new Error("Expiry date is required.");
+    }
+    if (args.startsAt !== undefined && args.startsAt >= args.expiresAt) {
+      throw new Error("Start date must be before the expiry date.");
+    }
+
+    const fields = {
+      code,
+      discountType: args.discountType,
+      discountPercent: args.discountType === "percentage" ? args.discountPercent : 0,
+      fixedDiscount: args.discountType === "fixed" ? args.fixedDiscount : 0,
+      maxDiscount: args.maxDiscount,
+      minOrder: args.minOrder,
+      usageLimit: Math.floor(args.usageLimit),
+      isActive: args.isActive,
+      expiresAt: args.expiresAt,
+      name: args.name?.trim() || undefined,
+      description: args.description?.trim() || undefined,
+      startsAt: args.startsAt ?? undefined,
+      perUserLimit:
+        args.perUserLimit !== undefined ? Math.floor(args.perUserLimit) : undefined,
+      firstOrderOnly: args.firstOrderOnly ?? false,
+      eligibleCategoryIds:
+        args.eligibleCategoryIds && args.eligibleCategoryIds.length > 0
+          ? args.eligibleCategoryIds
+          : undefined,
+      // Only touch `archived` when the caller explicitly sends it, so an
+      // ordinary edit of an archived coupon does not silently un-archive it.
+      ...(args.archived !== undefined ? { archived: args.archived } : {}),
+    };
+
     if (args.id) {
-      await ctx.db.patch(args.id, {
-        code: args.code.toUpperCase(),
-        discountType: args.discountType,
-        discountPercent: args.discountPercent,
-        fixedDiscount: args.fixedDiscount,
-        maxDiscount: args.maxDiscount,
-        minOrder: args.minOrder,
-        usageLimit: args.usageLimit,
-        isActive: args.isActive,
-        expiresAt: args.expiresAt,
-      });
+      const coupon = await ctx.db.get(args.id);
+      if (!coupon) throw new Error("Coupon not found");
+      await ctx.db.patch(args.id, fields);
       return { success: true, id: args.id };
     }
 
     const id = await ctx.db.insert("coupons", {
-      code: args.code.toUpperCase(),
-      discountType: args.discountType,
-      discountPercent: args.discountPercent,
-      fixedDiscount: args.fixedDiscount,
-      maxDiscount: args.maxDiscount,
-      minOrder: args.minOrder,
-      usageLimit: args.usageLimit,
+      ...fields,
       usedCount: 0,
-      isActive: args.isActive,
-      expiresAt: args.expiresAt,
       createdAt: Date.now(),
     });
     return { success: true, id };
   },
 });
 
+/**
+ * Delete a coupon — but only when nothing references it. A coupon that has
+ * ever been redeemed (or appears on a historical order) is archived instead
+ * of deleted, so order history and financial records stay intact.
+ */
 export const deleteCoupon = mutation({
   args: { couponId: v.id("coupons") },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
+    const coupon = await ctx.db.get(args.couponId);
+    if (!coupon) throw new Error("Coupon not found");
+
+    const redemptions = await ctx.db
+      .query("coupon_redemptions")
+      .withIndex("by_coupon", (q) => q.eq("couponId", args.couponId))
+      .first();
+
+    let referencedByOrder = false;
+    if (!redemptions) {
+      const orders = await ctx.db.query("orders").collect();
+      referencedByOrder = orders.some((o) => o.couponCode === coupon.code);
+    }
+
+    if (redemptions || referencedByOrder) {
+      await ctx.db.patch(args.couponId, { isActive: false, archived: true });
+      return { success: true, archived: true as const };
+    }
+
     await ctx.db.delete(args.couponId);
-    return { success: true };
+    return { success: true, archived: false as const };
+  },
+});
+
+/**
+ * Coupon analytics — computed only from stored redemption and order records.
+ * No fabricated rates: order value is reported as order value (never as
+ * profit), and metrics without underlying data simply come back as 0.
+ */
+export const couponAnalytics = query({
+  args: {
+    /** Only count orders placed at or after this timestamp. */
+    since: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    const since = args.since ?? 0;
+
+    const [coupons, orders] = await Promise.all([
+      ctx.db.query("coupons").collect(),
+      ctx.db.query("orders").collect(),
+    ]);
+
+    const now = Date.now();
+    const stats: Record<
+      string,
+      {
+        couponId: string;
+        status: string;
+        redemptions: number;
+        released: number;
+        uniqueCustomers: number;
+        totalDiscountGranted: number;
+        deliveryWaived: number;
+        orderCount: number;
+        cancelledOrders: number;
+        grossOrderValue: number;
+        lastUsedAt: number | null;
+      }
+    > = {};
+
+    for (const coupon of coupons) {
+      const related = orders.filter(
+        (o) => o.couponCode === coupon.code && o.createdAt >= since
+      );
+      const live = related.filter((o) => o.status !== "cancelled");
+      const redemptions = await ctx.db
+        .query("coupon_redemptions")
+        .withIndex("by_coupon", (q) => q.eq("couponId", coupon._id))
+        .collect();
+      const counted = redemptions.filter((r) => r.status !== "released");
+
+      stats[coupon._id] = {
+        couponId: coupon._id,
+        status: couponStatus(coupon, now),
+        redemptions: counted.length,
+        released: redemptions.length - counted.length,
+        uniqueCustomers: new Set(live.map((o) => o.userId)).size,
+        // Actual discount recorded on the orders themselves.
+        totalDiscountGranted: live.reduce(
+          (sum, o) => sum + (o.couponDiscount ?? 0),
+          0
+        ),
+        // Delivery waived by free-delivery coupons (orders store this
+        // separately, because it never enters the item discount).
+        deliveryWaived: counted.reduce((sum, r) => sum + r.deliveryWaived, 0),
+        orderCount: related.length,
+        cancelledOrders: related.length - live.length,
+        grossOrderValue: live.reduce((sum, o) => sum + o.totalAmount, 0),
+        lastUsedAt:
+          related.length > 0
+            ? Math.max(...related.map((o) => o.createdAt))
+            : null,
+      };
+    }
+
+    return stats;
   },
 });
 

@@ -6,6 +6,10 @@ import {
   releaseWalletReservation,
   settleWalletReservation,
 } from "./referralWallet";
+import {
+  consumeRedemptionForOrder,
+  releaseRedemptionForOrder,
+} from "./couponRedemptions";
 
 /**
  * Razorpay payment mutations and queries.
@@ -57,6 +61,9 @@ export const confirmPayment = mutation({
     // Wallet reservation becomes final now that payment succeeded.
     await settleWalletReservation(ctx, args.orderId);
 
+    // Payment confirmed → the coupon reservation becomes a real redemption.
+    await consumeRedemptionForOrder(ctx, args.orderId);
+
     await ctx.db.insert("notifications", {
       userId,
       type: "order_status",
@@ -97,6 +104,9 @@ export const markPaymentFailed = mutation({
 
     // Payment failed — return any reserved wallet amount to the customer.
     await releaseWalletReservation(ctx, args.orderId);
+
+    // …and hand the coupon slot back so the customer can retry or reuse it.
+    await releaseRedemptionForOrder(ctx, args.orderId, "Payment failed");
 
     return { success: true };
   },

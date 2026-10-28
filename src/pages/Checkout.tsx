@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useAuth } from "@/context/AuthContext";
 import { useQuery, useMutation, useAction } from "convex/react";
@@ -80,11 +80,11 @@ export default function Checkout() {
   const [placing, setPlacing] = useState(false);
   const [paymentProcessing, setPaymentProcessing] = useState(false);
   const [couponCode, setCouponCode] = useState("");
-  const [appliedCoupon, setAppliedCoupon] = useState<{
-    code: string;
-    discount: number;
-    message: string;
-  } | null>(null);
+  // `couponCode` is what the customer is typing; `appliedCode` is the coupon
+  // they explicitly chose. The live discount is always re-derived from the
+  // server's evaluation below, so it follows cart changes instead of a stale
+  // snapshot — and the server recomputes it again during order creation.
+  const [appliedCode, setAppliedCode] = useState<string | null>(null);
 
   const [searchParams] = useSearchParams();
   const buyNowProductId = searchParams.get("buyNow");
@@ -121,13 +121,24 @@ export default function Checkout() {
   // extracts the pincode from the same address string at order time).
   const selectedAddress = addresses?.find((a: any) => a._id === selectedAddressId);
 
-  // Calculate totals
-  const { subtotal, totalDiscount, deliveryFee, tax, total, totalItems, hasRxItems } = useMemo(() => {
-    if (!cartItems) return { subtotal: 0, totalDiscount: 0, deliveryFee: 0, tax: 0, total: 0, totalItems: 0, hasRxItems: false };
+  // Calculate totals (product-level discounts only — coupons are applied
+  // below, on top of these, exactly the way the server does it).
+  const { subtotal, totalDiscount, deliveryFee, totalItems, hasRxItems, couponItems } = useMemo(() => {
+    if (!cartItems) {
+      return {
+        subtotal: 0,
+        totalDiscount: 0,
+        deliveryFee: 0,
+        totalItems: 0,
+        hasRxItems: false,
+        couponItems: undefined,
+      };
+    }
 
     let sub = 0;
     let disc = 0;
     let rx = false;
+    const lines: { categoryId?: string; amount: number }[] = [];
     for (const item of cartItems) {
       const p = item.product;
       if (!p) continue;
@@ -135,6 +146,12 @@ export default function Checkout() {
       const unitPrice = p.discountPrice && p.discountPrice < p.price ? p.discountPrice : p.price;
       sub += unitPrice * item.quantity;
       disc += (p.price - unitPrice) * item.quantity;
+      // Per-line category + amount so category-restricted coupons can be
+      // checked against exactly what is in the cart.
+      lines.push({
+        categoryId: (p as any).categoryId ?? undefined,
+        amount: unitPrice * item.quantity,
+      });
     }
     // Configuration-driven fee — identical to what src/convex/orders.ts
     // charges on the server, so the displayed total always matches the order.
@@ -143,25 +160,85 @@ export default function Checkout() {
       sub,
       selectedAddress ? addressToString(selectedAddress) : undefined
     );
-    const taxAmount = Math.round(sub * 0.12);
     return {
       subtotal: sub,
       totalDiscount: disc,
       deliveryFee: delivery,
-      tax: taxAmount,
-      total: sub + delivery + taxAmount,
       totalItems: cartItems.reduce((s, i) => s + i.quantity, 0),
       hasRxItems: rx,
+      couponItems: lines,
     };
   }, [cartItems, deliveryConfig, selectedAddress]);
 
-  // Final total with coupon discount
-  const finalTotal = useMemo(() => {
-    return Math.max(0, total - (appliedCoupon?.discount || 0));
-  }, [total, appliedCoupon]);
+  // ── Coupon: live server evaluation for the applied/typed code ──
+  // Runs whenever the code, the cart, the delivery fee or the address
+  // changes, so the shown discount, the offers list and the best-coupon
+  // recommendation always reflect the current cart.
+  const trimmedCouponInput = couponCode.trim();
+  const activeCouponCode = appliedCode ?? (trimmedCouponInput.length >= 3 ? trimmedCouponInput : null);
+  const couponValidation = useQuery(
+    api.coupons.computeDiscount,
+    activeCouponCode && subtotal > 0
+      ? {
+          code: activeCouponCode,
+          subtotal,
+          deliveryFee,
+          items: couponItems,
+        }
+      : "skip"
+  );
 
-  // Wallet can cover part of the payable: capped by balance, the configured
-  // percentage and the payable itself. The server re-clamps this at order time.
+  // All offers eligible for this customer + cart, sorted by actual saving.
+  const availableOffers = useQuery(
+    api.coupons.listAvailable,
+    subtotal > 0
+      ? { subtotal, deliveryFee, items: couponItems, limit: 6 }
+      : "skip"
+  );
+
+  // The query above is skipped until 3+ characters are typed, so "pending" is
+  // only true while a validation request is genuinely still in flight.
+  const couponPending =
+    !appliedCode &&
+    trimmedCouponInput.length >= 3 &&
+    subtotal > 0 &&
+    couponValidation === undefined;
+
+  // The applied coupon's live result (never a stale snapshot).
+  const appliedCoupon = useMemo(() => {
+    if (!appliedCode || !couponValidation) return null;
+    if (!couponValidation.valid) return null;
+    if (couponValidation.code !== appliedCode) return null;
+    return {
+      code: couponValidation.code,
+      discount: couponValidation.discount || 0,
+      deliveryWaived: couponValidation.deliveryWaived || 0,
+      savings: couponValidation.savings || 0,
+      message: couponValidation.message || "Coupon applied",
+    };
+  }, [appliedCode, couponValidation]);
+
+  // The applied coupon stopped being valid (limit reached, cart shrank
+  // below the minimum, …). Say so instead of silently dropping the discount.
+  const appliedCouponProblem =
+    appliedCode && couponValidation && !couponValidation.valid
+      ? couponValidation.reason || "This coupon can no longer be applied"
+      : null;
+
+  // ── Pricing: one calculation, same as the server's order-creation math ──
+  // 1. product-level discounts (from the totals memo above), 2. the coupon,
+  // 3. GST on the discounted base, 4. the delivery charge (after any
+  // free-delivery waiver). Nothing is counted twice and the payable can
+  // never go negative.
+  const couponItemDiscount = appliedCoupon?.discount ?? 0;
+  const couponDeliveryWaived = appliedCoupon?.deliveryWaived ?? 0;
+  const effectiveDeliveryFee = Math.max(0, deliveryFee - couponDeliveryWaived);
+  const tax = Math.round(Math.max(0, subtotal - couponItemDiscount) * 0.12);
+  const finalTotal = Math.max(
+    0,
+    Math.max(0, subtotal - couponItemDiscount) + effectiveDeliveryFee + tax
+  );
+
   const walletAllowed = useMemo(() => {
     if (!walletBalance || !walletSettings) return 0;
     return computeMaxWalletUsage({
@@ -180,18 +257,18 @@ export default function Checkout() {
     pincodeFromAddr && pincodeFromAddr.length === 6 ? { pincode: pincodeFromAddr } : "skip"
   );
 
-  // Coupon validation query (only run when coupon code entered and subtotal known)
-  const couponValidation = useQuery(
-    api.coupons.computeDiscount,
-    couponCode.trim().length >= 3 && subtotal > 0
-      ? { code: couponCode.trim(), subtotal }
-      : "skip"
-  );
-
-  // The query above is skipped until 3+ characters are typed, so "pending" is
-  // only true while a validation request is genuinely still in flight.
-  const couponPending =
-    couponCode.trim().length >= 3 && subtotal > 0 && couponValidation === undefined;
+  // One confirmation per applied-code result: success when it applies, a
+  // clear reason when it stops applying (cart shrank, limit reached, …).
+  const lastCouponToast = useRef<string | null>(null);
+  // A coupon chosen on the cart page arrives as ?coupon=CODE. Applied once.
+  const couponParam = searchParams.get("coupon");
+  const couponParamConsumed = useRef(false);
+  useEffect(() => {
+    if (!couponParam || couponParamConsumed.current) return;
+    couponParamConsumed.current = true;
+    const code = couponParam.trim().toUpperCase();
+    if (code) setAppliedCode(code);
+  }, [couponParam]);
 
   const handleApplyCoupon = () => {
     if (!couponCode.trim()) {
@@ -201,21 +278,61 @@ export default function Checkout() {
     // Validation not ready yet — the Apply button is disabled meanwhile.
     if (couponPending) return;
     if (couponValidation && couponValidation.valid) {
-      setAppliedCoupon({
-        code: couponValidation.code || "",
-        discount: couponValidation.discount || 0,
-        message: couponValidation.message || "Coupon applied",
-      });
-      toast.success(couponValidation.message || "Coupon applied");
+      setAppliedCode(couponValidation.code || couponCode.trim().toUpperCase());
+      setCouponCode("");
+      // Success is toasted by the effect below, once the live result for the
+      // applied code actually lands.
     } else if (couponValidation && !couponValidation.valid) {
       toast.error(couponValidation.reason || "Invalid coupon");
     }
   };
 
   const handleRemoveCoupon = () => {
-    setAppliedCoupon(null);
+    setAppliedCode(null);
+    setCouponCode("");
+    lastCouponToast.current = null;
+  };
+
+  /** Apply one of the listed offers (copy-apply from the offers panel). */
+  const handleApplyOffer = (code: string) => {
+    lastCouponToast.current = null;
+    setAppliedCode(code);
     setCouponCode("");
   };
+
+  /**
+   * Apply the coupon that leaves the lowest payable amount. Only ever runs on
+   * an explicit click — a customer's manual choice is never replaced.
+   */
+  const bestOffer = useMemo(() => {
+    const eligible = (availableOffers?.offers ?? []).filter((o) => o.valid);
+    if (eligible.length === 0) return null;
+    return eligible.reduce((best, o) => (o.savings > best.savings ? o : best));
+  }, [availableOffers]);
+
+  const handleApplyBestCoupon = () => {
+    if (!bestOffer) {
+      toast.info("No applicable coupon for this cart");
+      return;
+    }
+    handleApplyOffer(bestOffer.code);
+    toast.success(`Best offer applied: ${bestOffer.code} — you save ₹${bestOffer.savings}`);
+  };
+
+  // One confirmation per applied-code result: success when it applies, a
+  // clear reason when it stops applying (cart shrank, limit reached, …).
+  useEffect(() => {
+    if (!appliedCode || !couponValidation) return;
+    if (couponValidation.code !== appliedCode) return;
+    const key = `${appliedCode}:${couponValidation.valid}:${couponValidation.reason ?? ""}`;
+    if (lastCouponToast.current === key) return;
+    lastCouponToast.current = key;
+    if (couponValidation.valid) {
+      toast.success(couponValidation.message || "Coupon applied");
+    } else {
+      toast.error(couponValidation.reason || "Invalid coupon");
+    }
+  }, [appliedCode, couponValidation]);
 
   // Auto-select default address
   if (addresses && addresses.length > 0 && !selectedAddressId) {
@@ -750,16 +867,22 @@ export default function Checkout() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Delivery</span>
-                    <span className={`font-medium ${deliveryFee === 0 ? "text-green-600" : ""}`}>
-                      {deliveryFee === 0 ? "Free" : formatCurrency(deliveryFee)}
+                    <span className={`font-medium ${effectiveDeliveryFee === 0 ? "text-green-600" : ""}`}>
+                      {effectiveDeliveryFee === 0 ? "Free" : formatCurrency(effectiveDeliveryFee)}
                     </span>
                   </div>
                   {appliedCoupon && (
                     <div className="flex justify-between text-green-600">
-                      <span className="flex items-center gap-1">
-                        <Tag className="size-3" /> {appliedCoupon.code}
+                      <span className="flex items-center gap-1 min-w-0">
+                        <Tag className="size-3 shrink-0" />
+                        <span className="truncate">{appliedCoupon.code}</span>
+                        {couponDeliveryWaived > 0 && (
+                          <span className="text-[10px] text-green-700 shrink-0">· free delivery</span>
+                        )}
                       </span>
-                      <span className="font-medium">-{formatCurrency(appliedCoupon.discount)}</span>
+                      <span className="font-medium">
+                        -{formatCurrency(appliedCoupon.discount + couponDeliveryWaived)}
+                      </span>
                     </div>
                   )}
                   <Separator className="my-2" />
@@ -783,21 +906,49 @@ export default function Checkout() {
                   )}
                 </div>
 
-                {deliveryFee > 0 && (
+                {effectiveDeliveryFee > 0 && (
                   <p className="text-[10px] text-muted-foreground text-center">
-                    Add {formatCurrency(500 - subtotal)} more for free delivery
+                    Add {formatCurrency(Math.max(0, 500 - subtotal))} more for free delivery
                   </p>
                 )}
 
                 {/* Coupon Code */}
                 {appliedCoupon ? (
                   <div className="flex items-center justify-between p-2 rounded-lg bg-green-50 border border-green-200">
-                    <div className="flex items-center gap-1.5">
-                      <Tag className="size-3 text-green-600" />
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <Tag className="size-3 text-green-600 shrink-0" />
                       <span className="text-xs font-semibold text-green-800">{appliedCoupon.code}</span>
-                      <span className="text-[10px] text-green-700">applied</span>
+                      <span className="text-[10px] text-green-700 truncate">
+                        applied · saves {formatCurrency(appliedCoupon.savings)}
+                      </span>
                     </div>
-                    <button onClick={handleRemoveCoupon} className="text-green-600 hover:text-green-800">
+                    <button
+                      onClick={handleRemoveCoupon}
+                      aria-label="Remove coupon"
+                      className="text-green-600 hover:text-green-800 shrink-0"
+                    >
+                      <X className="size-3" />
+                    </button>
+                  </div>
+                ) : appliedCode ? (
+                  /* The chosen coupon stopped applying — say why, and let the
+                     customer remove it. The order is never charged a discount
+                     the server would reject anyway. */
+                  <div className="flex items-start justify-between gap-2 p-2 rounded-lg bg-amber-50 border border-amber-200">
+                    <div className="flex items-start gap-1.5 min-w-0">
+                      <AlertTriangle className="size-3.5 text-amber-600 mt-0.5 shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-amber-800">{appliedCode}</p>
+                        <p className="text-[10px] text-amber-700">
+                          {appliedCouponProblem || "Checking coupon…"}
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleRemoveCoupon}
+                      aria-label="Remove coupon"
+                      className="text-amber-600 hover:text-amber-800 shrink-0"
+                    >
                       <X className="size-3" />
                     </button>
                   </div>
@@ -806,10 +957,7 @@ export default function Checkout() {
                     <Input
                       placeholder="Coupon code"
                       value={couponCode}
-                      onChange={(e) => {
-                        setCouponCode(e.target.value.toUpperCase());
-                        setAppliedCoupon(null);
-                      }}
+                      onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
                       className="flex-1 h-9 text-xs uppercase"
                     />
                     <Button
@@ -830,6 +978,78 @@ export default function Checkout() {
                     </Button>
                   </div>
                 )}
+
+                {/* Available offers — only coupons this cart and customer can
+                    actually use, ranked by real saving (not by percentage). */}
+                {!appliedCode &&
+                  (availableOffers?.offers ?? []).some((o) => o.valid) && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-semibold text-foreground flex items-center gap-1">
+                          <Tag className="size-3 text-primary" /> Available offers
+                        </p>
+                        {bestOffer && (
+                          <button
+                            type="button"
+                            onClick={handleApplyBestCoupon}
+                            className="text-[11px] font-semibold text-primary hover:underline"
+                          >
+                            Apply best coupon
+                          </button>
+                        )}
+                      </div>
+                      <div className="space-y-1.5 max-h-44 overflow-y-auto pr-0.5">
+                        {(availableOffers?.offers ?? [])
+                          .filter((offer) => offer.valid)
+                          .map((offer) => (
+                            <div
+                              key={offer.code}
+                              className="flex items-center gap-2 p-2 rounded-lg border border-dashed border-primary/30 bg-primary/[0.03]"
+                            >
+                              <div className="min-w-0 flex-1">
+                                <p className="text-xs font-bold text-foreground truncate">
+                                  {offer.name || offer.code}
+                                </p>
+                                <p className="text-[10px] text-muted-foreground truncate">
+                                  {offer.offerText || offer.message}
+                                  {offer.minOrder > 0 &&
+                                    ` · above ${formatCurrency(offer.minOrder)}`}
+                                  {offer.expiresAt > 0 &&
+                                    ` · valid till ${new Date(offer.expiresAt).toLocaleDateString("en-IN", {
+                                      day: "numeric",
+                                      month: "short",
+                                    })}`}
+                                  {offer.firstOrderOnly && " · first order only"}
+                                </p>
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 text-[10px] px-2 shrink-0"
+                                onClick={async () => {
+                                  try {
+                                    await navigator.clipboard.writeText(offer.code);
+                                    toast.success(`${offer.code} copied`);
+                                  } catch {
+                                    toast.error("Could not copy the code");
+                                  }
+                                }}
+                              >
+                                Copy
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-7 text-[10px] px-2 shrink-0 border-primary/40 text-primary hover:bg-primary/5"
+                                onClick={() => handleApplyOffer(offer.code)}
+                              >
+                                Apply
+                              </Button>
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  )}
 
                 {step < 3 ? (
                   <Button

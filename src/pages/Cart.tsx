@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { beginProductTransition } from "@/lib/product-transition";
 import { useAuth } from "@/context/AuthContext";
@@ -28,6 +29,7 @@ import {
   Pill,
   Loader2,
   MessageCircle,
+  Tag,
 } from "lucide-react";
 import { formatCurrency } from "@/lib/auth-utils";
 import { computeDeliveryFee } from "@/lib/deliveryFee";
@@ -44,6 +46,48 @@ export default function Cart() {
   const clearCart = useMutation(api.cart.clear);
   const deliveryConfig = useQuery(api.deliveryConfig.getPublic);
   const logWhatsApp = useMutation(api.whatsappEnquiries.log);
+
+  // Cart totals — computed at hook level (before any early return) so the
+  // offers query below always sees the same numbers as the summary card.
+  // Same math as Checkout and the server: product-level discount applied
+  // first, coupons are evaluated on top of this subtotal.
+  const { subtotal, savings, totalItems, hasPrescriptionItems, deliveryFee, couponItems } =
+    useMemo(() => {
+      const items = cartItems ?? [];
+      let sub = 0;
+      let sav = 0;
+      let count = 0;
+      let rx = false;
+      const lines: { categoryId?: string; amount: number }[] = [];
+      for (const item of items) {
+        const p = item.product;
+        if (!p) continue;
+        if (p.prescriptionRequired) rx = true;
+        const unitPrice =
+          p.discountPrice && p.discountPrice < p.price ? p.discountPrice : p.price;
+        sub += unitPrice * item.quantity;
+        sav += (p.price - unitPrice) * item.quantity;
+        count += item.quantity;
+        lines.push({ categoryId: (p as any).categoryId ?? undefined, amount: unitPrice * item.quantity });
+      }
+      return {
+        subtotal: sub,
+        savings: sav,
+        totalItems: count,
+        hasPrescriptionItems: rx,
+        // One source of truth with Checkout and the server (src/convex/orders.ts).
+        // Cart has no address yet, so the default configured fee applies until
+        // the customer picks an address in Checkout.
+        deliveryFee: computeDeliveryFee(deliveryConfig, sub),
+        couponItems: lines,
+      };
+    }, [cartItems, deliveryConfig]);
+
+  // Offers this customer + cart can actually use, ranked by real saving.
+  const offers = useQuery(
+    api.coupons.listAvailable,
+    subtotal > 0 ? { subtotal, deliveryFee, items: couponItems, limit: 3 } : "skip"
+  );
 
   const handleUpdateQuantity = async (cartItemId: string, newQty: number) => {
     try {
@@ -147,27 +191,13 @@ export default function Cart() {
   }
 
   // Cart with items
-  const subtotal = cartItems.reduce((sum, item) => {
-    const price = item.product?.discountPrice && item.product.discountPrice < item.product.price
-      ? item.product.discountPrice
-      : item.product?.price ?? 0;
-    return sum + price * item.quantity;
-  }, 0);
+  const handleApplyOffer = (code: string) => {
+    // The coupon is applied on the checkout screen (where the order is
+    // finally priced), carrying the explicit customer choice across.
+    navigate(`/checkout?coupon=${encodeURIComponent(code)}`);
+  };
 
-  const savings = cartItems.reduce((sum, item) => {
-    if (item.product?.discountPrice && item.product.discountPrice < item.product.price) {
-      return sum + (item.product.price - item.product.discountPrice) * item.quantity;
-    }
-    return sum;
-  }, 0);
-
-  const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
-  const hasPrescriptionItems = cartItems.some((item) => item.product?.prescriptionRequired);
-
-  // One source of truth with Checkout and the server (src/convex/orders.ts).
-  // Cart has no address yet, so the default configured fee applies until the
-  // customer picks an address in Checkout.
-  const deliveryFee = computeDeliveryFee(deliveryConfig, subtotal);
+  const eligibleOffers = (offers?.offers ?? []).filter((offer) => offer.valid);
 
   const handleWhatsApp = () => {
     const phone = deliveryConfig?.storeWhatsApp || deliveryConfig?.storePhone || "";
@@ -352,6 +382,63 @@ export default function Cart() {
                     <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800">
                       <p className="font-semibold">Prescription items in cart</p>
                       <p className="mt-1">Please have your prescription ready for upload during checkout.</p>
+                    </div>
+                  )}
+
+                  {/* Available offers for this cart — copy the code or apply
+                      it directly at checkout. Only coupons this customer and
+                      cart can actually use are listed. */}
+                  {eligibleOffers.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-xs font-semibold flex items-center gap-1.5">
+                        <Tag className="size-3.5 text-primary" /> Available offers
+                      </p>
+                      <div className="space-y-1.5">
+                        {eligibleOffers.map((offer) => (
+                          <div
+                            key={offer.code}
+                            className="flex items-center gap-2 p-2 rounded-lg border border-dashed border-primary/30 bg-primary/[0.03]"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-bold truncate">
+                                {offer.offerText || offer.message}
+                              </p>
+                              <p className="text-[10px] text-muted-foreground truncate">
+                                {offer.name || offer.code}
+                                {offer.minOrder > 0 && ` · above ${formatCurrency(offer.minOrder)}`}
+                                {offer.expiresAt > 0 &&
+                                  ` · till ${new Date(offer.expiresAt).toLocaleDateString("en-IN", {
+                                    day: "numeric",
+                                    month: "short",
+                                  })}`}
+                              </p>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 text-[10px] px-2 shrink-0"
+                              onClick={async () => {
+                                try {
+                                  await navigator.clipboard.writeText(offer.code);
+                                  toast.success(`${offer.code} copied`);
+                                } catch {
+                                  toast.error("Could not copy the code");
+                                }
+                              }}
+                            >
+                              Copy
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 text-[10px] px-2 shrink-0 border-primary/40 text-primary hover:bg-primary/5"
+                              onClick={() => handleApplyOffer(offer.code)}
+                            >
+                              Apply
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
 

@@ -4,6 +4,11 @@ import { v } from "convex/values";
 import { handleOrderStatusChange, reserveWalletForOrder } from "./referralWallet";
 import { loadEngine } from "./discountEngine";
 import { resolveProductDiscount } from "../lib/discount";
+import {
+  registerRedemption,
+  resolveCoupon,
+  type ResolvedCoupon,
+} from "./couponRedemptions";
 
 // ── List orders for current user (newest first) ──
 export const list = query({
@@ -115,6 +120,9 @@ export const create = mutation({
 
     // Build order items and compute totals
     const orderItems: { productId: any; name: string; price: number; quantity: number }[] = [];
+    // Per-line category + discounted amount, so category-restricted coupons
+    // can be evaluated against exactly what the customer is buying.
+    const couponLines: { categoryId: string | null; amount: number }[] = [];
     let subtotal = 0;
     let discount = 0;
 
@@ -165,6 +173,10 @@ export const create = mutation({
         price: effectivePrice,
         quantity: ci.quantity,
       });
+      couponLines.push({
+        categoryId: product.categoryId ?? null,
+        amount: effectivePrice * ci.quantity,
+      });
 
       subtotal += effectivePrice * ci.quantity;
       discount += (originalPrice - effectivePrice) * ci.quantity;
@@ -187,31 +199,32 @@ export const create = mutation({
     } else if (subtotal >= 500) {
       deliveryFee = 0;
     }
-    // Validate and apply coupon discount (server-side, never trust frontend)
+    // ── Coupon: full server-side re-validation and recalculation ──
+    // The client-supplied `couponDiscount` is NEVER trusted — only the code
+    // is used, and the amount, the limits, the eligibility and the delivery
+    // waiver are recomputed here from the live cart and order history.
     let couponDiscountAmount = 0;
+    let couponDeliveryWaived = 0;
     let appliedCouponCode: string | undefined;
-    if (args.couponCode && args.couponDiscount && args.couponDiscount > 0) {
-      const coupon = await ctx.db
-        .query("coupons")
-        .withIndex("by_code", (q) => q.eq("code", args.couponCode!.toUpperCase()))
-        .first();
-      if (coupon && coupon.isActive && coupon.expiresAt >= Date.now() &&
-          (coupon.usageLimit <= 0 || coupon.usedCount < coupon.usageLimit) &&
-          subtotal >= coupon.minOrder) {
-        if (coupon.discountType === "percentage") {
-          const computed = Math.min(
-            Math.round((subtotal * coupon.discountPercent) / 100),
-            coupon.maxDiscount
-          );
-          // Accept frontend value only if it matches server computation (±1 for rounding)
-          couponDiscountAmount = Math.abs(args.couponDiscount - computed) <= 1 ? computed : computed;
-        } else {
-          couponDiscountAmount = Math.min(coupon.fixedDiscount, subtotal);
-        }
-        appliedCouponCode = coupon.code;
-        // Increment usage count
-        await ctx.db.patch(coupon._id, { usedCount: coupon.usedCount + 1 });
+    let resolvedCoupon: ResolvedCoupon | null = null;
+    if (args.couponCode && args.couponCode.trim()) {
+      const resolved = await resolveCoupon(ctx, {
+        userId,
+        code: args.couponCode,
+        subtotal,
+        items: couponLines,
+        deliveryFee,
+      });
+      if (!resolved.ok) {
+        // Convex mutations are transactional: nothing (stock, order, wallet)
+        // is written when the coupon the customer was shown no longer applies.
+        throw new Error(resolved.reason);
       }
+      resolvedCoupon = resolved;
+      couponDiscountAmount = resolved.evaluation.discount;
+      couponDeliveryWaived = resolved.evaluation.deliveryWaived;
+      appliedCouponCode = resolved.coupon.code;
+      if (couponDeliveryWaived > 0) deliveryFee = 0; // waive the eligible fee only
     }
 
     // GST 12% on medicines (after coupon discount)
@@ -263,6 +276,18 @@ export const create = mutation({
       createdAt: now,
       updatedAt: now,
     });
+
+    // Reserve the coupon against this order (record + usage slot). Runs in
+    // the same transaction as the order insert, so the two can't drift apart.
+    if (resolvedCoupon) {
+      await registerRedemption(ctx, {
+        coupon: resolvedCoupon.coupon,
+        userId,
+        orderId,
+        discountAmount: couponDiscountAmount,
+        deliveryWaived: couponDeliveryWaived,
+      });
+    }
 
     // Apply wallet balance. The requested amount is re-clamped server-side
     // against the live balance, the configured cap and the payable amount.
@@ -598,26 +623,30 @@ export const createDirectOrder = mutation({
       deliveryFee = 0;
     }
 
-    // Coupon validation
+    // ── Coupon: same server-side validation as the cart checkout path ──
+    // Only the code is trusted; the discount, limits and eligibility are
+    // recomputed from the live product price and this customer's history.
     let couponDiscountAmount = 0;
+    let couponDeliveryWaived = 0;
     let appliedCouponCode: string | undefined;
-    if (args.couponCode && args.couponDiscount && args.couponDiscount > 0) {
-      const coupon = await ctx.db
-        .query("coupons")
-        .withIndex("by_code", (q) => q.eq("code", args.couponCode!.toUpperCase()))
-        .first();
-      if (coupon && coupon.isActive && coupon.expiresAt >= Date.now() &&
-          (coupon.usageLimit <= 0 || coupon.usedCount < coupon.usageLimit) &&
-          subtotal >= coupon.minOrder) {
-        if (coupon.discountType === "percentage") {
-          const computed = Math.min(Math.round((subtotal * coupon.discountPercent) / 100), coupon.maxDiscount);
-          couponDiscountAmount = Math.abs(args.couponDiscount - computed) <= 1 ? computed : computed;
-        } else {
-          couponDiscountAmount = Math.min(coupon.fixedDiscount, subtotal);
-        }
-        appliedCouponCode = coupon.code;
-        await ctx.db.patch(coupon._id, { usedCount: coupon.usedCount + 1 });
+    let resolvedCoupon: ResolvedCoupon | null = null;
+    if (args.couponCode && args.couponCode.trim()) {
+      const resolved = await resolveCoupon(ctx, {
+        userId,
+        code: args.couponCode,
+        subtotal,
+        items: [{ categoryId: product.categoryId ?? null, amount: subtotal }],
+        deliveryFee,
+      });
+      if (!resolved.ok) {
+        // Transactional: stock and wallet writes above roll back with this.
+        throw new Error(resolved.reason);
       }
+      resolvedCoupon = resolved;
+      couponDiscountAmount = resolved.evaluation.discount;
+      couponDeliveryWaived = resolved.evaluation.deliveryWaived;
+      appliedCouponCode = resolved.coupon.code;
+      if (couponDeliveryWaived > 0) deliveryFee = 0; // waive the eligible fee only
     }
 
     const taxableAmount = subtotal - couponDiscountAmount;
@@ -655,6 +684,17 @@ export const createDirectOrder = mutation({
       createdAt: now,
       updatedAt: now,
     });
+
+    // Reserve the coupon against this order in the same transaction.
+    if (resolvedCoupon) {
+      await registerRedemption(ctx, {
+        coupon: resolvedCoupon.coupon,
+        userId,
+        orderId,
+        discountAmount: couponDiscountAmount,
+        deliveryWaived: couponDeliveryWaived,
+      });
+    }
 
     // Apply wallet balance (server-clamped; never trust the browser value).
     let walletAmountUsed = 0;

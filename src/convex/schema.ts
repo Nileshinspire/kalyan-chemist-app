@@ -576,23 +576,73 @@ const schema = defineSchema(
     // Discount coupons
     coupons: defineTable({
       code: v.string(),
-      // Discount type: percentage or fixed amount
-      discountType: v.union(v.literal("percentage"), v.literal("fixed")),
+      // Discount type: percentage, fixed amount, or waived delivery charge
+      discountType: v.union(
+        v.literal("percentage"),
+        v.literal("fixed"),
+        v.literal("free_delivery")
+      ),
       // For percentage coupons: percentage off (e.g. 10 = 10% off)
       discountPercent: v.number(),
       // For fixed coupons: fixed amount off in ₹
       fixedDiscount: v.number(),
-      // Max discount cap (only applies to percentage coupons)
+      // Max discount cap (only applies to percentage coupons). 0 = no cap.
       maxDiscount: v.number(),
+      // Minimum eligible order value, measured on the cart subtotal AFTER
+      // product-level discounts (documented in the admin form).
       minOrder: v.number(),
+      // 0 or less = unlimited redemptions
       usageLimit: v.number(),
       usedCount: v.number(),
       isActive: v.boolean(),
       expiresAt: v.number(),
       createdAt: v.number(),
+      // ── Extended coupon system. Every field below is optional so every
+      // coupon row created before this extension stays valid as-is. ──
+      // Campaign / display name (e.g. "Diwali Flat ₹150 Off")
+      name: v.optional(v.string()),
+      description: v.optional(v.string()),
+      // Validity window start. Undefined = valid from creation.
+      startsAt: v.optional(v.number()),
+      // Per-customer redemption limit. 0/undefined = unlimited.
+      perUserLimit: v.optional(v.number()),
+      // First-order-only eligibility, checked against real order history
+      firstOrderOnly: v.optional(v.boolean()),
+      // Restrict to specific categories. Empty/undefined = all products.
+      eligibleCategoryIds: v.optional(v.array(v.id("categories"))),
+      // Archived coupons are hidden from customers and cannot be redeemed.
+      archived: v.optional(v.boolean()),
     })
       .index("by_code", ["code"])
       .index("by_isActive", ["isActive"]),
+
+    // Coupon redemptions — one record per (order, coupon) reservation.
+    // Lifecycle: active (reserved at order creation) → consumed (payment
+    // confirmed) or released (payment failed / order cancelled), so limits
+    // are only permanently consumed once the order actually goes through.
+    coupon_redemptions: defineTable({
+      couponId: v.id("coupons"),
+      code: v.string(),
+      orderId: v.id("orders"),
+      userId: v.id("users"),
+      // Item discount actually granted (excludes any waived delivery fee)
+      discountAmount: v.number(),
+      // Delivery charge waived by a free-delivery coupon
+      deliveryWaived: v.number(),
+      status: v.union(
+        v.literal("active"),
+        v.literal("consumed"),
+        v.literal("released"),
+      ),
+      // Human-readable note for why the redemption was released
+      releaseReason: v.optional(v.string()),
+      createdAt: v.number(),
+      updatedAt: v.number(),
+    })
+      .index("by_coupon", ["couponId"])
+      .index("by_order", ["orderId"])
+      .index("by_user_coupon", ["userId", "couponId"])
+      .index("by_user", ["userId"]),
 
     // In-app notifications + WhatsApp message log
     notifications: defineTable({
