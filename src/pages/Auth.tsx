@@ -95,7 +95,8 @@ function friendlyError(
 }
 
 function Auth({ redirectAfterAuth }: AuthProps = {}) {
-  const { isLoading: authLoading, isAuthenticated, user, signIn } = useAuth();
+  const { isLoading: authLoading, isAuthenticated, user, signIn, signOut } =
+    useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const redirect = resolveRedirectAfterAuth(
@@ -237,6 +238,32 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
     verifyingRef.current = false;
   };
 
+  /**
+   * End any active session before a new sign-in starts.
+   *
+   * Convex Auth only tells the Convex client to re-authenticate when the
+   * signed-in *status* flips (`setToken` fires `onChange` only when
+   * `wasAuthenticated !== (newToken !== null)`), and the Convex client only
+   * fetches a fresh JWT from that `setAuth` call. Signing in with a different
+   * email while a session is still active therefore issues brand-new tokens
+   * with NO status change — the client keeps sending the previous account's
+   * JWT, so every query, including `users.currentUser`, still resolves to the
+   * old account. The same happens when re-signing-in as the same account,
+   * because the sign-in deletes the previous session server-side and the
+   * leftover token is then rejected.
+   *
+   * Ending the old session first forces the status flip, so the next sign-in's
+   * token is the one actually pushed to Convex.
+   */
+  const endActiveSession = useCallback(async () => {
+    if (!isAuthenticated) return;
+    try {
+      await signOut();
+    } catch {
+      // A failed sign-out must never block signing in again.
+    }
+  }, [isAuthenticated, signOut]);
+
   /** Request a fresh code for the current method. Shared by Send + Resend. */
   const sendCode = useCallback(
     async (isResend: boolean) => {
@@ -258,6 +285,11 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
       setIsSubmitting(true);
       setError(null);
       setNotice(null);
+
+      // Replace any active session before requesting a code for this account,
+      // so the sign-in that follows registers as a genuine status change.
+      // Done after `isSubmitting` so a slow sign-out can't double-submit.
+      await endActiveSession();
 
       try {
         const form = new FormData();
@@ -287,7 +319,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
     },
     // resolvePhoneTarget is derived from state captured below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [email, isSubmitting, method, phone, signIn, stage, verificationPhone],
+    [email, endActiveSession, isSubmitting, method, phone, signIn, stage, verificationPhone],
   );
 
   const handleIdentifierSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -310,6 +342,10 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
         method === "phone"
           ? verificationPhone || `+91${toTenDigits(phone)}`
           : email.trim();
+
+      // Last guard at the moment the new session is created, in case a session
+      // came back between sending the code and verifying it.
+      await endActiveSession();
 
       try {
         const form = new FormData();
@@ -334,7 +370,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
         setIsSubmitting(false);
       }
     },
-    [email, isSubmitting, method, phone, signIn, verificationPhone],
+    [email, endActiveSession, isSubmitting, method, phone, signIn, verificationPhone],
   );
 
   const handleVerifySubmit = (event: React.FormEvent<HTMLFormElement>) => {
