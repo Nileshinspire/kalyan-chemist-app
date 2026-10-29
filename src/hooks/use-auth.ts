@@ -1,65 +1,48 @@
 import { api } from "@/convex/_generated/api";
 import { useAuthActions } from "@convex-dev/auth/react";
-import { useConvexAuth, useQuery_experimental } from "convex/react";
-import { useEffect } from "react";
+import { useConvexAuth, useQuery } from "convex/react";
 
 /**
- * Authentication state provider.
+ * Authentication state hook.
  *
- * THIS FILE FIXES THE ACCOUNT-SWITCH BUG.
+ * WHY THE QUERY IS RE-KEYED
  *
- * Root cause: the user identity is read from a plain Convex query in
- * `users.ts` (`currentUser`), which resolves to the signed-in user's record
- * from the `users` table. Convex queries do NOT re-run when the
- * authentication session changes. So:
+ * The signed-in identity comes from `api.users.currentUser`, a Convex query
+ * that resolves the `users` document for the *current* session. A Convex
+ * subscription is identified by (function name, arguments), so a no-argument
+ * query has nothing that changes when the session changes — the previous
+ * account's document can outlive its session in the UI (sign out → still see
+ * the old admin; sign in as someone else → still see the old admin).
  *
- *   1. Admin signs in  → query returns the admin record → UI renders admin.
- *   2. Admin signs out  → auth session clears, but the query keeps its cached
- *                        result → UI still shows the admin.
- *   3. A different user signs in → isAuthenticated flips true, but the query
- *                        still holds the admin record → UI still shows the admin.
+ * The fix: pass an `authKey` derived from the live auth session
+ * (`useConvexAuth`). On every session transition the key changes, which
+ * discards the old subscription and starts a fresh execution under whatever
+ * identity the client currently holds. `undefined` is returned while that
+ * fresh execution is in flight, which is the "still loading" signal consumers
+ * (RequireAuth, Auth) already wait on — so a stale document is never rendered.
  *
- * The fix is two-fold:
- *   - Read identity from the live auth session (so "who is signed in" is always
- *     correct).
- *   - Re-run the user-document query every time the authenticated identity
- *     changes, so the document always matches the session. `useQuery` is
- *     no-arg and offers no arguments to force a subscription re-key, so we use
- *     `useQuery_experimental` (which exposes `refetch`) and drive an explicit
- *     re-fetch on every auth-session transition.
+ * `authKey` is only a cache key; authorization and the identity lookup stay
+ * server-side in `users.currentUser` via `getAuthUserId`.
  */
 export function useAuth() {
   const { isLoading: isAuthLoading, isAuthenticated } = useConvexAuth();
   const { signIn, signOut } = useAuthActions();
 
-  // useQuery_experimental returns { status: "success", data } so it exposes a
-  // `refetch` control to force re-execution of the query. The query itself is
-  // still the no-arg `api.users.currentUser` document.
-  const userQuery = useQuery_experimental({
-    query: api.users.currentUser,
-    args: "skip",
-  }) as {
-    status: "success";
-    data: any;
-    refetch: () => Promise<void>;
-  };
+  // Three stable keys: the session handshake in flight, signed in, signed out.
+  // Any sign-in/sign-out/account-switch moves between them, re-keying the query.
+  const authKey = isAuthLoading
+    ? "loading"
+    : isAuthenticated
+      ? "authenticated"
+      : "anonymous";
 
-  // Re-run the user-document query whenever the active auth session changes.
-  // The user-document query has no built-in listener for auth events, so
-  // nothing would re-execute it on sign-out or on a different sign-in.
-  // `refetch()` drives the exact transition turn so the document always matches
-  // the session (e.g. when a second user completes email verification).
-  useEffect(() => {
-    void userQuery.refetch();
-  }, [userQuery.refetch]);
-
-  // Elide the document until its initial fetch lands, then the landed document
-  // is the single source of truth for the currently signed-in account.
-  const user = userQuery.status === "success" ? userQuery.data : null;
+  // `undefined` while the (re-keyed) query executes; `null` once the server
+  // confirms there is no signed-in user.
+  const user = useQuery(api.users.currentUser, { authKey });
 
   return {
     isAuthLoading,
-    isLoading: isAuthLoading || userQuery.status !== "success",
+    isLoading: isAuthLoading || user === undefined,
     isAuthenticated,
     user,
     signIn,

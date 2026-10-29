@@ -4,9 +4,17 @@ import { v } from "convex/values";
 
 /**
  * Get the current signed in user. Returns null if not signed in.
+ *
+ * `authKey` is intentionally unused by the handler: it exists only so the
+ * client can re-key its subscription on every auth-session transition
+ * (anonymous → loading → authenticated). Convex identifies a subscription by
+ * (function, args), so changing the key tears down the old subscription and
+ * starts a fresh execution under the current session's identity. That is what
+ * guarantees a signed-in admin's document is never reused for a different
+ * account that signs in afterwards.
  */
 export const currentUser = query({
-  args: {},
+  args: { authKey: v.optional(v.string()) },
   handler: async (ctx) => {
     const user = await getCurrentUser(ctx);
     if (user === null) {
