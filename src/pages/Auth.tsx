@@ -359,24 +359,9 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
         form.set("code", submitted);
         if (method === "phone") form.set("phone", target);
         else form.set("email", target);
-        const result = await signIn(
-          method === "phone" ? "phone-otp" : "email-otp",
-          form,
-        );
-        if (result.signingIn) {
-          // Rebuild the app on the tokens that were just issued. Convex Auth
-          // only hands a new token to the Convex client when the signed-in
-          // *status* flips, so a session that is replaced in place (or a
-          // client that is slow to react) can keep the previous account's
-          // identity in every query, `users.currentUser` included. `signIn`
-          // waits for the tokens to be stored, so after this reload the app
-          // boots from the newly verified account and nothing else. The auth
-          // effect then redirects with `returnTo` intact.
-          window.location.reload();
-          return;
-        }
-        // No session was issued (e.g. a provider that needs another step): the
-        // auth effect redirects once that session is confirmed.
+        await signIn(method === "phone" ? "phone-otp" : "email-otp", form);
+        // The auth effect below performs the redirect once the new session is
+        // confirmed, which keeps the returnTo destination intact.
       } catch (error) {
         setError(friendlyError(error, "verify", method));
         setCode("");
