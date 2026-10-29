@@ -3,6 +3,7 @@ import { Input } from "@/components/ui/input";
 import { OtpInput } from "@/components/auth/OtpInput";
 import { SegmentedToggle } from "@/components/SegmentedToggle";
 import { useAuth } from "@/hooks/use-auth";
+import { useAuthToken } from "@convex-dev/auth/react";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import {
@@ -97,6 +98,17 @@ function friendlyError(
 function Auth({ redirectAfterAuth }: AuthProps = {}) {
   const { isLoading: authLoading, isAuthenticated, user, signIn, signOut } =
     useAuth();
+  /**
+   * The session JWT Convex Auth actually holds — the ground truth for "is
+   * there a session to replace". This is deliberately NOT `isAuthenticated`:
+   * that flag is `authStatus && convexClientAuthenticated`, so it reads false
+   * while a JWT is still parked in memory (observed when the Convex client
+   * fails to refresh/validate its token). Guarding the sign-out below on that
+   * flag is exactly how the previous account survived: the sign-in then
+   * replaced one token with another without ever flipping signed-in status,
+   * which is the only signal that makes the Convex client fetch the new token.
+   */
+  const sessionToken = useAuthToken();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const redirect = resolveRedirectAfterAuth(
@@ -256,13 +268,13 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
    * token is the one actually pushed to Convex.
    */
   const endActiveSession = useCallback(async () => {
-    if (!isAuthenticated) return;
+    if (!sessionToken) return;
     try {
       await signOut();
     } catch {
       // A failed sign-out must never block signing in again.
     }
-  }, [isAuthenticated, signOut]);
+  }, [sessionToken, signOut]);
 
   /** Request a fresh code for the current method. Shared by Send + Resend. */
   const sendCode = useCallback(
@@ -336,6 +348,11 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
       setIsSubmitting(true);
       setError(null);
 
+      // Whether a previous session existed when verification started. Account
+      // switching (this session -> a different account's session) needs the
+      // extra reload below.
+      const hadSession = sessionToken !== null;
+
       // Verification always targets the number the code was sent to, never the
       // (now cleared) editable input.
       const target =
@@ -352,7 +369,20 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
         form.set("code", submitted);
         if (method === "phone") form.set("phone", target);
         else form.set("email", target);
-        await signIn(method === "phone" ? "phone-otp" : "email-otp", form);
+        const result = await signIn(
+          method === "phone" ? "phone-otp" : "email-otp",
+          form,
+        );
+        if (result.signingIn && hadSession) {
+          // Replacing an existing session: `setToken` sees
+          // authenticated->authenticated, so no status change fires and the
+          // running Convex client would otherwise keep the previous account's
+          // identity. `endActiveSession()` above forces the flip, and this
+          // reload rebuilds every piece of auth state from the tokens just
+          // written — so no stale identity can survive in any ordering.
+          window.location.reload();
+          return;
+        }
         // The auth effect performs the redirect once the session is confirmed,
         // which keeps the returnTo destination intact.
       } catch (error) {
@@ -370,7 +400,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
         setIsSubmitting(false);
       }
     },
-    [email, endActiveSession, isSubmitting, method, phone, signIn, verificationPhone],
+    [email, endActiveSession, isSubmitting, method, phone, sessionToken, signIn, verificationPhone],
   );
 
   const handleVerifySubmit = (event: React.FormEvent<HTMLFormElement>) => {
