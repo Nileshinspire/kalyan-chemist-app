@@ -298,11 +298,6 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
       setError(null);
       setNotice(null);
 
-      // Replace any active session before requesting a code for this account,
-      // so the sign-in that follows registers as a genuine status change.
-      // Done after `isSubmitting` so a slow sign-out can't double-submit.
-      await endActiveSession();
-
       try {
         const form = new FormData();
         if (method === "phone") form.set("phone", target);
@@ -331,7 +326,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
     },
     // resolvePhoneTarget is derived from state captured below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [email, endActiveSession, isSubmitting, method, phone, signIn, stage, verificationPhone],
+    [email, isSubmitting, method, phone, signIn, stage, verificationPhone],
   );
 
   const handleIdentifierSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -347,11 +342,6 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
       verifyingRef.current = true;
       setIsSubmitting(true);
       setError(null);
-
-      // Whether a previous session existed when verification started. Account
-      // switching (this session -> a different account's session) needs the
-      // extra reload below.
-      const hadSession = sessionToken !== null;
 
       // Verification always targets the number the code was sent to, never the
       // (now cleared) editable input.
@@ -373,18 +363,20 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
           method === "phone" ? "phone-otp" : "email-otp",
           form,
         );
-        if (result.signingIn && hadSession) {
-          // Replacing an existing session: `setToken` sees
-          // authenticated->authenticated, so no status change fires and the
-          // running Convex client would otherwise keep the previous account's
-          // identity. `endActiveSession()` above forces the flip, and this
-          // reload rebuilds every piece of auth state from the tokens just
-          // written — so no stale identity can survive in any ordering.
+        if (result.signingIn) {
+          // Rebuild the app on the tokens that were just issued. Convex Auth
+          // only hands a new token to the Convex client when the signed-in
+          // *status* flips, so a session that is replaced in place (or a
+          // client that is slow to react) can keep the previous account's
+          // identity in every query, `users.currentUser` included. `signIn`
+          // waits for the tokens to be stored, so after this reload the app
+          // boots from the newly verified account and nothing else. The auth
+          // effect then redirects with `returnTo` intact.
           window.location.reload();
           return;
         }
-        // The auth effect performs the redirect once the session is confirmed,
-        // which keeps the returnTo destination intact.
+        // No session was issued (e.g. a provider that needs another step): the
+        // auth effect redirects once that session is confirmed.
       } catch (error) {
         setError(friendlyError(error, "verify", method));
         setCode("");
@@ -400,7 +392,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
         setIsSubmitting(false);
       }
     },
-    [email, endActiveSession, isSubmitting, method, phone, sessionToken, signIn, verificationPhone],
+    [email, endActiveSession, isSubmitting, method, phone, signIn, verificationPhone],
   );
 
   const handleVerifySubmit = (event: React.FormEvent<HTMLFormElement>) => {

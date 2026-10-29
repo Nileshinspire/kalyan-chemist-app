@@ -1,26 +1,18 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { query, mutation, QueryCtx, MutationCtx } from "./_generated/server";
+import { query, mutation, QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
 
 /**
  * Get the current signed in user. Returns null if not signed in.
  *
- * `authKey` is intentionally unused by the handler: it exists only so the
- * client can re-key its subscription on every auth-session transition
- * (anonymous → loading → authenticated). Convex identifies a subscription by
- * (function, args), so changing the key tears down the old subscription and
- * starts a fresh execution under the current session's identity. That is what
- * guarantees a signed-in admin's document is never reused for a different
- * account that signs in afterwards.
+ * The identity always comes from the session's own token via
+ * `getAuthUserId`, so the result can only ever be the account that is
+ * currently authenticated.
  */
 export const currentUser = query({
-  args: { authKey: v.optional(v.string()) },
+  args: {},
   handler: async (ctx) => {
-    const user = await getCurrentUser(ctx);
-    if (user === null) {
-      return null;
-    }
-    return user;
+    return await getCurrentUser(ctx);
   },
 });
 
