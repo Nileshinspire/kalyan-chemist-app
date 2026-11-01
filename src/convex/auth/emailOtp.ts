@@ -1,5 +1,4 @@
 import { Email } from "@convex-dev/auth/providers/Email";
-import axios from "axios";
 import { RandomReader, generateRandomString } from "@oslojs/crypto/random";
 
 export const emailOtp = Email({
@@ -16,35 +15,47 @@ export const emailOtp = Email({
     return generateRandomString(random, alphabet, 6);
   },
   async sendVerificationRequest({ identifier: email, token }) {
+    // Resolved before the request so a missing key keeps its own message
+    // instead of being reported as a transport failure.
+    const headers = freebuffEmailOtpHeaders();
+    // fetch has no `timeout` option; this is the 15s limit it replaced.
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 15000);
+    let status: number;
     try {
-      await axios.post(
-        freebuffEmailOtpUrl(),
-        {
-          to: email,
-          otp: token,
+      const response = await fetch(freebuffEmailOtpUrl(), {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          ...headers,
         },
-        {
-          headers: {
-            ...freebuffEmailOtpHeaders(),
-          },
-          timeout: 15000, // 15s timeout — prevents hung connections
-        },
-      );
-    } catch (error: any) {
-      // Provide clear, actionable error messages instead of raw JSON
-      if (error?.code === "ECONNABORTED" || error?.message?.includes("timeout")) {
+        body: JSON.stringify({ to: email, otp: token }),
+        signal: controller.signal,
+      });
+      status = response.status;
+      // Release the connection. The body is read only to drain it: it can echo
+      // the request we sent, so it never reaches a message or a log.
+      await response.text().catch(() => "");
+    } catch (error: unknown) {
+      // The Convex runtime has no Node network stack, so the only failures that
+      // land here are our own abort and an unreachable host.
+      const name = (error as { name?: string })?.name;
+      if (name === "AbortError" || name === "TimeoutError") {
         throw new Error("Email service timed out. Please try again in a moment.");
       }
-      if (error?.code === "ECONNREFUSED" || error?.code === "ENOTFOUND") {
-        throw new Error("Email service is temporarily unavailable. Please try again.");
-      }
-      const status = error?.response?.status;
-      if (status === 429) {
-        throw new Error("Too many requests. Please wait a moment and try again.");
-      }
-      if (status && status >= 500) {
-        throw new Error("Email service error. Please try again.");
-      }
+      throw new Error("Email service is temporarily unavailable. Please try again.");
+    } finally {
+      clearTimeout(timer);
+    }
+
+    // Gateway rejections: friendly copy only, never the response body.
+    if (status === 429) {
+      throw new Error("Too many requests. Please wait a moment and try again.");
+    }
+    if (status >= 500) {
+      throw new Error("Email service error. Please try again.");
+    }
+    if (status >= 400) {
       throw new Error("Failed to send verification code. Please try again.");
     }
   },
