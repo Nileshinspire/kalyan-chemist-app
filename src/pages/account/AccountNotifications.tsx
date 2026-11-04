@@ -18,7 +18,10 @@ import {
   Bell,
   BellOff,
   CheckCheck,
+  Flame,
+  HeartPulse,
   Loader2,
+  PartyPopper,
   ShoppingBag,
   Tag,
   Info,
@@ -73,6 +76,21 @@ function bannerGradient(category?: string | null) {
   return WISH_BANNERS[category ?? ""] ?? "from-emerald-700 via-[#1f5d3a] to-teal-800";
 }
 
+/**
+ * Banner glyphs are inline SVG icons, not emoji: seasonal emoji like 🪔 render
+ * as tofu boxes when the user's system lacks that font.
+ */
+const WISH_ICONS = {
+  festival: Flame,
+  offer: PartyPopper,
+  health: HeartPulse,
+  announcement: Megaphone,
+} as const;
+
+function wishIcon(category?: string | null) {
+  return (WISH_ICONS as Record<string, typeof Flame>)[category ?? ""] ?? Info;
+}
+
 /** Web-page extensions: campaigns sometimes store a share page, not an image file. */
 const NON_IMAGE_PATH = /\.(?:html?|xhtml|php|asp|aspx|jsp|jspx|cfm)$/i;
 
@@ -103,14 +121,17 @@ export default function AccountNotifications() {
   const updatePreferences = useMutation(api.messageCenter.updatePreferences);
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [openNotificationId, setOpenNotificationId] = useState<string | null>(null);
-  const [imageFailed, setImageFailed] = useState(false);
-  // Deep links (e.g. from the bell) carry the real notification id.
+  // Deep links (e.g. from the bell) carry the real notification id. It only
+  // seeds the open id: the dialog's open/closed state stays owned by React so
+  // closing it can never be undone by the URL.
   const linkedNotificationId = searchParams.get("notification");
-  const detailId = openNotificationId ?? linkedNotificationId;
+  const [openNotificationId, setOpenNotificationId] = useState<string | null>(
+    linkedNotificationId
+  );
+  const [imageFailed, setImageFailed] = useState(false);
   const detail = useQuery(
     api.notifications.get,
-    detailId ? { notificationId: detailId } : "skip"
+    openNotificationId ? { notificationId: openNotificationId } : "skip"
   );
   const [markingAll, setMarkingAll] = useState(false);
   const [savingPref, setSavingPref] = useState<PrefKey | null>(null);
@@ -164,6 +185,17 @@ export default function AccountNotifications() {
     }
   }
 
+  /** Single close path for the ×, the footer button and Esc/overlay dismiss. */
+  function closeNotification() {
+    setOpenNotificationId(null);
+    if (linkedNotificationId) {
+      // Drop the deep-link id too, otherwise the effect below would reopen it.
+      const next = new URLSearchParams(searchParams);
+      next.delete("notification");
+      setSearchParams(next, { replace: true });
+    }
+  }
+
   async function openNotification(notification: any) {
     setOpenNotificationId(notification._id);
     if (!notification.read) {
@@ -175,6 +207,11 @@ export default function AccountNotifications() {
     }
   }
 
+  // Re-seed the open id when the page is reached through a bell deep link.
+  useEffect(() => {
+    if (linkedNotificationId) setOpenNotificationId(linkedNotificationId);
+  }, [linkedNotificationId]);
+
   // A notification arriving from the bell is opened by its real id. If it was
   // deleted (e.g. the campaign was removed) or expired, say so and clear the id
   // instead of leaving a dead link in the URL.
@@ -182,7 +219,7 @@ export default function AccountNotifications() {
     if (!linkedNotificationId || detail === undefined) return;
     if (detail === null) {
       toast.error("That notification is no longer available.");
-      setSearchParams({}, { replace: true });
+      closeNotification();
       return;
     }
     if (!detail.read) {
@@ -190,12 +227,14 @@ export default function AccountNotifications() {
         // Read state is best-effort.
       });
     }
-  }, [linkedNotificationId, detail, markRead, setSearchParams]);
+    // closeNotification is stable enough for this one-shot read/cleanup effect.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [linkedNotificationId, detail, markRead]);
 
   // A different notification may reuse the same dialog, so reset the failure flag.
   useEffect(() => {
     setImageFailed(false);
-  }, [detailId]);
+  }, [openNotificationId]);
 
   const unreadCount = notifications?.filter((n: any) => !n.read).length || 0;
 
@@ -443,9 +482,9 @@ export default function AccountNotifications() {
       )}
 
       <Dialog
-        open={Boolean(detailId)}
+        open={Boolean(openNotificationId)}
         onOpenChange={(open) => {
-          if (!open) setOpenNotificationId(null);
+          if (!open) closeNotification();
         }}
       >
         <DialogContent className="max-h-[88vh] gap-0 overflow-y-auto rounded-2xl p-0 [&_[data-slot=dialog-close]]:rounded-full [&_[data-slot=dialog-close]]:bg-white/80 [&_[data-slot=dialog-close]]:p-1 [&_[data-slot=dialog-close]]:shadow-sm sm:max-w-md">
@@ -474,8 +513,17 @@ export default function AccountNotifications() {
                   <span className="absolute -bottom-12 -right-6 size-36 rounded-full bg-black/15 blur-2xl" />
                   <span className="absolute inset-3 rounded-2xl border border-white/25" />
                   <span className="absolute inset-6 rounded-xl border border-dashed border-white/20" />
-                  <span className="relative text-5xl drop-shadow-[0_6px_12px_rgba(0,0,0,0.25)] sm:text-6xl">
-                    {categoryEmoji(detail.category ?? "")}
+                  <span className="relative flex size-16 items-center justify-center rounded-full bg-white/15 ring-1 ring-white/25 backdrop-blur-[1px] sm:size-20">
+                    {(() => {
+                      const WishIcon = wishIcon(detail.category);
+                      return (
+                        <WishIcon
+                          className="size-8 text-white drop-shadow-[0_4px_10px_rgba(0,0,0,0.25)] sm:size-9"
+                          strokeWidth={1.5}
+                          aria-hidden="true"
+                        />
+                      );
+                    })()}
                   </span>
                 </div>
               )}
@@ -546,7 +594,7 @@ export default function AccountNotifications() {
               variant="outline"
               size="sm"
               className="rounded-lg"
-              onClick={() => setOpenNotificationId(null)}
+              onClick={closeNotification}
             >
               Close
             </Button>
