@@ -61,6 +61,18 @@ function getNotifColor(type: string) {
   }
 }
 
+/** Festive banner gradients per message category (full class strings so Tailwind keeps them). */
+const WISH_BANNERS: Record<string, string> = {
+  festival: "from-amber-400 via-orange-500 to-rose-500",
+  offer: "from-rose-500 via-pink-500 to-fuchsia-600",
+  health: "from-emerald-500 via-teal-500 to-cyan-600",
+  announcement: "from-indigo-500 via-blue-600 to-sky-600",
+};
+
+function bannerGradient(category?: string | null) {
+  return WISH_BANNERS[category ?? ""] ?? "from-emerald-700 via-[#1f5d3a] to-teal-800";
+}
+
 type PrefKey = "inApp" | "popup" | "email" | "whatsapp" | "promotional";
 
 export default function AccountNotifications() {
@@ -410,61 +422,102 @@ export default function AccountNotifications() {
           if (!open) setOpenNotificationId(null);
         }}
       >
-        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-start gap-2 text-left text-base">
-              {detail?.campaignId && (
-                <span aria-hidden="true">{categoryEmoji(detail.category ?? "")}</span>
-              )}
-              <span className="min-w-0 flex-1">{detail?.title ?? "Notification"}</span>
-            </DialogTitle>
-            <DialogDescription className="text-left text-[11px]">
-              {detail
-                ? [
-                    new Date(detail.createdAt).toLocaleString("en-IN", {
-                      day: "numeric",
-                      month: "short",
-                      year: "numeric",
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    }),
-                    detail.campaignId && detail.category
-                      ? categoryLabel(detail.category)
-                      : null,
-                  ]
-                    .filter(Boolean)
-                    .join(" · ")
-                : ""}
-            </DialogDescription>
-          </DialogHeader>
-
+        <DialogContent className="max-h-[88vh] gap-0 overflow-y-auto rounded-2xl p-0 [&_[data-slot=dialog-close]]:rounded-full [&_[data-slot=dialog-close]]:bg-white/80 [&_[data-slot=dialog-close]]:p-1 [&_[data-slot=dialog-close]]:shadow-sm sm:max-w-md">
           {detail ? (
-            <div className="space-y-3">
-              {detail.imageUrl && (
-                <img
-                  src={detail.imageUrl}
-                  alt=""
-                  className="max-h-56 w-full rounded-xl object-cover"
-                />
+            <div className="relative">
+              {detail.imageUrl ? (
+                <>
+                  <img
+                    src={detail.imageUrl}
+                    alt=""
+                    className="h-48 w-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/45 to-transparent" />
+                </>
+              ) : (
+                <div
+                  className={`relative flex h-40 items-center justify-center overflow-hidden bg-gradient-to-br ${bannerGradient(
+                    detail.category
+                  )} bg-[length:100%_100%]`}
+                >
+                  <span className="absolute -left-8 -top-10 size-32 rounded-full bg-white/20 blur-2xl" />
+                  <span className="absolute -bottom-12 -right-6 size-36 rounded-full bg-black/15 blur-2xl" />
+                  <span className="absolute inset-3 rounded-2xl border border-white/25" />
+                  <span className="absolute inset-6 rounded-xl border border-dashed border-white/20" />
+                  <span className="relative text-6xl drop-shadow-[0_6px_12px_rgba(0,0,0,0.25)]">
+                    {categoryEmoji(detail.category ?? "")}
+                  </span>
+                </div>
               )}
-              <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
-                {detail.body}
+              <p className="absolute inset-x-0 bottom-2.5 text-center text-[8.5px] font-medium uppercase tracking-[0.32em] text-white/85">
+                Kalyan Chemist
               </p>
             </div>
-          ) : detail === undefined ? (
-            <p className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="size-4 animate-spin" />
-              Loading notification…
-            </p>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              This notification is no longer available. It may have been removed or
-              expired.
-            </p>
-          )}
+          ) : null}
 
-          <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => setOpenNotificationId(null)}>
+          <div className="px-6 pb-4 pt-5 text-center">
+            <DialogHeader className="items-center gap-1 space-y-1 text-center">
+              <DialogTitle className="text-center font-serif text-xl leading-snug tracking-tight">
+                {detail?.title ?? "Notification"}
+              </DialogTitle>
+              <DialogDescription className="text-center text-[10.5px] uppercase tracking-[0.16em] text-muted-foreground">
+                {detail
+                  ? [
+                      detail.campaignId && detail.category
+                        ? categoryLabel(detail.category)
+                        : null,
+                      new Date(detail.createdAt).toLocaleString("en-IN", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      }),
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")
+                  : ""}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="my-4 flex items-center justify-center gap-2">
+              <span className="h-px w-10 bg-border" />
+              <span className="text-[10px] text-primary/70" aria-hidden="true">
+                ✦
+              </span>
+              <span className="h-px w-10 bg-border" />
+            </div>
+
+            {detail ? (
+              <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-foreground/90">
+                {detail.body}
+              </p>
+            ) : detail === undefined ? (
+              <p className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="size-4 animate-spin" />
+                Loading notification…
+              </p>
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                This notification is no longer available. It may have been removed or
+                expired.
+              </p>
+            )}
+
+            {detail && (
+              <p className="mt-5 text-[11px] font-medium italic tracking-wide text-muted-foreground">
+                — Team Kalyan Chemist
+              </p>
+            )}
+          </div>
+
+          <DialogFooter className="mx-0 mb-0 border-t border-border/60 bg-muted/30 px-6 py-3">
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-lg"
+              onClick={() => setOpenNotificationId(null)}
+            >
               Close
             </Button>
           </DialogFooter>
