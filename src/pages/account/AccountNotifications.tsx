@@ -17,6 +17,7 @@ import { motion } from "framer-motion";
 import {
   Bell,
   BellOff,
+  CalendarDays,
   CheckCheck,
   Flame,
   HeartPulse,
@@ -133,6 +134,12 @@ export default function AccountNotifications() {
     api.notifications.get,
     openNotificationId ? { notificationId: openNotificationId } : "skip"
   );
+  // Only a real, loadable image URL reaches the hero; everything else falls
+  // back to the branded banner (never a broken image or an empty grey box).
+  const heroImage =
+    detail?.imageUrl && isLoadableImageUrl(detail.imageUrl) && !imageFailed
+      ? detail.imageUrl
+      : null;
   const [markingAll, setMarkingAll] = useState(false);
   const [savingPref, setSavingPref] = useState<PrefKey | null>(null);
 
@@ -487,25 +494,26 @@ export default function AccountNotifications() {
           if (!open) closeNotification();
         }}
       >
-        <DialogContent className="max-h-[88vh] gap-0 overflow-y-auto rounded-2xl p-0 [&_[data-slot=dialog-close]]:rounded-full [&_[data-slot=dialog-close]]:bg-white/80 [&_[data-slot=dialog-close]]:p-1 [&_[data-slot=dialog-close]]:shadow-sm sm:max-w-md">
+        <DialogContent className="flex max-h-[90dvh] w-[calc(100%-1.5rem)] flex-col gap-0 overflow-hidden rounded-2xl border-border/60 p-0 shadow-2xl [&_[data-slot=dialog-close]]:rounded-full [&_[data-slot=dialog-close]]:bg-white/85 [&_[data-slot=dialog-close]]:p-1 [&_[data-slot=dialog-close]]:text-foreground [&_[data-slot=dialog-close]]:shadow-sm [&_[data-slot=dialog-close]]:ring-1 [&_[data-slot=dialog-close]]:ring-black/5 [&_[data-slot=dialog-close]]:hover:bg-white sm:max-w-md">
+          {/* ── Hero: real image when available, branded banner otherwise ── */}
           {detail && (
-            <div className="relative">
-              {isLoadableImageUrl(detail.imageUrl) && !imageFailed ? (
-                <>
+            <div className="relative shrink-0">
+              {heroImage ? (
+                <div className="relative aspect-[16/9] w-full overflow-hidden bg-muted">
                   <img
-                    src={detail.imageUrl}
+                    src={heroImage}
                     alt={detail.title}
-                    className="h-36 w-full bg-muted object-cover sm:h-44"
+                    className="size-full object-cover"
                     loading="lazy"
                     decoding="async"
                     referrerPolicy="no-referrer"
                     onError={() => setImageFailed(true)}
                   />
-                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/45 to-transparent" />
-                </>
+                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-black/25" />
+                </div>
               ) : (
                 <div
-                  className={`relative flex h-32 items-center justify-center overflow-hidden bg-gradient-to-br sm:h-36 ${bannerGradient(
+                  className={`relative flex h-36 items-center justify-center overflow-hidden bg-gradient-to-br sm:h-40 ${bannerGradient(
                     detail.category
                   )}`}
                 >
@@ -513,12 +521,12 @@ export default function AccountNotifications() {
                   <span className="absolute -bottom-12 -right-6 size-36 rounded-full bg-black/15 blur-2xl" />
                   <span className="absolute inset-3 rounded-2xl border border-white/25" />
                   <span className="absolute inset-6 rounded-xl border border-dashed border-white/20" />
-                  <span className="relative flex size-16 items-center justify-center rounded-full bg-white/15 ring-1 ring-white/25 backdrop-blur-[1px] sm:size-20">
+                  <span className="relative flex size-16 items-center justify-center rounded-full bg-white/15 ring-1 ring-white/25 backdrop-blur-[1px] sm:size-[4.5rem]">
                     {(() => {
                       const WishIcon = wishIcon(detail.category);
                       return (
                         <WishIcon
-                          className="size-8 text-white drop-shadow-[0_4px_10px_rgba(0,0,0,0.25)] sm:size-9"
+                          className="size-8 text-white drop-shadow-[0_4px_10px_rgba(0,0,0,0.25)]"
                           strokeWidth={1.5}
                           aria-hidden="true"
                         />
@@ -527,49 +535,65 @@ export default function AccountNotifications() {
                   </span>
                 </div>
               )}
-              <p className="pointer-events-none absolute inset-x-0 bottom-2 text-center text-[8.5px] font-medium uppercase tracking-[0.32em] text-white/85">
-                Kalyan Chemist
-              </p>
+
+              {/* Brand lock-up — readable over both photo and gradient. */}
+              <span className="pointer-events-none absolute left-3.5 top-3 inline-flex items-center gap-1.5 rounded-full bg-black/30 py-1 pl-1 pr-2.5 backdrop-blur-sm">
+                <span className="flex size-4 items-center justify-center rounded bg-white text-[7.5px] font-extrabold tracking-tight text-emerald-800">
+                  KC
+                </span>
+                <span className="text-[8.5px] font-semibold uppercase tracking-[0.2em] text-white/90">
+                  Kalyan Chemist
+                </span>
+              </span>
             </div>
           )}
 
-          <div className="px-5 pb-5 pt-5 text-center sm:px-8">
-            <DialogHeader className="items-center gap-1 space-y-1 text-center">
-              <DialogTitle className="max-w-full text-center font-serif text-lg leading-snug tracking-tight [overflow-wrap:anywhere] sm:text-xl">
+          {/* ── Scrollable message ── */}
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-4 pt-5 text-center sm:px-7">
+            <DialogHeader className="items-center gap-2 space-y-0 text-center">
+              <DialogTitle className="max-w-full text-balance font-serif text-[19px] leading-snug tracking-tight text-foreground [overflow-wrap:anywhere] sm:text-[22px]">
                 {detail?.title ?? "Notification"}
               </DialogTitle>
-              <DialogDescription className="text-center text-[10px] uppercase leading-relaxed tracking-[0.16em] text-muted-foreground sm:text-[10.5px]">
-                {detail
-                  ? [
-                      detail.campaignId && detail.category
-                        ? categoryLabel(detail.category)
-                        : null,
-                      new Date(detail.createdAt).toLocaleString("en-IN", {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      }),
-                    ]
-                      .filter(Boolean)
-                      .join(" · ")
-                  : ""}
-              </DialogDescription>
+              {detail ? (
+                <DialogDescription className="flex flex-wrap items-center justify-center gap-1.5 text-[10.5px] font-medium text-muted-foreground">
+                  {detail.campaignId && detail.category && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] uppercase tracking-[0.1em]">
+                      <Tag className="size-2.5" aria-hidden="true" />
+                      {categoryLabel(detail.category)}
+                    </span>
+                  )}
+                  <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] tracking-[0.02em]">
+                    <CalendarDays className="size-2.5" aria-hidden="true" />
+                    {new Date(detail.createdAt).toLocaleString("en-IN", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </span>
+                </DialogDescription>
+              ) : null}
             </DialogHeader>
 
-            <div className="my-3.5 flex items-center justify-center gap-2">
-              <span className="h-px w-10 bg-border" />
-              <span className="text-[10px] text-primary/70" aria-hidden="true">
+            <div className="my-4 flex items-center justify-center gap-2">
+              <span className="h-px w-12 bg-gradient-to-r from-transparent to-primary/30" />
+              <span className="text-[9px] text-primary/70" aria-hidden="true">
                 ✦
               </span>
-              <span className="h-px w-10 bg-border" />
+              <span className="h-px w-12 bg-gradient-to-l from-transparent to-primary/30" />
             </div>
 
             {detail ? (
-              <p className="mx-auto max-w-prose whitespace-pre-wrap text-sm leading-relaxed text-foreground/90 [overflow-wrap:anywhere] sm:text-[15px]">
-                {detail.body}
-              </p>
+              <div className="rounded-xl border border-border/60 bg-muted/25 px-4 py-4 sm:px-5">
+                <p
+                  className={`whitespace-pre-wrap text-[14.5px] leading-relaxed text-foreground/90 [overflow-wrap:anywhere] sm:text-[15px] ${
+                    detail.body.length > 140 ? "text-left" : "text-center"
+                  }`}
+                >
+                  {detail.body}
+                </p>
+              </div>
             ) : detail === undefined ? (
               <p className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="size-4 animate-spin" />
@@ -583,17 +607,26 @@ export default function AccountNotifications() {
             )}
 
             {detail && (
-              <p className="mt-5 text-[11px] font-medium italic tracking-wide text-muted-foreground">
-                — Team Kalyan Chemist
-              </p>
+              <div className="mt-5 flex items-center justify-center gap-2.5">
+                <span className="flex size-7 items-center justify-center rounded-full bg-primary/10 text-[9px] font-extrabold tracking-tight text-primary ring-1 ring-primary/15">
+                  KC
+                </span>
+                <div className="text-left leading-tight">
+                  <p className="text-[11.5px] font-semibold text-foreground/85">
+                    Team Kalyan Chemist
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">Your health, our priority</p>
+                </div>
+              </div>
             )}
           </div>
 
-          <DialogFooter className="mx-0 mb-0 border-t border-border/60 bg-muted/30 px-5 py-3 sm:px-8">
+          {/* ── Sticky action bar ── */}
+          <DialogFooter className="mx-0 mb-0 flex-row items-center justify-end gap-2 border-t border-border/60 bg-muted/30 px-4 py-3 sm:px-6">
             <Button
               variant="outline"
               size="sm"
-              className="rounded-lg"
+              className="w-full rounded-lg border-border/70 bg-background font-medium shadow-sm sm:w-auto"
               onClick={closeNotification}
             >
               Close

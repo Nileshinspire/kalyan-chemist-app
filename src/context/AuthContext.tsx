@@ -6,6 +6,7 @@ import {
   type ReactNode,
 } from "react";
 import { useAuth as useConvexAuth } from "@/hooks/use-auth";
+import { clearStoredAuthTokens, resetClientSession } from "@/lib/session";
 
 /** Convex user document shape (matches the users table in schema.ts) */
 interface User {
@@ -74,7 +75,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const logout = useCallback(async () => {
-    await signOut();
+    try {
+      // Invalidates the session server-side and drops the local Convex tokens.
+      await signOut();
+    } catch {
+      // Never leave a usable token behind if the server call failed.
+      clearStoredAuthTokens();
+    } finally {
+      // Leave the protected route and rebuild the client so the next account
+      // cannot inherit this user's page, open dialogs or cached queries.
+      resetClientSession("/");
+    }
   }, [signOut]);
 
   const refreshUser = useCallback(async () => {
