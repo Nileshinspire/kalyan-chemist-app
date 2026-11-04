@@ -3,6 +3,16 @@ import { useAction, useMutation, useQuery } from "convex/react";
 import type { Id } from "@/convex/_generated/dataModel";
 import { api } from "@/convex/_generated/api";
 import AdminLayout from "@/components/admin/AdminLayout";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -204,6 +214,12 @@ export default function AdminMessageCenter() {
   const [composerOpen, setComposerOpen] = useState(false);
   const [editingId, setEditingId] = useState<Id<"message_campaigns"> | null>(null);
   const [detailId, setDetailId] = useState<Id<"message_campaigns"> | null>(null);
+  const deleteCampaign = useMutation(api.messageCenter.deleteCampaign);
+  const [deleteTarget, setDeleteTarget] = useState<{
+    id: Id<"message_campaigns">;
+    title: string;
+  } | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [templateDefaults, setTemplateDefaults] = useState<any>(null);
   const [verifying, setVerifying] = useState(false);
   const [verifyResult, setVerifyResult] = useState<Awaited<
@@ -228,6 +244,26 @@ export default function AdminMessageCenter() {
         return campaigns;
     }
   }, [campaigns, filter]);
+
+  async function handleConfirmDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const result = await deleteCampaign({ campaignId: deleteTarget.id });
+      const removed = result?.removedNotifications ?? 0;
+      toast.success(
+        removed > 0
+          ? `Campaign deleted · ${removed} customer notification(s) removed`
+          : "Campaign deleted"
+      );
+      if (detailId === deleteTarget.id) setDetailId(null);
+      setDeleteTarget(null);
+    } catch (error: any) {
+      toast.error(error?.message ?? "Could not delete campaign");
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   const totals = useMemo(() => {
     const list = campaigns ?? [];
@@ -583,10 +619,14 @@ export default function AdminMessageCenter() {
             ) : (
               <div className="space-y-2">
                 {filtered.map((campaign: any) => (
-                  <button
+                  <div
                     key={campaign._id}
+                    className="group flex w-full items-center gap-2 rounded-xl border border-border/60 p-4 transition-colors hover:border-primary/30 hover:bg-muted/30"
+                  >
+                  <button
+                    type="button"
                     onClick={() => setDetailId(campaign._id)}
-                    className="group flex w-full flex-col gap-3 rounded-xl border border-border/60 p-4 text-left transition-colors hover:border-primary/30 hover:bg-muted/30 sm:flex-row sm:items-center sm:justify-between"
+                    className="flex min-w-0 flex-1 flex-col gap-3 text-left sm:flex-row sm:items-center sm:justify-between"
                   >
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
@@ -645,6 +685,20 @@ export default function AdminMessageCenter() {
                       <ChevronRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
                     </div>
                   </button>
+                  {campaign.status !== "processing" && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Delete ${campaign.title}`}
+                      title="Delete campaign"
+                      className="size-8 shrink-0 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                      onClick={() => setDeleteTarget({ id: campaign._id, title: campaign.title })}
+                    >
+                      <Trash2 className="size-4" />
+                    </Button>
+                  )}
+                  </div>
                 ))}
               </div>
             )}
@@ -703,12 +757,49 @@ export default function AdminMessageCenter() {
       <CampaignDetail
         campaignId={detailId}
         onClose={() => setDetailId(null)}
+        onDelete={(id, title) => setDeleteTarget({ id, title })}
         onEdit={(id) => {
           setDetailId(null);
           setEditingId(id);
           setComposerOpen(true);
         }}
       />
+
+      <AlertDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => {
+          if (!open && !deleting) setDeleteTarget(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this campaign?</AlertDialogTitle>
+            <AlertDialogDescription>
+              “{deleteTarget?.title ?? "This campaign"}” and its delivery records will be
+              removed permanently. Customers will no longer see it in their
+              notifications. This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Keep campaign</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(event) => {
+                event.preventDefault();
+                void handleConfirmDelete();
+              }}
+            >
+              {deleting ? (
+                <Loader2 className="size-3.5 animate-spin" />
+              ) : (
+                <Trash2 className="size-3.5" />
+              )}
+              Delete campaign
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminLayout>
   );
 }
@@ -721,17 +812,18 @@ function CampaignDetail({
   campaignId,
   onClose,
   onEdit,
+  onDelete,
 }: {
   campaignId: Id<"message_campaigns"> | null;
   onClose: () => void;
   onEdit: (id: Id<"message_campaigns">) => void;
+  onDelete: (id: Id<"message_campaigns">, title: string) => void;
 }) {
   const detail = useQuery(
     api.messageCenter.getCampaign,
     campaignId ? { campaignId } : "skip"
   );
   const cancelCampaign = useMutation(api.messageCenter.cancelCampaign);
-  const deleteCampaign = useMutation(api.messageCenter.deleteCampaign);
   const retryDeliveries = useMutation(api.messageCampaigns.retryFailedDeliveries);
   const chooseWinner = useMutation(api.messageCampaigns.chooseAbWinner);
   const analytics = useQuery(
@@ -789,20 +881,6 @@ function CampaignDetail({
       toast.success("Campaign cancelled. Nothing further will be sent.");
     } catch (error: any) {
       toast.error(error?.message ?? "Could not cancel campaign");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleDelete() {
-    if (!campaignId) return;
-    setBusy(true);
-    try {
-      await deleteCampaign({ campaignId });
-      toast.success("Campaign deleted");
-      onClose();
-    } catch (error: any) {
-      toast.error(error?.message ?? "Could not delete campaign");
     } finally {
       setBusy(false);
     }
@@ -1173,13 +1251,12 @@ function CampaignDetail({
                 Edit
               </Button>
             )}
-            {(campaign?.status === "draft" ||
-              campaign?.status === "cancelled") && (
+            {campaign && campaign.status !== "processing" && (
               <Button
                 variant="outline"
                 size="sm"
                 className="text-destructive"
-                onClick={handleDelete}
+                onClick={() => onDelete(campaign._id, campaign.title)}
                 disabled={busy}
               >
                 <Trash2 className="size-3.5" />

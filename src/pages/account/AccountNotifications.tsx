@@ -5,6 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { motion } from "framer-motion";
 import {
   Bell,
@@ -22,8 +30,8 @@ import {
   Megaphone,
   Settings,
 } from "lucide-react";
-import { useState } from "react";
-import { useNavigate } from "react-router";
+import { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { categoryEmoji, categoryLabel } from "@/convex/messageCenterCore";
 
@@ -62,6 +70,15 @@ export default function AccountNotifications() {
   const markRead = useMutation(api.notifications.markRead);
   const updatePreferences = useMutation(api.messageCenter.updatePreferences);
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [openNotificationId, setOpenNotificationId] = useState<string | null>(null);
+  // Deep links (e.g. from the bell) carry the real notification id.
+  const linkedNotificationId = searchParams.get("notification");
+  const detailId = openNotificationId ?? linkedNotificationId;
+  const detail = useQuery(
+    api.notifications.get,
+    detailId ? { notificationId: detailId } : "skip"
+  );
   const [markingAll, setMarkingAll] = useState(false);
   const [savingPref, setSavingPref] = useState<PrefKey | null>(null);
 
@@ -115,17 +132,32 @@ export default function AccountNotifications() {
   }
 
   async function openNotification(notification: any) {
+    setOpenNotificationId(notification._id);
     if (!notification.read) {
       try {
         await markRead({ notificationId: notification._id });
       } catch {
-        // Read state is best-effort; opening the link should not be blocked.
+        // Read state is best-effort; opening the message should never be blocked.
       }
     }
-    if (notification.link && notification.link.startsWith("/")) {
-      navigate(notification.link);
-    }
   }
+
+  // A notification arriving from the bell is opened by its real id. If it was
+  // deleted (e.g. the campaign was removed) or expired, say so and clear the id
+  // instead of leaving a dead link in the URL.
+  useEffect(() => {
+    if (!linkedNotificationId || detail === undefined) return;
+    if (detail === null) {
+      toast.error("That notification is no longer available.");
+      setSearchParams({}, { replace: true });
+      return;
+    }
+    if (!detail.read) {
+      markRead({ notificationId: detail._id }).catch(() => {
+        // Read state is best-effort.
+      });
+    }
+  }, [linkedNotificationId, detail, markRead, setSearchParams]);
 
   const unreadCount = notifications?.filter((n: any) => !n.read).length || 0;
 
@@ -362,9 +394,7 @@ export default function AccountNotifications() {
                           minute: "2-digit",
                         })}
                       </p>
-                      {notif.link && (
-                        <span className="text-[11px] font-medium text-primary">View →</span>
-                      )}
+                      <span className="text-[11px] font-medium text-primary">View →</span>
                     </div>
                   </div>
                 </button>
@@ -373,6 +403,73 @@ export default function AccountNotifications() {
           ))}
         </div>
       )}
+
+      <Dialog
+        open={Boolean(detailId)}
+        onOpenChange={(open) => {
+          if (!open) setOpenNotificationId(null);
+        }}
+      >
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-start gap-2 text-left text-base">
+              {detail?.campaignId && (
+                <span aria-hidden="true">{categoryEmoji(detail.category ?? "")}</span>
+              )}
+              <span className="min-w-0 flex-1">{detail?.title ?? "Notification"}</span>
+            </DialogTitle>
+            <DialogDescription className="text-left text-[11px]">
+              {detail
+                ? [
+                    new Date(detail.createdAt).toLocaleString("en-IN", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    }),
+                    detail.campaignId && detail.category
+                      ? categoryLabel(detail.category)
+                      : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+
+          {detail ? (
+            <div className="space-y-3">
+              {detail.imageUrl && (
+                <img
+                  src={detail.imageUrl}
+                  alt=""
+                  className="max-h-56 w-full rounded-xl object-cover"
+                />
+              )}
+              <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+                {detail.body}
+              </p>
+            </div>
+          ) : detail === undefined ? (
+            <p className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="size-4 animate-spin" />
+              Loading notification…
+            </p>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              This notification is no longer available. It may have been removed or
+              expired.
+            </p>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setOpenNotificationId(null)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 }

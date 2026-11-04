@@ -50,6 +50,25 @@ export const list = query({
   },
 });
 
+// ── Fetch one notification by its id (used by "View") ──
+// Returns null instead of throwing when the id is malformed, already deleted,
+// expired, or belongs to somebody else, so the UI can recover gracefully.
+export const get = query({
+  args: { notificationId: v.string() },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) return null;
+
+    const id = ctx.db.normalizeId("notifications", args.notificationId);
+    if (!id) return null;
+
+    const notif = await ctx.db.get(id);
+    if (!notif || notif.userId !== userId) return null;
+    if (!isVisible(notif, Date.now())) return null;
+    return notif;
+  },
+});
+
 // ── Unread notification count (for badge) ──
 export const unreadCount = query({
   args: {},

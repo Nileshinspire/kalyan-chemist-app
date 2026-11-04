@@ -54,10 +54,12 @@ export default function NotificationBell() {
         // Never block opening a notification on the read-state call.
       }
     }
-    if (notification.link?.startsWith("/")) {
-      navigate(notification.link);
+    const link: string | undefined = notification.link;
+    if (link?.startsWith("/") && link !== "/account/notifications") {
+      navigate(link);
     } else {
-      navigate("/account/notifications");
+      // Open this exact notification (by its real id) instead of a generic list.
+      navigate(`/account/notifications?notification=${notification._id}`);
     }
   }
 

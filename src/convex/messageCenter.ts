@@ -937,16 +937,28 @@ export const deleteCampaign = mutation({
     const adminId = await requireAdmin(ctx);
     const campaign = await ctx.db.get(args.campaignId);
     if (!campaign) return { success: true };
-    if (campaign.status !== "draft" && campaign.status !== "cancelled") {
-      throw new Error("Only draft or cancelled campaigns can be deleted.");
+    // A campaign that is mid-dispatch must not be deleted: the worker paginates
+    // the audience and would keep writing rows for a campaign that no longer
+    // exists. Everything else (draft, scheduled, sent, cancelled) is deletable.
+    if (campaign.status === "processing") {
+      throw new Error(
+        "This campaign is still being delivered. Delete it once the send finishes."
+      );
     }
     if (campaign.scheduledJobId) {
       try {
         await ctx.scheduler.cancel(campaign.scheduledJobId);
       } catch {
-        // ignore
+        // Already executed — nothing left to cancel.
       }
     }
+    // Remove every child record so the deleted message cannot keep appearing
+    // in customer notifications, popups, campaign lists or analytics.
+    const notifications = await ctx.db
+      .query("notifications")
+      .withIndex("by_campaign_user", (q: any) => q.eq("campaignId", args.campaignId))
+      .collect();
+    for (const row of notifications) await ctx.db.delete(row._id);
     const deliveries = await ctx.db
       .query("campaign_deliveries")
       .withIndex("by_campaign", (q: any) => q.eq("campaignId", args.campaignId))
@@ -962,6 +974,11 @@ export const deleteCampaign = mutation({
       .withIndex("by_campaign_user", (q: any) => q.eq("campaignId", args.campaignId))
       .collect();
     for (const row of popupStates) await ctx.db.delete(row._id);
+    const auditRows = await ctx.db
+      .query("campaign_audit_log")
+      .withIndex("by_campaign", (q: any) => q.eq("campaignId", args.campaignId))
+      .collect();
+    for (const row of auditRows) await ctx.db.delete(row._id);
     await ctx.db.delete(args.campaignId);
     const actor: any = await ctx.db.get(adminId);
     await recordAudit(ctx, {
@@ -969,9 +986,9 @@ export const deleteCampaign = mutation({
       action: "campaign_deleted",
       actorId: adminId,
       actorName: actor?.name ?? "Administrator",
-      detail: `Deleted a ${campaign.status} campaign and its delivery records.`,
+      detail: `Deleted a ${campaign.status} campaign, its delivery records and ${notifications.length} in-app notification(s).`,
     });
-    return { success: true };
+    return { success: true, removedNotifications: notifications.length };
   },
 });
 
