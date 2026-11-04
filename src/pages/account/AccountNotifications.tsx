@@ -73,6 +73,26 @@ function bannerGradient(category?: string | null) {
   return WISH_BANNERS[category ?? ""] ?? "from-emerald-700 via-[#1f5d3a] to-teal-800";
 }
 
+/** Web-page extensions: campaigns sometimes store a share page, not an image file. */
+const NON_IMAGE_PATH = /\.(?:html?|xhtml|php|asp|aspx|jsp|jspx|cfm)$/i;
+
+/**
+ * True only for URLs an <img> can actually render. A pasted gallery/share page
+ * (e.g. ".../happy-navratri-background_177783632.htm") is not an image, so the
+ * card falls back to its designed banner instead of a broken image box.
+ */
+function isLoadableImageUrl(url?: string | null): boolean {
+  if (!url) return false;
+  const value = url.trim();
+  if (/^data:image\//i.test(value)) return true;
+  if (!/^https?:\/\//i.test(value)) return false;
+  try {
+    return !NON_IMAGE_PATH.test(new URL(value).pathname);
+  } catch {
+    return false;
+  }
+}
+
 type PrefKey = "inApp" | "popup" | "email" | "whatsapp" | "promotional";
 
 export default function AccountNotifications() {
@@ -84,6 +104,7 @@ export default function AccountNotifications() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [openNotificationId, setOpenNotificationId] = useState<string | null>(null);
+  const [imageFailed, setImageFailed] = useState(false);
   // Deep links (e.g. from the bell) carry the real notification id.
   const linkedNotificationId = searchParams.get("notification");
   const detailId = openNotificationId ?? linkedNotificationId;
@@ -170,6 +191,11 @@ export default function AccountNotifications() {
       });
     }
   }, [linkedNotificationId, detail, markRead, setSearchParams]);
+
+  // A different notification may reuse the same dialog, so reset the failure flag.
+  useEffect(() => {
+    setImageFailed(false);
+  }, [detailId]);
 
   const unreadCount = notifications?.filter((n: any) => !n.read).length || 0;
 
@@ -423,44 +449,48 @@ export default function AccountNotifications() {
         }}
       >
         <DialogContent className="max-h-[88vh] gap-0 overflow-y-auto rounded-2xl p-0 [&_[data-slot=dialog-close]]:rounded-full [&_[data-slot=dialog-close]]:bg-white/80 [&_[data-slot=dialog-close]]:p-1 [&_[data-slot=dialog-close]]:shadow-sm sm:max-w-md">
-          {detail ? (
+          {detail && (
             <div className="relative">
-              {detail.imageUrl ? (
+              {isLoadableImageUrl(detail.imageUrl) && !imageFailed ? (
                 <>
                   <img
                     src={detail.imageUrl}
-                    alt=""
-                    className="h-48 w-full object-cover"
+                    alt={detail.title}
+                    className="h-36 w-full bg-muted object-cover sm:h-44"
+                    loading="lazy"
+                    decoding="async"
+                    referrerPolicy="no-referrer"
+                    onError={() => setImageFailed(true)}
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/45 to-transparent" />
+                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/45 to-transparent" />
                 </>
               ) : (
                 <div
-                  className={`relative flex h-40 items-center justify-center overflow-hidden bg-gradient-to-br ${bannerGradient(
+                  className={`relative flex h-32 items-center justify-center overflow-hidden bg-gradient-to-br sm:h-36 ${bannerGradient(
                     detail.category
-                  )} bg-[length:100%_100%]`}
+                  )}`}
                 >
                   <span className="absolute -left-8 -top-10 size-32 rounded-full bg-white/20 blur-2xl" />
                   <span className="absolute -bottom-12 -right-6 size-36 rounded-full bg-black/15 blur-2xl" />
                   <span className="absolute inset-3 rounded-2xl border border-white/25" />
                   <span className="absolute inset-6 rounded-xl border border-dashed border-white/20" />
-                  <span className="relative text-6xl drop-shadow-[0_6px_12px_rgba(0,0,0,0.25)]">
+                  <span className="relative text-5xl drop-shadow-[0_6px_12px_rgba(0,0,0,0.25)] sm:text-6xl">
                     {categoryEmoji(detail.category ?? "")}
                   </span>
                 </div>
               )}
-              <p className="absolute inset-x-0 bottom-2.5 text-center text-[8.5px] font-medium uppercase tracking-[0.32em] text-white/85">
+              <p className="pointer-events-none absolute inset-x-0 bottom-2 text-center text-[8.5px] font-medium uppercase tracking-[0.32em] text-white/85">
                 Kalyan Chemist
               </p>
             </div>
-          ) : null}
+          )}
 
-          <div className="px-6 pb-4 pt-5 text-center">
+          <div className="px-5 pb-5 pt-5 text-center sm:px-8">
             <DialogHeader className="items-center gap-1 space-y-1 text-center">
-              <DialogTitle className="text-center font-serif text-xl leading-snug tracking-tight">
+              <DialogTitle className="max-w-full text-center font-serif text-lg leading-snug tracking-tight [overflow-wrap:anywhere] sm:text-xl">
                 {detail?.title ?? "Notification"}
               </DialogTitle>
-              <DialogDescription className="text-center text-[10.5px] uppercase tracking-[0.16em] text-muted-foreground">
+              <DialogDescription className="text-center text-[10px] uppercase leading-relaxed tracking-[0.16em] text-muted-foreground sm:text-[10.5px]">
                 {detail
                   ? [
                       detail.campaignId && detail.category
@@ -480,7 +510,7 @@ export default function AccountNotifications() {
               </DialogDescription>
             </DialogHeader>
 
-            <div className="my-4 flex items-center justify-center gap-2">
+            <div className="my-3.5 flex items-center justify-center gap-2">
               <span className="h-px w-10 bg-border" />
               <span className="text-[10px] text-primary/70" aria-hidden="true">
                 ✦
@@ -489,7 +519,7 @@ export default function AccountNotifications() {
             </div>
 
             {detail ? (
-              <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-foreground/90">
+              <p className="mx-auto max-w-prose whitespace-pre-wrap text-sm leading-relaxed text-foreground/90 [overflow-wrap:anywhere] sm:text-[15px]">
                 {detail.body}
               </p>
             ) : detail === undefined ? (
@@ -511,7 +541,7 @@ export default function AccountNotifications() {
             )}
           </div>
 
-          <DialogFooter className="mx-0 mb-0 border-t border-border/60 bg-muted/30 px-6 py-3">
+          <DialogFooter className="mx-0 mb-0 border-t border-border/60 bg-muted/30 px-5 py-3 sm:px-8">
             <Button
               variant="outline"
               size="sm"
