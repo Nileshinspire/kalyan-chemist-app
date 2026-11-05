@@ -18,6 +18,12 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
+import {
+  consumeAccountSwitch,
+  decidePostSignInDestination,
+  markAccountSwitchPending,
+  resetClientSession,
+} from "@/lib/session";
 
 interface AuthProps {
   redirectAfterAuth?: string;
@@ -184,20 +190,42 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
       // ignore
     }
 
+    // A different account (or the first sign-in after a logout) must never be
+    // dropped back onto the previous customer's page, even when a stale
+    // `/auth?returnTo=/account/…` URL is what opened this sign-in.
+    const switchState = consumeAccountSwitch(user?._id);
+    const destination = decidePostSignInDestination({
+      state: switchState,
+      userId: user?._id,
+      role: user?.role,
+      redirect,
+    });
+
+    const finish = () => {
+      if (destination.forceHome) {
+        // Rebuild the client at the homepage: no route, dialog or Convex query
+        // cache from the account that signed in before this one.
+        resetClientSession("/");
+        return;
+      }
+      // Old entries must not be resurrected with the Back button.
+      navigate(destination.path, { replace: true });
+    };
+
     // Preserve existing customer behavior: once signed in, the shared sign-in
     // page normally sends people to their account/dashboard by default.
     // Administrators explicitly signing in through /admin/login are routed
     // elsewhere by that entry point before this effect runs, so this default
     // must not pull an admin onto the customer Account page.
     if (!stored) {
-      navigate(redirect);
+      finish();
       return;
     }
 
     // Persist the attribution server-side, then continue to the destination.
     claimReferral({ code: stored })
       .catch(() => undefined)
-      .finally(() => navigate(redirect));
+      .finally(finish);
   }, [authLoading, isAuthenticated, user, navigate, redirect, claimReferral]);
 
   // Resend countdown. Runs only while a code is on screen and ticking down.
@@ -269,6 +297,9 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
    */
   const endActiveSession = useCallback(async () => {
     if (!sessionToken) return;
+    // A session existed, so this sign-in replaces that account: force the
+    // homepage afterwards instead of restoring its last page.
+    markAccountSwitchPending();
     try {
       await signOut();
     } catch {

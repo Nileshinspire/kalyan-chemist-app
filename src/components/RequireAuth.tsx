@@ -3,6 +3,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useBrowserNotifications } from "@/hooks/useBrowserNotifications";
 import { Navigate, useLocation, useNavigate } from "react-router";
 import RouteLoading from "@/components/RouteLoading";
+import { isAccountSwitchPending } from "@/lib/session";
 
 interface RequireAuthProps {
   children: ReactNode;
@@ -25,6 +26,15 @@ export function RequireAuth({ children, adminOnly = false }: RequireAuthProps) {
   }
 
   if (!isAuthenticated) {
+    // Right after a logout, the page the customer left is not a destination for
+    // the next account. Sending it as `returnTo` is exactly what re-opened the
+    // previous user's Notifications page, so the guard forwards to sign-in
+    // without any redirect path until the switch is resolved.
+    if (isAccountSwitchPending()) {
+      return (
+        <Navigate to={adminOnly ? "/admin/login" : "/login"} replace />
+      );
+    }
     const returnTo = `${location.pathname}${location.search}`;
     if (adminOnly) {
       return (

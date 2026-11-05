@@ -6,7 +6,11 @@ import {
   type ReactNode,
 } from "react";
 import { useAuth as useConvexAuth } from "@/hooks/use-auth";
-import { clearStoredAuthTokens, resetClientSession } from "@/lib/session";
+import {
+  clearStoredAuthTokens,
+  markAccountSwitchPending,
+  resetClientSession,
+} from "@/lib/session";
 
 /** Convex user document shape (matches the users table in schema.ts) */
 interface User {
@@ -82,8 +86,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Never leave a usable token behind if the server call failed.
       clearStoredAuthTokens();
     } finally {
-      // Leave the protected route and rebuild the client so the next account
+      // Mark the switch *before* leaving: the next sign-in must land on the
+      // homepage even if an old `/auth?returnTo=/account/…` URL is still in
+      // history or another tab. Then rebuild the client so the next account
       // cannot inherit this user's page, open dialogs or cached queries.
+      markAccountSwitchPending();
       resetClientSession("/");
     }
   }, [signOut]);
