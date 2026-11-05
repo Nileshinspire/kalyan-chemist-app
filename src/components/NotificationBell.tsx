@@ -115,16 +115,15 @@ export default function NotificationBell() {
             </div>
           ) : (
             recent.map((notification: any) => (
-              <button
+              <div
                 key={notification._id}
-                type="button"
-                onClick={() => openNotification(notification)}
-                className={`flex w-full items-start gap-2.5 rounded-lg p-2.5 text-left transition-colors hover:bg-muted/60 ${
+                className={`flex w-full items-start gap-2.5 rounded-lg p-2.5 text-left transition-colors hover:bg-muted/60 cursor-pointer group ${
                   notification.read ? "" : "bg-primary/[0.03]"
                 }`}
+                onClick={() => openNotification(notification)}
               >
                 <span
-                  className={`mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg ${
+                  className={`mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg transition-colors group-hover:text-primary ${
                     notification.read
                       ? "bg-muted text-muted-foreground"
                       : "bg-primary/10 text-primary"
@@ -132,19 +131,17 @@ export default function NotificationBell() {
                 >
                   {iconFor(notification.type, notification.campaignId, notification.category)}
                 </span>
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-1.5">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-1.5">
                     <span
-                      className={`truncate text-xs ${
-                        notification.read ? "font-medium" : "font-semibold"
-                      }`}
+                      className={`truncate text-xs ${notification.read ? "font-medium" : "font-semibold"} text-foreground`}
                     >
                       {notification.title}
                     </span>
                     {!notification.read && (
                       <span className="size-1.5 shrink-0 rounded-full bg-primary" />
                     )}
-                  </span>
+                  </div>
                   <span className="mt-0.5 line-clamp-2 block text-[11px] leading-relaxed text-muted-foreground">
                     {notification.body}
                   </span>
@@ -156,8 +153,8 @@ export default function NotificationBell() {
                       minute: "2-digit",
                     })}
                   </span>
-                </span>
-              </button>
+                </div>
+              </div>
             ))
           )}
         </div>
