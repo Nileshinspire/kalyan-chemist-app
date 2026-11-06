@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/auth-utils";
+import { RefillSuggestions } from "@/components/account/RefillSuggestions";
 import {
   Pill,
   Clock,
@@ -945,6 +946,9 @@ export default function MedicineRefill() {
                 </div>
               </section>
             )}
+
+            {/* ── Proactive Refill Reminders (additive to the manual ones below) ── */}
+            <RefillSuggestions />
 
             {/* ── Refill Reminders ── */}
             <section>

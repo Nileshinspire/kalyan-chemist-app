@@ -1,5 +1,7 @@
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
@@ -15,6 +17,10 @@ import {
   RotateCcw,
   ArrowUpRight,
   FileText,
+  Stethoscope,
+  AlertCircle,
+  Settings,
+  Loader2,
 } from "lucide-react";
 
 const FAQ_ITEMS = [
@@ -45,8 +51,10 @@ const FAQ_ITEMS = [
 ];
 
 export default function AccountHelpSupport() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const navigate = useNavigate();
+  // Real configured number only — never a hardcoded placeholder.
+  const contact = useQuery(api.adminSettings.getPublicContact);
 
   const handleWhatsApp = () => {
     const name = encodeURIComponent(user?.name || "Customer");
@@ -68,6 +76,67 @@ export default function AccountHelpSupport() {
           We're here to help you with any questions or issues
         </p>
       </div>
+
+      {/* Pharmacist Quick Call — uses the admin-configured number */}
+      <Card className="border-primary/20 bg-primary/[0.04]">
+        <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <Stethoscope className="size-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">
+                Pharmacist Quick Call
+              </h3>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Speak directly to our pharmacist about dosage, substitutions or a
+                prescription.
+              </p>
+              {contact === undefined ? (
+                <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Loader2 className="size-3.5 animate-spin" /> Loading contact number…
+                </p>
+              ) : contact.phone ? (
+                <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <span className="text-sm font-semibold text-foreground">
+                    {contact.phone.display}
+                  </span>
+                  {contact.hours && (
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Clock className="size-3" />
+                      {contact.hours}
+                    </span>
+                  )}
+                </div>
+              ) : (
+                <p className="mt-2 flex items-start gap-1.5 text-xs text-muted-foreground">
+                  <AlertCircle className="mt-0.5 size-3.5 shrink-0" />
+                  The pharmacist contact number has not been configured yet.
+                </p>
+              )}
+            </div>
+          </div>
+
+          {contact?.phone ? (
+            <Button asChild size="lg" className="gap-2 rounded-xl gradient-primary text-white sm:shrink-0">
+              <a href={`tel:${contact.phone.tel}`}>
+                <Phone className="size-4" />
+                Call Pharmacist
+              </a>
+            </Button>
+          ) : isAdmin ? (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2 rounded-xl sm:shrink-0"
+              onClick={() => navigate("/admin/settings")}
+            >
+              <Settings className="size-4" />
+              Configure number
+            </Button>
+          ) : null}
+        </CardContent>
+      </Card>
 
       {/* Contact Options */}
       <div className="grid gap-4 sm:grid-cols-2">

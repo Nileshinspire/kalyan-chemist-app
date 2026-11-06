@@ -7,8 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { motion } from "framer-motion";
-import { Save, Loader2, User, Mail, Phone, CheckCircle2, MessageCircle, Bell } from "lucide-react";
+import { Save, Loader2, User, Mail, Phone, CheckCircle2, MessageCircle, Bell, Palette } from "lucide-react";
 import { toast } from "sonner";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 export default function AccountProfile() {
   const profile = useQuery(api.account.getProfile);
@@ -155,6 +156,23 @@ export default function AccountProfile() {
               {saving ? "Saving..." : "Save Changes"}
             </Button>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Appearance — saved to the account, independent of the admin theme */}
+      <Card className="border-border/60">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Palette className="size-4 text-muted-foreground" />
+            Appearance
+          </CardTitle>
+          <CardDescription>
+            Choose how Kalyan Chemist looks. Your choice is saved to your account
+            and restored the next time you sign in.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ThemeToggle scope="customer" />
         </CardContent>
       </Card>
 

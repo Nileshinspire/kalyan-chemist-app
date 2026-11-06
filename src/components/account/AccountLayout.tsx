@@ -33,6 +33,7 @@ const NAV_ITEMS = [
   { to: "/account/my-lab-tests", label: "My Lab Tests", icon: FlaskConical },
   { to: "/account/my-appointments", label: "My Appointments", icon: Stethoscope },
   { to: "/account/refill", label: "Medicine Refill", icon: RefreshCw },
+  { to: "/account/pill-reminders", label: "Pill Reminders", icon: Pill },
   { to: "/account/wishlist", label: "Wishlist", icon: Heart },
   { to: "/account/notifications", label: "Notifications", icon: Bell },
   { to: "/account/help-support", label: "Help & Support", icon: Headphones },

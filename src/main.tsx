@@ -16,6 +16,8 @@ import AIChatbotFloat from "@/components/AIChatbotFloat";
 import MobileBottomNav from "@/components/layout/MobileBottomNav";
 import LoginMessagePopup from "@/components/LoginMessagePopup";
 import RouteLoading from "@/components/RouteLoading";
+import { AppThemeProvider } from "@/components/theme/AppThemeProvider";
+import { ThemePreferenceSync } from "@/components/theme/ThemePreferenceSync";
 import "./index.css";
 
 const convex = new ConvexReactClient(
@@ -81,6 +83,7 @@ import AccountAddresses from "./pages/account/AccountAddresses";
 import AccountOrders from "./pages/account/AccountOrders";
 import AccountPrescriptions from "./pages/account/AccountPrescriptions";
 import AccountNotifications from "./pages/account/AccountNotifications";
+import AccountPillReminders from "./pages/account/AccountPillReminders";
 import AccountLabReports from "./pages/account/AccountLabReports";
 import AccountLabTests from "./pages/account/AccountLabTests";
 import AccountDoctorAppointments from "./pages/account/AccountDoctorAppointments";
@@ -433,6 +436,7 @@ function AnimatedRoutes() {
           <Route path="appointments" element={<Suspense fallback={<RouteLoading />}><AccountAppointments /></Suspense>} />
           <Route path="wishlist" element={<Suspense fallback={<RouteLoading />}><AccountWishlist /></Suspense>} />
           <Route path="notifications" element={<Suspense fallback={<RouteLoading />}><AccountNotifications /></Suspense>} />
+          <Route path="pill-reminders" element={<Suspense fallback={<RouteLoading />}><AccountPillReminders /></Suspense>} />
           <Route path="lab-reports" element={<Suspense fallback={<RouteLoading />}><AccountLabReports /></Suspense>} />
           <Route path="my-lab-tests" element={<Suspense fallback={<RouteLoading />}><AccountLabTests /></Suspense>} />
           <Route path="my-appointments" element={<Suspense fallback={<RouteLoading />}><AccountDoctorAppointments /></Suspense>} />
@@ -806,12 +810,14 @@ createRoot(document.getElementById("root")!).render(
       <ToolbarErrorBoundary>
         <VlyToolbar />
       </ToolbarErrorBoundary>
+      <AppThemeProvider>
       <ConvexAuthProvider client={convex}>
       <AuthProvider>
         <HashRouter>
           <ScrollRestorer />
           <ProductTransitionVeil />
           <RouteSyncer />
+          <ThemePreferenceSync />
           <PageErrorBoundary>
             <AnimatedRoutes />
           </PageErrorBoundary>
@@ -825,6 +831,7 @@ createRoot(document.getElementById("root")!).render(
         <Toaster />
       </AuthProvider>
       </ConvexAuthProvider>
+      </AppThemeProvider>
     </RootErrorBoundary>
   </StrictMode>
 );

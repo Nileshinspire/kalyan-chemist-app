@@ -29,6 +29,8 @@ import {
   MessageCircle,
   Megaphone,
   Settings,
+  BellRing,
+  X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
@@ -100,7 +102,9 @@ type PrefKey = "inApp" | "popup" | "email" | "whatsapp" | "promotional";
 export default function AccountNotifications() {
   const notifications = useQuery(api.notifications.list, {});
   const prefs = useQuery(api.messageCenter.myPreferences, {});
+  const waitingAlerts = useQuery(api.availabilityNotifications.myWaiting, {});
   const markAllRead = useMutation(api.notifications.markAllRead);
+  const cancelStockAlert = useMutation(api.availabilityNotifications.cancelNotification);
   const markRead = useMutation(api.notifications.markRead);
   const updatePreferences = useMutation(api.messageCenter.updatePreferences);
   const navigate = useNavigate();
@@ -152,6 +156,15 @@ export default function AccountNotifications() {
     setBrowserEnabled(checked);
     localStorage.setItem("kc_browser_notifications", String(checked));
     toast.success(checked ? "Browser notifications enabled" : "Browser notifications disabled");
+  }
+
+  async function handleCancelStockAlert(productId: any) {
+    try {
+      await cancelStockAlert({ productId });
+      toast.success("Restock alert cancelled");
+    } catch (error: any) {
+      toast.error(error?.message ?? "Could not cancel the restock alert");
+    }
   }
 
   async function handleMarkAllRead() {
@@ -368,6 +381,47 @@ export default function AccountNotifications() {
           )}
         </CardContent>
       </Card>
+
+      {/* Restock alerts the customer is waiting on */}
+      {waitingAlerts && waitingAlerts.length > 0 && (
+        <Card className="border-border/60">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-sm font-bold">
+              <BellRing className="size-4" /> Restock alerts
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">
+              We&apos;ll send a website notification when these medicines are back in
+              stock.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {waitingAlerts.map((alert: any) => (
+              <div
+                key={alert._id}
+                className="flex items-center justify-between gap-3 rounded-xl border border-border/50 px-3 py-2.5"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-foreground">
+                    {alert.productName}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground">
+                    Waiting for stock
+                  </p>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 shrink-0 gap-1 px-2 text-xs text-muted-foreground"
+                  onClick={() => handleCancelStockAlert(alert.productId)}
+                >
+                  <X className="size-3" />
+                  Cancel
+                </Button>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Notification list */}
       {notifications.length === 0 ? (

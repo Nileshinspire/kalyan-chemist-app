@@ -24,4 +24,24 @@ crons.interval(
   {}
 );
 
+// ── Pill Reminder due-dose notifications ──
+// Runs every 15 minutes and is idempotent: each scheduled dose is notified at
+// most once (guarded by `lastNotifiedSlot` and the recorded-dose history).
+crons.interval(
+  "pill reminder due doses",
+  { minutes: 15 },
+  internal.pillReminders.processDue,
+  {}
+);
+
+// ── Proactive refill suggestions ──
+// Only customer-confirmed suggestions with a due `nextReminderAt` notify, and
+// a manual refill reminder always wins (no duplicate reminders).
+crons.interval(
+  "proactive refill suggestions",
+  { minutes: 30 },
+  internal.refillSuggestions.processDue,
+  {}
+);
+
 export default crons;

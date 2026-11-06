@@ -25,6 +25,50 @@ export const getProfile = query({
   },
 });
 
+/**
+ * Appearance preferences for the signed-in user.
+ *
+ * Two values are stored so an admin who also shops keeps an independent
+ * storefront theme and admin-panel theme. `null` means signed out; the client
+ * then falls back to its device preference.
+ */
+export const getThemePreference = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) return null;
+
+    const user = await ctx.db.get(userId);
+    if (!user) return null;
+
+    return {
+      theme: user.theme ?? "light",
+      adminTheme: user.adminTheme ?? "light",
+    };
+  },
+});
+
+/** Save the customer or admin theme for the signed-in user. */
+export const setTheme = mutation({
+  args: {
+    theme: v.union(v.literal("light"), v.literal("dark")),
+    scope: v.union(v.literal("customer"), v.literal("admin")),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
+
+    await ctx.db.patch(
+      userId,
+      args.scope === "admin"
+        ? { adminTheme: args.theme }
+        : { theme: args.theme },
+    );
+
+    return { success: true };
+  },
+});
+
 /** Update current user's profile */
 export const updateProfile = mutation({
   args: {

@@ -1,63 +1,80 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { query, mutation, internalMutation } from "./_generated/server";
 import { v } from "convex/values";
+import { notifyRestockWaiters } from "./restockAlerts";
 
 // ══════════════════════════════════════════════════════
 //  MUTATIONS
 // ══════════════════════════════════════════════════════
 
-/** Customer requests a stock availability notification */
+/**
+ * Customer requests a stock availability notification.
+ *
+ * Requires a signed-in customer, only accepts an out-of-stock product, and is
+ * idempotent: a second tap while the first request is still waiting returns the
+ * existing row instead of creating a duplicate subscription.
+ */
 export const requestNotification = mutation({
   args: {
     productId: v.id("products"),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
-
-    // Check if already waiting for this product
-    if (userId) {
-      const existing = await ctx.db
-        .query("availability_notifications")
-        .withIndex("by_product_status")
-        .filter((q) =>
-          q.and(
-            q.eq(q.field("productId"), args.productId),
-            q.eq(q.field("status"), "waiting"),
-            q.eq(q.field("userId"), userId),
-          )
-        )
-        .first();
-
-      if (existing) {
-        return { success: true, alreadyWaiting: true };
-      }
-    }
+    if (userId === null) throw new Error("Please sign in to get restock alerts.");
 
     const product = await ctx.db.get(args.productId);
     if (!product) throw new Error("Product not found");
-
-    // Get user info
-    let customerName: string | undefined;
-    let customerPhone: string | undefined;
-    if (userId) {
-      const user = await ctx.db.get(userId);
-      if (user) {
-        customerName = user.name ?? undefined;
-        customerPhone = user.phone ?? undefined;
-      }
+    if (product.stockQuantity > 0) {
+      throw new Error("This product is already in stock.");
     }
 
+    const existing = await ctx.db
+      .query("availability_notifications")
+      .withIndex("by_user_product", (q) =>
+        q.eq("userId", userId).eq("productId", args.productId),
+      )
+      .collect();
+    const alreadyWaiting = existing.find((row) => row.status === "waiting");
+    if (alreadyWaiting) {
+      return { success: true, alreadyWaiting: true, id: alreadyWaiting._id };
+    }
+
+    const user = await ctx.db.get(userId);
     const id = await ctx.db.insert("availability_notifications", {
-      userId: userId ?? undefined,
+      userId,
       productId: args.productId,
       productName: product.name,
-      customerPhone,
-      customerName,
+      customerName: user?.name ?? undefined,
+      customerPhone: user?.phone ?? undefined,
       status: "waiting",
       createdAt: Date.now(),
     });
 
-    return { success: true, id };
+    return { success: true, id, alreadyWaiting: false };
+  },
+});
+
+/** Customer cancels their own waiting restock subscription. */
+export const cancelNotification = mutation({
+  args: { productId: v.id("products") },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Not authenticated");
+
+    const rows = await ctx.db
+      .query("availability_notifications")
+      .withIndex("by_user_product", (q) =>
+        q.eq("userId", userId).eq("productId", args.productId),
+      )
+      .collect();
+
+    const waiting = rows.filter((row) => row.status === "waiting");
+    for (const row of waiting) {
+      // Ownership is guaranteed by the index predicate above.
+      await ctx.db.delete(row._id);
+    }
+
+    return { success: true, cancelled: waiting.length };
   },
 });
 
@@ -83,54 +100,17 @@ export const markNotified = mutation({
   },
 });
 
-/** Internal: When product stock goes from 0 to >0, auto-notify waiting customers */
+/**
+ * Internal: when product stock goes from 0 to >0, notify waiting customers.
+ * Kept for any existing caller; the actual work lives in the shared helper so
+ * the Inventory and product-editor paths behave identically.
+ */
 export const processStockRestock = internalMutation({
   args: {
     productId: v.id("products"),
   },
   handler: async (ctx, args) => {
-    const product = await ctx.db.get(args.productId);
-    if (!product || product.stockQuantity <= 0) return { notified: 0 };
-
-    // Find all customers waiting for this product
-    const waiting = await ctx.db
-      .query("availability_notifications")
-      .withIndex("by_product_status")
-      .filter((q) =>
-        q.and(
-          q.eq(q.field("productId"), args.productId),
-          q.eq(q.field("status"), "waiting"),
-        )
-      )
-      .collect();
-
-    if (waiting.length === 0) return { notified: 0 };
-
-    let notified = 0;
-    for (const notif of waiting) {
-      // Update status to notified (will be sent via external service)
-      await ctx.db.patch(notif._id, {
-        status: "notified",
-        notifiedAt: Date.now(),
-      });
-
-      // Create in-app notification
-      if (notif.userId) {
-        await ctx.db.insert("notifications", {
-          userId: notif.userId,
-          type: "order_status",
-          title: "Medicine Available!",
-          body: `Great news! ${notif.productName} is now available in stock. Order now!`,
-          read: false,
-          link: `/products/${product.slug}`,
-          createdAt: Date.now(),
-        });
-      }
-
-      notified++;
-    }
-
-    return { notified };
+    return await notifyRestockWaiters(ctx, args.productId);
   },
 });
 
@@ -195,18 +175,44 @@ export const isWaiting = query({
     const userId = await getAuthUserId(ctx);
     if (!userId) return false;
 
-    const waiting = await ctx.db
+    const rows = await ctx.db
       .query("availability_notifications")
-      .withIndex("by_product_status")
-      .filter((q) =>
-        q.and(
-          q.eq(q.field("productId"), args.productId),
-          q.eq(q.field("status"), "waiting"),
-          q.eq(q.field("userId"), userId),
-        )
+      .withIndex("by_user_product", (q) =>
+        q.eq("userId", userId).eq("productId", args.productId),
       )
-      .first();
+      .collect();
 
-    return !!waiting;
+    return rows.some((row) => row.status === "waiting");
+  },
+});
+
+/** Customer: their own waiting restock alerts, for the account area. */
+export const myWaiting = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) return [];
+
+    const rows = await ctx.db
+      .query("availability_notifications")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .order("desc")
+      .collect();
+
+    const waiting = rows.filter((row) => row.status === "waiting");
+    return Promise.all(
+      waiting.map(async (row) => {
+        const product = await ctx.db.get(row.productId);
+        return {
+          _id: row._id,
+          productId: row.productId,
+          productName: product?.name ?? row.productName,
+          productSlug: product?.slug ?? null,
+          productImage: product?.imageUrl ?? null,
+          stockQuantity: product?.stockQuantity ?? 0,
+          createdAt: row.createdAt,
+        };
+      }),
+    );
   },
 });

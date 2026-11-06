@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { motion } from "framer-motion";
-import { Settings, Save, Loader2, CheckCircle2, Store, Phone, Mail, MapPin, Clock, CreditCard, Truck } from "lucide-react";
+import { Settings, Save, Loader2, CheckCircle2, Store, Phone, Mail, MapPin, Clock, CreditCard, Truck, Palette, Stethoscope } from "lucide-react";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 export default function AdminSettings() {
   const settings = useQuery(api.adminSettings.getSettings);
@@ -30,6 +31,7 @@ export default function AdminSettings() {
       deliveryFee: settings.deliveryFee ?? 0,
       freeDeliveryAbove: settings.freeDeliveryAbove ?? 0,
       whatsappNumber: settings.whatsappNumber ?? "+91 98765 43210",
+      pharmacistPhone: settings.pharmacistPhone ?? "",
       _initialized: true,
     });
   }
@@ -51,6 +53,7 @@ export default function AdminSettings() {
         deliveryFee: Number(form.deliveryFee),
         freeDeliveryAbove: Number(form.freeDeliveryAbove),
         whatsappNumber: form.whatsappNumber,
+        pharmacistPhone: form.pharmacistPhone ?? "",
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
@@ -105,6 +108,20 @@ export default function AdminSettings() {
                   <Input value={form.whatsappNumber ?? ""} onChange={(e) => update("whatsappNumber", e.target.value)} className="rounded-xl" />
                 </div>
                 <div className="space-y-2 sm:col-span-2">
+                  <Label className="text-xs font-medium flex items-center gap-1"><Stethoscope className="size-3" /> Pharmacist Contact Number</Label>
+                  <Input
+                    value={form.pharmacistPhone ?? ""}
+                    onChange={(e) => update("pharmacistPhone", e.target.value)}
+                    placeholder="e.g. +91 98765 43210"
+                    className="rounded-xl"
+                    inputMode="tel"
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Shown as the Call Pharmacist number in Help &amp; Support. Leave
+                    empty to use the store phone above.
+                  </p>
+                </div>
+                <div className="space-y-2 sm:col-span-2">
                   <Label className="text-xs font-medium flex items-center gap-1"><MapPin className="size-3" /> Store Address</Label>
                   <Input value={form.storeAddress ?? ""} onChange={(e) => update("storeAddress", e.target.value)} className="rounded-xl" />
                 </div>
@@ -147,6 +164,23 @@ export default function AdminSettings() {
                   <Input type="number" value={form.freeDeliveryAbove ?? 0} onChange={(e) => update("freeDeliveryAbove", Number(e.target.value))} className="rounded-xl" min={0} step={50} />
                 </div>
               </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}>
+          <Card className="border-border/60 rounded-2xl">
+            <CardHeader>
+              <CardTitle className="text-sm font-bold flex items-center gap-2">
+                <Palette className="size-4 text-primary" /> Admin Panel Appearance
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <ThemeToggle scope="admin" />
+              <p className="text-[11px] text-muted-foreground">
+                This is separate from the storefront theme customers choose in their
+                profile.
+              </p>
             </CardContent>
           </Card>
         </motion.div>

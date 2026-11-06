@@ -12,6 +12,7 @@ import Footer from "@/components/layout/Footer";
 import { beginProductTransition } from "@/lib/product-transition";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { StockAlertButton } from "@/components/product/StockAlertButton";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -1204,6 +1205,10 @@ export default function ProductDetail() {
                 </div>
               )}
             </div>
+
+            {p.stockQuantity <= 0 && !isExpired && (
+              <StockAlertButton productId={p._id} productName={p.name} />
+            )}
 
             {p.prescriptionRequired && (
               <div className="rounded-xl bg-amber-50 border border-amber-200 p-4 flex items-start gap-3">

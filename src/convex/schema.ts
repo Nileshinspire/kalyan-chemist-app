@@ -152,6 +152,11 @@ const schema = defineSchema(
       referredBy: v.optional(v.id("users")),
       referredByCode: v.optional(v.string()),
       referredAt: v.optional(v.number()),
+      // ── Appearance preference (additive) ──
+      // Two independent preferences: the storefront theme and the admin-panel
+      // theme. Absent means "light", so every existing user record is valid.
+      theme: v.optional(v.union(v.literal("light"), v.literal("dark"))),
+      adminTheme: v.optional(v.union(v.literal("light"), v.literal("dark"))),
     })
       .index("email", ["email"])
       .index("phone", ["phone"])
@@ -1138,7 +1143,9 @@ const schema = defineSchema(
     })
       .index("by_product", ["productId"])
       .index("by_status", ["status"])
-      .index("by_product_status", ["productId", "status"]),
+      .index("by_product_status", ["productId", "status"])
+      .index("by_user", ["userId"])
+      .index("by_user_product", ["userId", "productId"]),
     // Activity / Audit Log
     auditLogs: defineTable({
     action: v.string(),
@@ -1376,9 +1383,85 @@ const schema = defineSchema(
     deliveryFee: v.number(),
     freeDeliveryAbove: v.number(),
     whatsappNumber: v.string(),
+    /**
+     * Dedicated pharmacist line used by "Call Pharmacist". Optional: when it is
+     * not configured the store phone is used, and if that is empty too the UI
+     * says so instead of inventing a number.
+     */
+    pharmacistPhone: v.optional(v.string()),
     updatedBy: v.optional(v.id("users")),
     updatedAt: v.number(),
   }),
+
+    // ── Pill Reminders (customer-owned medication schedule) ──
+    // One row per medicine the customer chose to be reminded about. The
+    // schedule is entered by the customer from their prescription — the app
+    // never infers a medicine, dose or frequency.
+    pill_reminders: defineTable({
+      userId: v.id("users"),
+      medicineName: v.string(),
+      /** Doctor-prescribed schedule as the customer typed it, e.g. "1 tablet after breakfast". */
+      doctorSchedule: v.optional(v.string()),
+      /** Local reminder times, "HH:MM" 24-hour, at most 6 per day. */
+      times: v.array(v.string()),
+      /** First day the schedule is active (local midnight, epoch ms). */
+      startDate: v.number(),
+      /** Optional last day (local midnight, epoch ms); absent = ongoing. */
+      endDate: v.optional(v.number()),
+      /** The customer's own UTC offset in minutes, so slots fire at their local time. */
+      timezoneOffsetMinutes: v.number(),
+      isActive: v.boolean(),
+      notes: v.optional(v.string()),
+      /** Epoch ms of the last dose slot a website notification was created for. */
+      lastNotifiedSlot: v.optional(v.number()),
+      createdAt: v.number(),
+      updatedAt: v.number(),
+    })
+      .index("by_user", ["userId"])
+      .index("by_user_active", ["userId", "isActive"])
+      .index("by_isActive", ["isActive"]),
+
+    // Taken / Skipped history for a pill reminder, one row per scheduled slot.
+    pill_reminder_events: defineTable({
+      userId: v.id("users"),
+      reminderId: v.id("pill_reminders"),
+      /** The exact scheduled dose time this action refers to (epoch ms). */
+      scheduledFor: v.number(),
+      status: v.union(v.literal("taken"), v.literal("skipped")),
+      recordedAt: v.number(),
+    })
+      .index("by_user", ["userId"])
+      .index("by_user_recorded", ["userId", "recordedAt"])
+      .index("by_reminder", ["reminderId"])
+      .index("by_reminder_slot", ["reminderId", "scheduledFor"]),
+
+    // ── Proactive Refill Suggestions (customer-confirmed) ──
+    // Additive companion to `refill_reminders`: a suggestion never replaces or
+    // edits the existing manual reminder. One row per customer + product.
+    refill_suggestions: defineTable({
+      userId: v.id("users"),
+      productId: v.id("products"),
+      status: v.union(
+        v.literal("enabled"),
+        v.literal("dismissed"),
+        v.literal("completed"),
+      ),
+      /** Customer-confirmed repeat interval in days (either this or expectedDate). */
+      intervalDays: v.optional(v.number()),
+      /** Customer-confirmed next refill date (epoch ms). */
+      expectedDate: v.optional(v.number()),
+      /** When the next website notification becomes due. */
+      nextReminderAt: v.optional(v.number()),
+      /** Epoch ms of the last notification created for this suggestion. */
+      lastNotifiedAt: v.optional(v.number()),
+      /** Last time this product appeared in an eligible order (epoch ms). */
+      lastOrderAt: v.number(),
+      createdAt: v.number(),
+      updatedAt: v.number(),
+    })
+      .index("by_user", ["userId"])
+      .index("by_user_product", ["userId", "productId"])
+      .index("by_status_next", ["status", "nextReminderAt"]),
 
     // ── Homepage / promotion discount engine (admin-owned, one row) ──
     // The engine resolves ONE rule per product (never combined, so a product

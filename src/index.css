@@ -335,3 +335,181 @@ button, a, [role="button"], [role="link"], select, input[type="submit"], input[t
 ::-webkit-scrollbar-thumb:hover {
   background: oklch(0.60 0.02 170);
 }
+
+/* ════════════════════════════════════════════════════════════════════════
+ * DARK MODE COMPATIBILITY LAYER (additive)
+ *
+ * The storefront was built with a handful of literal Tailwind neutrals
+ * (`bg-white`, `text-gray-900`, …) alongside the semantic theme tokens. Dark
+ * mode is added without editing those screens: inside `.dark` only, the literal
+ * utilities are re-pointed at the existing theme tokens. Light mode is
+ * completely untouched — every rule below is scoped to `.dark`.
+ *
+ * Accent tints (amber/green/red/…) are softened and mixed with the surface so
+ * status badges and inline notices keep their meaning and contrast.
+ * ════════════════════════════════════════════════════════════════════════ */
+
+.dark .bg-white { background-color: var(--card); }
+.dark .bg-gray-50,
+.dark .bg-gray-100,
+.dark .bg-slate-50,
+.dark .bg-slate-100,
+.dark .bg-zinc-50,
+.dark .bg-zinc-100 { background-color: var(--muted); }
+.dark .bg-gray-200,
+.dark .bg-zinc-200,
+.dark .bg-slate-200 { background-color: var(--border); }
+
+.dark .text-gray-900,
+.dark .text-gray-800,
+.dark .text-slate-900,
+.dark .text-slate-800,
+.dark .text-zinc-900,
+.dark .text-black { color: var(--foreground); }
+.dark .text-gray-700,
+.dark .text-gray-600,
+.dark .text-slate-700,
+.dark .text-slate-600,
+.dark .text-zinc-600 { color: var(--muted-foreground); }
+.dark .text-gray-500,
+.dark .text-gray-400,
+.dark .text-gray-300,
+.dark .text-slate-500,
+.dark .text-slate-400,
+.dark .text-zinc-500,
+.dark .text-zinc-400 { color: color-mix(in oklab, var(--muted-foreground) 82%, transparent); }
+
+.dark .border-gray-100,
+.dark .border-gray-200,
+.dark .border-gray-300,
+.dark .border-slate-200,
+.dark .border-slate-300,
+.dark .border-zinc-200,
+.dark .border-zinc-300 { border-color: var(--border); }
+.dark .divide-gray-100 > :not([hidden]) ~ :not([hidden]),
+.dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]),
+.dark .divide-slate-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--border);
+}
+
+/* Soft accent backgrounds */
+.dark .bg-amber-50,
+.dark .bg-amber-100 { background-color: color-mix(in oklab, #f59e0b 15%, var(--card)); }
+.dark .bg-orange-50,
+.dark .bg-orange-100 { background-color: color-mix(in oklab, #f97316 15%, var(--card)); }
+.dark .bg-yellow-50,
+.dark .bg-yellow-100 { background-color: color-mix(in oklab, #eab308 15%, var(--card)); }
+.dark .bg-green-50,
+.dark .bg-green-100 { background-color: color-mix(in oklab, #22c55e 15%, var(--card)); }
+.dark .bg-emerald-50,
+.dark .bg-emerald-100 { background-color: color-mix(in oklab, #10b981 15%, var(--card)); }
+.dark .bg-teal-50,
+.dark .bg-teal-100 { background-color: color-mix(in oklab, #14b8a6 15%, var(--card)); }
+.dark .bg-cyan-50,
+.dark .bg-cyan-100 { background-color: color-mix(in oklab, #06b6d4 15%, var(--card)); }
+.dark .bg-sky-50,
+.dark .bg-sky-100 { background-color: color-mix(in oklab, #0ea5e9 15%, var(--card)); }
+.dark .bg-blue-50,
+.dark .bg-blue-100 { background-color: color-mix(in oklab, #3b82f6 15%, var(--card)); }
+.dark .bg-indigo-50,
+.dark .bg-indigo-100 { background-color: color-mix(in oklab, #6366f1 15%, var(--card)); }
+.dark .bg-violet-50,
+.dark .bg-violet-100 { background-color: color-mix(in oklab, #8b5cf6 15%, var(--card)); }
+.dark .bg-purple-50,
+.dark .bg-purple-100 { background-color: color-mix(in oklab, #a855f7 15%, var(--card)); }
+.dark .bg-fuchsia-50,
+.dark .bg-fuchsia-100 { background-color: color-mix(in oklab, #d946ef 15%, var(--card)); }
+.dark .bg-pink-50,
+.dark .bg-pink-100 { background-color: color-mix(in oklab, #ec4899 15%, var(--card)); }
+.dark .bg-rose-50,
+.dark .bg-rose-100 { background-color: color-mix(in oklab, #f43f5e 15%, var(--card)); }
+.dark .bg-red-50,
+.dark .bg-red-100 { background-color: color-mix(in oklab, #ef4444 15%, var(--card)); }
+
+/* Accent text: lightened just enough to stay readable on a dark surface */
+.dark .text-amber-600,
+.dark .text-amber-700,
+.dark .text-amber-800,
+.dark .text-amber-900,
+.dark .text-orange-600,
+.dark .text-orange-700,
+.dark .text-orange-800,
+.dark .text-yellow-600,
+.dark .text-yellow-700,
+.dark .text-yellow-800 { color: color-mix(in oklab, #f59e0b 58%, var(--foreground)); }
+.dark .text-green-600,
+.dark .text-green-700,
+.dark .text-green-800,
+.dark .text-green-900,
+.dark .text-emerald-600,
+.dark .text-emerald-700,
+.dark .text-emerald-800,
+.dark .text-emerald-900,
+.dark .text-teal-600,
+.dark .text-teal-700,
+.dark .text-teal-800 { color: color-mix(in oklab, #10b981 58%, var(--foreground)); }
+.dark .text-blue-600,
+.dark .text-blue-700,
+.dark .text-blue-800,
+.dark .text-blue-900,
+.dark .text-sky-600,
+.dark .text-sky-700,
+.dark .text-cyan-600,
+.dark .text-cyan-700,
+.dark .text-indigo-600,
+.dark .text-indigo-700,
+.dark .text-indigo-800 { color: color-mix(in oklab, #3b82f6 58%, var(--foreground)); }
+.dark .text-violet-600,
+.dark .text-violet-700,
+.dark .text-purple-600,
+.dark .text-purple-700,
+.dark .text-purple-800,
+.dark .text-fuchsia-600,
+.dark .text-fuchsia-700,
+.dark .text-pink-600,
+.dark .text-pink-700 { color: color-mix(in oklab, #a855f7 58%, var(--foreground)); }
+.dark .text-rose-600,
+.dark .text-rose-700,
+.dark .text-red-600,
+.dark .text-red-700,
+.dark .text-red-800,
+.dark .text-red-900 { color: color-mix(in oklab, #ef4444 58%, var(--foreground)); }
+
+/* Accent borders */
+.dark .border-amber-100,
+.dark .border-amber-200,
+.dark .border-amber-300,
+.dark .border-orange-100,
+.dark .border-orange-200,
+.dark .border-orange-300,
+.dark .border-yellow-100,
+.dark .border-yellow-200 { border-color: color-mix(in oklab, #f59e0b 32%, var(--border)); }
+.dark .border-green-100,
+.dark .border-green-200,
+.dark .border-green-300,
+.dark .border-emerald-100,
+.dark .border-emerald-200,
+.dark .border-emerald-300,
+.dark .border-teal-100,
+.dark .border-teal-200 { border-color: color-mix(in oklab, #10b981 32%, var(--border)); }
+.dark .border-blue-100,
+.dark .border-blue-200,
+.dark .border-blue-300,
+.dark .border-sky-100,
+.dark .border-sky-200,
+.dark .border-cyan-100,
+.dark .border-indigo-100,
+.dark .border-indigo-200 { border-color: color-mix(in oklab, #3b82f6 32%, var(--border)); }
+.dark .border-violet-100,
+.dark .border-violet-200,
+.dark .border-purple-100,
+.dark .border-purple-200 { border-color: color-mix(in oklab, #a855f7 32%, var(--border)); }
+.dark .border-rose-100,
+.dark .border-rose-200,
+.dark .border-red-100,
+.dark .border-red-200,
+.dark .border-red-300 { border-color: color-mix(in oklab, #ef4444 32%, var(--border)); }
+
+/* Native controls + the product-transition scrollbar stay legible */
+.dark ::-webkit-scrollbar-thumb { background: oklch(0.42 0.02 175); }
+.dark ::-webkit-scrollbar-thumb:hover { background: oklch(0.52 0.03 170); }

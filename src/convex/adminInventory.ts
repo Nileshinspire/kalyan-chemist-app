@@ -1,6 +1,7 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { notifyRestockWaiters } from "./restockAlerts";
 
 async function requireAdmin(ctx: { db: any; auth: any }) {
   const userId = await getAuthUserId(ctx);
@@ -129,40 +130,13 @@ export const adjustStock = mutation({
     });
 
     // Stock availability notifications:
-    // When stock goes from 0 to >0, notify customers who were waiting
+    // When stock goes from 0 to >0, notify customers who were waiting. The
+    // shared helper is idempotent, so a repeated adjustment can never duplicate
+    // a notification for the same subscription.
     let notifiedCount = 0;
     if (previousQuantity === 0 && args.newQuantity > 0) {
-      const waiting = await ctx.db
-        .query("availability_notifications")
-        .withIndex("by_product_status")
-        .filter((q) =>
-          q.and(
-            q.eq(q.field("productId"), args.productId),
-            q.eq(q.field("status"), "waiting"),
-          )
-        )
-        .collect();
-
-      for (const notif of waiting) {
-        await ctx.db.patch(notif._id, {
-          status: "notified",
-          notifiedAt: Date.now(),
-        });
-
-        // Create in-app notification
-        if (notif.userId) {
-          await ctx.db.insert("notifications", {
-            userId: notif.userId,
-            type: "order_status",
-            title: "Medicine Available!",
-            body: `Great news! ${notif.productName} is now available in stock. Order now!`,
-            read: false,
-            createdAt: Date.now(),
-          });
-        }
-
-        notifiedCount++;
-      }
+      const result = await notifyRestockWaiters(ctx, args.productId);
+      notifiedCount = result.notified;
     }
 
     return { success: true, previousQuantity, newQuantity: args.newQuantity, adjustment, notifiedCount };

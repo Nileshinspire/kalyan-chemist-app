@@ -3,6 +3,7 @@ import { query, mutation, internalQuery, internalMutation } from "./_generated/s
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { isVerifiedProductImage } from "./productImageResolver";
+import { notifyRestockWaiters } from "./restockAlerts";
 import { syncProduct } from "./discountEngine";
 import {
   CATALOG_PROMOTION_SOURCE_LABEL,
@@ -608,6 +609,16 @@ export const update = mutation({
     // absence retags provenance for the engine (no id →编辑 engine governs it).
     if (args.discountPrice !== undefined) patch.discountSource = "manual";
     await ctx.db.patch(productId, patch);
+    // Restock alerts: the product editor can also bring stock back from zero,
+    // so it notifies waiting customers through the same idempotent helper as
+    // the Inventory screen.
+    if (current && current.stockQuantity === 0 && args.stockQuantity > 0) {
+      try {
+        await notifyRestockWaiters(ctx, productId);
+      } catch {
+        // Saving the product must never fail because of a restock alert.
+      }
+    }
     // Reconcile with the rules: reprices engine-managed products after a
     // base-price/category/active change, and leaves manual prices alone.
     try {
