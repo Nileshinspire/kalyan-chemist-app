@@ -3,6 +3,9 @@ import { useNavigate } from "react-router";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import WalletReferSection from "@/components/account/WalletReferSection";
+import { RefillSuggestions } from "@/components/account/RefillSuggestions";
+import { RestockAlertsCard } from "@/components/account/RestockAlertsCard";
+import { ThemeSwitch } from "@/components/theme/ThemeSwitch";
 import { motion } from "framer-motion";
 import {
   User,
@@ -14,6 +17,7 @@ import {
   ArrowRight,
   Package,
   Shield,
+  Moon,
 } from "lucide-react";
 
 const QUICK_LINKS = [
@@ -81,6 +85,50 @@ export default function AccountOverview() {
             </CardContent>
           </Card>
         ))}
+      </div>
+
+      {/* Care tools — theme, restock alerts and proactive refills, on the dashboard */}
+      <div className="space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold text-foreground">Your care tools</h2>
+          <p className="text-sm text-muted-foreground">
+            Switch theme, track restock alerts and plan refills without leaving your
+            dashboard.
+          </p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Card className="border-border/60">
+            <CardContent className="p-5">
+              <div className="mb-4 flex items-start gap-3">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/[0.06]">
+                  <Moon className="size-5 text-primary" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground">Appearance</h3>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Choose light or dark mode. Your choice is saved to your account.
+                  </p>
+                </div>
+              </div>
+              <ThemeSwitch scope="customer" />
+            </CardContent>
+          </Card>
+          <RestockAlertsCard limit={3} showManageLink />
+        </div>
+      </div>
+
+      <div className="space-y-1">
+        <RefillSuggestions />
+        <div className="flex justify-end">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1 text-xs text-muted-foreground"
+            onClick={() => navigate("/account/refill")}
+          >
+            Open Medicine Refill <ArrowRight className="size-3.5" />
+          </Button>
+        </div>
       </div>
 
       {/* Account Info */}
