@@ -30,17 +30,20 @@ export interface EligibleOrderedMedicine {
 }
 
 /**
- * Products from the customer's own completed orders. Only a delivered order
- * counts: it is the only status that proves the medicine was actually received.
- * Failed payments are excluded, and each product appears once (latest order).
+ * Products from the customer's own successful medicine orders: delivered, or
+ * confirmed/processing (the same statuses the existing refill page treats as
+ * purchased). Cancelled, refunded, pending and failed-payment orders are never
+ * used. Each product appears once, tied to its latest order.
  */
+export const ELIGIBLE_REFILL_ORDER_STATUSES = ["delivered", "confirmed", "processing"] as const;
+
 export function collectEligibleOrderedMedicines(
   orders: OrderLike[],
 ): EligibleOrderedMedicine[] {
   const byProduct = new Map<string, EligibleOrderedMedicine>();
 
   for (const order of orders) {
-    if (order.status !== "delivered") continue;
+    if (!(ELIGIBLE_REFILL_ORDER_STATUSES as readonly string[]).includes(order.status)) continue;
     if (order.paymentStatus === "failed") continue;
 
     for (const item of order.items) {

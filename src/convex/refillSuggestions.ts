@@ -33,7 +33,7 @@ async function activeManualRemindersFor(ctx: any, userId: any) {
     .collect();
 }
 
-// ── Suggestions derived from the customer's own delivered orders ──
+// ── Suggestions derived from the customer's own successful orders ──
 export const list = query({
   args: {},
   handler: async (ctx) => {
@@ -121,7 +121,7 @@ export const enable = mutation({
     const product = await ctx.db.get(args.productId);
     if (!product || !product.isActive) throw new Error("This medicine is no longer available.");
 
-    // Ownership: the product must come from this customer's delivered orders.
+    // Ownership: the product must come from this customer's own successful orders.
     const orders = await ctx.db
       .query("orders")
       .withIndex("by_user", (q) => q.eq("userId", userId))
@@ -140,7 +140,7 @@ export const enable = mutation({
     ).find((item) => item.productId === (args.productId as unknown as string));
 
     if (!eligible) {
-      throw new Error("This medicine is not in your delivered order history.");
+      throw new Error("This medicine is not in your order history.");
     }
 
     // Never duplicate an existing manual reminder.

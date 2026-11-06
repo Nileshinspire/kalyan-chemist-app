@@ -24,16 +24,19 @@ function order(overrides: Record<string, unknown> = {}) {
 }
 
 describe("proactive refill suggestions", () => {
-  it("only uses the customer's delivered, paid orders", () => {
+  it("only uses the customer's successful, paid orders", () => {
     const result = collectEligibleOrderedMedicines([
       order(),
+      order({ status: "confirmed", items: [{ productId: "p5", name: "Confirmed" }] }),
+      order({ status: "processing", items: [{ productId: "p6", name: "Processing" }] }),
       order({ status: "pending", items: [{ productId: "p2", name: "Pending" }] }),
       order({ status: "delivered", paymentStatus: "failed", items: [{ productId: "p3", name: "Failed" }] }),
       order({ status: "cancelled", items: [{ productId: "p4", name: "Cancelled" }] }),
+      order({ status: "refunded", items: [{ productId: "p7", name: "Refunded" }] }),
     ]);
 
-    expect(result.map((r) => r.productId)).toEqual(["p1"]);
-    expect(result[0].orderCount).toBe(1);
+    expect(result.map((r) => r.productId).sort()).toEqual(["p1", "p5", "p6"]);
+    expect(result.find((r) => r.productId === "p1")?.orderCount).toBe(1);
   });
 
   it("de-duplicates a medicine and keeps the latest order date", () => {

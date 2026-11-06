@@ -382,8 +382,8 @@ export default function AccountNotifications() {
         </CardContent>
       </Card>
 
-      {/* Restock alerts the customer is waiting on */}
-      {waitingAlerts && waitingAlerts.length > 0 && (
+      {/* Restock alerts — always visible so the feature is discoverable */}
+      {waitingAlerts !== undefined && (
         <Card className="border-border/60">
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-sm font-bold">
@@ -395,6 +395,13 @@ export default function AccountNotifications() {
             </p>
           </CardHeader>
           <CardContent className="space-y-2">
+            {waitingAlerts.length === 0 && (
+              <p className="rounded-xl border border-dashed border-border/60 px-3 py-3 text-xs text-muted-foreground">
+                You&apos;re not waiting on any medicines. Open an out-of-stock product
+                and tap “Notify Me When Available” to get a website notification when
+                it returns.
+              </p>
+            )}
             {waitingAlerts.map((alert: any) => (
               <div
                 key={alert._id}

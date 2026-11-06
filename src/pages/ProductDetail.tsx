@@ -1206,7 +1206,7 @@ export default function ProductDetail() {
               )}
             </div>
 
-            {p.stockQuantity <= 0 && !isExpired && (
+            {activeStock <= 0 && p.stockQuantity <= 0 && !isExpired && (
               <StockAlertButton productId={p._id} productName={p.name} />
             )}
 

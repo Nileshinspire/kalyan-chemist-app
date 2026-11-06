@@ -1,40 +1,13 @@
-import { useState } from "react";
-import { useMutation } from "convex/react";
-import { useTheme } from "next-themes";
 import { Loader2, Moon, Sun } from "lucide-react";
-import { toast } from "sonner";
-import { api } from "@/convex/_generated/api";
-import { useAuth } from "@/context/AuthContext";
-
-type ThemeChoice = "light" | "dark";
+import { useThemeChoice, type ThemeChoice } from "@/components/theme/useThemeChoice";
 
 /**
- * Light/Dark switch. Writes the choice to the signed-in user's record (so it
- * survives logout/login on any device) and applies it immediately. Admins get
- * their own stored preference, independent of the storefront one.
+ * Light/Dark segmented switch. Writes the choice to the signed-in user's record
+ * (so it survives logout/login on any device) and applies it immediately.
+ * Admins get their own stored preference, independent of the storefront one.
  */
 export function ThemeToggle({ scope = "customer" }: { scope?: "customer" | "admin" }) {
-  const { resolvedTheme, setTheme } = useTheme();
-  const { isAuthenticated } = useAuth();
-  const saveTheme = useMutation(api.account.setTheme);
-  const [saving, setSaving] = useState<ThemeChoice | null>(null);
-
-  const current: ThemeChoice = resolvedTheme === "dark" ? "dark" : "light";
-
-  async function choose(next: ThemeChoice) {
-    if (next === current || saving) return;
-    setSaving(next);
-    try {
-      if (isAuthenticated) {
-        await saveTheme({ theme: next, scope });
-      }
-      setTheme(next);
-    } catch (error: any) {
-      toast.error(error?.message ?? "Could not save your theme preference");
-    } finally {
-      setSaving(null);
-    }
-  }
+  const { current, saving, choose } = useThemeChoice(scope);
 
   const options: { value: ThemeChoice; label: string; icon: typeof Sun }[] = [
     { value: "light", label: "Light", icon: Sun },

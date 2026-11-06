@@ -59,11 +59,6 @@ type SuggestionRow = {
   } | null;
 };
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-/** Only prompt for medicines whose last delivery is old enough to plausibly be
- *  running low. This is time-since-order, not an assumed dosage. */
-const PROMPT_AFTER_DAYS = 14;
-
 function formatDate(ts: number) {
   return new Date(ts).toLocaleDateString("en-IN", {
     day: "numeric",
@@ -109,26 +104,25 @@ export function RefillSuggestions() {
   const [busyProduct, setBusyProduct] = useState<string | null>(null);
   const now = Date.now();
 
-  const { enabled, candidates } = useMemo(() => {
+  const { enabled, candidates, manualCount } = useMemo(() => {
     const all = (rows ?? []) as unknown as SuggestionRow[];
     const enabledRows: SuggestionRow[] = [];
     const candidateRows: SuggestionRow[] = [];
+    let tracked = 0;
 
     for (const row of all) {
       if (row.suggestion?.status === "dismissed") continue;
       if (row.hasManualReminder) {
         // Already covered by the existing Refill Reminders section — never show
         // a second, competing reminder for the same medicine.
+        tracked++;
         continue;
       }
       if (row.suggestion?.status === "enabled") {
         enabledRows.push(row);
         continue;
       }
-      if (
-        row.product.isActive &&
-        now - row.lastOrderAt >= PROMPT_AFTER_DAYS * DAY_MS
-      ) {
+      if (row.product.isActive) {
         candidateRows.push(row);
       }
     }
@@ -136,7 +130,11 @@ export function RefillSuggestions() {
     enabledRows.sort(
       (a, b) => (a.suggestion?.nextReminderAt ?? 0) - (b.suggestion?.nextReminderAt ?? 0),
     );
-    return { enabled: enabledRows, candidates: candidateRows.slice(0, 6) };
+    return {
+      enabled: enabledRows,
+      candidates: candidateRows.slice(0, 6),
+      manualCount: tracked,
+    };
   }, [rows, now]);
 
   function openDialog(row: SuggestionRow) {
@@ -219,11 +217,6 @@ export function RefillSuggestions() {
     } finally {
       setBusyProduct(null);
     }
-  }
-
-  // Nothing to show for a customer with no delivered orders and no reminders.
-  if (rows !== undefined && enabled.length === 0 && candidates.length === 0) {
-    return null;
   }
 
   if (rows === undefined) {
@@ -363,6 +356,14 @@ export function RefillSuggestions() {
           );
         })}
 
+        {manualCount > 0 && (
+          <p className="rounded-xl border border-border/50 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+            {manualCount} medicine{manualCount === 1 ? " is" : "s are"} already tracked
+            by your manual Refill Reminders below — we don’t create a second reminder for
+            the same medicine.
+          </p>
+        )}
+
         {candidates.length > 0 && (
           <div className="space-y-2">
             {candidates.map((row) => (
@@ -399,6 +400,24 @@ export function RefillSuggestions() {
               </Card>
             ))}
           </div>
+        )}
+
+        {enabled.length === 0 && candidates.length === 0 && manualCount === 0 && (
+          <Card className="border-dashed border-border/70">
+            <CardContent className="py-8 text-center">
+              <div className="mx-auto mb-3 flex size-11 items-center justify-center rounded-2xl bg-muted/50">
+                <CalendarClock className="size-5 text-muted-foreground/50" />
+              </div>
+              <p className="text-sm font-medium text-foreground">
+                No refill suggestions yet
+              </p>
+              <p className="mx-auto mt-1 max-w-md text-xs leading-relaxed text-muted-foreground">
+                Once a medicine order is completed, it appears here so you can confirm
+                your own refill interval or date. Nothing is inferred from dosage — you
+                choose the timing.
+              </p>
+            </CardContent>
+          </Card>
         )}
       </div>
 

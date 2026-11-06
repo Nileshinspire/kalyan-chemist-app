@@ -9,6 +9,7 @@ import { api } from "@/convex/_generated/api";
 import BrandMark from "@/components/BrandMark";
 import NotificationBell from "@/components/NotificationBell";
 import { Button } from "@/components/ui/button";
+import { ThemeSwitch } from "@/components/theme/ThemeSwitch";
 import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
@@ -271,6 +272,14 @@ const Navbar = memo(function Navbar() {
                   <ShoppingCart className="mr-2 size-4" />
                   Cart
                 </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  // Keep the menu open while the switch is used.
+                  onSelect={(event) => event.preventDefault()}
+                  className="rounded-lg cursor-pointer focus:bg-transparent"
+                >
+                  <ThemeSwitch scope="customer" className="w-full" />
+                </DropdownMenuItem>
                 {isAdmin && (
                   <>
                     <DropdownMenuSeparator />
@@ -459,6 +468,9 @@ const Navbar = memo(function Navbar() {
                           <ClipboardList className="mr-2 size-4" />
                           My Orders
                         </Button>
+                        <div className="flex h-10 items-center rounded-xl px-3">
+                          <ThemeSwitch scope="customer" className="w-full" />
+                        </div>
                       </>
                     )}
                     <Button
