@@ -3,6 +3,7 @@ import { query, mutation } from "./_generated/server";
 import { api } from "./_generated/api";
 import { v } from "convex/values";
 import { handleOrderStatusChange } from "./referralWallet";
+import { endTrackingForOrder } from "./deliveryTracking";
 import { couponStatus } from "./couponLogic";
 
 // ── Helper: verify admin ──
@@ -281,12 +282,27 @@ export const listOrders = query({
     const orders = await ctx.db.query("orders").collect();
     const users = await ctx.db.query("users").collect();
     const userMap = new Map(users.map((u) => [u._id, u.name || u.email || "Unknown"]));
+    const activeSessions = await ctx.db
+      .query("delivery_tracking")
+      .withIndex("by_active", (q) => q.eq("active", true))
+      .collect();
+    const activeByOrder = new Map(
+      activeSessions.map((session) => [session.orderId as string, session]),
+    );
     return orders
       .sort((a, b) => b.createdAt - a.createdAt)
-      .map((o) => ({
-        ...o,
-        userName: userMap.get(o.userId) || "Unknown",
-      }));
+      .map((o) => {
+        const session = activeByOrder.get(o._id as string);
+        return {
+          ...o,
+          userName: userMap.get(o.userId) || "Unknown",
+          deliveryBoyName: o.deliveryBoyId
+            ? userMap.get(o.deliveryBoyId) || "Delivery partner"
+            : null,
+          trackingActive: Boolean(session),
+          lastLocationAt: session?.lastLocationAt ?? null,
+        };
+      });
   },
 });
 
@@ -304,6 +320,14 @@ export const getOrderById = query({
       })
     );
     const address = order.addressId ? await ctx.db.get(order.addressId) : null;
+    const deliveryBoy = order.deliveryBoyId
+      ? await ctx.db.get(order.deliveryBoyId)
+      : null;
+    const session = await ctx.db
+      .query("delivery_tracking")
+      .withIndex("by_order", (q) => q.eq("orderId", args.orderId))
+      .first();
+    const trackingActive = Boolean(session?.active);
     return {
       ...order,
       items: itemsWithProducts,
@@ -311,6 +335,11 @@ export const getOrderById = query({
       userEmail: user?.email || "",
       userPhone: user?.phone || "",
       address,
+      deliveryBoyName: deliveryBoy?.name || deliveryBoy?.phone || null,
+      deliveryBoyPhone: deliveryBoy?.phone || null,
+      trackingActive,
+      trackingStartedAt: trackingActive ? session?.startedAt ?? null : null,
+      lastLocationAt: trackingActive ? session?.lastLocationAt ?? null : null,
     };
   },
 });
@@ -358,6 +387,12 @@ export const updateOrderStatus = mutation({
 
     // Referral reward on DELIVERED; wallet refund / reward reversal on
     // cancellation or refund. Idempotent, and never trusts the frontend.
+    // Live delivery tracking must never outlive the delivery. Ending it also
+    // erases the stored coordinates.
+    if (["delivered", "cancelled", "refund_initiated", "refunded"].includes(args.status)) {
+      await endTrackingForOrder(ctx, args.orderId, `order_${args.status}`);
+    }
+
     await handleOrderStatusChange(ctx, args.orderId, args.status);
 
     // Delegate notification to the centralized order notification service.

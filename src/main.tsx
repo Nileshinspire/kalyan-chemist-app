@@ -98,6 +98,9 @@ const AdminAppointments = lazy(() => import("./pages/admin/AdminAppointments"));
 import AccountAppointments from "./pages/account/AccountAppointments";
 import LabTests from "./pages/LabTests";
 import AccountTrackOrder from "./pages/account/AccountTrackOrder";
+import DeliveryLogin from "./pages/delivery/DeliveryLogin";
+import { RequireDelivery } from "./components/delivery/RequireDelivery";
+const DeliveryDashboard = lazy(() => import("./pages/delivery/DeliveryDashboard"));
 import LabTestCategory from "./pages/LabTestCategory";
 import LabTestDetail from "./pages/LabTestDetail";
 const AdminLabTests = lazy(() => import("./pages/admin/AdminLabTests"));
@@ -259,6 +262,18 @@ function AnimatedRoutes() {
           element={
             <AdminLogin />
             
+          }
+        />
+        <Route
+          path="/delivery/login"
+          element={<DeliveryLogin />}
+        />
+        <Route
+          path="/delivery"
+          element={
+            <RequireDelivery>
+              <DeliveryDashboard />
+            </RequireDelivery>
           }
         />
         <Route

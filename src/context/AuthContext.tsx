@@ -18,7 +18,7 @@ interface User {
   name?: string;
   email?: string;
   phone?: string;
-  role?: "customer" | "admin" | "pharmacist";
+  role?: "customer" | "admin" | "delivery" | "pharmacist";
   isActive?: boolean;
   createdAt?: number;
 }

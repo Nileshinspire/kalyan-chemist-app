@@ -34,6 +34,16 @@ crons.interval(
   {}
 );
 
+// ── Live delivery tracking safety net ──
+// A crashed browser or lost phone stops sending GPS pings; after a few minutes
+// the session is closed and its coordinates are erased.
+crons.interval(
+  "expire stale delivery tracking",
+  { minutes: 5 },
+  internal.deliveryTracking.expireStale,
+  {},
+);
+
 // ── Proactive refill suggestions ──
 // Only customer-confirmed suggestions with a due `nextReminderAt` notify, and
 // a manual refill reminder always wins (no duplicate reminders).

@@ -6,11 +6,13 @@ import { Infer, v } from "convex/values";
 export const ROLES = {
   ADMIN: "admin",
   CUSTOMER: "customer",
+  DELIVERY: "delivery",
 } as const;
 
 export const roleValidator = v.union(
   v.literal(ROLES.ADMIN),
   v.literal(ROLES.CUSTOMER),
+  v.literal(ROLES.DELIVERY),
 );
 export type Role = Infer<typeof roleValidator>;
 
@@ -514,6 +516,11 @@ const schema = defineSchema(
       walletAmountUsed: v.optional(v.number()),
       deliveryLatitude: v.optional(v.number()),
       deliveryLongitude: v.optional(v.number()),
+      // ── Live delivery tracking (additive) ──
+      // The delivery partner this order is assigned to. Absent means the order
+      // has not been handed to a delivery partner yet.
+      deliveryBoyId: v.optional(v.id("users")),
+      deliveryAssignedAt: v.optional(v.number()),
       // Audit trail of status changes
       statusHistory: v.optional(
         v.array(
@@ -529,7 +536,8 @@ const schema = defineSchema(
     })
       .index("by_user", ["userId"])
       .index("by_status", ["status"])
-      .index("by_user_created", ["userId", "createdAt"]),
+      .index("by_user_created", ["userId", "createdAt"])
+      .index("by_delivery_boy", ["deliveryBoyId"]),
 
     // Delivery addresses saved to a user's account
     addresses: defineTable({
@@ -999,6 +1007,30 @@ const schema = defineSchema(
       ),
       updatedAt: v.number(),
     }),
+
+    // ── Live delivery tracking (GPS) ──
+    // One row per delivery session. Coordinates are stored only while the
+    // session is active; stopping or completing delivery clears them so a
+    // delivery partner's location is never retained or shared afterwards.
+    delivery_tracking: defineTable({
+      orderId: v.id("orders"),
+      deliveryBoyId: v.id("users"),
+      active: v.boolean(),
+      latitude: v.optional(v.number()),
+      longitude: v.optional(v.number()),
+      accuracy: v.optional(v.number()),
+      heading: v.optional(v.number()),
+      speed: v.optional(v.number()),
+      startedAt: v.number(),
+      lastLocationAt: v.optional(v.number()),
+      stoppedAt: v.optional(v.number()),
+      stopReason: v.optional(v.string()),
+      updatedAt: v.number(),
+    })
+      .index("by_order", ["orderId"])
+      .index("by_delivery_boy", ["deliveryBoyId"])
+      .index("by_active", ["active"]),
+
     // ── WhatsApp Enquiries & Orders Tracking ──
     whatsapp_enquiries: defineTable({
       userId: v.optional(v.id("users")),

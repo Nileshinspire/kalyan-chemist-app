@@ -38,6 +38,9 @@ import {
   FileText,
   Navigation,
   ExternalLink,
+  Truck,
+  UserPlus,
+  Radio,
 } from "lucide-react";
 import { formatCurrency, getStatusColor } from "@/lib/auth-utils";
 import { toast } from "sonner";
@@ -176,6 +179,14 @@ export default function AdminOrders() {
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
   const [showDetail, setShowDetail] = useState(false);
+  const [assigning, setAssigning] = useState(false);
+  const [showAddDeliveryBoy, setShowAddDeliveryBoy] = useState(false);
+  const [addingDeliveryBoy, setAddingDeliveryBoy] = useState(false);
+  const [newDeliveryBoy, setNewDeliveryBoy] = useState({
+    name: "",
+    phone: "",
+    password: "",
+  });
 
   const orders = useQuery(api.admin.listOrders);
   const orderDetail = useQuery(
@@ -185,6 +196,9 @@ export default function AdminOrders() {
   const updateStatus = useMutation(api.admin.updateOrderStatus);
   const sendEmail = useAction(api.emailService.sendOrderStatusEmail);
   const sendSms = useAction(api.smsService.sendOrderStatusSms);
+  const deliveryBoys = useQuery(api.deliveryAdmin.listDeliveryBoys);
+  const assignDelivery = useMutation(api.deliveryAdmin.assignOrder);
+  const createDeliveryBoy = useAction(api.deliveryAdmin.createDeliveryBoy);
 
   const filteredOrders = orders?.filter((o: any) => {
     const matchesSearch =
@@ -233,6 +247,40 @@ export default function AdminOrders() {
   const openDetail = (order: any) => {
     setSelectedOrder(order);
     setShowDetail(true);
+  };
+
+  const handleAssignDelivery = async (orderId: string, value: string) => {
+    setAssigning(true);
+    try {
+      await assignDelivery({
+        orderId: orderId as any,
+        deliveryBoyId: value === "unassigned" ? null : (value as any),
+      });
+      toast.success(
+        value === "unassigned"
+          ? "Delivery partner removed"
+          : "Delivery partner assigned",
+      );
+    } catch (error: any) {
+      toast.error(error?.message ?? "Could not assign the delivery partner");
+    } finally {
+      setAssigning(false);
+    }
+  };
+
+  const handleCreateDeliveryBoy = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setAddingDeliveryBoy(true);
+    try {
+      await createDeliveryBoy(newDeliveryBoy);
+      toast.success("Delivery partner account created");
+      setShowAddDeliveryBoy(false);
+      setNewDeliveryBoy({ name: "", phone: "", password: "" });
+    } catch (error: any) {
+      toast.error(error?.message ?? "Could not create the delivery account");
+    } finally {
+      setAddingDeliveryBoy(false);
+    }
   };
 
   // Stats
@@ -337,6 +385,11 @@ export default function AdminOrders() {
                       <div>
                         <p className="text-xs text-muted-foreground">Customer</p>
                         <p className="text-sm font-medium truncate">{order.userName}</p>
+                        {order.deliveryBoyName && (
+                          <p className="text-[10px] text-muted-foreground truncate">
+                            Delivery: {order.deliveryBoyName}
+                          </p>
+                        )}
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground">Amount</p>
@@ -347,9 +400,16 @@ export default function AdminOrders() {
                         <p className="text-sm">{new Date(order.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</p>
                       </div>
                     </div>
-                    <Badge className={`text-[10px] capitalize shrink-0 ${getStatusColor(order.status)}`}>
-                      {STATUS_LABELS[order.status] || order.status}
-                    </Badge>
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                      <Badge className={`text-[10px] capitalize ${getStatusColor(order.status)}`}>
+                        {STATUS_LABELS[order.status] || order.status}
+                      </Badge>
+                      {order.trackingActive && (
+                        <span className="flex items-center gap-1 text-[9px] font-medium text-emerald-600">
+                          <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live
+                        </span>
+                      )}
+                    </div>
                     <ChevronRight className="size-4 text-muted-foreground shrink-0" />
                   </div>
                 </CardContent>
@@ -390,6 +450,75 @@ export default function AdminOrders() {
                       </Button>
                     ))}
                   </div>
+                </div>
+
+                {/* Delivery partner assignment & live tracking */}
+                <div className="p-3 rounded-xl bg-muted/30 border border-border/40">
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                      <Truck className="size-3.5" /> Delivery partner
+                    </Label>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 gap-1 px-2 text-[11px] text-primary"
+                      onClick={() => setShowAddDeliveryBoy(true)}
+                    >
+                      <UserPlus className="size-3" /> Add delivery boy
+                    </Button>
+                  </div>
+
+                  {["delivered", "cancelled", "refund_initiated", "refunded"].includes(orderDetail.status) ? (
+                    <p className="text-xs text-muted-foreground">
+                      This order is closed. Delivery assignment and live tracking are no longer available.
+                    </p>
+                  ) : (
+                    <Select
+                      value={orderDetail.deliveryBoyId || "unassigned"}
+                      onValueChange={(value) => handleAssignDelivery(orderDetail._id, value)}
+                      disabled={assigning}
+                    >
+                      <SelectTrigger className="h-9 bg-background">
+                        <SelectValue placeholder="Unassigned" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="unassigned">Unassigned</SelectItem>
+                        {deliveryBoys?.map((boy: any) => (
+                          <SelectItem key={boy._id} value={boy._id}>
+                            {boy.name}{boy.phone ? ` · ${boy.phone}` : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+
+                  <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                    {orderDetail.trackingActive ? (
+                      <Badge className="border-0 bg-emerald-100 text-[10px] text-emerald-700">
+                        <Radio className="size-2.5 mr-1 animate-pulse" /> Live location sharing
+                      </Badge>
+                    ) : orderDetail.deliveryBoyId ? (
+                      <Badge variant="outline" className="text-[10px]">Assigned · not sharing</Badge>
+                    ) : (
+                      <span>No delivery partner assigned yet.</span>
+                    )}
+                    {orderDetail.trackingActive && orderDetail.lastLocationAt && (
+                      <span>
+                        Updated {new Date(orderDetail.lastLocationAt).toLocaleTimeString("en-IN", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                    )}
+                    {orderDetail.deliveryBoyPhone && (
+                      <span>· {orderDetail.deliveryBoyPhone}</span>
+                    )}
+                  </div>
+                  {deliveryBoys && deliveryBoys.length === 0 && (
+                    <p className="mt-2 text-[11px] text-amber-700">
+                      No delivery partners yet. Use “Add delivery boy” to create a login.
+                    </p>
+                  )}
                 </div>
 
                 {/* Status History Timeline */}
@@ -533,6 +662,78 @@ export default function AdminOrders() {
               <Loader2 className="size-6 animate-spin text-muted-foreground" />
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Add delivery partner account */}
+      <Dialog open={showAddDeliveryBoy} onOpenChange={setShowAddDeliveryBoy}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add delivery boy</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleCreateDeliveryBoy} className="space-y-3">
+            <div>
+              <Label htmlFor="delivery-boy-name">Full name</Label>
+              <Input
+                id="delivery-boy-name"
+                value={newDeliveryBoy.name}
+                onChange={(event) =>
+                  setNewDeliveryBoy((prev) => ({ ...prev, name: event.target.value }))
+                }
+                placeholder="Delivery partner name"
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="delivery-boy-phone">Phone number</Label>
+              <Input
+                id="delivery-boy-phone"
+                type="tel"
+                value={newDeliveryBoy.phone}
+                onChange={(event) =>
+                  setNewDeliveryBoy((prev) => ({ ...prev, phone: event.target.value }))
+                }
+                placeholder="10-digit phone number"
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="delivery-boy-password">Password</Label>
+              <Input
+                id="delivery-boy-password"
+                type="password"
+                value={newDeliveryBoy.password}
+                onChange={(event) =>
+                  setNewDeliveryBoy((prev) => ({ ...prev, password: event.target.value }))
+                }
+                placeholder="At least 8 characters"
+                minLength={8}
+                required
+              />
+            </div>
+            <p className="text-[11px] leading-relaxed text-muted-foreground">
+              The delivery partner signs in at <span className="font-medium">/delivery/login</span>{" "}
+              with this phone number and password, and only sees orders assigned to them.
+            </p>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowAddDeliveryBoy(false)}
+                disabled={addingDeliveryBoy}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                className="gradient-primary text-white"
+                disabled={addingDeliveryBoy}
+              >
+                {addingDeliveryBoy ? <Loader2 className="size-4 animate-spin mr-1.5" /> : null}
+                Create account
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </AdminLayout>

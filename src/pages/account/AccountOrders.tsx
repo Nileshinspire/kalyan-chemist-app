@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router";
 import { motion } from "framer-motion";
-import { ClipboardList, Package, Loader2, ArrowRight } from "lucide-react";
+import { ClipboardList, Package, Loader2, ArrowRight, Truck } from "lucide-react";
 import { formatCurrency } from "@/lib/auth-utils";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -79,11 +79,24 @@ export default function AccountOrders() {
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
                     <Badge className={`text-[10px] capitalize ${STATUS_COLORS[order.status] || ""}`}>
                       {order.status}
                     </Badge>
                     <p className="text-sm font-bold text-foreground">{formatCurrency(order.totalAmount)}</p>
+                    {!["cancelled", "refunded"].includes(order.status) && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 gap-1.5 text-xs"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          navigate(`/account/track-order?orderId=${order._id}`);
+                        }}
+                      >
+                        <Truck className="size-3.5" /> Track Order
+                      </Button>
+                    )}
                     <ArrowRight className="size-4 text-muted-foreground" />
                   </div>
                 </div>
