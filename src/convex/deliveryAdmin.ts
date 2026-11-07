@@ -154,12 +154,17 @@ export const createDeliveryBoy = action({
     password: v.string(),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) throw new Error("Administrator access required.");
-
-    const callerId = identity.subject.split("|")[0] as Id<"users">;
+    // Actions execute without the live session context, so resolve the
+    // caller's id and stored role strictly through getAuthUserId (the same
+    // approach the rest of this file's requireAdmin helper uses). Note: the
+    // `ctx` passed to an action has no `db` service (only queries and
+    // mutations do), so we never touch ctx.db here; we read the stored
+    // document via ctx.runQuery against an internalQuery that performs the
+    // role check for us.
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) throw new Error("Administrator access required.");
     const caller = await ctx.runQuery(internal.deliveryAdmin.getUserForAuthCheck, {
-      userId: callerId,
+      userId,
     });
     if (!caller || caller.role !== "admin") {
       throw new Error("Administrator access required.");
