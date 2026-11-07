@@ -1,4 +1,4 @@
-import { useQuery, useMutation } from "convex/react";
+import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,6 +15,7 @@ import {
   Truck,
   Circle,
   Navigation,
+  Phone,
   ArrowLeft,
 } from "lucide-react";
 import { LiveDeliveryMap } from "@/components/tracking/LiveDeliveryMap";
@@ -114,34 +115,23 @@ export default function AccountTrackOrder() {
     isPlausibleOrderId ? { orderId: selectedOrderId as any } : "skip",
   );
 
-  // Assigned delivery partner + order status, read from the customer's own
-  // order document so the page never resolves another account's assignment.
-  const order = useQuery(
-    api.orders.getById,
-    isPlausibleOrderId ? { orderId: selectedOrderId as any } : "skip",
-  );
-  const currentUser = useAuth()?.user;
-  const isOwnOrder = Boolean(
-    Boolean(currentUser) &&
-      selectedOrderId &&
-      order &&
-      order.userId === (currentUser as { id?: string })?.id,
-  );
-  const orderForCustomer = isOwnOrder ? order : null;
+  const { user: currentUser, isAuthLoading } = useAuth();
 
+  // Already scoped to the signed-in customer server-side.
   const thisOrders = useQuery(api.orders.list);
 
-  // The active (live) orders list for the customer's own account.
-  const activeOrders = thisOrders
-    ? orderForCustomer
-      ? thisOrders.filter((o: any) => o._id === orderForCustomer._id && o.status !== "delivered" && o.status !== "cancelled")
-      : []
-    : [];
-  const pastOrders = thisOrders
-    ? orderForCustomer
-      ? thisOrders.filter((o: any) => o._id === orderForCustomer._id && (o.status === "delivered" || o.status === "cancelled"))
-      : []
-    : [];
+  const isClosedStatus = (status: string) =>
+    status === "delivered" ||
+    status === "cancelled" ||
+    status === "refund_initiated" ||
+    status === "refunded";
+
+  const activeOrders = (thisOrders ?? []).filter(
+    (o: any) => !isClosedStatus(o.status),
+  );
+  const pastOrders = (thisOrders ?? []).filter((o: any) =>
+    isClosedStatus(o.status),
+  );
 
   const orderUnavailable = (
     <div className="rounded-xl border border-dashed border-border/60 bg-muted/30 p-4 text-center">
@@ -152,8 +142,16 @@ export default function AccountTrackOrder() {
     </div>
   );
 
+  if (isAuthLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="size-5 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
   // A customer who is not signed in never sees anyone's tracking data.
-  if (!useAuth()?.user) {
+  if (!currentUser) {
     return (
       <motion.div
         initial={{ opacity: 0, y: 12 }}
@@ -235,7 +233,9 @@ export default function AccountTrackOrder() {
                     Live delivery tracking
                   </p>
                   <p className="text-[11px] text-muted-foreground">
-                    Order #{selectedOrderId.slice(-6).toUpperCase()}
+                    Order #
+                    {customerTracking?.invoiceNumber ||
+                      selectedOrderId.slice(-6).toUpperCase()}
                   </p>
                 </div>
               </div>
@@ -259,67 +259,111 @@ export default function AccountTrackOrder() {
               )
             ) : customerTracking === null ? (
               orderUnavailable
-            ) : customerTracking.trackingActive ? (
+            ) : (
               <>
                 <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-muted/40 px-3 py-2 text-xs">
                   <span className="flex items-center gap-1.5 font-medium text-foreground">
                     <Navigation className="size-3.5 text-emerald-600" />
-                    {customerTracking.deliveryBoyName
-                      ? `${customerTracking.deliveryBoyName} is on the way`
-                      : "Your delivery partner is on the way"}
+                    {customerTracking.trackingActive
+                      ? customerTracking.deliveryBoyName
+                        ? `${customerTracking.deliveryBoyName} is on the way`
+                        : "Your delivery partner is on the way"
+                      : customerTracking.assigned && customerTracking.deliveryBoyName
+                        ? `Delivery partner: ${customerTracking.deliveryBoyName}`
+                        : "Delivery partner not assigned yet"}
                   </span>
                   <span className="flex items-center gap-1 text-muted-foreground">
                     <Clock className="size-3" />
-                    {customerTracking.lastLocationAt
-                      ? `Updated ${new Date(customerTracking.lastLocationAt).toLocaleTimeString(
-                          "en-IN",
-                          { hour: "2-digit", minute: "2-digit" },
-                        )}`
-                      : "Waiting for the first GPS update"}
+                    {customerTracking.trackingActive
+                      ? customerTracking.lastLocationAt
+                        ? `Updated ${new Date(
+                            customerTracking.lastLocationAt,
+                          ).toLocaleTimeString("en-IN", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}`
+                        : "Waiting for the first GPS update"
+                      : STATUS_LABELS[customerTracking.orderStatus] ??
+                        customerTracking.orderStatus}
                   </span>
                 </div>
 
-                <LiveDeliveryMap
-                  latitude={customerTracking.location?.latitude ?? null}
-                  longitude={customerTracking.location?.longitude ?? null}
-                  label={
-                    customerTracking.deliveryBoyName
-                      ? `${customerTracking.deliveryBoyName} — delivery partner`
-                      : "Delivery partner"
-                  }
-                  heightClass="h-64 sm:h-80"
-                />
-
-                <p className="text-[11px] text-muted-foreground">
-                  Live location is shared only during an active delivery. Sharing ends
-                  automatically when the order is marked delivered.
-                </p>
-
-                {!isOwnOrder && (
-                  <div className="mt-2 rounded-xl border border-dashed border-border/60 bg-muted/30 p-3 text-xs text-amber-700">
-                    <p className="font-medium">Tracking not available for this order</p>
-                    <p className="mt-0.5 leading-relaxed">
-                      This order does not belong to your account, so tracking is hidden
-                      for your security.
+                {customerTracking.assigned && (
+                  <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/60 px-3 py-2 text-xs">
+                    <p className="flex-1 leading-relaxed text-muted-foreground">
+                      {customerTracking.trackingActive
+                        ? "Your delivery partner is sharing live location. The map updates automatically."
+                        : customerTracking.orderStatus === "delivered"
+                          ? "This delivery is complete. Live location sharing has stopped."
+                          : "Your delivery partner has been assigned. Live tracking will start once the delivery begins."}
                     </p>
+                    {customerTracking.deliveryBoyPhone && (
+                      <a
+                        href={`tel:${customerTracking.deliveryBoyPhone}`}
+                        className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
+                      >
+                        <Phone className="size-3" /> Call{" "}
+                        {customerTracking.deliveryBoyName ?? "delivery partner"}
+                      </a>
+                    )}
+                  </div>
+                )}
+
+                {!customerTracking.assigned &&
+                  customerTracking.orderStatus !== "delivered" && (
+                    <div className="rounded-xl border border-dashed border-border/60 bg-muted/30 p-4">
+                      <p className="text-sm font-medium text-foreground">
+                        Delivery partner not assigned yet
+                      </p>
+                      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                        Live tracking becomes available once the pharmacy assigns a
+                        delivery partner and they start the delivery.
+                      </p>
+                    </div>
+                  )}
+
+                {(customerTracking.trackingActive ||
+                  !isClosedStatus(customerTracking.orderStatus)) && (
+                  <>
+                    <LiveDeliveryMap
+                      latitude={
+                        customerTracking.trackingActive
+                          ? customerTracking.location?.latitude ?? null
+                          : null
+                      }
+                      longitude={
+                        customerTracking.trackingActive
+                          ? customerTracking.location?.longitude ?? null
+                          : null
+                      }
+                      label={
+                        customerTracking.deliveryBoyName
+                          ? `${customerTracking.deliveryBoyName} — delivery partner`
+                          : "Delivery partner"
+                      }
+                      heightClass="h-64 sm:h-80"
+                    />
+                    <p className="text-[11px] text-muted-foreground">
+                      {customerTracking.trackingActive
+                        ? "Live location is shared only during an active delivery. Sharing ends automatically when the order is marked delivered."
+                        : "The map shows the delivery partner's real GPS location only while they are sharing it during an active delivery."}
+                    </p>
+                  </>
+                )}
+
+                {customerTracking.orderStatus === "delivered" && (
+                  <div className="flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900">
+                    <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
+                    <div>
+                      <p className="font-medium">Delivery completed</p>
+                      <p className="mt-0.5 leading-relaxed text-emerald-800/80">
+                        Your order was delivered and the delivery partner's live
+                        location sharing has stopped.
+                      </p>
+                    </div>
                   </div>
                 )}
               </>
-            ) : (
-              <div className="rounded-xl border border-dashed border-border/60 bg-muted/30 p-4">
-                <p className="text-sm font-medium text-foreground">
-                  {customerTracking.orderStatus === "delivered"
-                    ? "Delivery completed"
-                    : "Live map not active right now"}
-                </p>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                  {customerTracking.orderStatus === "delivered"
-                    ? "The order was delivered and the delivery partner's location is no longer shared."
-                    : customerTracking.assigned
-                      ? "A delivery partner is assigned. The map appears here as soon as they start delivery."
-                      : "The map appears here once a delivery partner is assigned and starts the delivery."}
-                </p>
-              </div>
             )}
 
             <Button
@@ -334,7 +378,11 @@ export default function AccountTrackOrder() {
         </Card>
       )}
 
-      {thisOrders?.length === 0 ? (
+      {thisOrders === undefined ? (
+        <div className="flex items-center justify-center py-10">
+          <Loader2 className="size-5 animate-spin text-muted-foreground" />
+        </div>
+      ) : thisOrders.length === 0 ? (
         <Card className="border-border/60">
           <CardContent className="py-16 text-center">
             <Package className="size-12 text-muted-foreground/30 mx-auto mb-4" />
@@ -370,10 +418,10 @@ export default function AccountTrackOrder() {
                     transition={{ delay: i * 0.05 }}
                   >
                     <Card
-                      className="border-border/60 cursor-pointer hover:shadow-card-hover transition-all"
-                      onClick={() =>
-                        navigate(`/account/orders/${order._id}`)
-                      }
+                      className={`border-border/60 cursor-pointer hover:shadow-card-hover transition-all ${
+                        selectedOrderId === order._id ? "ring-1 ring-primary/40" : ""
+                      }`}
+                      onClick={() => setSearchParams({ orderId: order._id })}
                     >
                       <CardContent className="p-5">
                         <div className="flex items-center justify-between mb-1">
@@ -426,10 +474,10 @@ export default function AccountTrackOrder() {
                 {pastOrders?.map((order: any) => (
                   <Card
                     key={order._id}
-                    className="border-border/60 cursor-pointer hover:shadow-card-hover transition-all opacity-75 hover:opacity-100"
-                    onClick={() =>
-                      navigate(`/account/orders/${order._id}`)
-                    }
+                    className={`border-border/60 cursor-pointer hover:shadow-card-hover transition-all opacity-75 hover:opacity-100 ${
+                      selectedOrderId === order._id ? "ring-1 ring-primary/40" : ""
+                    }`}
+                    onClick={() => setSearchParams({ orderId: order._id })}
                   >
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between">

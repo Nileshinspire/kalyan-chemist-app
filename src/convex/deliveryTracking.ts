@@ -7,8 +7,11 @@ import {
 } from "./_generated/server";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
+import { api } from "./_generated/api";
+import { handleOrderStatusChange } from "./referralWallet";
 import {
   canShareLocation,
+  isTerminalDeliveryStatus,
   isTrackingStale,
   isValidAccuracy,
   isValidLatitude,
@@ -149,6 +152,31 @@ export const startTracking = mutation({
 
     const now = Date.now();
 
+    // Starting the delivery also moves the order into "out for delivery", so
+    // the customer's order status and the admin view always match the live
+    // session instead of staying at "confirmed" while the rider is moving.
+    const PRE_DISPATCH_STATUSES = [
+      "pending",
+      "confirmed",
+      "processing",
+      "ready_for_dispatch",
+    ];
+    if (PRE_DISPATCH_STATUSES.includes(order.status)) {
+      await ctx.db.patch(args.orderId, {
+        status: "out_for_delivery",
+        statusHistory: [
+          ...(order.statusHistory ?? []),
+          { status: "out_for_delivery" as const, timestamp: now },
+        ],
+        updatedAt: now,
+      });
+      await ctx.scheduler.runAfter(
+        0,
+        api.orderNotifications.sendOrderStatusNotification,
+        { orderId: args.orderId, status: "out_for_delivery" },
+      );
+    }
+
     // A delivery partner shares one delivery at a time. Starting a new delivery
     // ends the previous session so two orders never show the same location.
     const sessions = await ctx.db
@@ -250,6 +278,49 @@ export const updateLocation = mutation({
   },
 });
 
+/**
+ * Complete the delivery from the delivery partner's own dashboard.
+ *
+ * This is the delivery-side equivalent of the admin status update, so it runs
+ * exactly the same order side-effects (status history, referral/wallet
+ * settlement, customer notification) and ends the live session.
+ */
+export const markDelivered = mutation({
+  args: { orderId: v.id("orders") },
+  handler: async (ctx, args) => {
+    const userId = await requireDelivery(ctx);
+    const order = await getAssignedOrder(ctx, userId, args.orderId);
+
+    if (order.status === "delivered") {
+      await endTrackingForOrder(ctx, args.orderId, "order_delivered");
+      return { success: true, alreadyDelivered: true, deliveredAt: null };
+    }
+    if (isTerminalDeliveryStatus(order.status)) {
+      throw new Error("This order is closed and cannot be marked delivered.");
+    }
+
+    const now = Date.now();
+    await ctx.db.patch(args.orderId, {
+      status: "delivered",
+      statusHistory: [
+        ...(order.statusHistory ?? []),
+        { status: "delivered" as const, timestamp: now },
+      ],
+      updatedAt: now,
+    });
+
+    await endTrackingForOrder(ctx, args.orderId, "order_delivered");
+    await handleOrderStatusChange(ctx, args.orderId, "delivered");
+    await ctx.scheduler.runAfter(
+      0,
+      api.orderNotifications.sendOrderStatusNotification,
+      { orderId: args.orderId, status: "delivered" },
+    );
+
+    return { success: true, alreadyDelivered: false, deliveredAt: now };
+  },
+});
+
 /** Stop sharing immediately and erase the stored coordinates. */
 export const stopTracking = mutation({
   args: { orderId: v.id("orders") },
@@ -317,9 +388,12 @@ export const getCustomerTracking = query({
 
     return {
       orderId: order._id,
+      invoiceNumber: order.invoiceNumber ?? null,
       orderStatus: order.status,
       assigned: Boolean(order.deliveryBoyId),
       deliveryBoyName: deliveryBoy?.name ?? deliveryBoy?.phone ?? null,
+      deliveryBoyPhone: order.deliveryBoyId ? deliveryBoy?.phone ?? null : null,
+      assignedAt: order.deliveryAssignedAt ?? null,
       trackingActive: active,
       startedAt: active ? tracking?.startedAt ?? null : null,
       lastLocationAt: active ? tracking?.lastLocationAt ?? null : null,

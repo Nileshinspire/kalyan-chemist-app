@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import {
   AlertTriangle,
+  CheckCircle2,
   Clock,
   Loader2,
   LogOut,
@@ -101,9 +102,11 @@ export default function DeliveryDashboard() {
   const startTracking = useMutation(api.deliveryTracking.startTracking);
   const updateLocation = useMutation(api.deliveryTracking.updateLocation);
   const stopTracking = useMutation(api.deliveryTracking.stopTracking);
+  const markDelivered = useMutation(api.deliveryTracking.markDelivered);
 
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
   const [busyOrderId, setBusyOrderId] = useState<string | null>(null);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const [gpsError, setGpsError] = useState<string | null>(null);
   const [networkError, setNetworkError] = useState<string | null>(null);
   const [lastSentAt, setLastSentAt] = useState<number | null>(null);
@@ -257,6 +260,27 @@ export default function DeliveryDashboard() {
       }
     },
     [busyOrderId, beginWatch, sendLocation],
+  );
+
+  const handleMarkDelivered = useCallback(
+    async (orderId: string) => {
+      if (busyOrderId) return;
+      setBusyOrderId(orderId);
+      clearGpsTimers();
+      activeOrderRef.current = null;
+      setActiveOrderId(null);
+      setNetworkError(null);
+      try {
+        await markDelivered({ orderId: orderId as Id<"orders"> });
+        setConfirmingId(null);
+        toast.success("Delivery completed — location sharing stopped.");
+      } catch (error: any) {
+        toast.error(error?.message ?? "Could not mark the order delivered.");
+      } finally {
+        setBusyOrderId(null);
+      }
+    },
+    [busyOrderId, clearGpsTimers, markDelivered],
   );
 
   const handleStop = useCallback(
@@ -581,8 +605,53 @@ export default function DeliveryDashboard() {
                             Start Delivery
                           </Button>
                         )}
+
+                        {!terminal && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 gap-1.5 border-emerald-200 text-xs text-emerald-700 hover:bg-emerald-50"
+                            disabled={isBusy}
+                            onClick={() => setConfirmingId(row._id)}
+                          >
+                            <CheckCircle2 className="size-3.5" />
+                            Mark as Delivered
+                          </Button>
+                        )}
                       </div>
                     </div>
+
+                    {!terminal && confirmingId === row._id && (
+                      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-2.5 text-xs">
+                        <p className="text-emerald-900">
+                          Confirm this order was delivered? Live location sharing will
+                          stop and the customer will see it as completed.
+                        </p>
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            className="h-7 gap-1 text-xs bg-emerald-600 text-white hover:bg-emerald-700"
+                            disabled={isBusy}
+                            onClick={() => handleMarkDelivered(row._id)}
+                          >
+                            {isBusy ? (
+                              <Loader2 className="size-3.5 animate-spin" />
+                            ) : (
+                              <CheckCircle2 className="size-3.5" />
+                            )}
+                            Yes, delivered
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 text-xs"
+                            onClick={() => setConfirmingId(null)}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               );
