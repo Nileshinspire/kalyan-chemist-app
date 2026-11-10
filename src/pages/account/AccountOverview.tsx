@@ -14,7 +14,6 @@ import {
   Pill,
   Bell,
   ArrowRight,
-  Package,
   Shield,
 } from "lucide-react";
 
