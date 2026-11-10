@@ -49,7 +49,7 @@ const prescriptions = [
   },
 ];
 
-let mockRows: typeof prescriptions | Array<Record<string, unknown>> = prescriptions;
+let mockRows: typeof prescriptions = prescriptions;
 
 vi.mock("convex/react", () => ({
   useQuery: () => mockRows,
@@ -58,62 +58,59 @@ vi.mock("convex/react", () => ({
 
 import AccountPrescriptions from "@/pages/account/AccountPrescriptions";
 
-describe("My Prescriptions", () => {
-  it("shows every prescription with its status and rejection reason", () => {
-    render(
-      <MemoryRouter>
-        <AccountPrescriptions />
-      </MemoryRouter>,
-    );
+const renderPage = () =>
+  render(
+    <MemoryRouter>
+      <AccountPrescriptions />
+    </MemoryRouter>,
+  );
+
+describe("My Prescriptions (history)", () => {
+  it("shows every uploaded prescription with status, fields and order id", () => {
+    mockRows = prescriptions;
+    renderPage();
 
     expect(screen.getByRole("heading", { name: /my prescriptions/i })).toBeTruthy();
     expect(screen.getByText("asha-rx.jpg")).toBeTruthy();
     expect(screen.getByText("old-rx.pdf")).toBeTruthy();
+
+    // Statuses are the three customer-facing states (the summary tiles repeat
+    // the label, so at least one badge each must be present).
+    expect(screen.getAllByText("Approved").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Rejected").length).toBeGreaterThan(0);
+
     expect(screen.getByText(/doctor signature is missing/i)).toBeTruthy();
     expect(screen.getByText("Doctor not provided")).toBeTruthy();
+    expect(screen.getByText(/rx date: not provided/i)).toBeTruthy();
+    expect(screen.getAllByText(/uploaded:/i)).toHaveLength(2);
+    expect(screen.getAllByText("Asha")).toHaveLength(2);
     expect(screen.getByText(/order INV-1001/i)).toBeTruthy();
-    expect(screen.getByText(/valid until/i)).toBeTruthy();
   });
 
-  it("offers view, download and re-upload actions", () => {
-    render(
-      <MemoryRouter>
-        <AccountPrescriptions />
-      </MemoryRouter>,
-    );
-
-    expect(screen.getByRole("button", { name: /upload new prescription/i })).toBeTruthy();
-    expect(screen.getAllByRole("button", { name: /^view$/i })).toHaveLength(2);
-
-    const downloads = screen.getAllByRole("link", { name: /download/i });
-    expect(downloads).toHaveLength(2);
-    expect(downloads[1].getAttribute("download")).toBe("old-rx.pdf");
-
-    const reupload = screen.getAllByRole("button", { name: /re-upload/i });
-    expect(reupload).toHaveLength(1);
-  });
-
-  it("flags an approved prescription past its validity window and offers re-upload", () => {
-    mockRows = [
-      {
-        ...prescriptions[0],
-        _id: "rx-expired",
-        status: "approved",
-        relatedOrders: [],
-        expired: true,
-        expiresAt: now - 24 * 60 * 60 * 1000,
-      },
-    ];
-
-    render(
-      <MemoryRouter>
-        <AccountPrescriptions />
-      </MemoryRouter>,
-    );
-
-    expect(screen.getByText(/older than 180 days/i)).toBeTruthy();
-    expect(screen.getByRole("button", { name: /re-upload/i })).toBeTruthy();
-
+  it("offers view and download but no upload affordance", () => {
     mockRows = prescriptions;
+    const { container } = renderPage();
+
+    expect(screen.getAllByRole("button", { name: /^view$/i })).toHaveLength(2);
+    expect(screen.getAllByRole("link", { name: /download/i })).toHaveLength(2);
+
+    // No upload button, no upload form, no file input anywhere on the page.
+    expect(screen.queryByRole("button", { name: /upload/i })).toBeNull();
+    expect(screen.queryByText(/upload prescription/i)).toBeNull();
+    expect(container.querySelector('input[type="file"]')).toBeNull();
+    expect(screen.queryByText(/upload your first prescription/i)).toBeNull();
+  });
+
+  it("shows only the clean empty state when nothing has been uploaded", () => {
+    mockRows = [];
+    const { container } = renderPage();
+
+    expect(screen.getByText("No prescriptions uploaded yet.")).toBeTruthy();
+    expect(
+      screen.getByText("Your uploaded prescriptions will appear here."),
+    ).toBeTruthy();
+
+    expect(screen.queryByRole("button")).toBeNull();
+    expect(container.querySelector('input[type="file"]')).toBeNull();
   });
 });

@@ -45,7 +45,7 @@ const FAQ_ITEMS = [
   {
     question: "How do I upload a prescription?",
     answer:
-      'Go to Account → Prescriptions and click "Upload Prescription". You can upload a photo or PDF of your valid prescription.',
+      'Use "Upload Prescription" from the main menu, or upload during checkout for prescription medicines. Every prescription you upload appears under Account → Prescriptions with its verification status.',
     icon: FileText,
   },
 ];
@@ -310,9 +310,9 @@ export default function AccountHelpSupport() {
           >
             <FileText className="size-5 text-primary" />
             <div className="text-left">
-              <p className="text-sm font-medium">Upload Prescription</p>
+              <p className="text-sm font-medium">My Prescriptions</p>
               <p className="text-xs text-muted-foreground">
-                Submit a new prescription
+                View your uploaded prescriptions
               </p>
             </div>
           </Button>
