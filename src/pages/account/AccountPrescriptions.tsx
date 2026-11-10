@@ -253,7 +253,8 @@ export default function AccountPrescriptions() {
               rx.prescriptionDate,
               rx.createdAt,
             );
-            const expired = Date.now() > expiresAt;
+            const expired = false
+
             const latestOrder = rx.relatedOrders[0];
             const orderLabel =
               latestOrder?.invoiceNumber ??
@@ -379,12 +380,8 @@ export default function AccountPrescriptions() {
                       >
                         <Download className="size-3.5" /> Download
                       </a>
-                    ) : (
-                      <span className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border/60 px-3 text-xs font-medium text-muted-foreground/60">
-                        <Download className="size-3.5" /> Download
-                      </span>
-                    )}
-                    {(needsAction || (rx.status === "approved" && expired)) && (
+                    ) : null}
+                    {(needsAction || (rx.status === "approved" && rx.expiresAt !== undefined && rx.expiresAt <= Date.now())) && (
                       <Button
                         size="sm"
                         className="h-8 gap-1.5 bg-primary/10 text-xs text-primary hover:bg-primary/20"
@@ -548,8 +545,7 @@ export default function AccountPrescriptions() {
               } catch {
                 return [];
               }
-            })();
-            const expiresAt = prescriptionExpiresAt(
+            })();                    const expiresAt = selectedRx.expiresAt ?? prescriptionExpiresAt(
               selectedRx.prescriptionDate,
               selectedRx.createdAt,
             );
@@ -759,7 +755,7 @@ export default function AccountPrescriptions() {
                   )}
 
                   {(needsAction ||
-                    (selectedRx.status === "approved" && Date.now() > expiresAt)) && (
+                    (selectedRx.status === "approved" && selectedRx.expiresAt !== undefined && Date.now() > selectedRx.expiresAt)) && (
                     <Button
                       onClick={() => {
                         const prefill = {
