@@ -2,7 +2,6 @@ import { useMemo, useRef, useState } from "react";
 import { useQuery } from "convex/react";
 import { Link } from "react-router";
 import { api } from "@/convex/_generated/api";
-import { prescriptionExpiresAt } from "@/convex/prescriptionCore";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -249,11 +248,8 @@ export default function AccountPrescriptions() {
             const StatusIcon = config.icon;
             const needsAction =
               rx.status === "rejected" || rx.status === "needs_clarification";
-            const expiresAt = prescriptionExpiresAt(
-              rx.prescriptionDate,
-              rx.createdAt,
-            );
-            const expired = false
+            const expiresAt = rx.expiresAt;
+            const expired = rx.expired;
 
             const latestOrder = rx.relatedOrders[0];
             const orderLabel =
@@ -381,7 +377,7 @@ export default function AccountPrescriptions() {
                         <Download className="size-3.5" /> Download
                       </a>
                     ) : null}
-                    {(needsAction || (rx.status === "approved" && rx.expiresAt !== undefined && rx.expiresAt <= Date.now())) && (
+                    {(needsAction || (rx.status === "approved" && rx.expired)) && (
                       <Button
                         size="sm"
                         className="h-8 gap-1.5 bg-primary/10 text-xs text-primary hover:bg-primary/20"
@@ -545,10 +541,8 @@ export default function AccountPrescriptions() {
               } catch {
                 return [];
               }
-            })();                    const expiresAt = selectedRx.expiresAt ?? prescriptionExpiresAt(
-              selectedRx.prescriptionDate,
-              selectedRx.createdAt,
-            );
+            })();
+            const expiresAt = selectedRx.expiresAt;
             const needsAction =
               selectedRx.status === "rejected" ||
               selectedRx.status === "needs_clarification";
@@ -755,7 +749,7 @@ export default function AccountPrescriptions() {
                   )}
 
                   {(needsAction ||
-                    (selectedRx.status === "approved" && selectedRx.expiresAt !== undefined && Date.now() > selectedRx.expiresAt)) && (
+                    (selectedRx.status === "approved" && selectedRx.expired)) && (
                     <Button
                       onClick={() => {
                         const prefill = {

@@ -18,6 +18,8 @@ const prescriptions = [
     status: "approved",
     auditLog: "[]",
     fileUrl: "https://files.example/asha-rx.jpg",
+    expiresAt: now + 100 * 24 * 60 * 60 * 1000,
+    expired: false,
     relatedOrders: [
       {
         _id: "order-123456",
@@ -41,12 +43,16 @@ const prescriptions = [
     rejectionReason: "Doctor signature is missing",
     auditLog: "[]",
     fileUrl: "https://files.example/old-rx.pdf",
+    expiresAt: now + 100 * 24 * 60 * 60 * 1000,
+    expired: false,
     relatedOrders: [],
   },
 ];
 
+let mockRows: typeof prescriptions | Array<Record<string, unknown>> = prescriptions;
+
 vi.mock("convex/react", () => ({
-  useQuery: () => prescriptions,
+  useQuery: () => mockRows,
   useMutation: () => vi.fn().mockResolvedValue({ success: true }),
 }));
 
@@ -85,5 +91,29 @@ describe("My Prescriptions", () => {
 
     const reupload = screen.getAllByRole("button", { name: /re-upload/i });
     expect(reupload).toHaveLength(1);
+  });
+
+  it("flags an approved prescription past its validity window and offers re-upload", () => {
+    mockRows = [
+      {
+        ...prescriptions[0],
+        _id: "rx-expired",
+        status: "approved",
+        relatedOrders: [],
+        expired: true,
+        expiresAt: now - 24 * 60 * 60 * 1000,
+      },
+    ];
+
+    render(
+      <MemoryRouter>
+        <AccountPrescriptions />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText(/older than 180 days/i)).toBeTruthy();
+    expect(screen.getByRole("button", { name: /re-upload/i })).toBeTruthy();
+
+    mockRows = prescriptions;
   });
 });

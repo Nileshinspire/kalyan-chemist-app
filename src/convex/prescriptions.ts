@@ -34,9 +34,13 @@ export const list = query({
             .collect(),
         ]);
 
+        const expiresAt = prescriptionExpiresAt(rx.prescriptionDate, rx.createdAt);
+
         return {
           ...rx,
           fileUrl,
+          expiresAt,
+          expired: Date.now() > expiresAt,
           relatedOrders: orders
             .map((order) => ({
               _id: order._id,
