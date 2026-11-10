@@ -3,6 +3,7 @@ import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { handleOrderStatusChange, reserveWalletForOrder } from "./referralWallet";
 import { loadEngine } from "./discountEngine";
+import { loadPrescriptionUsage } from "./prescriptionServer";
 import { resolveProductDiscount } from "../lib/discount";
 import {
   registerRedemption,
@@ -93,28 +94,31 @@ export const create = mutation({
       }
     }
 
-    // Check prescription requirement
-    let hasRxItems = false;
+    // Prescription requirement — collect the Rx products in this cart so the
+    // chosen prescription can be checked for ownership, validity and scope.
+    const rxProductIds: string[] = [];
     for (const ci of cartItems) {
       const product = await ctx.db.get(ci.productId);
-      if (product && product.prescriptionRequired) {
-        hasRxItems = true;
-        break;
+      if (product?.prescriptionRequired) {
+        rxProductIds.push(product._id as string);
       }
     }
 
-    if (hasRxItems && !args.prescriptionId) {
-      // Validate that user has an approved prescription
-      const approved = await ctx.db
-        .query("prescriptions")
-        .withIndex("by_user_status", (q) =>
-          q.eq("userId", userId).eq("status", "approved")
-        )
-        .first();
-      if (!approved) {
-        throw new Error(
-          "Prescription required for Rx medicines. Please upload an approved prescription."
-        );
+    if (rxProductIds.length > 0 && !args.prescriptionId) {
+      throw new Error(
+        "Prescription required for Rx medicines. Please select or upload a prescription at checkout."
+      );
+    }
+
+    if (args.prescriptionId) {
+      const { usage } = await loadPrescriptionUsage(
+        ctx,
+        userId,
+        args.prescriptionId,
+        rxProductIds,
+      );
+      if (!usage.usable) {
+        throw new Error(usage.reason || "This prescription cannot be used for this order.");
       }
     }
 
@@ -567,15 +571,22 @@ export const createDirectOrder = mutation({
       }
     }
 
-    // Prescription check
+    // Prescription check — same ownership, validity and scope rules as checkout.
     if (product.prescriptionRequired && !args.prescriptionId) {
-      const approved = await ctx.db
-        .query("prescriptions")
-        .withIndex("by_user_status", (q) =>
-          q.eq("userId", userId).eq("status", "approved")
-        ).first();
-      if (!approved) {
-        throw new Error("Prescription required for Rx medicines. Please upload an approved prescription.");
+      throw new Error(
+        "Prescription required for Rx medicines. Please select or upload a prescription at checkout."
+      );
+    }
+
+    if (args.prescriptionId) {
+      const { usage } = await loadPrescriptionUsage(
+        ctx,
+        userId,
+        args.prescriptionId,
+        product.prescriptionRequired ? [product._id as string] : [],
+      );
+      if (!usage.usable) {
+        throw new Error(usage.reason || "This prescription cannot be used for this order.");
       }
     }
 

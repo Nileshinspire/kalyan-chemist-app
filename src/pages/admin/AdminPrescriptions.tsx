@@ -111,7 +111,7 @@ export default function AdminPrescriptions() {
     const q = searchQuery.toLowerCase();
     return (
       rx.patientName.toLowerCase().includes(q) ||
-      rx.doctorName.toLowerCase().includes(q) ||
+      (rx.doctorName?.toLowerCase().includes(q) ?? false) ||
       rx.fileName.toLowerCase().includes(q) ||
       rx.userName.toLowerCase().includes(q) ||
       rx.userEmail.toLowerCase().includes(q)
@@ -362,7 +362,7 @@ export default function AdminPrescriptions() {
                                 {rx.patientName}
                               </p>
                               <p className="text-xs text-muted-foreground">
-                                Dr. {rx.doctorName}
+                                {rx.doctorName ? `Dr. ${rx.doctorName}` : "Doctor not provided"}
                               </p>
                             </div>
                           </TableCell>
@@ -536,15 +536,19 @@ export default function AdminPrescriptions() {
                 <div>
                   <span className="text-muted-foreground">Doctor:</span>{" "}
                   <span className="font-medium">
-                    Dr. {showFileViewer.doctorName}
+                    {showFileViewer.doctorName
+                      ? `Dr. ${showFileViewer.doctorName}`
+                      : "Not provided"}
                   </span>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Prescription Date:</span>{" "}
                   <span className="font-medium">
-                    {new Date(
-                      showFileViewer.prescriptionDate
-                    ).toLocaleDateString("en-IN")}
+                    {showFileViewer.prescriptionDate
+                      ? new Date(
+                          showFileViewer.prescriptionDate
+                        ).toLocaleDateString("en-IN")
+                      : "Not provided"}
                   </span>
                 </div>
                 <div>
@@ -697,10 +701,12 @@ export default function AdminPrescriptions() {
                       {selectedRx.fileName}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      Dr. {selectedRx.doctorName} —{" "}
-                      {new Date(
-                        selectedRx.prescriptionDate
-                      ).toLocaleDateString("en-IN")}
+                      {selectedRx.doctorName
+                        ? `Dr. ${selectedRx.doctorName}`
+                        : "Doctor not provided"}
+                      {selectedRx.prescriptionDate
+                        ? ` — ${new Date(selectedRx.prescriptionDate).toLocaleDateString("en-IN")}`
+                        : ""}
                     </p>
                   </div>
                 </div>

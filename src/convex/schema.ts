@@ -537,7 +537,8 @@ const schema = defineSchema(
       .index("by_user", ["userId"])
       .index("by_status", ["status"])
       .index("by_user_created", ["userId", "createdAt"])
-      .index("by_delivery_boy", ["deliveryBoyId"]),
+      .index("by_delivery_boy", ["deliveryBoyId"])
+      .index("by_prescription", ["prescriptionId"]),
 
     // Delivery addresses saved to a user's account
     addresses: defineTable({
@@ -955,8 +956,8 @@ const schema = defineSchema(
     prescriptions: defineTable({
       userId: v.id("users"),
       patientName: v.string(),
-      doctorName: v.string(),
-      prescriptionDate: v.number(),   // timestamp
+      doctorName: v.optional(v.string()),
+      prescriptionDate: v.optional(v.number()),   // timestamp
       notes: v.optional(v.string()),
       // File storage — Convex file storage ID (private)
       fileId: v.string(),             // Convex storage file ID

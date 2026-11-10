@@ -1,8 +1,10 @@
 import { useRef, useState, useCallback } from "react";
 import { useNavigate } from "react-router";
-import { useMutation } from "convex/react";
+import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useAuth } from "@/context/AuthContext";
+import { usePrescriptionUpload } from "@/hooks/usePrescriptionUpload";
+import { Badge } from "@/components/ui/badge";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { usePageBreadcrumbs } from "@/hooks/usePageBreadcrumbs";
 import { toast } from "sonner";
@@ -32,11 +34,11 @@ export default function UploadPrescription() {
   const navigate = useNavigate();
   const breadcrumbItems = usePageBreadcrumbs();
   const { user } = useAuth();
-  const generateUploadUrl = useMutation(api.prescriptions.generateUploadUrl);
-  const uploadPrescription = useMutation(api.prescriptions.upload);
+  const { uploading, uploadPrescription } = usePrescriptionUpload();
+  const prescriptions = useQuery(api.prescriptions.list);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [uploading, setUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [uploadedName, setUploadedName] = useState<string | null>(null);
 
   const handleFileSelect = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -62,55 +64,26 @@ export default function UploadPrescription() {
         return;
       }
 
-      setUploading(true);
-
       try {
-        // 1. Generate Convex upload URL
-        const uploadUrl = await generateUploadUrl();
-
-        // 2. Upload file to Convex storage
-        // NOTE: Convex upload URLs require POST — PUT returns 405
-        // "Method Not Allowed".
-        const response = await fetch(uploadUrl, {
-          method: "POST",
-          headers: { "Content-Type": file.type },
-          body: file,
+        await uploadPrescription(file, {
+          patientName: user?.name?.trim() || "Not specified",
         });
 
-        if (!response.ok) {
-          throw new Error("File upload failed. Please try again.");
-        }
-
-        const { storageId } = await response.json();
-
-        // 3. Create prescription record (uses sensible defaults for required fields)
-        await uploadPrescription({
-          patientName: user?.name || "Patient",
-          doctorName: "Pending",
-          prescriptionDate: Date.now(),
-          notes: "Uploaded via Upload Prescription page",
-          fileId: storageId,
-          fileName: file.name,
-          fileType: file.type,
-          fileSize: file.size,
-        });
-
-        // Show preview
-        if (file.type !== "application/pdf") {
-          setPreviewUrl(URL.createObjectURL(file));
-        }
-
+        // Show preview + a persistent confirmation. The new record appears in
+        // My Prescriptions immediately through the reactive query below.
+        setPreviewUrl(
+          file.type === "application/pdf" ? null : URL.createObjectURL(file),
+        );
+        setUploadedName(file.name);
         toast.success("Prescription uploaded! Our pharmacist will review it shortly.");
       } catch (err: any) {
         toast.error(err.message || "Failed to upload prescription. Please try again.");
-      } finally {
-        setUploading(false);
       }
 
       // Reset the input so the same file can be re-selected
       e.target.value = "";
     },
-    [user, generateUploadUrl, uploadPrescription, navigate]
+    [user, uploadPrescription, navigate]
   );
 
   return (
@@ -194,35 +167,94 @@ export default function UploadPrescription() {
               </div>
             )}
 
-            {/* Uploaded prescriptions area */}
-            <div className="mt-6 rounded-xl border border-dashed border-border/60 bg-muted/20 p-6 flex flex-col items-center justify-center min-h-[120px]">
-              <svg
-                width="40"
-                height="40"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.25"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="text-muted-foreground/50 mb-2"
-              >
-                <rect x="5" y="2" width="14" height="20" rx="2" />
-                <line x1="9" y1="6" x2="15" y2="6" />
-                <line x1="9" y1="9.5" x2="15" y2="9.5" />
-                <line x1="9" y1="13" x2="13" y2="13" />
-              </svg>
-              <p className="text-xs text-muted-foreground text-center">
-                Uploaded Prescriptions will be shown here
-              </p>
-            </div>
-
             {uploading && (
               <div className="mt-3 flex items-center gap-2 text-sm text-primary">
                 <div className="size-4 rounded-full border-2 border-primary border-t-transparent animate-spin" />
                 Uploading prescription…
               </div>
             )}
+
+            {uploadedName && !uploading && (
+              <div className="mt-4 rounded-xl border border-green-200 bg-green-50 p-3">
+                <p className="flex items-center gap-1.5 text-sm font-semibold text-green-800">
+                  <CheckCircle className="size-4" /> Prescription uploaded
+                </p>
+                <p className="mt-1 text-xs leading-relaxed text-green-700">
+                  {uploadedName} has been saved to your account and is now pending
+                  pharmacist review.{" "}
+                  <button
+                    type="button"
+                    onClick={() => navigate("/account/prescriptions")}
+                    className="font-semibold underline underline-offset-2"
+                  >
+                    View in My Prescriptions
+                  </button>
+                </p>
+              </div>
+            )}
+
+            {/* Uploaded prescriptions — same central records as My Prescriptions */}
+            <div className="mt-6 rounded-xl border border-dashed border-border/60 bg-muted/20 p-4">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <p className="text-xs font-semibold text-foreground">Your prescriptions</p>
+                <button
+                  type="button"
+                  onClick={() => navigate("/account/prescriptions")}
+                  className="text-[11px] font-semibold text-primary hover:underline shrink-0"
+                >
+                  View all
+                </button>
+              </div>
+
+              {prescriptions === undefined ? (
+                <p className="py-4 text-center text-xs text-muted-foreground">Loading…</p>
+              ) : prescriptions.length === 0 ? (
+                <div className="flex min-h-[96px] flex-col items-center justify-center text-center">
+                  <FileText className="mb-2 size-8 text-muted-foreground/40" />
+                  <p className="text-xs text-muted-foreground">
+                    Uploaded prescriptions will be shown here
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {prescriptions.slice(0, 3).map((rx) => {
+                    const label =
+                      rx.status === "approved"
+                        ? "Approved"
+                        : rx.status === "rejected"
+                          ? "Rejected"
+                          : "Pending";
+                    const color =
+                      rx.status === "approved"
+                        ? "bg-green-100 text-green-800"
+                        : rx.status === "rejected"
+                          ? "bg-red-100 text-red-800"
+                          : "bg-amber-100 text-amber-800";
+                    return (
+                      <div
+                        key={rx._id}
+                        className="flex items-center gap-2 rounded-lg bg-white px-2.5 py-2"
+                      >
+                        <FileText className="size-4 shrink-0 text-primary/60" />
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-xs font-medium text-foreground">
+                            {rx.fileName}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground">
+                            {rx.patientName} ·{" "}
+                            {new Date(rx.createdAt).toLocaleDateString("en-IN", {
+                              day: "numeric",
+                              month: "short",
+                            })}
+                          </p>
+                        </div>
+                        <Badge className={`text-[10px] ${color}`}>{label}</Badge>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
 
           {/* ════ COLUMN 2 — Prescription Requirements ════ */}

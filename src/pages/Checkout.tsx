@@ -34,7 +34,9 @@ import {
   Tag,
   X,
   Wallet,
+  Upload,
 } from "lucide-react";
+import { usePrescriptionUpload } from "@/hooks/usePrescriptionUpload";
 import { Checkbox } from "@/components/ui/checkbox";
 import { computeMaxWalletUsage } from "@/convex/referralWalletCore";
 import { formatCurrency } from "@/lib/auth-utils";
@@ -74,6 +76,12 @@ export default function Checkout() {
   const [step, setStep] = useState(0);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [selectedPrescriptionId, setSelectedPrescriptionId] = useState<string | null>(null);
+  const [showRxUpload, setShowRxUpload] = useState(false);
+  const [rxFile, setRxFile] = useState<File | null>(null);
+  const [rxPatient, setRxPatient] = useState("");
+  const [rxDoctor, setRxDoctor] = useState("");
+  const [rxDate, setRxDate] = useState("");
+  const rxFileInputRef = useRef<HTMLInputElement>(null);
   const [paymentMethod, setPaymentMethod] = useState<"cod" | "online">("cod");
   const [useWallet, setUseWallet] = useState(false);
   const [notes, setNotes] = useState("");
@@ -105,7 +113,13 @@ export default function Checkout() {
   }, [isBuyNow, buyNowProduct, cartItemsRaw]);
 
   const addresses = useQuery(api.addresses.list);
-  const prescriptions = useQuery(api.prescriptions.list);
+  // Server-evaluated reuse rules: ownership, pharmacist approval, 180-day
+  // validity and the medicines the prescription was approved for.
+  const prescriptions = useQuery(
+    api.prescriptions.forCheckout,
+    isBuyNow && buyNowProductId ? { productId: buyNowProductId as any } : {},
+  );
+  const { uploading: rxUploading, uploadPrescription } = usePrescriptionUpload();
   const validateRx = useQuery(api.prescriptionValidation.validateCartPrescription);
   const createOrder = useMutation(api.orders.create);
   const createDirectOrder = useMutation(api.orders.createDirectOrder);
@@ -545,6 +559,77 @@ export default function Checkout() {
 
   const isProcessing = placing || paymentProcessing;
 
+  // ── Checkout prescription: reuse an applicable one or upload a new one ──
+  const usablePrescriptions = (prescriptions ?? []).filter((rx) => rx.usable);
+  const unusablePrescriptions = (prescriptions ?? []).filter((rx) => !rx.usable);
+  const selectedRx = prescriptions?.find(
+    (rx) => rx._id === selectedPrescriptionId,
+  );
+
+  // If the cart changes (or an upload is reviewed) and the chosen prescription
+  // is no longer usable, clear it instead of letting the server reject later.
+  useEffect(() => {
+    if (!selectedPrescriptionId || !prescriptions) return;
+    const match = prescriptions.find(
+      (rx) => rx._id === selectedPrescriptionId,
+    );
+    if (match && !match.usable) setSelectedPrescriptionId(null);
+  }, [prescriptions, selectedPrescriptionId]);
+
+  const openRxUpload = () => {
+    setShowRxUpload(true);
+    if (!rxPatient) setRxPatient(user?.name?.trim() || "");
+  };
+
+  const handleRxFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = e.target.files?.[0];
+    if (!selected) return;
+    if (!["image/jpeg", "image/png", "application/pdf"].includes(selected.type)) {
+      toast.error("Please choose a JPG, PNG or PDF file.");
+      e.target.value = "";
+      return;
+    }
+    if (selected.size > 10 * 1024 * 1024) {
+      toast.error("File size must be 10 MB or less.");
+      e.target.value = "";
+      return;
+    }
+    setRxFile(selected);
+  };
+
+  const handleRxUpload = async () => {
+    if (!rxFile) {
+      toast.error("Please choose a prescription file");
+      return;
+    }
+    if (rxPatient.trim().length < 2) {
+      toast.error("Please enter the patient name");
+      return;
+    }
+
+    try {
+      const prescriptionId = await uploadPrescription(rxFile, {
+        patientName: rxPatient.trim(),
+        doctorName: rxDoctor.trim() || undefined,
+        prescriptionDate: rxDate ? new Date(rxDate).getTime() : undefined,
+        notes: "Uploaded at checkout",
+      });
+      setSelectedPrescriptionId(prescriptionId);
+      setShowRxUpload(false);
+      setRxFile(null);
+      setRxDoctor("");
+      setRxDate("");
+      if (rxFileInputRef.current) rxFileInputRef.current.value = "";
+      toast.success(
+        "Prescription uploaded and attached to this order. Our pharmacist will review it.",
+      );
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to upload prescription",
+      );
+    }
+  };
+
   const handleWhatsAppOrder = () => {
     const phone = deliveryConfig?.storeWhatsApp || deliveryConfig?.storePhone || "";
     if (!phone) {
@@ -690,7 +775,18 @@ export default function Checkout() {
               {/* Step 1: Prescription */}
               {step === 1 && (
                 <div className="space-y-4">
-                  <h2 className="text-lg font-bold">Prescription Verification</h2>
+                  <div className="flex items-center justify-between gap-2">
+                    <h2 className="text-lg font-bold">Prescription</h2>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="gap-1 text-xs text-muted-foreground"
+                      onClick={() => navigate("/account/prescriptions")}
+                    >
+                      My Prescriptions <ArrowRight className="size-3" />
+                    </Button>
+                  </div>
+
                   {hasRxItems ? (
                     <>
                       <div className="rounded-xl bg-amber-50 border border-amber-200 p-4">
@@ -698,33 +794,217 @@ export default function Checkout() {
                           <AlertTriangle className="size-4 text-amber-600 mt-0.5 shrink-0" />
                           <div>
                             <p className="text-sm font-semibold text-amber-800">Prescription Required</p>
-                            <p className="text-xs text-amber-700 mt-1">Your cart contains prescription medicines. Please select an approved prescription to proceed.</p>
+                            <p className="text-xs text-amber-700 mt-1">
+                              Select an applicable prescription or upload a new one. Our
+                              pharmacist verifies every prescription before medicines are
+                              dispatched.
+                            </p>
                           </div>
                         </div>
                       </div>
 
                       {prescriptions === undefined ? (
-                        <div className="flex items-center justify-center py-8"><Loader2 className="size-6 animate-spin text-muted-foreground" /></div>
+                        <div className="flex items-center justify-center py-8">
+                          <Loader2 className="size-6 animate-spin text-muted-foreground" />
+                        </div>
                       ) : (
-                        <RadioGroup value={selectedPrescriptionId || ""} onValueChange={setSelectedPrescriptionId} className="space-y-3">
-                          {prescriptions.filter((rx: any) => rx.status === "approved").map((rx: any) => (
-                            <label key={rx._id} className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all ${selectedPrescriptionId === rx._id ? "border-primary bg-primary/[0.03]" : "border-border/60 hover:border-border"}`}>
-                              <RadioGroupItem value={rx._id} className="mt-0.5" />
-                              <div className="flex-1">
-                                <p className="text-sm font-semibold">{rx.fileName}</p>
-                                <p className="text-xs text-muted-foreground">Patient: {rx.patientName} · Dr. {rx.doctorName}</p>
-                                <Badge className="mt-1 text-[10px] bg-green-100 text-green-800">Approved</Badge>
-                              </div>
-                            </label>
-                          ))}
-                          {prescriptions.filter((rx: any) => rx.status === "approved").length === 0 && (
-                            <Card className="border-border/60"><CardContent className="py-8 text-center">
-                              <FileText className="size-8 text-muted-foreground/30 mx-auto mb-2" />
-                              <p className="text-sm text-muted-foreground">No approved prescriptions found.</p>
-                              <Button variant="outline" size="sm" className="mt-3" onClick={() => navigate("/account/prescriptions")}>Upload Prescription</Button>
-                            </CardContent></Card>
+                        <>
+                          {usablePrescriptions.length > 0 ? (
+                            <RadioGroup
+                              value={selectedPrescriptionId || ""}
+                              onValueChange={setSelectedPrescriptionId}
+                              className="space-y-3"
+                            >
+                              {usablePrescriptions.map((rx) => {
+                                const approved = rx.status === "approved";
+                                return (
+                                  <label
+                                    key={rx._id}
+                                    className={`flex items-start gap-3 p-4 rounded-xl border cursor-pointer transition-all ${selectedPrescriptionId === rx._id ? "border-primary bg-primary/[0.03]" : "border-border/60 hover:border-border"}`}
+                                  >
+                                    <RadioGroupItem value={rx._id} className="mt-0.5" />
+                                    <div className="min-w-0 flex-1">
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        <p className="min-w-0 flex-1 truncate text-sm font-semibold">
+                                          {rx.fileName}
+                                        </p>
+                                        <Badge
+                                          className={`text-[10px] ${approved ? "bg-green-100 text-green-800" : "bg-amber-100 text-amber-800"}`}
+                                        >
+                                          {approved ? "Approved" : "Pending review"}
+                                        </Badge>
+                                      </div>
+                                      <p className="mt-1 text-xs text-muted-foreground">
+                                        Patient: {rx.patientName}
+                                        {rx.doctorName ? ` · Dr. ${rx.doctorName}` : ""}
+                                      </p>
+                                      <p className="mt-0.5 text-[11px] text-muted-foreground">
+                                        {approved
+                                          ? `Valid until ${new Date(rx.expiresAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`
+                                          : rx.reason}
+                                      </p>
+                                    </div>
+                                  </label>
+                                );
+                              })}
+                            </RadioGroup>
+                          ) : (
+                            <Card className="border-border/60">
+                              <CardContent className="py-8 text-center">
+                                <FileText className="size-8 text-muted-foreground/30 mx-auto mb-2" />
+                                <p className="text-sm font-medium text-foreground">
+                                  No applicable prescription yet
+                                </p>
+                                <p className="mt-1 text-xs text-muted-foreground">
+                                  Upload one below — it will be saved to My Prescriptions
+                                  and reviewed by our pharmacist.
+                                </p>
+                              </CardContent>
+                            </Card>
                           )}
-                        </RadioGroup>
+
+                          {unusablePrescriptions.length > 0 && (
+                            <details className="rounded-xl border border-border/60 bg-muted/20 p-3 text-xs">
+                              <summary className="cursor-pointer font-medium text-muted-foreground">
+                                Other prescriptions ({unusablePrescriptions.length}) — not
+                                usable for this order
+                              </summary>
+                              <div className="mt-3 space-y-3">
+                                {unusablePrescriptions.map((rx) => (
+                                  <div key={rx._id}>
+                                    <p className="font-medium text-foreground">
+                                      {rx.fileName} · {rx.patientName}
+                                    </p>
+                                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                                      {rx.reason}
+                                    </p>
+                                  </div>
+                                ))}
+                              </div>
+                            </details>
+                          )}
+                        </>
+                      )}
+
+                      {/* Upload a new prescription without leaving checkout */}
+                      <Card className="border-border/60">
+                        <CardContent className="space-y-3 p-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-semibold text-foreground">
+                                Upload a new prescription
+                              </p>
+                              <p className="mt-0.5 text-xs text-muted-foreground">
+                                JPG, PNG or PDF · up to 10MB. Saved to My Prescriptions.
+                              </p>
+                            </div>
+                            <Button
+                              variant={showRxUpload ? "ghost" : "outline"}
+                              size="sm"
+                              className="shrink-0 gap-1.5 text-xs"
+                              onClick={() => {
+                                if (showRxUpload) setShowRxUpload(false);
+                                else openRxUpload();
+                              }}
+                            >
+                              <Upload className="size-3.5" />
+                              {showRxUpload ? "Close" : "Choose file"}
+                            </Button>
+                          </div>
+
+                          {showRxUpload && (
+                            <div className="space-y-3">
+                              <div
+                                className="cursor-pointer rounded-xl border-2 border-dashed border-border/60 p-4 text-center transition-colors hover:border-primary/30 hover:bg-primary/[0.02]"
+                                onClick={() => rxFileInputRef.current?.click()}
+                              >
+                                <input
+                                  ref={rxFileInputRef}
+                                  type="file"
+                                  accept="image/jpeg,image/png,application/pdf"
+                                  className="hidden"
+                                  onChange={handleRxFileSelect}
+                                />
+                                {rxFile ? (
+                                  <p className="text-sm font-medium text-foreground">
+                                    {rxFile.name}{" "}
+                                    <span className="text-xs font-normal text-muted-foreground">
+                                      ({(rxFile.size / 1024).toFixed(1)} KB)
+                                    </span>
+                                  </p>
+                                ) : (
+                                  <p className="text-sm text-muted-foreground">
+                                    Click to select your prescription
+                                  </p>
+                                )}
+                              </div>
+
+                              <div className="grid gap-3 sm:grid-cols-2">
+                                <div className="space-y-1">
+                                  <Label className="text-xs">Patient name *</Label>
+                                  <Input
+                                    value={rxPatient}
+                                    onChange={(e) => setRxPatient(e.target.value)}
+                                    placeholder="Patient name"
+                                    className="h-9 text-sm"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <Label className="text-xs">Doctor name (optional)</Label>
+                                  <Input
+                                    value={rxDoctor}
+                                    onChange={(e) => setRxDoctor(e.target.value)}
+                                    placeholder="Prescribing doctor"
+                                    className="h-9 text-sm"
+                                  />
+                                </div>
+                                <div className="space-y-1 sm:col-span-2">
+                                  <Label className="text-xs">Prescription date (optional)</Label>
+                                  <Input
+                                    type="date"
+                                    value={rxDate}
+                                    onChange={(e) => setRxDate(e.target.value)}
+                                    max={new Date().toISOString().split("T")[0]}
+                                    className="h-9 text-sm"
+                                  />
+                                </div>
+                              </div>
+
+                              <Button
+                                onClick={handleRxUpload}
+                                disabled={
+                                  rxUploading || !rxFile || rxPatient.trim().length < 2
+                                }
+                                className="w-full gap-2 gradient-primary text-white"
+                                size="sm"
+                              >
+                                {rxUploading ? (
+                                  <Loader2 className="size-4 animate-spin" />
+                                ) : (
+                                  <Upload className="size-4" />
+                                )}
+                                {rxUploading
+                                  ? "Uploading…"
+                                  : "Upload and use this prescription"}
+                              </Button>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+
+                      {selectedRx && (
+                        <div className="flex items-start gap-2 rounded-xl border border-green-200 bg-green-50 p-3 text-xs text-green-800">
+                          <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
+                          <p>
+                            <span className="font-semibold">
+                              {selectedRx.fileName}
+                            </span>{" "}
+                            attached to this order.{" "}
+                            {selectedRx.status === "approved"
+                              ? "Approved prescription selected."
+                              : "Pending pharmacist approval — we verify it before dispatch."}
+                          </p>
+                        </div>
                       )}
                     </>
                   ) : (

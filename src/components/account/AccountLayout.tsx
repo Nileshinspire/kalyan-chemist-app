@@ -29,7 +29,7 @@ const NAV_ITEMS = [
   { to: "/account/addresses", label: "Addresses", icon: MapPin },
   { to: "/account/orders", label: "My Orders", icon: ClipboardList },
   { to: "/account/track-order", label: "Track Order", icon: Truck },
-  { to: "/account/prescriptions", label: "Prescriptions", icon: Pill },
+  { to: "/account/prescriptions", label: "My Prescriptions", icon: Pill },
   { to: "/account/my-lab-tests", label: "My Lab Tests", icon: FlaskConical },
   { to: "/account/my-appointments", label: "My Appointments", icon: Stethoscope },
   { to: "/account/refill", label: "Medicine Refill", icon: RefreshCw },

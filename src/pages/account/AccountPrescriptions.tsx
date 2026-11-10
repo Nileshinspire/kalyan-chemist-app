@@ -1,8 +1,9 @@
-import { useState, useRef } from "react";
-import { useQuery, useMutation } from "convex/react";
+import { useMemo, useRef, useState } from "react";
+import { useQuery } from "convex/react";
+import { Link } from "react-router";
 import { api } from "@/convex/_generated/api";
-import { Id } from "@/convex/_generated/dataModel";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { prescriptionExpiresAt } from "@/convex/prescriptionCore";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,70 +17,126 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   Pill,
   Upload,
   FileText,
-  Image,
+  Image as ImageIcon,
   CheckCircle2,
   XCircle,
   Clock,
   AlertTriangle,
   Eye,
   Loader2,
-  MessageSquare,
   Calendar,
   User,
   Stethoscope,
+  Download,
+  RotateCcw,
+  ShoppingBag,
   History,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useNavigate } from "react-router";
+import { usePrescriptionUpload } from "@/hooks/usePrescriptionUpload";
+import { downloadFile } from "@/lib/downloadFile";
+import type { LucideIcon } from "lucide-react";
 
-const ALLOWED_TYPES = ["image/jpeg", "image/png", "application/pdf"];
-const MAX_SIZE = 10 * 1024 * 1024; // 10MB
-
-const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
-  pending: { label: "Pending Review", color: "bg-yellow-100 text-yellow-800", icon: Clock },
-  under_review: { label: "Under Review", color: "bg-blue-100 text-blue-800", icon: Eye },
-  approved: { label: "Approved", color: "bg-green-100 text-green-800", icon: CheckCircle2 },
-  rejected: { label: "Rejected", color: "bg-red-100 text-red-800", icon: XCircle },
-  needs_clarification: { label: "Needs Clarification", color: "bg-orange-100 text-orange-800", icon: MessageSquare },
+const STATUS_CONFIG: Record<
+  string,
+  { label: string; color: string; icon: LucideIcon }
+> = {
+  pending: {
+    label: "Pending Review",
+    color: "bg-amber-100 text-amber-800",
+    icon: Clock,
+  },
+  under_review: {
+    label: "Under Review",
+    color: "bg-blue-100 text-blue-800",
+    icon: Eye,
+  },
+  approved: {
+    label: "Approved",
+    color: "bg-green-100 text-green-800",
+    icon: CheckCircle2,
+  },
+  rejected: {
+    label: "Rejected",
+    color: "bg-red-100 text-red-800",
+    icon: XCircle,
+  },
+  needs_clarification: {
+    label: "Needs Clarification",
+    color: "bg-orange-100 text-orange-800",
+    icon: AlertTriangle,
+  },
 };
 
+const dateLabel = (ts?: number) =>
+  ts ? new Date(ts).toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }) : null;
+
+function isPdf(fileType: string) {
+  return fileType === "application/pdf";
+}
+
 export default function AccountPrescriptions() {
-  const navigate = useNavigate();
   const prescriptions = useQuery(api.prescriptions.list);
-  const uploadRx = useMutation(api.prescriptions.upload);
-  const generateUploadUrl = useMutation(api.prescriptions.generateUploadUrl);
+  const { uploading, uploadPrescription } = usePrescriptionUpload();
 
   const [showUploadDialog, setShowUploadDialog] = useState(false);
-  const [showDetailDialog, setShowDetailDialog] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [patientName, setPatientName] = useState("");
   const [doctorName, setDoctorName] = useState("");
   const [prescriptionDate, setPrescriptionDate] = useState("");
   const [notes, setNotes] = useState("");
-  const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const detailRx = prescriptions?.find((rx) => rx._id === showDetailDialog);
-  const fileUrl = useQuery(
-    api.prescriptions.getFileUrl,
-    showDetailDialog ? { prescriptionId: showDetailDialog as Id<"prescriptions"> } : "skip"
-  );
+  const selectedRx = prescriptions?.find((rx) => rx._id === selectedId);
+
+  const stats = useMemo(() => {
+    const rows = prescriptions ?? [];
+    return {
+      pending: rows.filter(
+        (rx) => rx.status === "pending" || rx.status === "under_review",
+      ).length,
+      approved: rows.filter((rx) => rx.status === "approved").length,
+      rejected: rows.filter((rx) => rx.status === "rejected").length,
+    };
+  }, [prescriptions]);
+
+  const resetForm = () => {
+    setFile(null);
+    setPatientName("");
+    setDoctorName("");
+    setPrescriptionDate("");
+    setNotes("");
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const openUpload = (prefill?: { patientName?: string; doctorName?: string }) => {
+    resetForm();
+    if (prefill?.patientName) setPatientName(prefill.patientName);
+    if (prefill?.doctorName) setDoctorName(prefill.doctorName);
+    setShowUploadDialog(true);
+  };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0];
     if (!selected) return;
-
-    if (!ALLOWED_TYPES.includes(selected.type)) {
+    if (!["image/jpeg", "image/png", "application/pdf"].includes(selected.type)) {
       toast.error("Invalid file type. Allowed: JPG, PNG, PDF");
+      e.target.value = "";
       return;
     }
-    if (selected.size > MAX_SIZE) {
+    if (selected.size > 10 * 1024 * 1024) {
       toast.error("File size must be less than 10MB");
+      e.target.value = "";
       return;
     }
     setFile(selected);
@@ -94,63 +151,24 @@ export default function AccountPrescriptions() {
       toast.error("Patient name is required");
       return;
     }
-    if (!doctorName.trim()) {
-      toast.error("Doctor name is required");
-      return;
-    }
-    if (!prescriptionDate) {
-      toast.error("Prescription date is required");
-      return;
-    }
 
-    setUploading(true);
     try {
-      // Convert file to base64 data URL for Convex upload
-      const dataUrl = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-
-      // Upload file to Convex storage
-      const uploadUrl = await generateUploadUrl({});
-      const result = await fetch(uploadUrl, {
-        method: "POST",
-        headers: { "Content-Type": file.type },
-        body: file,
-      });
-      if (!result.ok) throw new Error("File upload failed");
-      const { storageId } = await result.json();
-
-      await uploadRx({
+      await uploadPrescription(file, {
         patientName: patientName.trim(),
-        doctorName: doctorName.trim(),
-        prescriptionDate: new Date(prescriptionDate).getTime(),
+        doctorName: doctorName.trim() || undefined,
+        prescriptionDate: prescriptionDate
+          ? new Date(prescriptionDate).getTime()
+          : undefined,
         notes: notes.trim() || undefined,
-        fileId: storageId,
-        fileName: file.name,
-        fileType: file.type,
-        fileSize: file.size,
       });
-
-      toast.success("Prescription uploaded successfully!");
+      toast.success("Prescription uploaded. Our pharmacist will review it.");
       setShowUploadDialog(false);
       resetForm();
-    } catch (error: any) {
-      toast.error(error.message || "Failed to upload prescription");
-    } finally {
-      setUploading(false);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to upload prescription",
+      );
     }
-  };
-
-  const resetForm = () => {
-    setFile(null);
-    setPatientName("");
-    setDoctorName("");
-    setPrescriptionDate("");
-    setNotes("");
-    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   if (prescriptions === undefined) {
@@ -161,133 +179,255 @@ export default function AccountPrescriptions() {
     );
   }
 
-  const statusCounts = prescriptions.reduce(
-    (acc, rx) => {
-      acc[rx.status] = (acc[rx.status] || 0) + 1;
-      return acc;
-    },
-    {} as Record<string, number>
-  );
-
   return (
-    <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="space-y-6"
+    >
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-bold text-foreground">Prescriptions</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Upload and manage your prescriptions for Rx medicines
+          <h1 className="text-xl font-bold text-foreground">My Prescriptions</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Every prescription you upload — from the homepage or checkout — lives here.
           </p>
         </div>
-        <Button onClick={() => setShowUploadDialog(true)} className="gradient-primary text-white gap-2">
+        <Button
+          onClick={() => openUpload()}
+          className="gradient-primary text-white gap-2 shrink-0"
+        >
           <Upload className="size-4" />
-          Upload Prescription
+          Upload New Prescription
         </Button>
       </div>
 
-      {/* Status Summary */}
+      {/* Status summary */}
       {prescriptions.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-          {Object.entries(STATUS_CONFIG).map(([key, config]) => (
-            <div key={key} className="text-center p-3 rounded-xl bg-muted/30 border border-border/40">
-              <p className="text-lg font-bold text-foreground">{statusCounts[key] || 0}</p>
-              <p className="text-xs text-muted-foreground">{config.label}</p>
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { label: "Pending", value: stats.pending },
+            { label: "Approved", value: stats.approved },
+            { label: "Rejected", value: stats.rejected },
+          ].map((tile) => (
+            <div
+              key={tile.label}
+              className="rounded-xl border border-border/40 bg-muted/30 p-3 text-center"
+            >
+              <p className="text-lg font-bold text-foreground">{tile.value}</p>
+              <p className="text-xs text-muted-foreground">{tile.label}</p>
             </div>
           ))}
         </div>
       )}
 
-      {/* Empty State */}
+      {/* Empty state */}
       {prescriptions.length === 0 ? (
         <Card className="border-border/60">
           <CardContent className="py-16 text-center">
-            <Pill className="size-12 text-muted-foreground/30 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-foreground mb-1">No prescriptions yet</h3>
-            <p className="text-sm text-muted-foreground mb-4 max-w-md mx-auto">
-              Upload your prescription to order prescription-required medicines. Our pharmacist will review and approve it.
+            <Pill className="mx-auto mb-4 size-12 text-muted-foreground/30" />
+            <h3 className="mb-1 text-lg font-semibold text-foreground">
+              No prescriptions yet
+            </h3>
+            <p className="mx-auto mb-4 max-w-md text-sm text-muted-foreground">
+              Upload a photo or PDF of your prescription. Our pharmacist reviews it
+              before prescription medicines are dispensed.
             </p>
-            <Button onClick={() => setShowUploadDialog(true)} className="gradient-primary text-white gap-2">
+            <Button
+              onClick={() => openUpload()}
+              className="gradient-primary text-white gap-2"
+            >
               <Upload className="size-4" />
               Upload Your First Prescription
             </Button>
           </CardContent>
         </Card>
       ) : (
-        /* Prescription List */
-        <div className="space-y-4">
-          <AnimatePresence>
-            {prescriptions.map((rx) => {
-              const config = STATUS_CONFIG[rx.status];
-              const StatusIcon = config.icon;
-              return (
-                <motion.div key={rx._id} layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-                  <Card className="border-border/60 hover:shadow-card-hover transition-all cursor-pointer"
-                    onClick={() => setShowDetailDialog(rx._id)}>
-                    <CardContent className="p-5">
-                      <div className="flex items-start gap-4">
-                        <div className="size-12 rounded-xl bg-primary/[0.06] flex items-center justify-center shrink-0">
-                          {rx.fileType === "application/pdf" ? (
-                            <FileText className="size-6 text-primary" />
-                          ) : (
-                            <Image className="size-6 text-primary" />
-                          )}
+        <div className="grid gap-4 lg:grid-cols-2">
+          {prescriptions.map((rx) => {
+            const config = STATUS_CONFIG[rx.status];
+            const StatusIcon = config.icon;
+            const needsAction =
+              rx.status === "rejected" || rx.status === "needs_clarification";
+            const expiresAt = prescriptionExpiresAt(
+              rx.prescriptionDate,
+              rx.createdAt,
+            );
+            const expired = Date.now() > expiresAt;
+            const latestOrder = rx.relatedOrders[0];
+            const orderLabel =
+              latestOrder?.invoiceNumber ??
+              (latestOrder ? `#${latestOrder._id.slice(-6)}` : null);
+
+            return (
+              <Card
+                key={rx._id}
+                className="border-border/60 hover:shadow-card-hover transition-shadow cursor-pointer"
+                onClick={() => setSelectedId(rx._id)}
+              >
+                <CardContent className="flex h-full flex-col gap-4 p-4 sm:p-5">
+                  <div className="flex items-start gap-4">
+                    {/* Document preview */}
+                    <div className="relative size-20 shrink-0 overflow-hidden rounded-xl border border-border/50 bg-muted/30">
+                      {rx.fileUrl && !isPdf(rx.fileType) ? (
+                        <img
+                          src={rx.fileUrl}
+                          alt={`Prescription for ${rx.patientName}`}
+                          loading="lazy"
+                          className="size-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex size-full items-center justify-center">
+                          <FileText className="size-8 text-primary/50" />
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h3 className="text-sm font-semibold text-foreground truncate">{rx.fileName}</h3>
-                            <Badge className={`text-[10px] ${config.color}`}>{config.label}</Badge>
-                          </div>
-                          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                            <span className="flex items-center gap-1"><User className="size-3" /> {rx.patientName}</span>
-                            <span className="flex items-center gap-1"><Stethoscope className="size-3" /> Dr. {rx.doctorName}</span>
-                            <span className="flex items-center gap-1">
-                              <Calendar className="size-3" />
-                              {new Date(rx.prescriptionDate).toLocaleDateString("en-IN")}
-                            </span>
-                          </div>
-                          {/* Status-specific messages */}
-                          {rx.status === "rejected" && rx.rejectionReason && (
-                            <p className="mt-2 text-xs text-red-600 bg-red-50 rounded-lg px-2 py-1">
-                              Rejection: {rx.rejectionReason}
-                            </p>
-                          )}
-                          {rx.status === "needs_clarification" && rx.clarificationNote && (
-                            <p className="mt-2 text-xs text-orange-600 bg-orange-50 rounded-lg px-2 py-1">
-                              Clarification needed: {rx.clarificationNote}
-                            </p>
-                          )}
-                        </div>
-                        <div className="text-right shrink-0">
-                          <p className="text-xs text-muted-foreground">
-                            {new Date(rx.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
-                          </p>
-                        </div>
+                      )}
+                      <span className="absolute bottom-1 right-1 rounded bg-background/90 px-1 text-[9px] font-semibold uppercase text-muted-foreground">
+                        {isPdf(rx.fileType) ? "PDF" : "IMG"}
+                      </span>
+                    </div>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">
+                          {rx.fileName}
+                        </p>
+                        <Badge className={`text-[10px] ${config.color}`}>
+                          <StatusIcon className="mr-1 size-3" />
+                          {config.label}
+                        </Badge>
                       </div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              );
-            })}
-          </AnimatePresence>
+
+                      <div className="mt-2 grid gap-x-4 gap-y-1 text-xs text-muted-foreground sm:grid-cols-2">
+                        <span className="flex items-center gap-1 truncate">
+                          <User className="size-3 shrink-0" /> {rx.patientName}
+                        </span>
+                        <span className="flex items-center gap-1 truncate">
+                          <Stethoscope className="size-3 shrink-0" />
+                          {rx.doctorName ? `Dr. ${rx.doctorName}` : "Doctor not provided"}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Calendar className="size-3 shrink-0" />
+                          Rx date: {dateLabel(rx.prescriptionDate) ?? "Not provided"}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Clock className="size-3 shrink-0" />
+                          Uploaded: {dateLabel(rx.createdAt)}
+                        </span>
+                      </div>
+
+                      {rx.status === "approved" && (
+                        <p
+                          className={`mt-2 text-[11px] font-medium ${
+                            expired ? "text-red-600" : "text-green-700"
+                          }`}
+                        >
+                          {expired
+                            ? "This prescription is older than 180 days — upload a recent one."
+                            : `Valid until ${dateLabel(expiresAt)}`}
+                        </p>
+                      )}
+
+                      {rx.status === "rejected" && rx.rejectionReason && (
+                        <p className="mt-2 rounded-lg bg-red-50 px-2 py-1 text-[11px] text-red-700">
+                          Reason: {rx.rejectionReason}
+                        </p>
+                      )}
+                      {rx.status === "needs_clarification" && rx.clarificationNote && (
+                        <p className="mt-2 rounded-lg bg-orange-50 px-2 py-1 text-[11px] text-orange-700">
+                          {rx.clarificationNote}
+                        </p>
+                      )}
+
+                      {latestOrder && (
+                        <Link
+                          to={`/orders/${latestOrder._id}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="mt-2 inline-flex items-center gap-1 text-[11px] font-medium text-primary hover:underline"
+                        >
+                          <ShoppingBag className="size-3" />
+                          Order {orderLabel}
+                          {rx.relatedOrders.length > 1 &&
+                            ` · +${rx.relatedOrders.length - 1} more`}
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="mt-auto flex flex-wrap gap-2 border-t border-border/40 pt-3">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 gap-1.5 text-xs"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedId(rx._id);
+                      }}
+                    >
+                      <Eye className="size-3.5" /> View
+                    </Button>
+                    {rx.fileUrl ? (
+                      <a
+                        href={rx.fileUrl}
+                        download={rx.fileName}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          void downloadFile(rx.fileUrl!, rx.fileName);
+                        }}
+                        className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border/60 px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted/50"
+                      >
+                        <Download className="size-3.5" /> Download
+                      </a>
+                    ) : (
+                      <span className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border/60 px-3 text-xs font-medium text-muted-foreground/60">
+                        <Download className="size-3.5" /> Download
+                      </span>
+                    )}
+                    {(needsAction || (rx.status === "approved" && expired)) && (
+                      <Button
+                        size="sm"
+                        className="h-8 gap-1.5 bg-primary/10 text-xs text-primary hover:bg-primary/20"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openUpload({
+                            patientName: rx.patientName,
+                            doctorName: rx.doctorName,
+                          });
+                        }}
+                      >
+                        <RotateCcw className="size-3.5" /> Re-upload
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
 
-      {/* Upload Dialog */}
-      <Dialog open={showUploadDialog} onOpenChange={(open) => { setShowUploadDialog(open); if (!open) resetForm(); }}>
-        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+      {/* Upload dialog */}
+      <Dialog
+        open={showUploadDialog}
+        onOpenChange={(open) => {
+          setShowUploadDialog(open);
+          if (!open) resetForm();
+        }}
+      >
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Upload Prescription</DialogTitle>
             <DialogDescription>
-              Upload a valid prescription from your doctor. Accepted formats: JPG, PNG, PDF (max 10MB)
+              Upload a valid prescription from your doctor. JPG, PNG or PDF, up to 10MB.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
-            {/* File Upload */}
             <div className="space-y-1.5">
               <Label>Prescription File *</Label>
               <div
-                className="border-2 border-dashed border-border/60 rounded-xl p-6 text-center cursor-pointer hover:border-primary/30 hover:bg-primary/[0.02] transition-all"
+                className="cursor-pointer rounded-xl border-2 border-dashed border-border/60 p-6 text-center transition-all hover:border-primary/30 hover:bg-primary/[0.02]"
                 onClick={() => fileInputRef.current?.click()}
               >
                 <input
@@ -299,212 +439,339 @@ export default function AccountPrescriptions() {
                 />
                 {file ? (
                   <div className="flex items-center justify-center gap-2">
-                    {file.type === "application/pdf" ? (
+                    {isPdf(file.type) ? (
                       <FileText className="size-8 text-primary" />
                     ) : (
-                      <Image className="size-8 text-primary" />
+                      <ImageIcon className="size-8 text-primary" />
                     )}
                     <div className="text-left">
                       <p className="text-sm font-medium text-foreground">{file.name}</p>
-                      <p className="text-xs text-muted-foreground">{(file.size / 1024).toFixed(1)} KB</p>
+                      <p className="text-xs text-muted-foreground">
+                        {(file.size / 1024).toFixed(1)} KB
+                      </p>
                     </div>
                   </div>
                 ) : (
                   <>
-                    <Upload className="size-8 text-muted-foreground/40 mx-auto mb-2" />
+                    <Upload className="mx-auto mb-2 size-8 text-muted-foreground/40" />
                     <p className="text-sm text-muted-foreground">Click to select file</p>
-                    <p className="text-xs text-muted-foreground/70 mt-1">JPG, PNG, or PDF — Max 10MB</p>
+                    <p className="mt-1 text-xs text-muted-foreground/70">
+                      JPG, PNG, or PDF — Max 10MB
+                    </p>
                   </>
                 )}
               </div>
             </div>
 
-            {/* Patient Name */}
             <div className="space-y-1.5">
               <Label htmlFor="patientName">Patient Name *</Label>
-              <Input id="patientName" value={patientName} onChange={(e) => setPatientName(e.target.value)} placeholder="Patient name as on prescription" />
+              <Input
+                id="patientName"
+                value={patientName}
+                onChange={(e) => setPatientName(e.target.value)}
+                placeholder="Patient name as on prescription"
+              />
             </div>
 
-            {/* Doctor Name */}
-            <div className="space-y-1.5">
-              <Label htmlFor="doctorName">Doctor Name *</Label>
-              <Input id="doctorName" value={doctorName} onChange={(e) => setDoctorName(e.target.value)} placeholder="Prescribing doctor's name" />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="doctorName">Doctor Name (optional)</Label>
+                <Input
+                  id="doctorName"
+                  value={doctorName}
+                  onChange={(e) => setDoctorName(e.target.value)}
+                  placeholder="Prescribing doctor"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="rxDate">Prescription Date (optional)</Label>
+                <Input
+                  id="rxDate"
+                  type="date"
+                  value={prescriptionDate}
+                  onChange={(e) => setPrescriptionDate(e.target.value)}
+                  max={new Date().toISOString().split("T")[0]}
+                />
+              </div>
             </div>
 
-            {/* Prescription Date */}
-            <div className="space-y-1.5">
-              <Label htmlFor="rxDate">Prescription Date *</Label>
-              <Input id="rxDate" type="date" value={prescriptionDate} onChange={(e) => setPrescriptionDate(e.target.value)} max={new Date().toISOString().split("T")[0]} />
-            </div>
-
-            {/* Notes */}
             <div className="space-y-1.5">
               <Label htmlFor="rxNotes">Notes (optional)</Label>
-              <Textarea id="rxNotes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Any additional notes for the pharmacist" rows={2} />
+              <Textarea
+                id="rxNotes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Any additional notes for the pharmacist"
+                rows={2}
+              />
             </div>
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setShowUploadDialog(false); resetForm(); }}>Cancel</Button>
-            <Button onClick={handleUpload} disabled={uploading || !file} className="gradient-primary text-white gap-2">
-              {uploading ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowUploadDialog(false);
+                resetForm();
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUpload}
+              disabled={uploading || !file || !patientName.trim()}
+              className="gradient-primary text-white gap-2"
+            >
+              {uploading ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Upload className="size-4" />
+              )}
               {uploading ? "Uploading..." : "Upload Prescription"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Detail Dialog */}
-      <Dialog open={!!showDetailDialog} onOpenChange={() => setShowDetailDialog(null)}>
-        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
-          {detailRx && (() => {
-            const config = STATUS_CONFIG[detailRx.status];
-            const auditLog = JSON.parse(detailRx.auditLog || "[]");
+      {/* Detail dialog */}
+      <Dialog open={!!selectedRx} onOpenChange={() => setSelectedId(null)}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+          {selectedRx && (() => {
+            const config = STATUS_CONFIG[selectedRx.status];
+            const auditLog: Array<{
+              status?: string;
+              note?: string;
+              timestamp: number;
+            }> = (() => {
+              try {
+                return JSON.parse(selectedRx.auditLog || "[]");
+              } catch {
+                return [];
+              }
+            })();
+            const expiresAt = prescriptionExpiresAt(
+              selectedRx.prescriptionDate,
+              selectedRx.createdAt,
+            );
+            const needsAction =
+              selectedRx.status === "rejected" ||
+              selectedRx.status === "needs_clarification";
+
             return (
               <>
                 <DialogHeader>
                   <DialogTitle className="flex items-center gap-2">
                     Prescription Details
-                    <Badge className={`text-[10px] ${config.color}`}>{config.label}</Badge>
+                    <Badge className={`text-[10px] ${config.color}`}>
+                      {config.label}
+                    </Badge>
                   </DialogTitle>
                 </DialogHeader>
 
                 <div className="space-y-4">
-                  {/* File Preview */}
-                  {fileUrl && (
-                    <div className="border border-border/60 rounded-xl overflow-hidden bg-muted/20">
-                      {detailRx.fileType === "application/pdf" ? (
-                        <div className="p-4">
-                          <div className="flex items-center gap-3 p-4 bg-muted/40 rounded-xl">
+                  {/* File preview */}
+                  {selectedRx.fileUrl ? (
+                    <div className="overflow-hidden rounded-xl border border-border/60 bg-muted/20">
+                      {isPdf(selectedRx.fileType) ? (
+                        <div className="space-y-3 p-4">
+                          <div className="flex items-center gap-3 rounded-xl bg-muted/40 p-4">
                             <FileText className="size-10 text-primary" />
                             <div>
-                              <p className="text-sm font-medium text-foreground">{detailRx.fileName}</p>
-                              <p className="text-xs text-muted-foreground">PDF — {(detailRx.fileSize / 1024).toFixed(1)} KB</p>
+                              <p className="text-sm font-medium text-foreground">
+                                {selectedRx.fileName}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                PDF — {(selectedRx.fileSize / 1024).toFixed(1)} KB
+                              </p>
                             </div>
                           </div>
-                          <div className="mt-3 flex gap-2">
-                            <a
-                              href={fileUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary border border-primary/20 rounded-xl hover:bg-primary/5 transition-colors"
-                            >
-                              <Eye className="size-4" />
-                              Open in New Tab
-                            </a>
-                            <a
-                              href={fileUrl}
-                              download={detailRx.fileName}
-                              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-muted-foreground border border-border/60 rounded-xl hover:bg-muted/50 transition-colors"
-                            >
-                              <Upload className="size-4" />
-                              Download
-                            </a>
-                          </div>
-                        </div>
-                      ) : detailRx.fileType.startsWith("image/") ? (
-                        <div className="p-2">
-                          <img
-                            src={fileUrl}
-                            alt={`Prescription for ${detailRx.patientName}`}
-                            className="w-full rounded-lg object-contain max-h-[400px]"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).style.display = "none";
-                            }}
+                          <iframe
+                            src={selectedRx.fileUrl}
+                            title={`Prescription ${selectedRx.fileName}`}
+                            className="h-64 w-full rounded-lg border border-border/40"
                           />
-                          <div className="flex justify-center gap-2 mt-2 pb-2">
-                            <a
-                              href={fileUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary border border-primary/20 rounded-xl hover:bg-primary/5 transition-colors"
-                            >
-                              <Eye className="size-4" />
-                              Open Full Size
-                            </a>
-                            <a
-                              href={fileUrl}
-                              download={detailRx.fileName}
-                              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-muted-foreground border border-border/60 rounded-xl hover:bg-muted/50 transition-colors"
-                            >
-                              <Upload className="size-4" />
-                              Download
-                            </a>
-                          </div>
                         </div>
                       ) : (
-                        <div className="p-4 text-center text-sm text-muted-foreground">
-                          Unsupported file type
-                        </div>
+                        <img
+                          src={selectedRx.fileUrl}
+                          alt={`Prescription for ${selectedRx.patientName}`}
+                          className="max-h-[380px] w-full object-contain"
+                        />
                       )}
+                      <div className="flex flex-wrap justify-center gap-2 p-3">
+                        <a
+                          href={selectedRx.fileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 rounded-xl border border-primary/20 px-4 py-2 text-sm font-medium text-primary transition-colors hover:bg-primary/5"
+                        >
+                          <Eye className="size-4" /> Open
+                        </a>
+                        <a
+                          href={selectedRx.fileUrl}
+                          download={selectedRx.fileName}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            void downloadFile(
+                              selectedRx.fileUrl!,
+                              selectedRx.fileName,
+                            );
+                          }}
+                          className="inline-flex items-center gap-2 rounded-xl border border-border/60 px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted/50"
+                        >
+                          <Download className="size-4" /> Download
+                        </a>
+                      </div>
                     </div>
+                  ) : (
+                    <p className="rounded-xl bg-muted/30 p-3 text-xs text-muted-foreground">
+                      The file preview is unavailable. Please contact support.
+                    </p>
                   )}
 
                   {/* Details */}
                   <div className="grid grid-cols-1 gap-3 text-sm min-[380px]:grid-cols-2">
-                    <div><span className="text-muted-foreground">Patient:</span> <span className="font-medium">{detailRx.patientName}</span></div>
-                    <div><span className="text-muted-foreground">Doctor:</span> <span className="font-medium">Dr. {detailRx.doctorName}</span></div>
-                    <div><span className="text-muted-foreground">Date:</span> <span className="font-medium">{new Date(detailRx.prescriptionDate).toLocaleDateString("en-IN")}</span></div>
-                    <div><span className="text-muted-foreground">Uploaded:</span> <span className="font-medium">{new Date(detailRx.createdAt).toLocaleDateString("en-IN")}</span></div>
+                    <div>
+                      <span className="text-muted-foreground">Patient:</span>{" "}
+                      <span className="font-medium">{selectedRx.patientName}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Doctor:</span>{" "}
+                      <span className="font-medium">
+                        {selectedRx.doctorName
+                          ? `Dr. ${selectedRx.doctorName}`
+                          : "Not provided"}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Rx date:</span>{" "}
+                      <span className="font-medium">
+                        {dateLabel(selectedRx.prescriptionDate) ?? "Not provided"}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Uploaded:</span>{" "}
+                      <span className="font-medium">
+                        {dateLabel(selectedRx.createdAt)}
+                      </span>
+                    </div>
                   </div>
 
-                  {detailRx.notes && (
-                    <div className="text-sm"><span className="text-muted-foreground">Notes:</span> <span className="font-medium">{detailRx.notes}</span></div>
+                  {selectedRx.status === "approved" && (
+                    <p className="text-xs text-muted-foreground">
+                      Valid until{" "}
+                      <span className="font-medium text-foreground">
+                        {dateLabel(expiresAt)}
+                      </span>{" "}
+                      (180 days from the prescription date).
+                    </p>
                   )}
 
-                  {/* Admin Messages */}
-                  {detailRx.rejectionReason && (
-                    <div className="p-3 bg-red-50 rounded-xl border border-red-200">
-                      <p className="text-xs font-semibold text-red-700 mb-1">Rejection Reason</p>
-                      <p className="text-sm text-red-600">{detailRx.rejectionReason}</p>
+                  {selectedRx.notes && (
+                    <p className="text-sm">
+                      <span className="text-muted-foreground">Notes:</span>{" "}
+                      <span className="font-medium">{selectedRx.notes}</span>
+                    </p>
+                  )}
+
+                  {selectedRx.rejectionReason && (
+                    <div className="rounded-xl border border-red-200 bg-red-50 p-3">
+                      <p className="mb-1 text-xs font-semibold text-red-700">
+                        Rejection Reason
+                      </p>
+                      <p className="text-sm text-red-600">
+                        {selectedRx.rejectionReason}
+                      </p>
                     </div>
                   )}
 
-                  {detailRx.clarificationNote && (
-                    <div className="p-3 bg-orange-50 rounded-xl border border-orange-200">
-                      <p className="text-xs font-semibold text-orange-700 mb-1">Clarification Requested</p>
-                      <p className="text-sm text-orange-600">{detailRx.clarificationNote}</p>
+                  {selectedRx.clarificationNote && (
+                    <div className="rounded-xl border border-orange-200 bg-orange-50 p-3">
+                      <p className="mb-1 text-xs font-semibold text-orange-700">
+                        Clarification Requested
+                      </p>
+                      <p className="text-sm text-orange-600">
+                        {selectedRx.clarificationNote}
+                      </p>
                     </div>
                   )}
 
-                  {detailRx.adminNotes && (
-                    <div className="p-3 bg-blue-50 rounded-xl border border-blue-200">
-                      <p className="text-xs font-semibold text-blue-700 mb-1">Admin Notes</p>
-                      <p className="text-sm text-blue-600">{detailRx.adminNotes}</p>
+                  {selectedRx.adminNotes && (
+                    <div className="rounded-xl border border-blue-200 bg-blue-50 p-3">
+                      <p className="mb-1 text-xs font-semibold text-blue-700">
+                        Pharmacist Notes
+                      </p>
+                      <p className="text-sm text-blue-600">{selectedRx.adminNotes}</p>
                     </div>
                   )}
 
-                  {/* Audit Trail */}
-                  {auditLog.length > 0 && (
+                  {selectedRx.relatedOrders.length > 0 && (
                     <div>
-                      <h4 className="text-xs font-semibold text-foreground mb-2 flex items-center gap-1.5">
-                        <History className="size-3" /> Audit Trail
+                      <h4 className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                        <ShoppingBag className="size-3" /> Linked orders
                       </h4>
-                      <div className="space-y-2">
-                        {auditLog.map((entry: any, i: number) => (
-                          <div key={i} className="flex items-start gap-2 text-xs">
-                            <div className="size-1.5 rounded-full bg-primary/40 mt-1.5 shrink-0" />
-                            <div>
-                              <span className="font-medium capitalize">{entry.status?.replace("_", " ")}</span>
-                              {entry.note && <span className="text-muted-foreground"> — {entry.note}</span>}
-                              <p className="text-muted-foreground/70">{new Date(entry.timestamp).toLocaleString("en-IN")}</p>
-                            </div>
-                          </div>
+                      <div className="space-y-1.5">
+                        {selectedRx.relatedOrders.map((order) => (
+                          <Link
+                            key={order._id}
+                            to={`/orders/${order._id}`}
+                            onClick={() => setSelectedId(null)}
+                            className="flex items-center justify-between rounded-lg bg-muted/30 px-3 py-2 text-xs transition-colors hover:bg-muted/50"
+                          >
+                            <span className="font-medium text-foreground">
+                              {order.invoiceNumber ?? `Order #${order._id.slice(-6)}`}
+                            </span>
+                            <span className="capitalize text-muted-foreground">
+                              {order.status.replace(/_/g, " ")}
+                            </span>
+                          </Link>
                         ))}
                       </div>
                     </div>
                   )}
 
-                  {/* Re-upload CTA for rejected/clarification */}
-                  {(detailRx.status === "rejected" || detailRx.status === "needs_clarification") && (
+                  {auditLog.length > 0 && (
+                    <details className="text-xs">
+                      <summary className="flex cursor-pointer items-center gap-1.5 font-semibold text-foreground">
+                        <History className="size-3" /> Review history
+                      </summary>
+                      <div className="mt-2 space-y-2">
+                        {auditLog.map((entry, i) => (
+                          <div key={i} className="flex items-start gap-2">
+                            <div className="mt-1.5 size-1.5 shrink-0 rounded-full bg-primary/40" />
+                            <div>
+                              <span className="font-medium capitalize">
+                                {entry.status?.replace(/_/g, " ")}
+                              </span>
+                              {entry.note && (
+                                <span className="text-muted-foreground">
+                                  {" "}— {entry.note}
+                                </span>
+                              )}
+                              <p className="text-muted-foreground/70">
+                                {new Date(entry.timestamp).toLocaleString("en-IN")}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </details>
+                  )}
+
+                  {(needsAction ||
+                    (selectedRx.status === "approved" && Date.now() > expiresAt)) && (
                     <Button
                       onClick={() => {
-                        setShowDetailDialog(null);
-                        setShowUploadDialog(true);
+                        const prefill = {
+                          patientName: selectedRx.patientName,
+                          doctorName: selectedRx.doctorName,
+                        };
+                        setSelectedId(null);
+                        openUpload(prefill);
                       }}
                       className="w-full gradient-primary text-white gap-2"
                     >
-                      <Upload className="size-4" />
+                      <RotateCcw className="size-4" />
                       Upload New Prescription
                     </Button>
                   )}

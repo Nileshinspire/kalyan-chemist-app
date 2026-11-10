@@ -21,7 +21,7 @@ const QUICK_LINKS = [
   { to: "/account/profile", label: "Edit Profile", icon: User, description: "Update your name, email, and phone" },
   { to: "/account/addresses", label: "Manage Addresses", icon: MapPin, description: "Add or edit delivery addresses" },
   { to: "/account/orders", label: "View Orders", icon: ClipboardList, description: "Track your recent orders" },
-  { to: "/account/prescriptions", label: "Prescriptions", icon: Pill, description: "Upload and manage prescriptions" },
+  { to: "/account/prescriptions", label: "My Prescriptions", icon: Pill, description: "Upload, track and download prescriptions" },
   { to: "/account/wishlist", label: "Wishlist", icon: Heart, description: "Products you saved for later" },
   { to: "/account/notifications", label: "Notifications", icon: Bell, description: "Order updates and offers" },
 ];

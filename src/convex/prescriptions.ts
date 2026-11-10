@@ -1,23 +1,125 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
+import {
+  evaluatePrescriptionUsage,
+  prescriptionExpiresAt,
+} from "./prescriptionCore";
+import { loadLinkedRxProductIds } from "./prescriptionServer";
 
 // ──────────────────────────────────────────────
 // Customer functions
 // ──────────────────────────────────────────────
 
-/** List prescriptions for current user */
+/** List prescriptions for current user (with preview URL + linked orders) */
 export const list = query({
   args: {},
   handler: async (ctx) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) return [];
 
-    return await ctx.db
+    const prescriptions = await ctx.db
       .query("prescriptions")
       .withIndex("by_user", (q) => q.eq("userId", userId))
       .order("desc")
       .collect();
+
+    return await Promise.all(
+      prescriptions.map(async (rx) => {
+        const [fileUrl, orders] = await Promise.all([
+          ctx.storage.getUrl(rx.fileId),
+          ctx.db
+            .query("orders")
+            .withIndex("by_prescription", (q) => q.eq("prescriptionId", rx._id))
+            .collect(),
+        ]);
+
+        const expiresAt = prescriptionExpiresAt(
+          rx.prescriptionDate,
+          rx.createdAt,
+        );
+
+        return {
+          ...rx,
+          fileUrl,
+          expiresAt,
+          expired: Date.now() > expiresAt,
+          relatedOrders: orders
+            .map((order) => ({
+              _id: order._id,
+              invoiceNumber: order.invoiceNumber ?? null,
+              status: order.status,
+              createdAt: order.createdAt,
+            }))
+            .sort((a, b) => b.createdAt - a.createdAt),
+        };
+      }),
+    );
+  },
+});
+
+/**
+ * Prescriptions with reuse rules for the current checkout.
+ *
+ * `requiredProductIds` comes from active prescription-required products in the
+ * cart (plus the Buy Now product, if any). Each prescription is evaluated
+ * server-side so the client cannot bypass the rules.
+ */
+export const forCheckout = query({
+  args: { productId: v.optional(v.id("products")) },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) return [];
+
+    const requiredProductIds = new Set<string>();
+
+    const cartItems = await ctx.db
+      .query("cart_items")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+    for (const item of cartItems) {
+      const product = await ctx.db.get(item.productId);
+      if (product?.isActive && product.prescriptionRequired) {
+        requiredProductIds.add(product._id as string);
+      }
+    }
+
+    if (args.productId) {
+      const product = await ctx.db.get(args.productId);
+      if (product?.isActive && product.prescriptionRequired) {
+        requiredProductIds.add(product._id as string);
+      }
+    }
+
+    const prescriptions = await ctx.db
+      .query("prescriptions")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .order("desc")
+      .collect();
+
+    const now = Date.now();
+    const rows = await Promise.all(
+      prescriptions.map(async (rx) => {
+        const [linkedProductIds, fileUrl] = await Promise.all([
+          loadLinkedRxProductIds(ctx, rx._id),
+          ctx.storage.getUrl(rx.fileId),
+        ]);
+        const usage = evaluatePrescriptionUsage({
+          status: rx.status,
+          prescriptionDate: rx.prescriptionDate,
+          createdAt: rx.createdAt,
+          linkedProductIds,
+          requiredProductIds: [...requiredProductIds],
+          now,
+        });
+        return { ...rx, fileUrl, ...usage };
+      }),
+    );
+
+    return rows.sort((a, b) => {
+      if (a.usable !== b.usable) return a.usable ? -1 : 1;
+      return b.createdAt - a.createdAt;
+    });
   },
 });
 
@@ -89,8 +191,8 @@ export const generateUploadUrl = mutation({
 export const upload = mutation({
   args: {
     patientName: v.string(),
-    doctorName: v.string(),
-    prescriptionDate: v.number(),
+    doctorName: v.optional(v.string()),
+    prescriptionDate: v.optional(v.number()),
     notes: v.optional(v.string()),
     fileId: v.string(),       // Convex upload file ID (from client upload)
     fileName: v.string(),
@@ -116,8 +218,14 @@ export const upload = mutation({
     if (args.patientName.trim().length < 2) {
       throw new Error("Patient name must be at least 2 characters");
     }
-    if (args.doctorName.trim().length < 2) {
+    if (args.doctorName !== undefined && args.doctorName.trim().length > 0 && args.doctorName.trim().length < 2) {
       throw new Error("Doctor name must be at least 2 characters");
+    }
+    if (
+      args.prescriptionDate !== undefined &&
+      (!Number.isFinite(args.prescriptionDate) || args.prescriptionDate <= 0)
+    ) {
+      throw new Error("Please enter a valid prescription date");
     }
 
     const now = Date.now();
@@ -131,7 +239,7 @@ export const upload = mutation({
     const prescriptionId = await ctx.db.insert("prescriptions", {
       userId,
       patientName: args.patientName.trim(),
-      doctorName: args.doctorName.trim(),
+      doctorName: args.doctorName?.trim() || undefined,
       prescriptionDate: args.prescriptionDate,
       notes: args.notes?.trim(),
       fileId: args.fileId,
