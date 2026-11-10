@@ -11,6 +11,13 @@
     "jsx": "react-jsx",
     "skipLibCheck": true,
     "allowSyntheticDefaultImports": true,
+    /* The functions directory is large enough that a cold typecheck takes
+     * ~12s, which can exceed a deploy runner's limit. Cache the program in
+     * node_modules (already ignored) so repeat deploys typecheck in ~2-3s.
+     * Incremental mode still reports every real error; it only skips work
+     * for files whose inputs are unchanged. */
+    "incremental": true,
+    "tsBuildInfoFile": "../../node_modules/.cache/convex-tsbuildinfo.json",
 
     /* These compiler options are required by Convex */
     "target": "ESNext",
