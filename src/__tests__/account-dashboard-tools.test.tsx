@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 
 const { setTheme } = vi.hoisted(() => ({ setTheme: vi.fn() }));
@@ -36,13 +36,10 @@ beforeEach(() => {
 });
 
 describe("customer dashboard care tools", () => {
-  it("shows dark mode, restock alerts and proactive refills on the dashboard", () => {
+  it("shows restock alerts and proactive refills on the dashboard", () => {
     renderDashboard();
 
     expect(screen.getByText("Your care tools")).toBeTruthy();
-    expect(screen.getByText("Appearance")).toBeTruthy();
-    expect(screen.getByRole("switch", { name: /dark mode/i })).toBeTruthy();
-
     expect(screen.getByText("Restock alerts")).toBeTruthy();
     expect(screen.getByText(/not waiting on any medicines/i)).toBeTruthy();
 
@@ -51,14 +48,12 @@ describe("customer dashboard care tools", () => {
     expect(screen.getByRole("button", { name: /open medicine refill/i })).toBeTruthy();
   });
 
-  it("switches the theme straight from the dashboard", async () => {
+  it("no longer offers a second dark mode control — that stays in the profile menu", () => {
     renderDashboard();
 
-    await act(async () => {
-      fireEvent.click(screen.getByRole("switch", { name: /dark mode/i }));
-    });
-
-    expect(setTheme).toHaveBeenCalledWith("dark");
+    expect(screen.queryByText("Appearance")).toBeNull();
+    expect(screen.queryByRole("switch", { name: /dark mode/i })).toBeNull();
+    expect(setTheme).not.toHaveBeenCalled();
   });
 
   it("keeps the existing dashboard sections in place", () => {

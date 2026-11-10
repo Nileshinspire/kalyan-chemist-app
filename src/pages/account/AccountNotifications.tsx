@@ -35,7 +35,6 @@ import { useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { categoryEmoji, categoryLabel } from "@/convex/messageCenterCore";
 import { NotificationMessage } from "@/components/notifications/NotificationMessage";
-import { RestockAlertsCard } from "@/components/account/RestockAlertsCard";
 import { isLoadableImageUrl } from "@/components/notifications/notificationTemplate";
 
 function getNotifIcon(type: string) {
@@ -370,10 +369,8 @@ export default function AccountNotifications() {
         </CardContent>
       </Card>
 
-      {/* Restock alerts — always visible so the feature is discoverable */}
-      <RestockAlertsCard />
-
-      {/* Notification list */}
+      {/* Notification list — received messages only. Restock alert
+          subscriptions are managed under My Account. */}
       {notifications.length === 0 ? (
         <Card className="border-border/60">
           <CardContent className="py-16 text-center">
