@@ -16,7 +16,6 @@ import {
   CreditCard,
   RotateCcw,
   ArrowUpRight,
-  FileText,
   Stethoscope,
   AlertCircle,
   Settings,
@@ -41,12 +40,6 @@ const FAQ_ITEMS = [
     answer:
       "We accept UPI, credit/debit cards, net banking, wallets, and Cash on Delivery (COD) for eligible orders.",
     icon: CreditCard,
-  },
-  {
-    question: "How do I upload a prescription?",
-    answer:
-      'Use "Upload Prescription" from the main menu, or upload during checkout for prescription medicines. Every prescription you upload appears under Account → Prescriptions with its verification status.',
-    icon: FileText,
   },
 ];
 
@@ -89,8 +82,7 @@ export default function AccountHelpSupport() {
                 Pharmacist Quick Call
               </h3>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                Speak directly to our pharmacist about dosage, substitutions or a
-                prescription.
+                Speak directly to our pharmacist about dosage or substitutions.
               </p>
               {contact === undefined ? (
                 <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -289,7 +281,7 @@ export default function AccountHelpSupport() {
         <h2 className="text-base font-semibold text-foreground mb-3">
           Quick Actions
         </h2>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3">
           <Button
             variant="outline"
             className="justify-start gap-3 h-auto py-4 rounded-xl"
@@ -300,19 +292,6 @@ export default function AccountHelpSupport() {
               <p className="text-sm font-medium">View My Orders</p>
               <p className="text-xs text-muted-foreground">
                 Check order status and history
-              </p>
-            </div>
-          </Button>
-          <Button
-            variant="outline"
-            className="justify-start gap-3 h-auto py-4 rounded-xl"
-            onClick={() => navigate("/account/prescriptions")}
-          >
-            <FileText className="size-5 text-primary" />
-            <div className="text-left">
-              <p className="text-sm font-medium">My Prescriptions</p>
-              <p className="text-xs text-muted-foreground">
-                View your uploaded prescriptions
               </p>
             </div>
           </Button>

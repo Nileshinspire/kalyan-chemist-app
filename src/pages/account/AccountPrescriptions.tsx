@@ -25,6 +25,8 @@ import {
   Download,
   ShoppingBag,
   History,
+  Upload,
+  AlertTriangle,
 } from "lucide-react";
 import { downloadFile } from "@/lib/downloadFile";
 import type { LucideIcon } from "lucide-react";
@@ -32,39 +34,49 @@ import type { LucideIcon } from "lucide-react";
 /**
  * Customer-facing prescription history.
  *
- * This page is read-only by design: it lists every prescription uploaded from
- * the homepage or from checkout for the signed-in customer. Uploading happens
- * on /upload-prescription and in the checkout prescription step.
+ * Lists every prescription the signed-in customer uploaded from the homepage,
+ * from checkout or from the upload page, with the real pharmacist review
+ * status. "Upload New Prescription" opens the existing upload form at
+ * /upload-prescription rather than duplicating that form here.
  */
 
-type HistoryStatus = {
-  label: "Pending" | "Approved" | "Rejected";
+type PrescriptionStatusView = {
+  label: string;
   color: string;
   icon: LucideIcon;
 };
 
-const PENDING: HistoryStatus = {
-  label: "Pending",
-  color: "bg-amber-100 text-amber-800",
-  icon: Clock,
-};
-const APPROVED: HistoryStatus = {
-  label: "Approved",
-  color: "bg-green-100 text-green-800",
-  icon: CheckCircle2,
-};
-const REJECTED: HistoryStatus = {
-  label: "Rejected",
-  color: "bg-red-100 text-red-800",
-  icon: XCircle,
+/** Labels mirror the real review workflow; nothing is inferred client-side. */
+const STATUS_VIEW: Record<string, PrescriptionStatusView> = {
+  pending: {
+    label: "Pending",
+    color: "bg-amber-100 text-amber-800",
+    icon: Clock,
+  },
+  under_review: {
+    label: "Under Review",
+    color: "bg-blue-100 text-blue-800",
+    icon: Eye,
+  },
+  approved: {
+    label: "Approved",
+    color: "bg-green-100 text-green-800",
+    icon: CheckCircle2,
+  },
+  rejected: {
+    label: "Rejected",
+    color: "bg-red-100 text-red-800",
+    icon: XCircle,
+  },
+  needs_clarification: {
+    label: "Needs Clarification",
+    color: "bg-orange-100 text-orange-800",
+    icon: AlertTriangle,
+  },
 };
 
-/** Collapse the review workflow into the three customer-facing states. */
-function historyStatus(status: string): HistoryStatus {
-  if (status === "approved") return APPROVED;
-  if (status === "rejected") return REJECTED;
-  return PENDING;
-}
+const statusView = (status: string): PrescriptionStatusView =>
+  STATUS_VIEW[status] ?? STATUS_VIEW.pending;
 
 const dateLabel = (ts?: number) =>
   ts
@@ -88,8 +100,9 @@ export default function AccountPrescriptions() {
   const stats = useMemo(() => {
     const rows = prescriptions ?? [];
     return {
+      // Anything not yet approved or rejected is still awaiting review.
       pending: rows.filter(
-        (rx) => historyStatus(rx.status).label === "Pending",
+        (rx) => rx.status !== "approved" && rx.status !== "rejected",
       ).length,
       approved: rows.filter((rx) => rx.status === "approved").length,
       rejected: rows.filter((rx) => rx.status === "rejected").length,
@@ -111,34 +124,49 @@ export default function AccountPrescriptions() {
       className="space-y-6"
     >
       {/* Header */}
-      <div>
-        <h1 className="text-xl font-bold text-foreground">My Prescriptions</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Every prescription you upload from the homepage or checkout, with its
-          pharmacist verification and linked orders.
-        </p>
+      <div className="space-y-4">
+        <div>
+          <h1 className="text-xl font-bold text-foreground sm:text-2xl">
+            My Prescriptions
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Every prescription you upload — from the homepage or checkout —
+            lives here.
+          </p>
+        </div>
+        <Button
+          asChild
+          className="h-11 w-full gap-2 gradient-primary text-sm font-semibold text-white"
+        >
+          <Link to="/upload-prescription">
+            <Upload className="size-4" />
+            Upload New Prescription
+          </Link>
+        </Button>
       </div>
 
       {/* Status summary */}
-      {prescriptions.length > 0 && (
-        <div className="grid grid-cols-3 gap-3">
-          {[
-            { label: "Pending", value: stats.pending },
-            { label: "Approved", value: stats.approved },
-            { label: "Rejected", value: stats.rejected },
-          ].map((tile) => (
-            <div
-              key={tile.label}
-              className="rounded-xl border border-border/40 bg-muted/30 p-3 text-center"
-            >
-              <p className="text-lg font-bold text-foreground">{tile.value}</p>
-              <p className="text-xs text-muted-foreground">{tile.label}</p>
-            </div>
-          ))}
-        </div>
-      )}
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { label: "Pending", value: stats.pending },
+          { label: "Approved", value: stats.approved },
+          { label: "Rejected", value: stats.rejected },
+        ].map((tile) => (
+          <div
+            key={tile.label}
+            className="rounded-2xl border border-border/50 bg-muted/40 px-2 py-4 text-center"
+          >
+            <p className="text-2xl font-bold leading-none text-foreground">
+              {tile.value}
+            </p>
+            <p className="mt-1.5 text-xs font-medium text-muted-foreground">
+              {tile.label}
+            </p>
+          </div>
+        ))}
+      </div>
 
-      {/* Empty state — no upload actions here */}
+      {/* Empty state */}
       {prescriptions.length === 0 ? (
         <Card className="border-border/60">
           <CardContent className="py-16 text-center">
@@ -153,7 +181,7 @@ export default function AccountPrescriptions() {
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
           {prescriptions.map((rx) => {
-            const config = historyStatus(rx.status);
+            const config = statusView(rx.status);
 
             const latestOrder = rx.relatedOrders[0];
             const orderLabel =
@@ -280,7 +308,7 @@ export default function AccountPrescriptions() {
         <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
           {selectedRx &&
             (() => {
-              const config = historyStatus(selectedRx.status);
+              const config = statusView(selectedRx.status);
               const auditLog: Array<{
                 status?: string;
                 note?: string;

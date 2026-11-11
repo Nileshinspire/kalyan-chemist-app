@@ -87,21 +87,34 @@ describe("My Prescriptions (history)", () => {
     expect(screen.getByText(/order INV-1001/i)).toBeTruthy();
   });
 
-  it("offers view and download but no upload affordance", () => {
+  it("offers one upload entry point plus view and download actions", () => {
     mockRows = prescriptions;
     const { container } = renderPage();
+
+    // The single top upload button opens the existing upload form.
+    const upload = screen.getByRole("link", { name: /upload new prescription/i });
+    expect(upload.getAttribute("href")).toBe("/upload-prescription");
 
     expect(screen.getAllByRole("button", { name: /^view$/i })).toHaveLength(2);
     expect(screen.getAllByRole("link", { name: /download/i })).toHaveLength(2);
 
-    // No upload button, no upload form, no file input anywhere on the page.
-    expect(screen.queryByRole("button", { name: /upload/i })).toBeNull();
-    expect(screen.queryByText(/upload prescription/i)).toBeNull();
+    // History only — no second, in-page upload form.
     expect(container.querySelector('input[type="file"]')).toBeNull();
-    expect(screen.queryByText(/upload your first prescription/i)).toBeNull();
   });
 
-  it("shows only the clean empty state when nothing has been uploaded", () => {
+  it("shows the real review status including under review", () => {
+    mockRows = [
+      { ...prescriptions[0], _id: "rx-review", status: "under_review", relatedOrders: [] },
+    ];
+    renderPage();
+
+    expect(screen.getByText("Under Review")).toBeTruthy();
+    expect(screen.getByText("Pending")).toBeTruthy();
+
+    mockRows = prescriptions;
+  });
+
+  it("keeps the empty state and still offers the upload button", () => {
     mockRows = [];
     const { container } = renderPage();
 
@@ -109,8 +122,9 @@ describe("My Prescriptions (history)", () => {
     expect(
       screen.getByText("Your uploaded prescriptions will appear here."),
     ).toBeTruthy();
-
-    expect(screen.queryByRole("button")).toBeNull();
+    expect(
+      screen.getByRole("link", { name: /upload new prescription/i }),
+    ).toBeTruthy();
     expect(container.querySelector('input[type="file"]')).toBeNull();
   });
 });
