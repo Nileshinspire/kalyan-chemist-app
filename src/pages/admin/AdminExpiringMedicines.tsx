@@ -16,6 +16,14 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/auth-utils";
@@ -30,6 +38,7 @@ import {
   Search,
   ShieldAlert,
   CheckCircle,
+  Layers,
 } from "lucide-react";
 
 const THREE_MONTHS_MS = 90 * 24 * 60 * 60 * 1000;
@@ -78,6 +87,14 @@ export default function AdminExpiringMedicines() {
     api.adminProducts.get,
     manageId ? { productId: manageId } : "skip"
   );
+  // Batch-wise expiry for the open medicine: each batch is listed with its own
+  // expiry and available quantity, so near-expiry stock is never hidden behind
+  // a single product date.
+  const managedBatches = useQuery(
+    api.batches.listForProduct,
+    manageId ? { productId: manageId } : "skip"
+  );
+  const managedBatchList = managedBatches?.batches ?? [];
   const updateExpiry = useMutation(api.adminInventory.updateExpiry);
   const adjustStock = useMutation(api.adminInventory.adjustStock);
 
@@ -433,6 +450,28 @@ export default function AdminExpiringMedicines() {
                               {product.manufacturer}
                             </span>
                           </div>
+                          {product.batchAlerts?.length > 0 && (
+                            <div className="mt-1 space-y-0.5">
+                              {product.batchAlerts.slice(0, 3).map((batch: any) => (
+                                <p
+                                  key={batch.batchId}
+                                  className="text-[11px] text-muted-foreground"
+                                >
+                                  Batch {batch.batchNumber || "(no number)"} ·{" "}
+                                  {batch.availableQuantity} units · expires{" "}
+                                  <span className={batch.expired ? "text-red-600 font-medium" : "text-amber-700 font-medium"}>
+                                    {formatDate(batch.expiryDate)}
+                                  </span>
+                                  {batch.expired ? " (expired — not sellable)" : ""}
+                                </p>
+                              ))}
+                              {product.batchAlerts.length > 3 && (
+                                <p className="text-[11px] text-muted-foreground">
+                                  +{product.batchAlerts.length - 3} more batch(es) in this window
+                                </p>
+                              )}
+                            </div>
+                          )}
                         </div>
 
                         {/* Actions */}
@@ -558,6 +597,73 @@ export default function AdminExpiringMedicines() {
                         {managedProduct.packSize && <span>Pack: {managedProduct.packSize}</span>}
                       </p>
                     </div>
+                  </div>
+
+                  {/* Batch-wise expiry — every batch listed with its own date */}
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                      <Layers className="size-3.5 text-primary" /> Batches ({managedBatchList.length})
+                    </p>
+                    {managedBatches === undefined ? (
+                      <div className="flex justify-center py-3">
+                        <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                      </div>
+                    ) : managedBatchList.length === 0 ? (
+                      <p className="text-[11px] text-muted-foreground rounded-lg bg-muted/40 p-2.5">
+                        No batches recorded for this medicine. Its stock is
+                        tracked as un-batched stock; add the real batches from
+                        Inventory → Batches.
+                      </p>
+                    ) : (
+                      <div className="rounded-xl border border-border/60 overflow-hidden">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="text-[11px]">Batch</TableHead>
+                              <TableHead className="text-[11px]">Expiry</TableHead>
+                              <TableHead className="text-[11px] text-center">Available</TableHead>
+                              <TableHead className="text-[11px] text-center">Status</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {managedBatchList.map((batch: any) => (
+                              <TableRow key={batch._id}>
+                                <TableCell className="font-mono text-[11px]">
+                                  {batch.batchNumber || "—"}
+                                </TableCell>
+                                <TableCell className="text-[11px]">
+                                  {batch.expiryDate ? formatDate(batch.expiryDate) : "—"}
+                                </TableCell>
+                                <TableCell className="text-center text-xs font-semibold">
+                                  {batch.availableQuantity}
+                                </TableCell>
+                                <TableCell className="text-center">
+                                  <Badge
+                                    className={`text-[10px] ${
+                                      batch.expired
+                                        ? "bg-red-100 text-red-700"
+                                        : batch.daysUntilExpiry !== null && batch.daysUntilExpiry <= 90
+                                        ? "bg-amber-100 text-amber-700"
+                                        : "bg-green-100 text-green-700"
+                                    }`}
+                                  >
+                                    {batch.expired
+                                      ? "Expired"
+                                      : batch.daysUntilExpiry !== null && batch.daysUntilExpiry <= 90
+                                      ? "Expiring Soon"
+                                      : "Valid"}
+                                  </Badge>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                    <p className="text-[11px] text-muted-foreground">
+                      Expired batches stay on record for audit and are never sold;
+                      near-expiry stock is not discounted automatically.
+                    </p>
                   </div>
 
                   {/* Prominent expired status + safety note */}

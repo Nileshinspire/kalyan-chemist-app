@@ -44,6 +44,7 @@ import {
   PackageCheck,
   Loader2,
   History,
+  Layers,
   ArrowUpCircle,
   ArrowDownCircle,
   Settings,
@@ -53,6 +54,7 @@ import {
 } from "lucide-react";
 import { formatCurrency } from "@/lib/auth-utils";
 import { exportToCsv } from "@/lib/csv-export";
+import ProductBatchesDialog from "@/components/admin/ProductBatchesDialog";
 import {
   BarChart,
   Bar,
@@ -74,6 +76,7 @@ export default function AdminInventory() {
   const [saving, setSaving] = useState(false);
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
   const [historyProduct, setHistoryProduct] = useState<any>(null);
+  const [batchesProduct, setBatchesProduct] = useState<any>(null);
   const [thresholdDialogOpen, setThresholdDialogOpen] = useState(false);
   const [newThreshold, setNewThreshold] = useState(10);
 
@@ -400,6 +403,9 @@ export default function AdminInventory() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1">
+                            <Button variant="ghost" size="sm" className="gap-1 text-xs" onClick={() => setBatchesProduct(product)}>
+                              <Layers className="size-3.5" /> Batches
+                            </Button>
                             <Button variant="ghost" size="sm" className="gap-1 text-xs" onClick={() => openAdjust(product)}>
                               <ArrowUpCircle className="size-3.5" /> Adjust
                             </Button>
@@ -465,6 +471,14 @@ export default function AdminInventory() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Batch management Dialog — per-batch expiry and quantity for this product */}
+        <ProductBatchesDialog
+          product={batchesProduct}
+          onOpenChange={(open) => {
+            if (!open) setBatchesProduct(null);
+          }}
+        />
 
         {/* History Dialog */}
         <Dialog open={historyDialogOpen} onOpenChange={setHistoryDialogOpen}>

@@ -673,16 +673,37 @@ const THREE_MONTHS_MS = 90 * 24 * 60 * 60 * 1000; // ~3 months in ms
 
 type ExpiryStatus = "expired" | "expiring_soon";
 
+/** A batch of this product that is expired or expiring within the alert window. */
+type BatchExpiryAlert = {
+  batchId: Id<"product_batches">;
+  batchNumber: string | null;
+  expiryDate: number;
+  availableQuantity: number;
+  expired: boolean;
+  daysUntilExpiry: number;
+};
+
 type ExpiringProduct = {
   _id: Id<"products">;
   name: string;
   imageUrl: string | undefined;
+  /**
+   * The date the alert is about: the product's own expiry, or the earliest
+   * expiring batch when a batch expires sooner. Batch-wise alerts therefore
+   * surface here exactly like product-level ones.
+   */
   expiryDate: number;
   stockQuantity: number;
   expiryStatus: ExpiryStatus;
   daysUntilExpiry: number;
   categoryName: string;
   manufacturer: string;
+  /** Batches of this product inside the alert window, earliest expiry first. */
+  batchAlerts: BatchExpiryAlert[];
+  /** How many batches are on record in total (including expired history). */
+  batchCount: number;
+  /** Units sitting in the alerted batches. */
+  batchAlertUnits: number;
 };
 
 export const getExpiringMedicines = query({
@@ -697,34 +718,67 @@ export const getExpiringMedicines = query({
     const expiringProducts: ExpiringProduct[] = [];
 
     for (const product of allProducts) {
-      if (!product.expiryDate) continue;
+      // Batch rows make the alert batch-specific: a product whose own expiry
+      // is fine still appears when one of its batches is expired or nearly so.
+      const batches = await ctx.db
+        .query("product_batches")
+        .withIndex("by_product", (q) => q.eq("productId", product._id))
+        .collect();
+
+      const batchAlerts: BatchExpiryAlert[] = batches
+        .filter(
+          (batch) =>
+            batch.expiryDate !== undefined &&
+            batch.availableQuantity > 0 &&
+            batch.expiryDate <= now + THREE_MONTHS_MS,
+        )
+        .map((batch) => ({
+          batchId: batch._id,
+          batchNumber: batch.batchNumber ?? null,
+          expiryDate: batch.expiryDate as number,
+          availableQuantity: batch.availableQuantity,
+          expired: (batch.expiryDate as number) <= now,
+          daysUntilExpiry: Math.floor(
+            ((batch.expiryDate as number) - now) / (1000 * 60 * 60 * 24),
+          ),
+        }))
+        .sort((a, b) => a.expiryDate - b.expiryDate);
+
+      // The earliest of the product's own date and its alerting batches decides
+      // whether this product is listed and how urgent it is.
+      const candidateDates = [
+        ...(product.expiryDate ? [product.expiryDate] : []),
+        ...batchAlerts.map((alert) => alert.expiryDate),
+      ];
+      if (candidateDates.length === 0) continue;
+
+      const effectiveExpiry = Math.min(...candidateDates);
+      if (effectiveExpiry > now + THREE_MONTHS_MS) continue;
 
       const daysUntilExpiry = Math.floor(
-        (product.expiryDate - now) / (1000 * 60 * 60 * 24)
+        (effectiveExpiry - now) / (1000 * 60 * 60 * 24)
       );
+      const expiryStatus: ExpiryStatus =
+        effectiveExpiry <= now ? "expired" : "expiring_soon";
 
-      let expiryStatus: ExpiryStatus | null = null;
-
-      if (product.expiryDate <= now) {
-        expiryStatus = "expired";
-      } else if (product.expiryDate <= now + THREE_MONTHS_MS) {
-        expiryStatus = "expiring_soon";
-      }
-
-      if (expiryStatus) {
-        const category = await ctx.db.get(product.categoryId);
-        expiringProducts.push({
-          _id: product._id,
-          name: product.name,
-          imageUrl: product.imageUrl,
-          expiryDate: product.expiryDate,
-          stockQuantity: product.stockQuantity,
-          expiryStatus,
-          daysUntilExpiry,
-          categoryName: category?.name ?? "Unknown",
-          manufacturer: product.manufacturer,
-        });
-      }
+      const category = await ctx.db.get(product.categoryId);
+      expiringProducts.push({
+        _id: product._id,
+        name: product.name,
+        imageUrl: product.imageUrl,
+        expiryDate: effectiveExpiry,
+        stockQuantity: product.stockQuantity,
+        expiryStatus,
+        daysUntilExpiry,
+        categoryName: category?.name ?? "Unknown",
+        manufacturer: product.manufacturer,
+        batchAlerts,
+        batchCount: batches.length,
+        batchAlertUnits: batchAlerts.reduce(
+          (sum, alert) => sum + alert.availableQuantity,
+          0,
+        ),
+      });
     }
 
     // Sort: expired first (most overdue first), then expiring soon (soonest first)
@@ -745,11 +799,29 @@ export const getExpiringMedicinesCount = query({
     let expiringSoon = 0;
 
     for (const product of allProducts) {
-      if (!product.expiryDate) continue;
+      // Batches included: the badge must agree with the batch-wise list.
+      const batches = await ctx.db
+        .query("product_batches")
+        .withIndex("by_product", (q) => q.eq("productId", product._id))
+        .collect();
 
-      if (product.expiryDate <= now) {
+      const candidateDates = [
+        ...(product.expiryDate ? [product.expiryDate] : []),
+        ...batches
+          .filter(
+            (batch) =>
+              batch.expiryDate !== undefined &&
+              batch.availableQuantity > 0 &&
+              (batch.expiryDate as number) <= now + THREE_MONTHS_MS,
+          )
+          .map((batch) => batch.expiryDate as number),
+      ];
+      if (candidateDates.length === 0) continue;
+
+      const effectiveExpiry = Math.min(...candidateDates);
+      if (effectiveExpiry <= now) {
         expired++;
-      } else if (product.expiryDate <= now + THREE_MONTHS_MS) {
+      } else if (effectiveExpiry <= now + THREE_MONTHS_MS) {
         expiringSoon++;
       }
     }
