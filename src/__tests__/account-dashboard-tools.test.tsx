@@ -36,16 +36,16 @@ beforeEach(() => {
 });
 
 describe("customer dashboard care tools", () => {
-  it("shows restock alerts and proactive refills on the dashboard", () => {
+  it("shows restock alerts but leaves refill reminders to the Medicine Refill page", () => {
     renderDashboard();
 
     expect(screen.getByText("Your care tools")).toBeTruthy();
     expect(screen.getByText("Restock alerts")).toBeTruthy();
     expect(screen.getByText(/not waiting on any medicines/i)).toBeTruthy();
 
-    expect(screen.getByText("Proactive Refill Reminders")).toBeTruthy();
-    expect(screen.getByText("No refill suggestions yet")).toBeTruthy();
-    expect(screen.getByRole("button", { name: /open medicine refill/i })).toBeTruthy();
+    // Proactive refill reminders appear only on the Medicine Refill page.
+    expect(screen.queryByText("Proactive Refill Reminders")).toBeNull();
+    expect(screen.queryByRole("button", { name: /open medicine refill/i })).toBeNull();
   });
 
   it("no longer offers a second dark mode control — that stays in the profile menu", () => {

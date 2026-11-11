@@ -1,9 +1,7 @@
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import WalletReferSection from "@/components/account/WalletReferSection";
-import { RefillSuggestions } from "@/components/account/RefillSuggestions";
 import { RestockAlertsCard } from "@/components/account/RestockAlertsCard";
 import { motion } from "framer-motion";
 import {
@@ -84,29 +82,16 @@ export default function AccountOverview() {
         ))}
       </div>
 
-      {/* Care tools — restock alerts and proactive refills, on the dashboard */}
+      {/* Care tools — restock alerts. Proactive refill reminders live only on
+          the Medicine Refill page, so they are not repeated here. */}
       <div className="space-y-4">
         <div>
           <h2 className="text-lg font-semibold text-foreground">Your care tools</h2>
           <p className="text-sm text-muted-foreground">
-            Track restock alerts and plan refills without leaving your dashboard.
+            Track restock alerts without leaving your dashboard.
           </p>
         </div>
         <RestockAlertsCard />
-      </div>
-
-      <div className="space-y-1">
-        <RefillSuggestions />
-        <div className="flex justify-end">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="gap-1 text-xs text-muted-foreground"
-            onClick={() => navigate("/account/refill")}
-          >
-            Open Medicine Refill <ArrowRight className="size-3.5" />
-          </Button>
-        </div>
       </div>
 
       {/* Account Info */}
