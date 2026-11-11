@@ -451,6 +451,9 @@ const schema = defineSchema(
       .index("by_batchId", ["batchId"]),
 
     // ── Inventory adjustment logs ──
+    // `batchId` / `batchNumber` are optional and only set by batch-aware
+    // receiving and adjustments, so every existing row stays valid and the
+    // existing Inventory log view keeps rendering exactly as before.
     inventory_logs: defineTable({
       productId: v.id("products"),
       previousQuantity: v.number(),
@@ -459,9 +462,95 @@ const schema = defineSchema(
       reason: v.string(),
       adminId: v.id("users"),
       createdAt: v.number(),
+      batchId: v.optional(v.id("product_batches")),
+      batchNumber: v.optional(v.string()),
     })
       .index("by_product", ["productId"])
       .index("by_admin", ["adminId"])
+      .index("by_createdAt", ["createdAt"]),
+
+    // ── Batch-wise inventory ──
+    // One row per physical batch of a product. `products.stockQuantity` stays
+    // the sellable total the existing inventory screens read; a batch row adds
+    // the expiry-level detail FEFO needs. A second delivery of the same product
+    // always creates its own row, so one batch's expiry or quantity is never
+    // overwritten by another. Expired batches are kept forever (available = 0)
+    // for admin reporting and audit history — nothing is ever auto-deleted.
+    product_batches: defineTable({
+      productId: v.id("products"),
+      batchNumber: v.optional(v.string()),
+      manufacturingDate: v.optional(v.number()),
+      expiryDate: v.optional(v.number()),
+      receivedQuantity: v.number(),
+      availableQuantity: v.number(),
+      purchasePrice: v.optional(v.number()),
+      supplier: v.optional(v.string()),
+      supplierRef: v.optional(v.string()),
+      stockReceivedAt: v.number(),
+      notes: v.optional(v.string()),
+      /**
+       * Set when stock could not be reliably mapped to a batch (legacy stock or
+       * an unverified delivery). Such rows are never allocated to customers and
+       * are surfaced for admin verification instead.
+       */
+      needsVerification: v.optional(v.boolean()),
+      createdAt: v.number(),
+      updatedAt: v.number(),
+    })
+      .index("by_product", ["productId"])
+      .index("by_product_expiry", ["productId", "expiryDate"])
+      .index("by_batchNumber", ["batchNumber"]),
+
+    // Per-order batch allocation: which batch each reserved unit came from.
+    // `status` makes restoration idempotent — a unit is restored at most once,
+    // however many payment/cancellation callbacks arrive.
+    order_stock_allocations: defineTable({
+      orderId: v.id("orders"),
+      productId: v.id("products"),
+      /** Absent when the unit came from un-batched (legacy) stock. */
+      batchId: v.optional(v.id("product_batches")),
+      batchNumber: v.optional(v.string()),
+      expiryDate: v.optional(v.number()),
+      quantity: v.number(),
+      status: v.union(v.literal("reserved"), v.literal("released")),
+      createdAt: v.number(),
+      releasedAt: v.optional(v.number()),
+      releaseReason: v.optional(v.string()),
+    })
+      .index("by_order", ["orderId"])
+      .index("by_batch", ["batchId"]),
+
+    // ── Batch-level stock movement history ──
+    // Receipts, reservations, restorations and damage/expiry write-offs, with
+    // the batch, the product, the order, the admin and the reason. Existing
+    // `inventory_logs` rows are untouched and keep their own history.
+    batch_stock_movements: defineTable({
+      productId: v.id("products"),
+      batchId: v.optional(v.id("product_batches")),
+      batchNumber: v.optional(v.string()),
+      movementType: v.union(
+        v.literal("received"),
+        v.literal("reserved"),
+        v.literal("deducted"),
+        v.literal("restored"),
+        v.literal("damaged"),
+        v.literal("expired"),
+        v.literal("adjustment"),
+      ),
+      /** Magnitude of the batch movement (always positive). */
+      quantity: v.number(),
+      previousBatchQuantity: v.number(),
+      newBatchQuantity: v.number(),
+      previousProductQuantity: v.number(),
+      newProductQuantity: v.number(),
+      orderId: v.optional(v.id("orders")),
+      adminId: v.optional(v.id("users")),
+      reason: v.string(),
+      createdAt: v.number(),
+    })
+      .index("by_product", ["productId"])
+      .index("by_batch", ["batchId"])
+      .index("by_order", ["orderId"])
       .index("by_createdAt", ["createdAt"]),
 
     // Per-user shopping cart
@@ -521,6 +610,12 @@ const schema = defineSchema(
       // has not been handed to a delivery partner yet.
       deliveryBoyId: v.optional(v.id("users")),
       deliveryAssignedAt: v.optional(v.number()),
+      /**
+       * When the units this order reserved were handed back to stock (payment
+       * failure or cancellation). Presence is the idempotency guard: a release
+       * runs at most once per order, however many callbacks arrive.
+       */
+      stockReleasedAt: v.optional(v.number()),
       // Audit trail of status changes
       statusHistory: v.optional(
         v.array(

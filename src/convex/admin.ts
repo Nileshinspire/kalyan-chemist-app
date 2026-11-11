@@ -5,6 +5,7 @@ import { v } from "convex/values";
 import { handleOrderStatusChange } from "./referralWallet";
 import { endTrackingForOrder } from "./deliveryTracking";
 import { couponStatus } from "./couponLogic";
+import { releaseStockForOrder } from "./stockReservations";
 
 // ── Helper: verify admin ──
 async function requireAdmin(ctx: { db: any; auth: any }) {
@@ -365,16 +366,13 @@ export const updateOrderStatus = mutation({
     const order = await ctx.db.get(args.orderId);
     if (!order) throw new Error("Order not found");
 
-    // If cancelling, restore stock
+    // If cancelling, hand the reserved units back to the batches they came
+    // from. Idempotent, so a repeated admin action cannot restore them twice.
     if (args.status === "cancelled" && order.status !== "cancelled") {
-      for (const item of order.items) {
-        const product = await ctx.db.get(item.productId);
-        if (product) {
-          await ctx.db.patch(product._id, {
-            stockQuantity: product.stockQuantity + item.quantity,
-          });
-        }
-      }
+      await releaseStockForOrder(ctx, {
+        orderId: args.orderId,
+        reason: "Order cancelled by admin",
+      });
     }
 
     const now = Date.now();

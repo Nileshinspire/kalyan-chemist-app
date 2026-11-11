@@ -5,6 +5,7 @@ import { handleOrderStatusChange, reserveWalletForOrder } from "./referralWallet
 import { loadEngine } from "./discountEngine";
 import { loadPrescriptionUsage } from "./prescriptionServer";
 import { resolveProductDiscount } from "../lib/discount";
+import { releaseStockForOrder, reserveStockForOrder } from "./stockReservations";
 import {
   registerRedemption,
   resolveCoupon,
@@ -184,12 +185,11 @@ export const create = mutation({
 
       subtotal += effectivePrice * ci.quantity;
       discount += (originalPrice - effectivePrice) * ci.quantity;
-
-      // Decrement stock (atomic-style reservation)
-      await ctx.db.patch(product._id, {
-        stockQuantity: product.stockQuantity - ci.quantity,
-      });
     }
+
+    // Stock is reserved once, FEFO, after the order row exists (see below): the
+    // reservation and the order are one transaction, so either both happen or
+    // neither does.
 
     // Delivery fee — check delivery config for pincode-specific rules
     const configs = await ctx.db.query("delivery_config").collect();
@@ -281,7 +281,13 @@ export const create = mutation({
       updatedAt: now,
     });
 
-    // Reserve the coupon against this order (record + usage slot). Runs in
+    // Batch-wise FEFO reservation. Inside this same mutation, so a concurrent
+    // order for the last units simply fails here and rolls the order back.
+    await reserveStockForOrder(ctx, {
+      orderId,
+      items: orderItems,
+      reason: `Order ${invoiceNumber} placed`,
+    });
     // the same transaction as the order insert, so the two can't drift apart.
     if (resolvedCoupon) {
       await registerRedemption(ctx, {
@@ -405,15 +411,12 @@ export const cancel = mutation({
       throw new Error("Order cannot be cancelled at this stage");
     }
 
-    // Restore stock
-    for (const item of order.items) {
-      const product = await ctx.db.get(item.productId);
-      if (product) {
-        await ctx.db.patch(product._id, {
-          stockQuantity: product.stockQuantity + item.quantity,
-        });
-      }
-    }
+    // Restore stock to the exact batches it was reserved from. Idempotent: a
+    // repeated cancel callback cannot restore the same units twice.
+    await releaseStockForOrder(ctx, {
+      orderId: args.orderId,
+      reason: "Order cancelled by customer",
+    });
 
     await ctx.db.patch(args.orderId, {
       status: "cancelled",
@@ -619,8 +622,8 @@ export const createDirectOrder = mutation({
     let subtotal = effectivePrice * args.quantity;
     let discount = (originalPrice - effectivePrice) * args.quantity;
 
-    // Decrement stock
-    await ctx.db.patch(product._id, { stockQuantity: product.stockQuantity - args.quantity });
+    // Stock is reserved FEFO right after the order row is inserted (below), in
+    // the same transaction.
 
     // Delivery fee
     const configs = await ctx.db.query("delivery_config").collect();
@@ -694,6 +697,12 @@ export const createDirectOrder = mutation({
       statusHistory: [{ status: "pending", timestamp: now, note: "Order placed (Buy Now)" }],
       createdAt: now,
       updatedAt: now,
+    });
+
+    await reserveStockForOrder(ctx, {
+      orderId,
+      items: orderItems,
+      reason: `Order ${invoiceNumber} placed (Buy Now)`,
     });
 
     // Reserve the coupon against this order in the same transaction.

@@ -10,6 +10,7 @@ import {
   consumeRedemptionForOrder,
   releaseRedemptionForOrder,
 } from "./couponRedemptions";
+import { ensureStockReserved, releaseStockForOrder } from "./stockReservations";
 
 /**
  * Razorpay payment mutations and queries.
@@ -47,6 +48,14 @@ export const confirmPayment = mutation({
     if (order.paymentStatus === "paid") {
       return { success: true, alreadyVerified: true };
     }
+
+    // If a previous failed attempt released this order's units, take them again
+    // (FEFO) before confirming. If they are gone the confirmation fails rather
+    // than selling stock the shop no longer holds.
+    await ensureStockReserved(ctx, {
+      orderId: args.orderId,
+      reason: `Order ${order.invoiceNumber || ""} paid after retry`.trim(),
+    });
 
     // Mark as paid and confirm the order
     await ctx.db.patch(args.orderId, {
@@ -102,6 +111,14 @@ export const markPaymentFailed = mutation({
       updatedAt: Date.now(),
     });
 
+    // Payment failed — return the units to the batches they came from. The
+    // release is idempotent, so repeated failure callbacks cannot restore stock
+    // twice, and a later successful retry re-reserves FEFO in confirmPayment.
+    await releaseStockForOrder(ctx, {
+      orderId: args.orderId,
+      reason: "Payment failed",
+    });
+
     // Payment failed — return any reserved wallet amount to the customer.
     await releaseWalletReservation(ctx, args.orderId);
 
@@ -127,6 +144,13 @@ export const resetForRetry = mutation({
     if (order.paymentMethod !== "online") throw new Error("Not an online payment order");
     if (order.paymentStatus === "paid") throw new Error("Payment already completed");
     if (order.status === "cancelled") throw new Error("Order has been cancelled");
+
+    // Take the stock again (FEFO) before the customer retries, because the
+    // failed attempt handed its units back. Throws if it is no longer available.
+    await ensureStockReserved(ctx, {
+      orderId: args.orderId,
+      reason: "Payment retry",
+    });
 
     // Reset payment details so customer can try again
     await ctx.db.patch(args.orderId, {
