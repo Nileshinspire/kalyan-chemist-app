@@ -3,7 +3,18 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { toast } from "sonner";
+import { Loader2, Layers, PackagePlus, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Table,
   TableBody,
@@ -19,18 +30,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Layers, PackagePlus, TriangleAlert } from "lucide-react";
-
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 
 type ProductLike = {
   _id: Id<"products">;
@@ -210,7 +209,16 @@ export default function ProductBatchesDialog({
 
   return (
     <Dialog open={product !== null} onOpenChange={onOpenChange}>
-              <DialogContent className="max-w-\[calc(900px+24px)\] max-h-[calc(100dvh-2rem)] overflow-y-auto">
+      <DialogContent
+        className="overflow-y-auto"
+        style={{
+          width: "100%",
+          maxWidth: "min(900px, calc(100vw - 32px))",
+          maxHeight: "calc(100dvh - 32px)",
+          boxSizing: "border-box",
+          minWidth: 0,
+        }}
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Layers className="size-4 text-primary" />
