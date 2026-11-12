@@ -210,7 +210,7 @@ export default function ProductBatchesDialog({
 
   return (
     <Dialog open={product !== null} onOpenChange={onOpenChange}>
-              <DialogContent className="max-w-\[calc\(900px\+24px\)\] max-h-[calc(100dvh-2rem)] overflow-y-auto">
+              <DialogContent className="max-w-\[calc(900px+24px)\] max-h-[calc(100dvh-2rem)] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Layers className="size-4 text-primary" />
