@@ -12,7 +12,7 @@ const crons = cronJobs();
 
 crons.interval(
   "message center scheduled dispatch",
-  { minutes: 1 },
+  { minutes: 5 },
   internal.messageDispatch.dispatchScheduled,
   {}
 );
