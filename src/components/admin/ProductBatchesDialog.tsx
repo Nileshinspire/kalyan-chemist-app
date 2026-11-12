@@ -198,6 +198,15 @@ export default function ProductBatchesDialog({
   const expiredUnits = data?.expiredUnits ?? 0;
   const unbatched = Math.max(0, (product?.stockQuantity ?? 0) - totalAvailable);
 
+  const statusBadgeClass = (batch: typeof batches[number]) =>
+    `text-[10px] ${
+      batch.expired
+        ? "bg-red-100 text-red-700"
+        : batch.needsVerification
+        ? "bg-amber-100 text-amber-700"
+        : "bg-green-100 text-green-700"
+    }`;
+
   return (
     <Dialog open={product !== null} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[calc(100dvh-1.5rem)] overflow-y-auto">
@@ -267,88 +276,86 @@ export default function ProductBatchesDialog({
             <div className="space-y-3">
               <p className="text-sm font-semibold text-foreground">Batches</p>
 
-              {batches.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-6 break-words">
-                  No batches recorded for this product yet.
-                </p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <div className="rounded-xl border border-border/60">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Batch no.</TableHead>
-                          <TableHead>Expiry</TableHead>
-                          <TableHead className="text-center">Available</TableHead>
-                          <TableHead className="text-center">Received</TableHead>
-                          <TableHead>Supplier</TableHead>
-                          <TableHead className="text-center">Status</TableHead>
-                          <TableHead className="text-right">Action</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {batches.map((batch) => (
-                          <TableRow key={batch._id}>
-                            <TableCell className="font-mono text-xs">
-                              {batch.batchNumber || "—"}
-                            </TableCell>
-                            <TableCell className="text-xs">
-                              {batch.expiryDate
-                                ? new Date(batch.expiryDate).toLocaleDateString(
-                                    "en-IN",
-                                    { day: "numeric", month: "short", year: "numeric" },
-                                  )
-                                : "—"}
-                              {typeof batch.daysUntilExpiry === "number" &&
-                                batch.daysUntilExpiry >= 0 && (
-                                  <span className="block text-[10px] text-muted-foreground">
-                                    {batch.daysUntilExpiry} days left
-                                  </span>
-                                )}
-                            </TableCell>
-                            <TableCell className="text-center text-sm font-semibold">
-                              {batch.availableQuantity}
-                            </TableCell>
-                            <TableCell className="text-center text-xs text-muted-foreground">
-                              {batch.receivedQuantity}
-                            </TableCell>
-                            <TableCell className="text-xs text-muted-foreground max-w-[120px] truncate">
-                              {batch.supplier || "—"}
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <Badge
-                                className={`text-[10px] ${
-                                  batch.expired
-                                    ? "bg-red-100 text-red-700"
-                                    : batch.needsVerification
-                                    ? "bg-amber-100 text-amber-700"
-                                    : "bg-green-100 text-green-700"
-                                }`}
-                              >
-                                {batch.expired
-                                  ? "Expired"
-                                  : batch.needsVerification
-                                  ? "Verify"
-                                  : "Sellable"}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-xs"
-                                onClick={() => startAdjust(batch._id)}
-                              >
-                                Adjust
-                              </Button>
-                            </TableCell>
+              <div className="space-y-3">
+                {batches.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-6 break-words">
+                    No batches recorded for this product yet.
+                  </p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <div className="rounded-xl border border-border/60">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Batch no.</TableHead>
+                            <TableHead>Expiry</TableHead>
+                            <TableHead className="text-center">Available</TableHead>
+                            <TableHead className="text-center">Received</TableHead>
+                            <TableHead>Supplier</TableHead>
+                            <TableHead className="text-center">Status</TableHead>
+                            <TableHead className="text-right">Action</TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                        </TableHeader>
+                        <TableBody>
+                          {batches.map((batch) => (
+                            <TableRow key={batch._id}>
+                              <TableCell className="font-mono text-xs">
+                                {batch.batchNumber || "—"}
+                              </TableCell>
+                              <TableCell className="text-xs">
+                                {batch.expiryDate
+                                  ? new Date(batch.expiryDate).toLocaleDateString(
+                                      "en-IN",
+                                      {
+                                        day: "numeric",
+                                        month: "short",
+                                        year: "numeric",
+                                      },
+                                    )
+                                  : "—"}
+                                {typeof batch.daysUntilExpiry === "number" &&
+                                  batch.daysUntilExpiry >= 0 && (
+                                    <span className="block text-[10px] text-muted-foreground">
+                                      {batch.daysUntilExpiry} days left
+                                    </span>
+                                  )}
+                              </TableCell>
+                              <TableCell className="text-center text-sm font-semibold">
+                                {batch.availableQuantity}
+                              </TableCell>
+                              <TableCell className="text-center text-xs text-muted-foreground">
+                                {batch.receivedQuantity}
+                              </TableCell>
+                              <TableCell className="text-xs text-muted-foreground max-w-[120px] truncate">
+                                {batch.supplier || "—"}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <Badge className={statusBadgeClass(batch)}>
+                                  {batch.expired
+                                    ? "Expired"
+                                    : batch.needsVerification
+                                    ? "Verify"
+                                    : "Sellable"}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-xs"
+                                  onClick={() => startAdjust(batch._id)}
+                                >
+                                  Adjust
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
 
             {adjustingId && (
@@ -356,7 +363,7 @@ export default function ProductBatchesDialog({
                 <p className="text-xs font-semibold text-foreground flex items-start gap-1.5">
                   <Layers className="size-3.5 text-primary shrink-0 mt-0.5" />
                   Adjust batch{" "}
-                  {batches.find((b) => b._id === adjustingId)?.batchNumber ||
+                  {batches.find((b) => b._id === adjustingId)?.batchNumber ??
                     "(select row above)"}
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
