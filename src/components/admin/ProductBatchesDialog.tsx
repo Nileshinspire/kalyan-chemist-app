@@ -208,6 +208,10 @@ export default function ProductBatchesDialog({
   return (
     <Dialog open={product !== null} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[calc(100dvh-1.5rem)] overflow-y-auto">
+      <div className="w-full min-w-0">
+      {/* Clamp all in-dialog content to the available modal width so nothing
+      spills outside on small screens or tablets. */}
+      <div className="w-full min-w-0 p-0">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Layers className="size-4 text-primary" />
@@ -225,7 +229,7 @@ export default function ProductBatchesDialog({
             <Loader2 className="size-6 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          <div className="space-y-5 py-1">
+                        <div className="space-y-5">
             {/* Totals */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <div className="rounded-xl bg-muted/40 p-3">
@@ -260,13 +264,14 @@ export default function ProductBatchesDialog({
 
             {/* Batch list */}
             {batches.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-6">
+              <p className="text-sm text-muted-foreground text-center py-6 break-words">
                 No batches recorded for this product yet.
-              </p>
+              </p>>
             ) : (
-              <div className="overflow-x-auto rounded-xl border border-border/60">
-                <Table>
-                  <TableHeader>
+              <div className="overflow-x-auto">
+                <div className="rounded-xl border border-border/60">
+                  <Table>
+                    <TableHeader>
                     <TableRow>
                       <TableHead>Batch no.</TableHead>
                       <TableHead>Expiry</TableHead>
@@ -276,8 +281,8 @@ export default function ProductBatchesDialog({
                       <TableHead className="text-center">Status</TableHead>
                       <TableHead className="text-right">Action</TableHead>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
+                    </TableHeader>
+                    <TableBody>
                     {batches.map((batch: any) => (
                       <TableRow key={batch._id}>
                         <TableCell className="font-mono text-xs">
@@ -342,10 +347,10 @@ export default function ProductBatchesDialog({
 
             {/* Per-batch adjustment */}
             {adjustingId && (
-              <div className="rounded-xl border border-border/60 p-3 space-y-3">
-                <p className="text-xs font-semibold text-foreground">
-                  Adjust batch{" "}
-                  {batches.find((b: any) => b._id === adjustingId)?.batchNumber || ""}
+              <div className="rounded-xl border border-border/60 p-3 md:p-4 flex flex-col min-w-0">
+                <p className="text-xs font-semibold text-foreground flex items-start gap-1.5">
+                  <Layers className="size-3.5 text-primary shrink-0 mt-0.5" />
+                  Adjust batch {batches.find((b: any) => b._id === adjustingId)?.batchNumber || "(select row above)"}
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div className="space-y-1.5">
@@ -392,19 +397,18 @@ export default function ProductBatchesDialog({
             )}
 
             {/* Receive a batch */}
-            <div className="rounded-xl border border-border/60 p-3 space-y-3">
-              <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                <PackagePlus className="size-3.5 text-primary" />
-                Receive a batch
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs">Batch number</Label>
-                  <Input
-                    value={batchNumber}
-                    onChange={(e) => setBatchNumber(e.target.value)}
-                    placeholder="e.g. D650-A"
-                  />
+                                                                                <div className="rounded-xl border border-border/60 p-3 md:p-4 space-y-3 flex flex-col min-w-0">
+                 <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                   <PackagePlus className="size-3.5 text-primary" />
+                   Receive a batch
+                 </p>
+                 <div className="grid grid-cols-1 sm:grid-cols-2 space-y-3 min-w-0 overflow-x-auto">
+                 <div className="space-y-1.5">
+                   <Label className="text-xs">Batch number (optional)</Label>
+                   <Input
+                     value={batchNumber}
+                     onChange={(e) => setBatchNumber(e.target.value)}
+                     placeholder="e.g. D650-A"
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-xs">Expiry date *</Label>
