@@ -210,7 +210,7 @@ export default function ProductBatchesDialog({
   return (
     <Dialog open={product !== null} onOpenChange={onOpenChange}>
       <DialogContent
-        className="overflow-y-auto"
+        className="overflow-y-auto px-4 sm:px-6"
         style={{
           width: "100%",
           maxWidth: "min(900px, calc(100vw - 32px))",
@@ -220,7 +220,7 @@ export default function ProductBatchesDialog({
         }}
       >
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex min-w-0 items-center gap-2 pr-8 break-words">
             <Layers className="size-4 text-primary" />
             Batches — {product?.name}
           </DialogTitle>
@@ -236,7 +236,7 @@ export default function ProductBatchesDialog({
             <Loader2 className="size-6 animate-spin text-muted-foreground" />
           </div>
         ) : (
-          <div className="space-y-5">
+          <div className="w-full min-w-0 space-y-5">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <div className="rounded-xl bg-muted/40 p-3">
                 <p className="text-[11px] text-muted-foreground">Product stock</p>
@@ -270,14 +270,6 @@ export default function ProductBatchesDialog({
               </div>
             </div>
 
-            {/* Summary cards — on very small mobile screens they still read fine in 2
-                columns; nothing here changes on desktop/tablet. */}
-            <div className="sm:hidden">
-              <p className="text-xs text-muted-foreground">
-                Product stock: {product?.stockQuantity ?? 0} · in batches: {totalAvailable} · expired: {expiredUnits}
-              </p>
-            </div>
-
             {unbatched > 0 && (
               <div className="flex items-start gap-2 rounded-xl bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800">
                 <TriangleAlert className="size-4 shrink-0 mt-0.5" />
@@ -299,7 +291,7 @@ export default function ProductBatchesDialog({
                     No batches recorded for this product yet.
                   </p>
                 ) : (
-                  <div className="overflow-x-auto">
+                  <div className="max-w-full min-w-0 overflow-x-auto">
                     <div className="rounded-xl border border-border/60">
                       <Table>
                         <TableHeader>
@@ -508,23 +500,10 @@ export default function ProductBatchesDialog({
                 />
               </div>
 
-              {/* On very narrow screens, hide the note/reason hint above the button
-                  so the form and the Receive Batch button always fit without horizontal
-                  overflow. The same text also stays legible further down in the dialog.
-                  Desktop and tablet layouts are unchanged. */}
-              <p className="sm:hidden text-[11px] text-muted-foreground">
-                Receiving adds the quantity to this product&apos;s stock and records it against
-                the new batch. A repeated batch number with the same expiry tops up that
-                batch; a different expiry is refused.
-              </p>
-              {/* Render the receive-batch hint again below the form on small screens
-                  so it stays accessible without pushing the Receive Batch button out
-                  of view. Desktop/tablet already show it above the button and remain
-                  unchanged. */}
-              <p className="sm:hidden text-[11px] text-muted-foreground">
+              <p className="text-[11px] text-muted-foreground">
                 Receiving adds the quantity to this product&apos;s stock and records
-                it against                 the new batch. A repeated batch number with the same expiry tops up that
-                batch; a different expiry is refused.
+                it against the new batch. A repeated batch number with the same
+                expiry tops up that batch; a different expiry is refused.
               </p>
               <div className="flex justify-end">
                 <Button disabled={saving} onClick={handleReceive}>
@@ -535,15 +514,6 @@ export default function ProductBatchesDialog({
                 </Button>
               </div>
             </div>
-
-            {/* On very narrow screens, place the receive-batch hint again below the
-                button so the entire Receive a Batch section stays visible without
-                pushing anything off the right side. Desktop and tablet are unchanged. */}
-            <p className="sm:hidden text-[11px] text-muted-foreground">
-              Receiving adds the quantity to this product&apos;s stock and records it
-              against the new batch. A repeated batch number with the same expiry
-              tops up that batch; a different expiry is refused.
-            </p>
           </div>
         )}
       </DialogContent>
