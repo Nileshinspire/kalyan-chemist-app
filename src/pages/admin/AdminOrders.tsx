@@ -41,7 +41,14 @@ import {
   Truck,
   UserPlus,
   Radio,
+  MessageCircle,
 } from "lucide-react";
+import {
+  ADMIN_WHATSAPP_TEMPLATES,
+  generateAdminOrderMessage,
+  openWhatsApp,
+  type AdminWhatsAppTemplateId,
+} from "@/lib/whatsapp";
 import { formatCurrency, getStatusColor } from "@/lib/auth-utils";
 import { toast } from "sonner";
 import { geocodeAddress } from "@/lib/geocode";
@@ -249,6 +256,43 @@ export default function AdminOrders() {
     setShowDetail(true);
   };
 
+  /**
+   * Open WhatsApp with the customer's chat and a pre-filled professional
+   * message. Nothing is sent automatically and no order data is modified.
+   */
+  const handleWhatsAppCustomer = (template?: AdminWhatsAppTemplateId) => {
+    if (!orderDetail) return;
+    const phone =
+      orderDetail.userPhone ||
+      orderDetail.address?.phone ||
+      orderDetail.phone ||
+      "";
+    if (!phone) {
+      toast.error("No phone number on this order");
+      return;
+    }
+    const msg = generateAdminOrderMessage({
+      template,
+      order: {
+        customerName: orderDetail.userName,
+        orderId: orderDetail.invoiceNumber || orderDetail._id.slice(-6),
+        status: orderDetail.status,
+        items: (orderDetail.items ?? []).map((item: any) => ({
+          name: item.name,
+          quantity: item.quantity,
+          price: item.price,
+        })),
+        total: orderDetail.totalAmount,
+        paymentStatus: orderDetail.paymentStatus,
+        hasPrescription: Boolean(orderDetail.prescriptionId),
+        prescriptionItems: (orderDetail.items ?? [])
+          .filter((item: any) => item.product?.prescriptionRequired)
+          .map((item: any) => item.name),
+      },
+    });
+    openWhatsApp(phone, msg);
+  };
+
   const handleAssignDelivery = async (orderId: string, value: string) => {
     setAssigning(true);
     try {
@@ -449,6 +493,47 @@ export default function AdminOrders() {
                         {STATUS_LABELS[s]}
                       </Button>
                     ))}
+                  </div>
+
+                  {/* WhatsApp customer communication — pre-filled only */}
+                  <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border/40 pt-3">
+                    <Label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                      <MessageCircle className="size-3.5" /> WhatsApp
+                    </Label>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 gap-1 px-2 text-[11px] border-green-200 text-green-700 hover:bg-green-50 hover:border-green-300"
+                      onClick={() => handleWhatsAppCustomer()}
+                    >
+                      <MessageCircle className="size-3" /> Message customer
+                    </Button>
+                    <Select
+                      value=""
+                      onValueChange={(value) =>
+                        handleWhatsAppCustomer(value as AdminWhatsAppTemplateId)
+                      }
+                    >
+                      <SelectTrigger className="h-7 w-[180px] text-[11px]">
+                        <SelectValue placeholder="Message template" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ADMIN_WHATSAPP_TEMPLATES.filter(
+                          (template) =>
+                            !template.requiresRefundedOrder ||
+                            orderDetail.status === "refunded" ||
+                            orderDetail.paymentStatus === "refunded"
+                        ).map((template) => (
+                          <SelectItem
+                            key={template.id}
+                            value={template.id}
+                            className="text-xs"
+                          >
+                            {template.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
 

@@ -23,8 +23,10 @@ import InfoPage, { InfoSection, Reveal } from "@/components/layout/InfoPage";
    Applications go through the real configured support channels.
    ═══════════════════════════════════════════════════════════════════════════ */
 
+import { WHATSAPP_BUSINESS_NUMBER } from "@/lib/whatsappConfig";
+
 const SUPPORT_EMAIL = "hello@kalyanchemist.in";
-const WHATSAPP_URL = `https://wa.me/919876543210?text=${encodeURIComponent(
+const WHATSAPP_URL = `https://wa.me/${WHATSAPP_BUSINESS_NUMBER}?text=${encodeURIComponent(
   "Hi Kalyan Chemist! I'd like to know about career opportunities."
 )}`;
 

@@ -28,12 +28,14 @@ import InfoPage, { InfoBullets, InfoSection } from "@/components/layout/InfoPage
    account tools, preparation tips and the FAQs).
    ═══════════════════════════════════════════════════════════════════════════ */
 
+import { WHATSAPP_BUSINESS_NUMBER } from "@/lib/whatsappConfig";
+
 const PHONE_DISPLAY = "+91 98765 43210";
 const PHONE_TEL = "+919876543210";
 const SUPPORT_EMAIL = "hello@kalyanchemist.in";
 const BUSINESS_HOURS = "Mon – Sat, 8 AM – 10 PM";
 const STORE_ADDRESS = "123 Health Street, Mumbai, Maharashtra 400001";
-const WHATSAPP_URL = `https://wa.me/919876543210?text=${encodeURIComponent(
+const WHATSAPP_URL = `https://wa.me/${WHATSAPP_BUSINESS_NUMBER}?text=${encodeURIComponent(
   "💊 Hi Kalyan Chemist! I have a question."
 )}`;
 const MAPS_URL =

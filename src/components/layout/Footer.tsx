@@ -17,6 +17,7 @@ import {
 import { cn } from "@/lib/utils";
 import BrandMark from "@/components/BrandMark";
 import { preloadRoute } from "@/lib/route-preload";
+import { WHATSAPP_BUSINESS_NUMBER } from "@/lib/whatsappConfig";
 
 /* ═══════════════════════════════════════════════════════════════════════════
    KALYAN CHEMIST — SITE FOOTER
@@ -53,7 +54,8 @@ import { preloadRoute } from "@/lib/route-preload";
 /* ── Real, configured contact details (same values used across the app) ── */
 const PHONE_DISPLAY = "+91 98765 43210";
 const PHONE_TEL = "+919876543210";
-const WHATSAPP_NUMBER = "919876543210";
+/* WhatsApp actions all use the single configured business number. */
+const WHATSAPP_NUMBER = WHATSAPP_BUSINESS_NUMBER;
 const SUPPORT_EMAIL = "hello@kalyanchemist.in";
 const STORE_ADDRESS = "123 Health Street, Mumbai, Maharashtra 400001";
 const BUSINESS_HOURS = "Mon – Sat, 8 AM – 10 PM";

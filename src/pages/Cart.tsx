@@ -34,7 +34,8 @@ import {
 import { formatCurrency } from "@/lib/auth-utils";
 import { computeDeliveryFee } from "@/lib/deliveryFee";
 import { toast } from "sonner";
-import { generateCartMessage, openWhatsApp } from "@/lib/whatsapp";
+import { generateCartMessage } from "@/lib/whatsapp";
+import { openStoreWhatsApp } from "@/lib/whatsappConfig";
 
 export default function Cart() {
   const navigate = useNavigate();
@@ -200,11 +201,6 @@ export default function Cart() {
   const eligibleOffers = (offers?.offers ?? []).filter((offer) => offer.valid);
 
   const handleWhatsApp = () => {
-    const phone = deliveryConfig?.storeWhatsApp || deliveryConfig?.storePhone || "";
-    if (!phone) {
-      toast.error("WhatsApp number not configured");
-      return;
-    }
     const products = cartItems
       .filter((item) => item.product)
       .map((item) => ({
@@ -217,7 +213,7 @@ export default function Cart() {
       }));
     const unavailableItems = products.filter((p) => p.stockQuantity < p.quantity);
     const msg = generateCartMessage({ products, subtotal });
-    openWhatsApp(phone, msg);
+    openStoreWhatsApp(msg);
     logWhatsApp({
       type: "order",
       message: msg,

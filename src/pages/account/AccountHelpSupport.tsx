@@ -2,6 +2,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { WHATSAPP_BUSINESS_NUMBER } from "@/lib/whatsappConfig";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
@@ -54,7 +55,11 @@ export default function AccountHelpSupport() {
     const message = encodeURIComponent(
       `Hi Kalyan Chemist! I need help with my account. My name is ${name}.`
     );
-    window.open(`https://wa.me/919876543210?text=${message}`, "_blank");
+    window.open(
+      `https://wa.me/${WHATSAPP_BUSINESS_NUMBER}?text=${message}`,
+      "_blank",
+      "noopener,noreferrer"
+    );
   };
 
   return (

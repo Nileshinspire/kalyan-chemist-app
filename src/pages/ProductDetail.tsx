@@ -82,7 +82,8 @@ import {
 import { formatCurrency } from "@/lib/auth-utils";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
-import { generateProductMessage, openWhatsApp } from "@/lib/whatsapp";
+import { generateProductMessage } from "@/lib/whatsapp";
+import { openStoreWhatsApp } from "@/lib/whatsappConfig";
 
 function StarRating({
   rating,
@@ -436,7 +437,6 @@ export default function ProductDetail() {
     product ? { productId: product._id } : "skip"
   );
 
-  const deliveryConfig = useQuery(api.deliveryConfig.getPublic);
   const logWhatsApp = useMutation(api.whatsappEnquiries.log);
 
   const hasVariants = !!(product && (product as any).packSizeVariants && (product as any).packSizeVariants.length > 0);
@@ -530,24 +530,26 @@ export default function ProductDetail() {
 
   const handleWhatsApp = () => {
     if (!product) return;
-    const phone = deliveryConfig?.storeWhatsApp || deliveryConfig?.storePhone || "";
-    if (!phone) {
-      toast.error("WhatsApp number not configured. Please call us directly.");
-      return;
-    }
     const p = product;
     const unitPrice = activeDiscount ? activeDiscount.discountPrice! : activePrice;
     const isAvailable = activeStock >= whatsappQty;
+    // Real catalogue data only — each value is skipped when the product has none.
     const msg = generateProductMessage({
       productName: p.name,
       price: unitPrice,
-      composition: p.composition,
-      packSize: activePackLabel,
+      productId: p.sku || p._id,
+      brand: (p as any).brand || undefined,
+      manufacturer: p.manufacturer || undefined,
+      strength: p.strength || undefined,
+      variant: activeVariant ? activeVariant.label : undefined,
+      composition: p.composition || undefined,
+      packSize: activePackLabel || undefined,
+      productUrl: `${window.location.origin}/#/products/${p.slug}`,
       stockQuantity: activeStock,
       requestedQuantity: whatsappQty,
       prescriptionRequired: p.prescriptionRequired,
     });
-    openWhatsApp(phone, msg);
+    openStoreWhatsApp(msg);
     logWhatsApp({
       type: "order",
       message: msg,

@@ -43,7 +43,7 @@ import { formatCurrency } from "@/lib/auth-utils";
 import { geocodeAddress } from "@/lib/geocode";
 import { computeDeliveryFee } from "@/lib/deliveryFee";
 import { toast } from "sonner";
-import { openWhatsApp } from "@/lib/whatsapp";
+import { openStoreWhatsApp } from "@/lib/whatsappConfig";
 import { loadRazorpayScript } from "@/lib/razorpay";
 import { CheckCircle2 as CheckCircle, XCircle } from "lucide-react";
 import type { RazorpayResponse } from "@/types/global";
@@ -631,11 +631,6 @@ export default function Checkout() {
   };
 
   const handleWhatsAppOrder = () => {
-    const phone = deliveryConfig?.storeWhatsApp || deliveryConfig?.storePhone || "";
-    if (!phone) {
-      toast.error("WhatsApp number not configured. Please place your order online.");
-      return;
-    }
     const lines: string[] = [];
     lines.push("💊 *Kalyan Chemist — Order via WhatsApp*");
     lines.push("");
@@ -659,7 +654,7 @@ export default function Checkout() {
     }
     lines.push("");
     lines.push("Please confirm this order.");
-    openWhatsApp(phone, lines.join("\n"));
+    openStoreWhatsApp(lines.join("\n"));
   };
 
   return (
