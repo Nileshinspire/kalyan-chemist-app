@@ -34,12 +34,38 @@ export function buildWhatsAppUrl(message: string, phone?: string | null): string
   return `https://wa.me/${number}?text=${encodeURIComponent(text)}`;
 }
 
-/** Open WhatsApp with a pre-filled message for any number (falls back to the store). */
+/**
+ * Open WhatsApp with a pre-filled message for any number (falls back to the
+ * store).
+ *
+ * Opens a new tab/window on both desktop and mobile. Some in-app browsers and
+ * sandboxed previews block `window.open`; in that case the same chat URL is
+ * opened in the current tab so the button never appears to do nothing.
+ */
 export function openWhatsAppChat(message: string, phone?: string | null): boolean {
   if (typeof window === "undefined") return false;
   const url = buildWhatsAppUrl(message, phone);
   if (!url) return false;
-  window.open(url, "_blank", "noopener,noreferrer");
+
+  let opened: Window | null = null;
+  try {
+    opened = window.open(url, "_blank");
+  } catch {
+    opened = null;
+  }
+
+  if (opened) {
+    // Sever the opener reference for the third-party page.
+    try {
+      opened.opener = null;
+    } catch {
+      /* cross-origin window — nothing to do */
+    }
+    return true;
+  }
+
+  // Popup blocked: navigate the current tab instead of failing silently.
+  window.location.href = url;
   return true;
 }
 

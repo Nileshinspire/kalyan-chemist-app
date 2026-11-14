@@ -9,6 +9,7 @@ import {
 import {
   ADMIN_WHATSAPP_TEMPLATES,
   WHATSAPP_ASSISTANCE_OPTIONS,
+  WHATSAPP_AWAY_MESSAGE,
   WHATSAPP_GREETING_MESSAGE,
   WHATSAPP_QUICK_REPLIES,
   generateAdminOrderMessage,
@@ -25,6 +26,8 @@ const openSpy = vi.fn();
 
 beforeEach(() => {
   openSpy.mockReset();
+  // A truthy return mimics a successfully opened tab (no same-tab fallback).
+  openSpy.mockReturnValue({ opener: null });
   vi.stubGlobal("open", openSpy);
 });
 
@@ -193,18 +196,25 @@ describe("Product enquiry message", () => {
 });
 
 describe("Admin WhatsApp Business quick replies", () => {
-  it("ships all six templates with a shortcut", () => {
+  it("ships all seven templates with their shortcuts", () => {
     expect(WHATSAPP_QUICK_REPLIES.map((t) => t.id)).toEqual([
       "medicine_enquiry",
-      "product_order",
       "order_support",
       "prescription_help",
       "pharmacist",
+      "product_order",
+      "medicine_available",
       "medicine_unavailable",
     ]);
-    for (const template of WHATSAPP_QUICK_REPLIES) {
-      expect(template.shortcut.startsWith("/")).toBe(true);
-    }
+    expect(WHATSAPP_QUICK_REPLIES.map((t) => t.shortcut)).toEqual([
+      "/medicine",
+      "/order",
+      "/prescription",
+      "/pharmacist",
+      "/product",
+      "/available",
+      "/unavailable",
+    ]);
   });
 
   it("writes each reply in customer-support tone with real values only", () => {
@@ -220,43 +230,48 @@ describe("Admin WhatsApp Business quick replies", () => {
       ].join("\n")
     );
 
-    // Product template: availability/price stay for the admin to verify.
-    expect(
-      generateQuickReply({ id: "product_order", productName: "Dolo 650" })
-    ).toBe(
+    expect(generateQuickReply({ id: "order_support" })).toBe(
       [
         "Hello! 👋",
         "",
-        "Thank you for your interest in *Dolo 650*.",
+        "Thank you for reaching out to Kalyan Chemist.",
         "",
-        "[Admin inserts verified availability and price information.]",
-        "",
-        "Would you like assistance with placing your order?",
+        "Please share your order ID so we can check the latest order status and assist you.",
       ].join("\n")
     );
 
-    expect(
-      generateQuickReply({
-        id: "order_support",
-        orderId: "INV-1001",
-        orderStatus: "Out for delivery",
-      })
-    ).toContain("Your order *#INV-1001* is currently *Out for delivery*.");
-
-    // Missing values stay visible placeholders — never guessed.
-    expect(generateQuickReply({ id: "order_support" })).toContain(
-      "Your order *#[Order ID]* is currently *[Verified Order Status]*."
+    expect(generateQuickReply({ id: "product_order" })).toBe(
+      [
+        "Hello! 👋",
+        "",
+        "Thank you for your interest in our product.",
+        "",
+        "Please allow us a moment to verify its availability and price. We will assist you with the ordering process.",
+      ].join("\n")
     );
 
+    expect(generateQuickReply({ id: "medicine_available" })).toContain(
+      "Good news! The requested medicine is currently available at [Verified Price]."
+    );
     expect(
-      generateQuickReply({ id: "medicine_unavailable" })
-    ).toContain("We are sorry, but the requested medicine is currently unavailable.");
+      generateQuickReply({ id: "medicine_available", price: "₹32" })
+    ).toContain("currently available at ₹32.");
+
+    expect(generateQuickReply({ id: "medicine_unavailable" })).toBe(
+      [
+        "Hello! 👋",
+        "",
+        "We are sorry, but the requested medicine is currently unavailable.",
+        "",
+        "Please let us know if you would like us to check for an alternative.",
+      ].join("\n")
+    );
 
     expect(generateQuickReply({ id: "prescription_help" })).toContain(
       "Please share a clear image of your prescription"
     );
     expect(generateQuickReply({ id: "pharmacist" })).toContain(
-      "help connect you with the pharmacist"
+      "We will help connect you with our pharmacist"
     );
   });
 });
@@ -326,28 +341,35 @@ describe("Floating WhatsApp button", () => {
       "I would like to connect with your team for assistance regarding medicines or an order."
     );
     expect(openSpy.mock.calls[0][1]).toBe("_blank");
-    expect(openSpy.mock.calls[0][2]).toContain("noopener");
 
     // No assistance panel is shown before the chat opens.
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it("ships the WhatsApp Business greeting text for manual configuration", () => {
+  it("ships the WhatsApp Business greeting and away texts for manual setup", () => {
     expect(WHATSAPP_GREETING_MESSAGE.split("\n")).toEqual([
       "Hello! 👋",
       "",
       "Welcome to Kalyan Chemist.",
       "",
-      "How can we assist you today?",
+      "Thank you for contacting us. How can we assist you today?",
       "",
-      "1. 💊 Order Medicines",
-      "2. 📦 Existing Order Support",
-      "3. 📄 Prescription Help",
-      "4. 👨‍⚕️ Talk to Pharmacist",
+      "💊 Medicine Enquiry",
+      "📦 Order Medicines / Existing Order Support",
+      "📄 Prescription Help",
+      "👨‍⚕️ Pharmacist Assistance",
       "",
-      "Simply tell us your requirement, and our team will be happy to assist you.",
+      "Please share your requirement, and our team will be happy to assist you.",
+    ]);
+
+    expect(WHATSAPP_AWAY_MESSAGE.split("\n")).toEqual([
+      "Hello! 👋",
       "",
-      "Thank you for contacting Kalyan Chemist!",
+      "Thank you for contacting Kalyan Chemist.",
+      "",
+      "We have received your message. Our team is currently unavailable, but we will get back to you as soon as possible.",
+      "",
+      "Thank you for your patience!",
     ]);
   });
 });

@@ -61,6 +61,7 @@ const openSpy = vi.fn();
 
 beforeEach(() => {
   openSpy.mockReset();
+  openSpy.mockReturnValue({ opener: null });
   vi.stubGlobal("open", openSpy);
 });
 

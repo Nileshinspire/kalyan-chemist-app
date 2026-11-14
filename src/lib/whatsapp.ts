@@ -269,16 +269,31 @@ export const WHATSAPP_GREETING_MESSAGE = [
   "",
   "Welcome to Kalyan Chemist.",
   "",
-  "How can we assist you today?",
+  "Thank you for contacting us. How can we assist you today?",
   "",
-  "1. 💊 Order Medicines",
-  "2. 📦 Existing Order Support",
-  "3. 📄 Prescription Help",
-  "4. 👨‍⚕️ Talk to Pharmacist",
+  "💊 Medicine Enquiry",
+  "📦 Order Medicines / Existing Order Support",
+  "📄 Prescription Help",
+  "👨‍⚕️ Pharmacist Assistance",
   "",
-  "Simply tell us your requirement, and our team will be happy to assist you.",
+  "Please share your requirement, and our team will be happy to assist you.",
+].join("\n");
+
+/**
+ * WhatsApp Business App away message.
+ *
+ * Also configured manually inside the WhatsApp Business App (Settings →
+ * Business tools → Away message), together with its own schedule. The website
+ * can neither install nor send it.
+ */
+export const WHATSAPP_AWAY_MESSAGE = [
+  "Hello! 👋",
   "",
-  "Thank you for contacting Kalyan Chemist!",
+  "Thank you for contacting Kalyan Chemist.",
+  "",
+  "We have received your message. Our team is currently unavailable, but we will get back to you as soon as possible.",
+  "",
+  "Thank you for your patience!",
 ].join("\n");
 
 // ── Customer assistance panel (floating button) ──
@@ -527,10 +542,11 @@ export function generateAdminOrderMessage(params: {
 
 export type WhatsAppQuickReplyId =
   | "medicine_enquiry"
-  | "product_order"
   | "order_support"
   | "prescription_help"
   | "pharmacist"
+  | "product_order"
+  | "medicine_available"
   | "medicine_unavailable";
 
 export const WHATSAPP_QUICK_REPLIES: Array<{
@@ -539,36 +555,27 @@ export const WHATSAPP_QUICK_REPLIES: Array<{
   /** Suggested WhatsApp Business App quick-reply shortcut. */
   shortcut: string;
 }> = [
-  { id: "medicine_enquiry", label: "Medicine Enquiry", shortcut: "/med" },
-  { id: "product_order", label: "Product Order Enquiry", shortcut: "/product" },
+  { id: "medicine_enquiry", label: "Medicine Enquiry", shortcut: "/medicine" },
   { id: "order_support", label: "Existing Order Support", shortcut: "/order" },
-  { id: "prescription_help", label: "Prescription Help", shortcut: "/rx" },
-  { id: "pharmacist", label: "Pharmacist Assistance", shortcut: "/pharm" },
+  { id: "prescription_help", label: "Prescription Help", shortcut: "/prescription" },
+  { id: "pharmacist", label: "Pharmacist Assistance", shortcut: "/pharmacist" },
+  { id: "product_order", label: "Product Order", shortcut: "/product" },
+  { id: "medicine_available", label: "Medicine Available", shortcut: "/available" },
   { id: "medicine_unavailable", label: "Medicine Unavailable", shortcut: "/unavailable" },
 ];
 
 /**
  * Build one admin quick reply.
  *
- * Optional values (order ID, verified order status, product name) are inserted
- * only when the admin supplies them; otherwise the template keeps a visible
- * [placeholder] so nothing is invented or silently confirmed. Availability and
- * price stay admin-verified — the product template leaves that line for the
- * admin to complete.
+ * Only "Medicine Available" has a value slot (the verified price) and keeps a
+ * visible [Verified Price] placeholder when the admin has not typed one. Nothing
+ * about availability, price or order status is ever confirmed by the website.
  */
 export function generateQuickReply(params: {
   id: WhatsAppQuickReplyId;
-  orderId?: string;
-  orderStatus?: string;
-  productName?: string;
-  availability?: string;
+  price?: string;
 }): string {
-  const orderId = params.orderId?.trim() || "[Order ID]";
-  const orderStatus = params.orderStatus?.trim() || "[Verified Order Status]";
-  const productName = params.productName?.trim() || "[Product Name]";
-  const availability =
-    params.availability?.trim() ||
-    "[Admin inserts verified availability and price information.]";
+  const price = params.price?.trim() || "[Verified Price]";
 
   switch (params.id) {
     case "medicine_enquiry":
@@ -581,25 +588,13 @@ export function generateQuickReply(params: {
         "",
         "We are happy to assist you!",
       ].join("\n");
-    case "product_order":
-      return [
-        "Hello! 👋",
-        "",
-        `Thank you for your interest in *${productName}*.`,
-        "",
-        availability,
-        "",
-        "Would you like assistance with placing your order?",
-      ].join("\n");
     case "order_support":
       return [
         "Hello! 👋",
         "",
         "Thank you for reaching out to Kalyan Chemist.",
         "",
-        `Your order *#${orderId}* is currently *${orderStatus}*.`,
-        "",
-        "Please let us know if you need any further assistance.",
+        "Please share your order ID so we can check the latest order status and assist you.",
       ].join("\n");
     case "prescription_help":
       return [
@@ -615,7 +610,23 @@ export function generateQuickReply(params: {
         "",
         "Thank you for contacting Kalyan Chemist.",
         "",
-        "Our team will assist you with your medicine-related query and help connect you with the pharmacist.",
+        "We will help connect you with our pharmacist for your medicine-related query.",
+      ].join("\n");
+    case "product_order":
+      return [
+        "Hello! 👋",
+        "",
+        "Thank you for your interest in our product.",
+        "",
+        "Please allow us a moment to verify its availability and price. We will assist you with the ordering process.",
+      ].join("\n");
+    case "medicine_available":
+      return [
+        "Hello! 👋",
+        "",
+        `Good news! The requested medicine is currently available at ${price}.`,
+        "",
+        "Would you like us to assist you with placing your order?",
       ].join("\n");
     case "medicine_unavailable":
     default:
