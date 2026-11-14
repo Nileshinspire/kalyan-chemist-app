@@ -139,56 +139,55 @@ export function generateCartMessage(params: {
 }
 
 /**
- * Generate a single-product inquiry message
- * Includes availability auto-reply based on current stock
+ * Customer → admin product enquiry (Product page "Order on WhatsApp").
+ *
+ * Written in the customer's voice, uses only real product data (each optional
+ * line is omitted when the value is missing) and never states that the product
+ * is available — the admin confirms availability.
  */
 export function generateProductMessage(params: {
   productName: string;
   price: number;
-  composition?: string;
-  packSize?: string;
-  stockQuantity?: number;
   requestedQuantity?: number;
   prescriptionRequired?: boolean;
   /** Real catalogue data — each line is omitted when the value is missing. */
   productId?: string;
-  brand?: string;
   manufacturer?: string;
-  strength?: string;
-  variant?: string;
+  packSize?: string;
   productUrl?: string;
 }): string {
   const lines: string[] = [];
 
-  lines.push("💊 *Kalyan Chemist — Product Inquiry*");
+  lines.push("👋 Hello Kalyan Chemist Team!");
   lines.push("");
-  lines.push(`Product: ${params.productName}`);
-  if (params.productId) lines.push(`Product ID: ${params.productId}`);
-  if (params.brand) lines.push(`Brand: ${params.brand}`);
-  if (params.manufacturer) lines.push(`Manufacturer: ${params.manufacturer}`);
-  if (params.strength) lines.push(`Strength: ${params.strength}`);
-  if (params.composition) lines.push(`Composition: ${params.composition}`);
-  if (params.variant) lines.push(`Variant: ${params.variant}`);
-  if (params.packSize) lines.push(`Pack Size: ${params.packSize}`);
-  lines.push(`Quantity: ${params.requestedQuantity ?? 1}`);
-  lines.push(`Price: ₹${params.price.toLocaleString("en-IN")}`);
-  if (params.productUrl) lines.push(`Link: ${params.productUrl}`);
+  lines.push("I am interested in purchasing this medicine:");
+  lines.push("");
+  lines.push(`💊 *${params.productName}*`);
   lines.push("");
 
-  // Prescription warning
-  if (params.prescriptionRequired) {
-    lines.push("⚠️ *Prescription Required* — Please have a valid prescription from a registered medical practitioner ready.");
+  if (params.productId) lines.push(`• Product ID: ${params.productId}`);
+  if (params.manufacturer) lines.push(`• Manufacturer: ${params.manufacturer}`);
+  if (params.packSize) lines.push(`• Pack Size: ${params.packSize}`);
+  lines.push(`• Quantity: ${params.requestedQuantity ?? 1}`);
+  lines.push(`• Price: ₹${params.price.toLocaleString("en-IN")}`);
+
+  if (params.productUrl) {
     lines.push("");
+    lines.push(`🔗 Product Link: ${params.productUrl}`);
   }
 
-  // Availability auto-reply based on live stock
-  const qty = params.requestedQuantity ?? 1;
-  const stock = params.stockQuantity ?? 0;
-  if (stock >= qty) {
-    lines.push(`💊 Hi! Your requested medicine (Qty: ${qty}) is available at Kalyan Chemist. Our team will assist you shortly.`);
-  } else {
-    lines.push("💊 Hi! Sorry, the requested medicine or quantity is currently unavailable. Please let us know if you'd like an alternative.");
+  lines.push("");
+  lines.push(
+    "Could you please confirm its availability and guide me with the ordering process?"
+  );
+
+  if (params.prescriptionRequired) {
+    lines.push("");
+    lines.push("⚠️ A valid prescription is required for this medicine.");
   }
+
+  lines.push("");
+  lines.push("Thank you!");
 
   return lines.join("\n");
 }
@@ -278,53 +277,52 @@ export const WHATSAPP_ASSISTANCE_OPTIONS: Array<{
 ];
 
 /**
- * Pre-filled message for an assistance-panel option.
- * `details` is whatever the customer typed in the panel (optional).
+ * Pre-filled message for an assistance-panel option — written in the
+ * customer's voice, one distinct short message per option.
+ *
+ * `details` is whatever the customer typed in the panel. Only "Existing Order
+ * Support" has a slot for it (the Order ID line), and the line is omitted when
+ * no order reference was provided — an ID is never invented.
  */
 export function generateAssistanceMessage(
   option: WhatsAppAssistanceOptionId,
   details?: string
 ): string {
-  const lines: string[] = [];
-  const trimmed = (details ?? "").trim();
+  const lines: string[] = ["👋 Hello Kalyan Chemist Team!", ""];
+  const typed = (details ?? "").trim();
+  // Any typed reference that contains a digit is treated as an order ID.
+  const orderId = /\d/.test(typed) ? typed : "";
 
   switch (option) {
     case "medicine_enquiry":
-      lines.push("💊 *Kalyan Chemist — Medicine Enquiry*");
-      lines.push("");
-      lines.push("Hello, I would like to enquire about a medicine.");
-      lines.push("");
-      lines.push("Please help me with availability, price and pack size.");
+      lines.push(
+        "I would like to enquire about a medicine. Could you please help me with its availability and price?"
+      );
       break;
     case "order_support":
-      lines.push("💊 *Kalyan Chemist — Order Support*");
+      lines.push("I need an update regarding my order.");
+      if (orderId) {
+        lines.push("");
+        lines.push(`Order ID: ${orderId}`);
+      }
       lines.push("");
-      lines.push("Hello, I need help with an existing order.");
-      lines.push("");
-      lines.push("Please check the status of my order and assist me.");
+      lines.push("Could you please help me with the current status?");
       break;
     case "prescription_help":
-      lines.push("💊 *Kalyan Chemist — Prescription Help*");
-      lines.push("");
-      lines.push("Hello, I need help with a prescription.");
-      lines.push("");
-      lines.push("I can share a valid prescription from a registered medical practitioner for verification.");
+      lines.push(
+        "I need some assistance with my prescription. Could you please guide me?"
+      );
       break;
     case "pharmacist":
     default:
-      lines.push("💊 *Kalyan Chemist — Talk to Pharmacist*");
+      lines.push("I would like to speak with a pharmacist regarding a medicine.");
       lines.push("");
-      lines.push("Hello, I would like to speak with your pharmacist about my medicines.");
+      lines.push("Could you please assist me?");
       break;
   }
 
-  if (trimmed) {
-    lines.push("");
-    lines.push(`My question: ${trimmed}`);
-  }
-
   lines.push("");
-  lines.push("— Sent from the Kalyan Chemist website");
+  lines.push("Thank you!");
   return lines.join("\n");
 }
 
@@ -478,4 +476,117 @@ export function generateAdminOrderMessage(params: {
   lines.push("For any queries, reply to this message.");
   lines.push("— Kalyan Chemist");
   return lines.join("\n");
+}
+
+// ── Admin → customer WhatsApp Business quick replies ──
+//
+// These are the exact texts the admin can paste into WhatsApp Business App →
+// Settings → Business tools → Quick replies, one per enquiry type. The admin
+// reviews the details, fills any [placeholder] and presses Send manually; no
+// availability, price or order status is ever confirmed automatically.
+
+export type WhatsAppQuickReplyId =
+  | "medicine_enquiry"
+  | "order_support"
+  | "prescription_help"
+  | "pharmacist"
+  | "product_available"
+  | "product_unavailable";
+
+export const WHATSAPP_QUICK_REPLIES: Array<{
+  id: WhatsAppQuickReplyId;
+  label: string;
+  /** Suggested WhatsApp Business App quick-reply shortcut. */
+  shortcut: string;
+}> = [
+  { id: "medicine_enquiry", label: "Reply to Medicine Enquiry", shortcut: "/med" },
+  { id: "order_support", label: "Reply to Existing Order Support", shortcut: "/order" },
+  { id: "prescription_help", label: "Reply to Prescription Help", shortcut: "/rx" },
+  { id: "pharmacist", label: "Reply to Talk to Pharmacist", shortcut: "/pharm" },
+  { id: "product_available", label: "Product Order Enquiry — Available", shortcut: "/avail" },
+  { id: "product_unavailable", label: "Product Order Enquiry — Unavailable", shortcut: "/unavail" },
+];
+
+/**
+ * Build one admin quick reply.
+ *
+ * Optional values (order ID, order status, product name, verified price) are
+ * inserted only when the admin supplies them; otherwise the template keeps a
+ * visible [placeholder] so nothing is invented or silently confirmed.
+ */
+export function generateQuickReply(params: {
+  id: WhatsAppQuickReplyId;
+  orderId?: string;
+  orderStatus?: string;
+  productName?: string;
+  price?: string;
+}): string {
+  const orderId = params.orderId?.trim() || "[Order ID]";
+  const orderStatus = params.orderStatus?.trim() || "[Order Status]";
+  const productName = params.productName?.trim() || "[Product Name]";
+  const price = params.price?.trim() || "[Verified Current Price]";
+
+  switch (params.id) {
+    case "medicine_enquiry":
+      return [
+        "Hello! 👋",
+        "",
+        "Thank you for contacting Kalyan Chemist.",
+        "",
+        "We'd be happy to help you. Please share the medicine name so we can check its availability and price.",
+        "",
+        "Thank you!",
+      ].join("\n");
+    case "order_support":
+      return [
+        "Hello! 👋",
+        "",
+        "Thank you for reaching out.",
+        "",
+        `Your order *#${orderId}* is currently *${orderStatus}*.`,
+        "",
+        "Please let us know if you need any further assistance.",
+      ].join("\n");
+    case "prescription_help":
+      return [
+        "Hello! 👋",
+        "",
+        "We'd be happy to assist you with your prescription.",
+        "",
+        "Please share a clear image of your prescription so our team can guide you further.",
+      ].join("\n");
+    case "pharmacist":
+      return [
+        "Hello! 👋",
+        "",
+        "Thank you for contacting Kalyan Chemist.",
+        "",
+        "Our team will help connect you with the pharmacist for your medicine-related query.",
+      ].join("\n");
+    case "product_available":
+      return [
+        "Hello! 👋",
+        "",
+        `Thank you for your interest in *${productName}*.`,
+        "",
+        `The product is currently available at *${price}*.`,
+        "",
+        "Would you like us to assist you with placing your order?",
+        "",
+        "Thank you for choosing Kalyan Chemist!",
+      ].join("\n");
+    case "product_unavailable":
+    default:
+      return [
+        "Hello! 👋",
+        "",
+        `Thank you for your enquiry about *${productName}*.`,
+        "",
+        "We're sorry, but this product is currently unavailable.",
+        "",
+        "Please let us know if you would like us to check for an alternative.",
+        "",
+        "Thank you for your understanding!",
+      ].join("\n");
+  }
 }
