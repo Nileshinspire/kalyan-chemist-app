@@ -9,14 +9,17 @@ import {
 import {
   ADMIN_WHATSAPP_TEMPLATES,
   WHATSAPP_ASSISTANCE_OPTIONS,
+  WHATSAPP_GREETING_MESSAGE,
   WHATSAPP_QUICK_REPLIES,
   generateAdminOrderMessage,
   generateAssistanceMessage,
+  generateDirectChatMessage,
   generateProductMessage,
   generateQuickReply,
   openWhatsApp,
   whatsAppLinkFor,
 } from "@/lib/whatsapp";
+import WhatsAppFloat from "@/components/WhatsAppFloat";
 
 const openSpy = vi.fn();
 
@@ -193,11 +196,11 @@ describe("Admin WhatsApp Business quick replies", () => {
   it("ships all six templates with a shortcut", () => {
     expect(WHATSAPP_QUICK_REPLIES.map((t) => t.id)).toEqual([
       "medicine_enquiry",
+      "product_order",
       "order_support",
       "prescription_help",
       "pharmacist",
-      "product_available",
-      "product_unavailable",
+      "medicine_unavailable",
     ]);
     for (const template of WHATSAPP_QUICK_REPLIES) {
       expect(template.shortcut.startsWith("/")).toBe(true);
@@ -211,9 +214,24 @@ describe("Admin WhatsApp Business quick replies", () => {
         "",
         "Thank you for contacting Kalyan Chemist.",
         "",
-        "We'd be happy to help you. Please share the medicine name so we can check its availability and price.",
+        "Please share the medicine name so we can check its availability and price.",
         "",
-        "Thank you!",
+        "We are happy to assist you!",
+      ].join("\n")
+    );
+
+    // Product template: availability/price stay for the admin to verify.
+    expect(
+      generateQuickReply({ id: "product_order", productName: "Dolo 650" })
+    ).toBe(
+      [
+        "Hello! 👋",
+        "",
+        "Thank you for your interest in *Dolo 650*.",
+        "",
+        "[Admin inserts verified availability and price information.]",
+        "",
+        "Would you like assistance with placing your order?",
       ].join("\n")
     );
 
@@ -227,20 +245,12 @@ describe("Admin WhatsApp Business quick replies", () => {
 
     // Missing values stay visible placeholders — never guessed.
     expect(generateQuickReply({ id: "order_support" })).toContain(
-      "*#[Order ID]* is currently *[Order Status]*"
+      "Your order *#[Order ID]* is currently *[Verified Order Status]*."
     );
 
     expect(
-      generateQuickReply({
-        id: "product_available",
-        productName: "Dolo 650",
-        price: "₹32",
-      })
-    ).toContain("The product is currently available at *₹32*.");
-
-    expect(
-      generateQuickReply({ id: "product_unavailable", productName: "Dolo 650" })
-    ).toContain("We're sorry, but this product is currently unavailable.");
+      generateQuickReply({ id: "medicine_unavailable" })
+    ).toContain("We are sorry, but the requested medicine is currently unavailable.");
 
     expect(generateQuickReply({ id: "prescription_help" })).toContain(
       "Please share a clear image of your prescription"
@@ -299,67 +309,45 @@ describe("Admin order messages", () => {
   });
 });
 
-describe("Floating WhatsApp assistance panel", () => {
-  it("opens the panel and an option opens WhatsApp with its own message", async () => {
-    vi.resetModules();
-    vi.doMock("framer-motion", async () => {
-      const actual = await vi.importActual<Record<string, unknown>>("framer-motion");
-      return {
-        ...actual,
-        AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-        motion: new Proxy(
-          {},
-          {
-            get: (_target, key) =>
-              ({ children, ...props }: { children?: React.ReactNode } & Record<string, unknown>) => {
-                // Drop motion-only props so jsdom does not warn about them.
-                const domProps: Record<string, unknown> = {};
-                for (const [prop, value] of Object.entries(props)) {
-                  if (["initial", "animate", "exit", "transition", "variants", "whileHover", "whileTap"].includes(prop)) continue;
-                  domProps[prop] = value;
-                }
-                const Tag = (
-                  typeof key === "string" ? key : "div"
-                ) as React.ElementType;
-                return <Tag {...domProps}>{children}</Tag>;
-              },
-          }
-        ),
-      };
-    });
-
-    const { default: WhatsAppFloat } = await import("@/components/WhatsAppFloat");
+describe("Floating WhatsApp button", () => {
+  it("opens the configured chat directly with the pre-filled greeting", () => {
     render(<WhatsAppFloat />);
 
     fireEvent.click(screen.getByLabelText("Chat on WhatsApp"));
-    expect(screen.getByRole("dialog", { name: "WhatsApp assistance" })).toBeTruthy();
-
-    // Order support: the typed order reference becomes the Order ID line.
-    fireEvent.change(
-      screen.getByPlaceholderText("e.g. Dolo 650 availability"),
-      { target: { value: "INV-1001" } }
-    );
-    fireEvent.click(screen.getByText("Existing Order Support"));
 
     expect(openSpy).toHaveBeenCalledTimes(1);
     const url = openSpy.mock.calls[0][0] as string;
-    expect(url.startsWith(`https://wa.me/${WHATSAPP_BUSINESS_NUMBER}?text=`)).toBe(true);
-    const sent = decodeURIComponent(url);
-    expect(sent).toContain("I need an update regarding my order.");
-    expect(sent).toContain("Order ID: INV-1001");
-    expect(sent).toContain("Could you please help me with the current status?");
+    expect(url).toBe(
+      `https://wa.me/${WHATSAPP_BUSINESS_NUMBER}?text=${encodeURIComponent(
+        generateDirectChatMessage()
+      )}`
+    );
+    expect(decodeURIComponent(url)).toContain(
+      "I would like to connect with your team for assistance regarding medicines or an order."
+    );
+    expect(openSpy.mock.calls[0][1]).toBe("_blank");
     expect(openSpy.mock.calls[0][2]).toContain("noopener");
 
-    // A different option sends its own message, not the order-support one.
-    fireEvent.click(screen.getByLabelText("Chat on WhatsApp"));
-    fireEvent.click(screen.getByText("Talk to Pharmacist"));
-    expect(openSpy).toHaveBeenCalledTimes(2);
-    const second = decodeURIComponent(openSpy.mock.calls[1][0] as string);
-    expect(second).toContain(
-      "I would like to speak with a pharmacist regarding a medicine."
-    );
-    expect(second).not.toContain("Order ID:");
+    // No assistance panel is shown before the chat opens.
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
 
-    vi.doUnmock("framer-motion");
+  it("ships the WhatsApp Business greeting text for manual configuration", () => {
+    expect(WHATSAPP_GREETING_MESSAGE.split("\n")).toEqual([
+      "Hello! 👋",
+      "",
+      "Welcome to Kalyan Chemist.",
+      "",
+      "How can we assist you today?",
+      "",
+      "1. 💊 Order Medicines",
+      "2. 📦 Existing Order Support",
+      "3. 📄 Prescription Help",
+      "4. 👨‍⚕️ Talk to Pharmacist",
+      "",
+      "Simply tell us your requirement, and our team will be happy to assist you.",
+      "",
+      "Thank you for contacting Kalyan Chemist!",
+    ]);
   });
 });

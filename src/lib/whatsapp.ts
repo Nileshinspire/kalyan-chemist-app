@@ -241,6 +241,46 @@ export function whatsAppLinkFor(phone: string, message: string): string {
   return buildWhatsAppUrl(message, phone || WHATSAPP_BUSINESS_NUMBER);
 }
 
+/**
+ * Pre-filled greeting used by the floating WhatsApp button.
+ * The customer lands in the Kalyan Chemist chat, can edit this text or write
+ * their own enquiry and presses Send manually.
+ */
+export function generateDirectChatMessage(): string {
+  return [
+    "👋 Hello Kalyan Chemist Team!",
+    "",
+    "I would like to connect with your team for assistance regarding medicines or an order.",
+    "",
+    "Thank you!",
+  ].join("\n");
+}
+
+/**
+ * WhatsApp Business App greeting message.
+ *
+ * Configured manually inside the WhatsApp Business App (Settings → Business
+ * tools → Greeting message). WhatsApp sends it automatically to new chats —
+ * this website cannot set or send it through a Click-to-Chat link, so this
+ * constant exists only as the exact text to copy into the app.
+ */
+export const WHATSAPP_GREETING_MESSAGE = [
+  "Hello! 👋",
+  "",
+  "Welcome to Kalyan Chemist.",
+  "",
+  "How can we assist you today?",
+  "",
+  "1. 💊 Order Medicines",
+  "2. 📦 Existing Order Support",
+  "3. 📄 Prescription Help",
+  "4. 👨‍⚕️ Talk to Pharmacist",
+  "",
+  "Simply tell us your requirement, and our team will be happy to assist you.",
+  "",
+  "Thank you for contacting Kalyan Chemist!",
+].join("\n");
+
 // ── Customer assistance panel (floating button) ──
 
 export type WhatsAppAssistanceOptionId =
@@ -487,11 +527,11 @@ export function generateAdminOrderMessage(params: {
 
 export type WhatsAppQuickReplyId =
   | "medicine_enquiry"
+  | "product_order"
   | "order_support"
   | "prescription_help"
   | "pharmacist"
-  | "product_available"
-  | "product_unavailable";
+  | "medicine_unavailable";
 
 export const WHATSAPP_QUICK_REPLIES: Array<{
   id: WhatsAppQuickReplyId;
@@ -499,32 +539,36 @@ export const WHATSAPP_QUICK_REPLIES: Array<{
   /** Suggested WhatsApp Business App quick-reply shortcut. */
   shortcut: string;
 }> = [
-  { id: "medicine_enquiry", label: "Reply to Medicine Enquiry", shortcut: "/med" },
-  { id: "order_support", label: "Reply to Existing Order Support", shortcut: "/order" },
-  { id: "prescription_help", label: "Reply to Prescription Help", shortcut: "/rx" },
-  { id: "pharmacist", label: "Reply to Talk to Pharmacist", shortcut: "/pharm" },
-  { id: "product_available", label: "Product Order Enquiry — Available", shortcut: "/avail" },
-  { id: "product_unavailable", label: "Product Order Enquiry — Unavailable", shortcut: "/unavail" },
+  { id: "medicine_enquiry", label: "Medicine Enquiry", shortcut: "/med" },
+  { id: "product_order", label: "Product Order Enquiry", shortcut: "/product" },
+  { id: "order_support", label: "Existing Order Support", shortcut: "/order" },
+  { id: "prescription_help", label: "Prescription Help", shortcut: "/rx" },
+  { id: "pharmacist", label: "Pharmacist Assistance", shortcut: "/pharm" },
+  { id: "medicine_unavailable", label: "Medicine Unavailable", shortcut: "/unavailable" },
 ];
 
 /**
  * Build one admin quick reply.
  *
- * Optional values (order ID, order status, product name, verified price) are
- * inserted only when the admin supplies them; otherwise the template keeps a
- * visible [placeholder] so nothing is invented or silently confirmed.
+ * Optional values (order ID, verified order status, product name) are inserted
+ * only when the admin supplies them; otherwise the template keeps a visible
+ * [placeholder] so nothing is invented or silently confirmed. Availability and
+ * price stay admin-verified — the product template leaves that line for the
+ * admin to complete.
  */
 export function generateQuickReply(params: {
   id: WhatsAppQuickReplyId;
   orderId?: string;
   orderStatus?: string;
   productName?: string;
-  price?: string;
+  availability?: string;
 }): string {
   const orderId = params.orderId?.trim() || "[Order ID]";
-  const orderStatus = params.orderStatus?.trim() || "[Order Status]";
+  const orderStatus = params.orderStatus?.trim() || "[Verified Order Status]";
   const productName = params.productName?.trim() || "[Product Name]";
-  const price = params.price?.trim() || "[Verified Current Price]";
+  const availability =
+    params.availability?.trim() ||
+    "[Admin inserts verified availability and price information.]";
 
   switch (params.id) {
     case "medicine_enquiry":
@@ -533,15 +577,25 @@ export function generateQuickReply(params: {
         "",
         "Thank you for contacting Kalyan Chemist.",
         "",
-        "We'd be happy to help you. Please share the medicine name so we can check its availability and price.",
+        "Please share the medicine name so we can check its availability and price.",
         "",
-        "Thank you!",
+        "We are happy to assist you!",
+      ].join("\n");
+    case "product_order":
+      return [
+        "Hello! 👋",
+        "",
+        `Thank you for your interest in *${productName}*.`,
+        "",
+        availability,
+        "",
+        "Would you like assistance with placing your order?",
       ].join("\n");
     case "order_support":
       return [
         "Hello! 👋",
         "",
-        "Thank you for reaching out.",
+        "Thank you for reaching out to Kalyan Chemist.",
         "",
         `Your order *#${orderId}* is currently *${orderStatus}*.`,
         "",
@@ -551,7 +605,7 @@ export function generateQuickReply(params: {
       return [
         "Hello! 👋",
         "",
-        "We'd be happy to assist you with your prescription.",
+        "We would be happy to assist you with your prescription.",
         "",
         "Please share a clear image of your prescription so our team can guide you further.",
       ].join("\n");
@@ -561,32 +615,16 @@ export function generateQuickReply(params: {
         "",
         "Thank you for contacting Kalyan Chemist.",
         "",
-        "Our team will help connect you with the pharmacist for your medicine-related query.",
+        "Our team will assist you with your medicine-related query and help connect you with the pharmacist.",
       ].join("\n");
-    case "product_available":
-      return [
-        "Hello! 👋",
-        "",
-        `Thank you for your interest in *${productName}*.`,
-        "",
-        `The product is currently available at *${price}*.`,
-        "",
-        "Would you like us to assist you with placing your order?",
-        "",
-        "Thank you for choosing Kalyan Chemist!",
-      ].join("\n");
-    case "product_unavailable":
+    case "medicine_unavailable":
     default:
       return [
         "Hello! 👋",
         "",
-        `Thank you for your enquiry about *${productName}*.`,
-        "",
-        "We're sorry, but this product is currently unavailable.",
+        "We are sorry, but the requested medicine is currently unavailable.",
         "",
         "Please let us know if you would like us to check for an alternative.",
-        "",
-        "Thank you for your understanding!",
       ].join("\n");
   }
 }

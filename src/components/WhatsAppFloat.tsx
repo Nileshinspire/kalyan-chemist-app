@@ -1,32 +1,18 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Pill, PackageSearch, FileText, Stethoscope } from "lucide-react";
+import { X } from "lucide-react";
 import { openStoreWhatsApp } from "@/lib/whatsappConfig";
-import {
-  WHATSAPP_ASSISTANCE_OPTIONS,
-  generateAssistanceMessage,
-  type WhatsAppAssistanceOptionId,
-} from "@/lib/whatsapp";
-
-/** Icon per assistance option — the option copy itself lives in the lib. */
-const OPTION_ICONS: Record<WhatsAppAssistanceOptionId, typeof Pill> = {
-  medicine_enquiry: Pill,
-  order_support: PackageSearch,
-  prescription_help: FileText,
-  pharmacist: Stethoscope,
-};
+import { generateDirectChatMessage } from "@/lib/whatsapp";
 
 /**
  * Floating WhatsApp button for customer-facing pages.
  * Shows a recognizable green WhatsApp icon with pulse animation.
- * Clicking it opens a small assistance panel; choosing an option opens
- * WhatsApp (Click-to-Chat) with a pre-filled message. Nothing is auto-sent.
+ * Clicking it opens the Kalyan Chemist WhatsApp chat directly (Click-to-Chat)
+ * with a short pre-filled greeting the customer can edit before sending.
+ * Nothing is ever sent automatically.
  */
 export default function WhatsAppFloat() {
   const [showTooltip, setShowTooltip] = useState(false);
-  const [panelOpen, setPanelOpen] = useState(false);
-  const [details, setDetails] = useState("");
-  const panelRef = useRef<HTMLDivElement | null>(null);
 
   // Show tooltip after 3 seconds on page load
   useEffect(() => {
@@ -38,30 +24,8 @@ export default function WhatsAppFloat() {
     };
   }, []);
 
-  // Close the panel on Escape or on a click outside it
-  useEffect(() => {
-    if (!panelOpen) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setPanelOpen(false);
-    };
-    const onPointer = (event: MouseEvent | TouchEvent) => {
-      if (panelRef.current && !panelRef.current.contains(event.target as Node)) {
-        setPanelOpen(false);
-      }
-    };
-    document.addEventListener("keydown", onKey);
-    document.addEventListener("mousedown", onPointer);
-    document.addEventListener("touchstart", onPointer);
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.removeEventListener("mousedown", onPointer);
-      document.removeEventListener("touchstart", onPointer);
-    };
-  }, [panelOpen]);
-
-  const handleSelect = (option: WhatsAppAssistanceOptionId) => {
-    openStoreWhatsApp(generateAssistanceMessage(option, details));
-    setPanelOpen(false);
+  const handleOpenChat = () => {
+    openStoreWhatsApp(generateDirectChatMessage());
     setShowTooltip(false);
   };
 
@@ -71,7 +35,7 @@ export default function WhatsAppFloat() {
     <div className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-[max(1rem,env(safe-area-inset-right))] z-50 flex flex-col items-end gap-3 md:bottom-[max(1.5rem,env(safe-area-inset-bottom))] sm:right-[max(1.5rem,env(safe-area-inset-right))]">
       {/* Tooltip */}
       <AnimatePresence>
-        {showTooltip && !panelOpen && (
+        {showTooltip && (
           <motion.div
             initial={{ opacity: 0, y: 10, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -96,90 +60,13 @@ export default function WhatsAppFloat() {
         )}
       </AnimatePresence>
 
-      {/* Assistance panel */}
-      <AnimatePresence>
-        {panelOpen && (
-          <motion.div
-            ref={panelRef}
-            initial={{ opacity: 0, y: 12, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 12, scale: 0.96 }}
-            transition={{ duration: 0.18 }}
-            className="w-[min(20rem,calc(100vw-2rem))] rounded-2xl border border-gray-100 bg-white shadow-2xl overflow-hidden"
-            role="dialog"
-            aria-label="WhatsApp assistance"
-          >
-            <div className="flex items-start justify-between gap-2 bg-[#25D366] px-4 py-3">
-              <div>
-                <p className="text-sm font-semibold text-white">How can we help?</p>
-                <p className="text-[11px] text-white/90">
-                  Choose an option to chat with our pharmacist
-                </p>
-              </div>
-              <button
-                onClick={() => setPanelOpen(false)}
-                aria-label="Close WhatsApp assistance"
-                className="rounded-full p-1 text-white/90 hover:bg-white/20 transition-colors"
-              >
-                <X className="size-4" />
-              </button>
-            </div>
-
-            <div className="p-3 space-y-1.5">
-              {WHATSAPP_ASSISTANCE_OPTIONS.map((option) => {
-                const Icon = OPTION_ICONS[option.id];
-                return (
-                  <button
-                    key={option.id}
-                    onClick={() => handleSelect(option.id)}
-                    className="flex w-full items-start gap-2.5 rounded-xl border border-gray-100 px-3 py-2 text-left transition-colors hover:border-[#25D366]/40 hover:bg-[#25D366]/5"
-                  >
-                    <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-[#25D366]/10 text-[#128C4A]">
-                      <Icon className="size-4" />
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block text-xs font-semibold text-gray-800">
-                        {option.label}
-                      </span>
-                      <span className="block text-[11px] leading-snug text-gray-500">
-                        {option.description}
-                      </span>
-                    </span>
-                  </button>
-                );
-              })}
-
-              <label className="block pt-1">
-                <span className="mb-1 block text-[11px] font-medium text-gray-600">
-                  Your question or order number (optional)
-                </span>
-                <input
-                  value={details}
-                  onChange={(event) => setDetails(event.target.value)}
-                  placeholder="e.g. Dolo 650 availability"
-                  className="w-full rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs text-gray-800 outline-none focus:border-[#25D366]"
-                />
-              </label>
-
-              <p className="pt-1 text-center text-[10px] leading-snug text-gray-400">
-                Opens WhatsApp with a ready message — you press Send.
-              </p>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       {/* WhatsApp Button */}
       <motion.button
-        onClick={() => {
-          setPanelOpen((open) => !open);
-          setShowTooltip(false);
-        }}
+        onClick={handleOpenChat}
         className="relative group"
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
         aria-label="Chat on WhatsApp"
-        aria-expanded={panelOpen}
       >
         {/* Pulse animation ring */}
         <span className="absolute inset-0 rounded-full bg-[#25D366] animate-ping opacity-20" />
