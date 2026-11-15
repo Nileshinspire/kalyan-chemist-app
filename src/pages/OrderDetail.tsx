@@ -31,8 +31,10 @@ import {
   Building2,
   Truck,
   CalendarClock,
+  KeyRound,
 } from "lucide-react";
 import { formatCurrency, getStatusColor } from "@/lib/auth-utils";
+import { getOrderStatusLabel } from "@/convex/orderWorkflowCore";
 import { toast } from "sonner";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -194,7 +196,7 @@ export default function OrderDetail() {
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               <Badge className={`text-xs capitalize ${getStatusColor(order.status)}`}>
-                {STATUS_LABELS[order.status] || order.status}
+                {getOrderStatusLabel(order, STATUS_LABELS)}
               </Badge>
               {canCancel && (
                 <Button variant="outline" size="sm" className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/5" onClick={handleCancel}>
@@ -311,6 +313,119 @@ export default function OrderDetail() {
                       <p className="text-sm font-semibold text-destructive">Order Cancelled</p>
                       <p className="text-xs text-muted-foreground">This order has been cancelled.{order.paymentMethod === "online" ? " A refund will be processed." : ""}</p>
                     </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Prescription review is a separate state from fulfillment */}
+              {tracking?.prescriptionVerification?.required &&
+                tracking.prescriptionVerification.state !== "approved" && (
+                  <Card
+                    className={`border ${
+                      tracking.prescriptionVerification.state === "rejected"
+                        ? "border-destructive/20 bg-destructive/5"
+                        : "border-amber-200 bg-amber-50"
+                    }`}
+                  >
+                    <CardContent className="flex items-start gap-3 py-4">
+                      {tracking.prescriptionVerification.state === "rejected" ? (
+                        <XCircle className="size-5 shrink-0 text-destructive" />
+                      ) : (
+                        <FileText className="size-5 shrink-0 text-amber-700" />
+                      )}
+                      <div className="min-w-0">
+                        <p
+                          className={`text-sm font-semibold ${
+                            tracking.prescriptionVerification.state === "rejected"
+                              ? "text-destructive"
+                              : "text-amber-900"
+                          }`}
+                        >
+                          {tracking.prescriptionVerification.state === "pending"
+                            ? "Order Received – Prescription Verification Pending"
+                            : tracking.prescriptionVerification.state === "rejected"
+                              ? "Prescription Rejected"
+                              : "Prescription Clarification Needed"}
+                        </p>
+                        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                          {tracking.prescriptionVerification.rejectionReason ||
+                            tracking.prescriptionVerification.clarificationNote ||
+                            "Our pharmacist is verifying your prescription. Your order will be confirmed automatically once it is approved."}
+                        </p>
+                        {tracking.prescriptionVerification.reviewedAt && (
+                          <p className="mt-1 text-[10px] text-muted-foreground">
+                            Reviewed{" "}
+                            {new Date(
+                              tracking.prescriptionVerification.reviewedAt,
+                            ).toLocaleString("en-IN", {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </p>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+              {/* Delivery OTP for internal delivery partners */}
+              {tracking?.deliveryOtp && order.status !== "delivered" && (
+                <Card className="border-primary/20 bg-primary/[0.03]">
+                  <CardContent className="flex flex-wrap items-center justify-between gap-2 py-4">
+                    <div className="flex items-center gap-2">
+                      <KeyRound className="size-5 text-primary" />
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">
+                          Delivery OTP
+                        </p>
+                        <p className="text-[11px] text-muted-foreground">
+                          Share this only with your assigned delivery partner.
+                        </p>
+                      </div>
+                    </div>
+                    <span className="font-mono text-xl font-bold tracking-[0.35em] text-primary">
+                      {tracking.deliveryOtp}
+                    </span>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Third-party courier shipment (verified data only) */}
+              {tracking?.courier && (
+                <Card className="border-border/60">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-sm font-bold">
+                      <Truck className="size-4" /> Courier Shipment
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-1.5 pt-0 text-sm">
+                    <p>
+                      Courier:{" "}
+                      <span className="font-medium">{tracking.courier.provider}</span>
+                    </p>
+                    <p>
+                      AWB:{" "}
+                      <span className="font-mono font-medium">
+                        {tracking.courier.awb}
+                      </span>
+                    </p>
+                    <p className="capitalize text-muted-foreground">
+                      Shipment status:{" "}
+                      {tracking.courier.status.replace(/_/g, " ")}
+                    </p>
+                    {tracking.courier.trackingUrl && (
+                      <a
+                        href={tracking.courier.trackingUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                      >
+                        Track with courier <ExternalLink className="size-3" />
+                      </a>
+                    )}
                   </CardContent>
                 </Card>
               )}

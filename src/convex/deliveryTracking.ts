@@ -7,8 +7,6 @@ import {
 } from "./_generated/server";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
-import { api } from "./_generated/api";
-import { handleOrderStatusChange } from "./referralWallet";
 import {
   canShareLocation,
   isTerminalDeliveryStatus,
@@ -18,6 +16,12 @@ import {
   isValidLongitude,
   TRACKING_STALE_MS,
 } from "./deliveryTrackingCore";
+import { applyOrderEventToOrder } from "./orderWorkflow";
+import {
+  generateDeliveryOtp,
+  isValidDeliveryOtp,
+  MAX_DELIVERY_OTP_ATTEMPTS,
+} from "./orderWorkflowCore";
 
 // ══════════════════════════════════════════════════════
 //  AUTHORIZATION HELPERS
@@ -122,6 +126,7 @@ export const myAssignments = query({
         customerName: customer?.name ?? "Customer",
         createdAt: order.createdAt,
         assignedAt: order.deliveryAssignedAt ?? null,
+        assignmentStatus: order.deliveryAssignmentStatus ?? null,
         trackingActive: Boolean(session?.active && !isTrackingStale(session, now)),
         trackingStartedAt: session?.startedAt ?? null,
         lastLocationAt: session?.lastLocationAt ?? null,
@@ -133,6 +138,107 @@ export const myAssignments = query({
       if (a.trackingActive !== b.trackingActive) return a.trackingActive ? -1 : 1;
       return b.createdAt - a.createdAt;
     });
+  },
+});
+
+/**
+ * Delivery partner accepts the order. This is recorded separately from the
+ * fulfillment status: acceptance is not dispatch, so the order stays at
+ * ready-for-dispatch until the package is actually picked up.
+ */
+export const acceptDelivery = mutation({
+  args: { orderId: v.id("orders") },
+  handler: async (ctx, args) => {
+    const userId = await requireDelivery(ctx);
+    const order = await getAssignedOrder(ctx, userId, args.orderId);
+
+    if (isTerminalDeliveryStatus(order.status)) {
+      throw new Error("This order is closed.");
+    }
+    if (
+      order.deliveryAssignmentStatus === "accepted" ||
+      order.deliveryAssignmentStatus === "picked_up"
+    ) {
+      return { success: true, alreadyAccepted: true };
+    }
+
+    const now = Date.now();
+    await ctx.db.patch(args.orderId, {
+      deliveryMode: "own",
+      deliveryAssignmentStatus: "accepted",
+      deliveryAcceptedAt: now,
+      updatedAt: now,
+    });
+    await applyOrderEventToOrder(ctx, {
+      orderId: args.orderId,
+      event: "driver_accepted",
+      source: "delivery_partner",
+      actorId: userId,
+      note: "Delivery partner accepted the order",
+      dedupeKey: `driver_accepted:${userId}`,
+      notify: false,
+      strict: false,
+    });
+    return { success: true, alreadyAccepted: false };
+  },
+});
+
+/**
+ * Delivery partner has physically collected the package. This is the event that
+ * moves the order to out-for-delivery.
+ */
+export const pickupOrder = mutation({
+  args: { orderId: v.id("orders") },
+  handler: async (ctx, args) => {
+    const userId = await requireDelivery(ctx);
+    const order = await getAssignedOrder(ctx, userId, args.orderId);
+
+    if (isTerminalDeliveryStatus(order.status)) {
+      throw new Error("This order is closed.");
+    }
+    if (order.status === "pending") {
+      throw new Error("This order is not ready for dispatch yet.");
+    }
+    if (order.status === "out_for_delivery") {
+      return { success: true, alreadyPickedUp: true };
+    }
+
+    const now = Date.now();
+    if (order.deliveryAssignmentStatus !== "accepted") {
+      await ctx.db.patch(args.orderId, {
+        deliveryAssignmentStatus: "accepted",
+        deliveryAcceptedAt: order.deliveryAcceptedAt ?? now,
+        deliveryMode: "own",
+        updatedAt: now,
+      });
+      await applyOrderEventToOrder(ctx, {
+        orderId: args.orderId,
+        event: "driver_accepted",
+        source: "delivery_partner",
+        actorId: userId,
+        note: "Delivery partner accepted the order",
+        dedupeKey: `driver_accepted:${userId}`,
+        notify: false,
+        strict: false,
+      });
+    }
+
+    await applyOrderEventToOrder(ctx, {
+      orderId: args.orderId,
+      event: "driver_picked_up",
+      source: "delivery_partner",
+      actorId: userId,
+      note: "Package picked up by delivery partner",
+      dedupeKey: "driver_picked_up",
+      extraPatch: {
+        deliveryAssignmentStatus: "picked_up",
+        deliveryPickedUpAt: now,
+        deliveryOtp: order.deliveryOtp ?? generateDeliveryOtp(),
+        deliveryOtpGeneratedAt: order.deliveryOtpGeneratedAt ?? now,
+      },
+    });
+
+    return { success: true, alreadyPickedUp: false };
   },
 });
 
@@ -149,32 +255,51 @@ export const startTracking = mutation({
     if (!canShareLocation(order.status)) {
       throw new Error("This order is already completed.");
     }
+    if (order.status === "pending") {
+      throw new Error("This order is not ready for dispatch yet.");
+    }
 
     const now = Date.now();
 
-    // Starting the delivery also moves the order into "out for delivery", so
-    // the customer's order status and the admin view always match the live
-    // session instead of staying at "confirmed" while the rider is moving.
-    const PRE_DISPATCH_STATUSES = [
-      "pending",
-      "confirmed",
-      "processing",
-      "ready_for_dispatch",
-    ];
-    if (PRE_DISPATCH_STATUSES.includes(order.status)) {
+    // Protecting legacy in-flight orders: starting a delivery accepts and picks
+    // up the order if those events were not recorded separately. New flows do
+    // both actions explicitly from the delivery dashboard.
+    if (
+      order.deliveryAssignmentStatus !== "accepted" &&
+      order.deliveryAssignmentStatus !== "picked_up"
+    ) {
       await ctx.db.patch(args.orderId, {
-        status: "out_for_delivery",
-        statusHistory: [
-          ...(order.statusHistory ?? []),
-          { status: "out_for_delivery" as const, timestamp: now },
-        ],
+        deliveryMode: "own",
+        deliveryAssignmentStatus: "accepted",
+        deliveryAcceptedAt: now,
         updatedAt: now,
       });
-      await ctx.scheduler.runAfter(
-        0,
-        api.orderNotifications.sendOrderStatusNotification,
-        { orderId: args.orderId, status: "out_for_delivery" },
-      );
+      await applyOrderEventToOrder(ctx, {
+        orderId: args.orderId,
+        event: "driver_accepted",
+        source: "delivery_partner",
+        actorId: userId,
+        note: "Delivery partner accepted the order",
+        dedupeKey: `driver_accepted:${userId}`,
+        notify: false,
+        strict: false,
+      });
+    }
+    if (order.status !== "out_for_delivery") {
+      await applyOrderEventToOrder(ctx, {
+        orderId: args.orderId,
+        event: "driver_picked_up",
+        source: "delivery_partner",
+        actorId: userId,
+        note: "Package picked up by delivery partner",
+        dedupeKey: "driver_picked_up",
+        extraPatch: {
+          deliveryAssignmentStatus: "picked_up",
+          deliveryPickedUpAt: now,
+          deliveryOtp: order.deliveryOtp ?? generateDeliveryOtp(),
+          deliveryOtpGeneratedAt: order.deliveryOtpGeneratedAt ?? now,
+        },
+      });
     }
 
     // A delivery partner shares one delivery at a time. Starting a new delivery
@@ -286,7 +411,7 @@ export const updateLocation = mutation({
  * settlement, customer notification) and ends the live session.
  */
 export const markDelivered = mutation({
-  args: { orderId: v.id("orders") },
+  args: { orderId: v.id("orders"), otp: v.string() },
   handler: async (ctx, args) => {
     const userId = await requireDelivery(ctx);
     const order = await getAssignedOrder(ctx, userId, args.orderId);
@@ -298,24 +423,57 @@ export const markDelivered = mutation({
     if (isTerminalDeliveryStatus(order.status)) {
       throw new Error("This order is closed and cannot be marked delivered.");
     }
+    if (order.status !== "out_for_delivery") {
+      throw new Error(
+        "Accept and pick up the package before completing the delivery.",
+      );
+    }
 
     const now = Date.now();
-    await ctx.db.patch(args.orderId, {
-      status: "delivered",
-      statusHistory: [
-        ...(order.statusHistory ?? []),
-        { status: "delivered" as const, timestamp: now },
-      ],
-      updatedAt: now,
-    });
 
-    await endTrackingForOrder(ctx, args.orderId, "order_delivered");
-    await handleOrderStatusChange(ctx, args.orderId, "delivered");
-    await ctx.scheduler.runAfter(
-      0,
-      api.orderNotifications.sendOrderStatusNotification,
-      { orderId: args.orderId, status: "delivered" },
-    );
+    // Delivery is only completed with the OTP shown to the customer. A legacy
+    // in-flight order has no OTP yet; one is generated and the partner is asked
+    // for it instead of completing without verification.
+    if (!order.deliveryOtp) {
+      await ctx.db.patch(args.orderId, {
+        deliveryOtp: generateDeliveryOtp(),
+        deliveryOtpGeneratedAt: now,
+        deliveryOtpAttempts: 0,
+        updatedAt: now,
+      });
+      throw new Error(
+        "A delivery OTP has been generated. Ask the customer for the OTP shown on their Track Order page, then enter it to complete the delivery.",
+      );
+    }
+
+    if (!isValidDeliveryOtp(order.deliveryOtp, args.otp)) {
+      const attempts = (order.deliveryOtpAttempts ?? 0) + 1;
+      await ctx.db.patch(args.orderId, {
+        deliveryOtpAttempts: attempts,
+        updatedAt: now,
+      });
+      if (attempts >= MAX_DELIVERY_OTP_ATTEMPTS) {
+        throw new Error(
+          "Too many incorrect OTP attempts. Ask the pharmacy to verify this delivery.",
+        );
+      }
+      throw new Error(
+        `Incorrect delivery OTP. ${MAX_DELIVERY_OTP_ATTEMPTS - attempts} attempt(s) remaining.`,
+      );
+    }
+
+    await applyOrderEventToOrder(ctx, {
+      orderId: args.orderId,
+      event: "delivered",
+      source: "delivery_partner",
+      actorId: userId,
+      note: "Delivery confirmed with customer OTP",
+      dedupeKey: "delivered",
+      extraPatch: {
+        deliveryAssignmentStatus: "picked_up",
+        deliveryPickedUpAt: order.deliveryPickedUpAt ?? now,
+      },
+    });
 
     return { success: true, alreadyDelivered: false, deliveredAt: now };
   },
@@ -376,6 +534,13 @@ export const getCustomerTracking = query({
     const deliveryBoy = order.deliveryBoyId
       ? await ctx.db.get(order.deliveryBoyId)
       : null;
+    const prescription = order.prescriptionId
+      ? await ctx.db.get(order.prescriptionId)
+      : null;
+    const shipment = await ctx.db
+      .query("courier_shipments")
+      .withIndex("by_order", (q) => q.eq("orderId", args.orderId))
+      .first();
 
     const now = Date.now();
     const active = Boolean(
@@ -394,6 +559,30 @@ export const getCustomerTracking = query({
       deliveryBoyName: deliveryBoy?.name ?? deliveryBoy?.phone ?? null,
       deliveryBoyPhone: order.deliveryBoyId ? deliveryBoy?.phone ?? null : null,
       assignedAt: order.deliveryAssignedAt ?? null,
+      deliveryMode: order.deliveryMode ?? null,
+      deliveryAssignmentStatus: order.deliveryAssignmentStatus ?? null,
+      deliveryOtp:
+        order.deliveryMode === "own" &&
+        !["delivered", "cancelled"].includes(order.status)
+          ? order.deliveryOtp ?? null
+          : null,
+      courier: shipment
+        ? {
+            provider: shipment.provider,
+            awb: shipment.awb,
+            trackingUrl: shipment.trackingUrl ?? null,
+            status: shipment.status,
+            lastEventAt: shipment.lastEventAt ?? null,
+          }
+        : null,
+      prescription: {
+        required: Boolean(
+          order.prescriptionVerificationRequired ?? order.prescriptionId,
+        ),
+        status: prescription?.status ?? null,
+        rejectionReason: prescription?.rejectionReason ?? null,
+        clarificationNote: prescription?.clarificationNote ?? null,
+      },
       trackingActive: active,
       startedAt: active ? tracking?.startedAt ?? null : null,
       lastLocationAt: active ? tracking?.lastLocationAt ?? null : null,

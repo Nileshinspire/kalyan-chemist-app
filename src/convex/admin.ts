@@ -3,9 +3,16 @@ import { query, mutation } from "./_generated/server";
 import { api } from "./_generated/api";
 import { v } from "convex/values";
 import { handleOrderStatusChange } from "./referralWallet";
-import { endTrackingForOrder } from "./deliveryTracking";
 import { couponStatus } from "./couponLogic";
 import { releaseStockForOrder } from "./stockReservations";
+import {
+  applyOrderEventToOrder,
+  confirmOrderIfEligible,
+} from "./orderWorkflow";
+import {
+  isTerminalOrderStatus,
+  type OrderEventType,
+} from "./orderWorkflowCore";
 
 // ── Helper: verify admin ──
 async function requireAdmin(ctx: { db: any; auth: any }) {
@@ -290,16 +297,25 @@ export const listOrders = query({
     const activeByOrder = new Map(
       activeSessions.map((session) => [session.orderId as string, session]),
     );
+    const prescriptions = await ctx.db.query("prescriptions").collect();
+    const prescriptionById = new Map(
+      prescriptions.map((rx) => [rx._id as string, rx]),
+    );
     return orders
       .sort((a, b) => b.createdAt - a.createdAt)
       .map((o) => {
         const session = activeByOrder.get(o._id as string);
+        const prescription = o.prescriptionId
+          ? prescriptionById.get(o.prescriptionId as string)
+          : undefined;
         return {
           ...o,
           userName: userMap.get(o.userId) || "Unknown",
           deliveryBoyName: o.deliveryBoyId
             ? userMap.get(o.deliveryBoyId) || "Delivery partner"
             : null,
+          prescriptionStatus: prescription?.status ?? null,
+          prescriptionRejectionReason: prescription?.rejectionReason ?? null,
           trackingActive: Boolean(session),
           lastLocationAt: session?.lastLocationAt ?? null,
         };
@@ -329,6 +345,19 @@ export const getOrderById = query({
       .withIndex("by_order", (q) => q.eq("orderId", args.orderId))
       .first();
     const trackingActive = Boolean(session?.active);
+    const prescription = order.prescriptionId
+      ? await ctx.db.get(order.prescriptionId)
+      : null;
+    const shipment = await ctx.db
+      .query("courier_shipments")
+      .withIndex("by_order", (q) => q.eq("orderId", args.orderId))
+      .first();
+    const events = (
+      await ctx.db
+        .query("order_events")
+        .withIndex("by_order", (q) => q.eq("orderId", args.orderId))
+        .collect()
+    ).sort((a, b) => a.createdAt - b.createdAt);
     return {
       ...order,
       items: itemsWithProducts,
@@ -336,6 +365,12 @@ export const getOrderById = query({
       userEmail: user?.email || "",
       userPhone: user?.phone || "",
       address,
+      prescriptionStatus: prescription?.status ?? null,
+      prescriptionRejectionReason: prescription?.rejectionReason ?? null,
+      prescriptionClarificationNote: prescription?.clarificationNote ?? null,
+      prescriptionReviewedAt: prescription?.reviewedAt ?? null,
+      shipment: shipment ?? null,
+      events,
       deliveryBoyName: deliveryBoy?.name || deliveryBoy?.phone || null,
       deliveryBoyPhone: deliveryBoy?.phone || null,
       trackingActive,
@@ -345,6 +380,22 @@ export const getOrderById = query({
   },
 });
 
+// Status-producing events an admin may raise directly. Refunds are handled by
+// the dedicated payment actions below so fulfillment status is not rewritten.
+const STATUS_EVENT: Record<string, OrderEventType> = {
+  confirmed: "order_confirmed",
+  processing: "processing_started",
+  ready_for_dispatch: "packing_completed",
+  out_for_delivery: "out_for_delivery",
+  delivered: "delivered",
+  cancelled: "cancelled",
+};
+
+/**
+ * Legacy status entry point, kept for compatibility. It now runs through the
+ * event engine, so backwards transitions and duplicate transitions are rejected
+ * instead of silently corrupting the customer's tracking history.
+ */
 export const updateOrderStatus = mutation({
   args: {
     orderId: v.id("orders"),
@@ -359,48 +410,251 @@ export const updateOrderStatus = mutation({
       v.literal("refund_initiated"),
       v.literal("refunded"),
     ),
+    reason: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    await requireAdmin(ctx);
+    const adminId = await requireAdmin(ctx);
 
     const order = await ctx.db.get(args.orderId);
     if (!order) throw new Error("Order not found");
+    if (args.status === "pending") {
+      throw new Error("An order cannot be moved back to pending.");
+    }
+    if (args.status === "refund_initiated" || args.status === "refunded") {
+      throw new Error("Use the refund actions to manage a refund.");
+    }
+    if (order.status === args.status) {
+      return { success: true, alreadyInStatus: true };
+    }
 
-    // If cancelling, hand the reserved units back to the batches they came
-    // from. Idempotent, so a repeated admin action cannot restore them twice.
-    if (args.status === "cancelled" && order.status !== "cancelled") {
+    const reason = args.reason?.trim();
+    if (args.status === "cancelled") {
+      if (order.status === "delivered") {
+        throw new Error("A delivered order cannot be cancelled. Use the refund action instead.");
+      }
       await releaseStockForOrder(ctx, {
         orderId: args.orderId,
         reason: "Order cancelled by admin",
       });
     }
 
-    const now = Date.now();
-    const existingHistory = order.statusHistory || [];
-    await ctx.db.patch(args.orderId, {
-      status: args.status,
-      statusHistory: [...existingHistory, { status: args.status, timestamp: now }],
-      updatedAt: now,
+    await applyOrderEventToOrder(ctx, {
+      orderId: args.orderId,
+      event: STATUS_EVENT[args.status],
+      source: "admin",
+      actorId: adminId,
+      note: reason || "Updated by staff",
+      dedupeKey: `status:${args.status}`,
+      extraPatch:
+        args.status === "cancelled" && reason
+          ? { cancellationReason: reason }
+          : undefined,
     });
 
-    // Referral reward on DELIVERED; wallet refund / reward reversal on
-    // cancellation or refund. Idempotent, and never trusts the frontend.
-    // Live delivery tracking must never outlive the delivery. Ending it also
-    // erases the stored coordinates.
-    if (["delivered", "cancelled", "refund_initiated", "refunded"].includes(args.status)) {
-      await endTrackingForOrder(ctx, args.orderId, `order_${args.status}`);
+    return { success: true };
+  },
+});
+
+/** Confirm a pending order once payment (and prescription, if any) allows it. */
+export const confirmOrder = mutation({
+  args: { orderId: v.id("orders"), note: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const adminId = await requireAdmin(ctx);
+    const result = await confirmOrderIfEligible(ctx, {
+      orderId: args.orderId,
+      source: "admin",
+      actorId: adminId,
+      note: args.note?.trim() || "Order confirmed by staff",
+    });
+
+    if (result.confirmed) return { success: true, alreadyConfirmed: false };
+    if (result.status === "confirmed") return { success: true, alreadyConfirmed: true };
+
+    const messages: Record<string, string> = {
+      prescription_pending:
+        "The prescription must be approved before this order can be confirmed.",
+      payment_pending:
+        "Online payment has not been verified for this order.",
+      not_pending: "This order can no longer be confirmed.",
+    };
+    throw new Error(messages[result.reason ?? ""] ?? "This order cannot be confirmed.");
+  },
+});
+
+/** Staff action: processing has actually started. */
+export const startProcessing = mutation({
+  args: { orderId: v.id("orders") },
+  handler: async (ctx, args) => {
+    const adminId = await requireAdmin(ctx);
+    const order = await ctx.db.get(args.orderId);
+    if (!order) throw new Error("Order not found");
+    if (order.status === "processing") {
+      return { success: true, alreadyInStatus: true };
+    }
+    await applyOrderEventToOrder(ctx, {
+      orderId: args.orderId,
+      event: "processing_started",
+      source: "admin",
+      actorId: adminId,
+      note: "Processing started by staff",
+      dedupeKey: "processing_started",
+    });
+    return { success: true };
+  },
+});
+
+/** Staff action: packing is complete and the order is ready for dispatch. */
+export const completePacking = mutation({
+  args: { orderId: v.id("orders") },
+  handler: async (ctx, args) => {
+    const adminId = await requireAdmin(ctx);
+    const order = await ctx.db.get(args.orderId);
+    if (!order) throw new Error("Order not found");
+    if (order.status === "ready_for_dispatch") {
+      return { success: true, alreadyInStatus: true };
+    }
+    await applyOrderEventToOrder(ctx, {
+      orderId: args.orderId,
+      event: "packing_completed",
+      source: "admin",
+      actorId: adminId,
+      note: "Packing completed by staff",
+      dedupeKey: "packing_completed",
+    });
+    return { success: true };
+  },
+});
+
+/** Staff action: cancellation with the reason preserved for the customer. */
+export const cancelOrder = mutation({
+  args: { orderId: v.id("orders"), reason: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const adminId = await requireAdmin(ctx);
+    const order = await ctx.db.get(args.orderId);
+    if (!order) throw new Error("Order not found");
+    if (isTerminalOrderStatus(order.status)) {
+      throw new Error("This order is already closed.");
     }
 
-    await handleOrderStatusChange(ctx, args.orderId, args.status);
-
-    // Delegate notification to the centralized order notification service.
-    // This determines available channels (email/SMS/WhatsApp) based on the
-    // customer's verified contact info and notification preferences.
-    await ctx.scheduler.runAfter(0, api.orderNotifications.sendOrderStatusNotification, {
+    await releaseStockForOrder(ctx, {
       orderId: args.orderId,
-      status: args.status,
+      reason: "Order cancelled by admin",
     });
 
+    const reason = args.reason?.trim();
+    await applyOrderEventToOrder(ctx, {
+      orderId: args.orderId,
+      event: "cancelled",
+      source: "admin",
+      actorId: adminId,
+      note: reason || "Order cancelled by staff",
+      dedupeKey: "cancelled",
+      extraPatch: reason ? { cancellationReason: reason } : undefined,
+    });
+
+    return { success: true };
+  },
+});
+
+/** Refund tracking is a payment concern; the fulfillment status is untouched. */
+export const initiateRefund = mutation({
+  args: { orderId: v.id("orders"), note: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const adminId = await requireAdmin(ctx);
+    const order = await ctx.db.get(args.orderId);
+    if (!order) throw new Error("Order not found");
+    if (order.paymentStatus !== "paid") {
+      throw new Error("Only a paid order can be refunded.");
+    }
+
+    const now = Date.now();
+    const note = args.note?.trim() || "Refund initiated by staff";
+    await ctx.db.patch(args.orderId, {
+      paymentStatus: "refund_initiated",
+      updatedAt: now,
+    });
+    await ctx.db.insert("order_events", {
+      orderId: args.orderId,
+      type: "refund_initiated",
+      fromStatus: order.status,
+      toStatus: order.status,
+      source: "admin",
+      actorId: adminId,
+      note,
+      dedupeKey: "payment_refund_initiated",
+      createdAt: now,
+    });
+    await handleOrderStatusChange(ctx, args.orderId, "refund_initiated");
+    await ctx.scheduler.runAfter(
+      0,
+      api.orderNotifications.sendOrderStatusNotification,
+      { orderId: args.orderId, status: "refund_initiated" },
+    );
+    return { success: true };
+  },
+});
+
+/** Trusted staff confirmation that the delivery was completed. */
+export const confirmDelivery = mutation({
+  args: { orderId: v.id("orders"), note: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const adminId = await requireAdmin(ctx);
+    const order = await ctx.db.get(args.orderId);
+    if (!order) throw new Error("Order not found");
+    if (order.status === "delivered") {
+      return { success: true, alreadyDelivered: true };
+    }
+    if (order.status !== "out_for_delivery") {
+      throw new Error(
+        "Only an out-for-delivery order can be confirmed as delivered.",
+      );
+    }
+
+    await applyOrderEventToOrder(ctx, {
+      orderId: args.orderId,
+      event: "delivered",
+      source: "admin",
+      actorId: adminId,
+      note: args.note?.trim() || "Delivery verified by staff",
+      dedupeKey: "delivered",
+    });
+    return { success: true, alreadyDelivered: false };
+  },
+});
+
+export const completeRefund = mutation({
+  args: { orderId: v.id("orders"), note: v.optional(v.string()) },
+  handler: async (ctx, args) => {
+    const adminId = await requireAdmin(ctx);
+    const order = await ctx.db.get(args.orderId);
+    if (!order) throw new Error("Order not found");
+    if (order.paymentStatus !== "refund_initiated") {
+      throw new Error("Initiate the refund before marking it complete.");
+    }
+
+    const now = Date.now();
+    const note = args.note?.trim() || "Refund completed by staff";
+    await ctx.db.patch(args.orderId, {
+      paymentStatus: "refunded",
+      updatedAt: now,
+    });
+    await ctx.db.insert("order_events", {
+      orderId: args.orderId,
+      type: "refunded",
+      fromStatus: order.status,
+      toStatus: order.status,
+      source: "admin",
+      actorId: adminId,
+      note,
+      dedupeKey: "payment_refunded",
+      createdAt: now,
+    });
+    await handleOrderStatusChange(ctx, args.orderId, "refunded");
+    await ctx.scheduler.runAfter(
+      0,
+      api.orderNotifications.sendOrderStatusNotification,
+      { orderId: args.orderId, status: "refunded" },
+    );
     return { success: true };
   },
 });

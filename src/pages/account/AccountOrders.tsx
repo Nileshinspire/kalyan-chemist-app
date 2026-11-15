@@ -7,6 +7,7 @@ import { useNavigate } from "react-router";
 import { motion } from "framer-motion";
 import { ClipboardList, Package, Loader2, ArrowRight, Truck } from "lucide-react";
 import { formatCurrency } from "@/lib/auth-utils";
+import { getOrderStatusLabel } from "@/convex/orderWorkflowCore";
 
 const STATUS_COLORS: Record<string, string> = {
   pending: "bg-yellow-100 text-yellow-800",
@@ -81,7 +82,7 @@ export default function AccountOrders() {
                   </div>
                   <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
                     <Badge className={`text-[10px] capitalize ${STATUS_COLORS[order.status] || ""}`}>
-                      {order.status}
+                      {getOrderStatusLabel(order)}
                     </Badge>
                     <p className="text-sm font-bold text-foreground">{formatCurrency(order.totalAmount)}</p>
                     {!["cancelled", "refunded"].includes(order.status) && (

@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { motion } from "framer-motion";
 import { ClipboardList, Package, Loader2, ArrowRight, RefreshCw } from "lucide-react";
 import { formatCurrency, getStatusColor } from "@/lib/auth-utils";
+import { getOrderStatusLabel } from "@/convex/orderWorkflowCore";
 import { toast } from "sonner";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -93,7 +94,7 @@ export default function Orders() {
                               Order #{order.invoiceNumber || order._id.slice(-6).toUpperCase()}
                             </p>
                             <Badge className={`text-[10px] capitalize ${getStatusColor(order.status)}`}>
-                              {STATUS_LABELS[order.status] || order.status}
+                              {getOrderStatusLabel(order, STATUS_LABELS)}
                             </Badge>
                           </div>
                           <p className="text-xs text-muted-foreground mt-1">

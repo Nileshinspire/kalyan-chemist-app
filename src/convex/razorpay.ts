@@ -11,6 +11,8 @@ import {
   releaseRedemptionForOrder,
 } from "./couponRedemptions";
 import { ensureStockReserved, releaseStockForOrder } from "./stockReservations";
+import { applyOrderEventToOrder } from "./orderWorkflow";
+import { canConfirmAfterPayment } from "./orderWorkflowCore";
 
 /**
  * Razorpay payment mutations and queries.
@@ -57,15 +59,59 @@ export const confirmPayment = mutation({
       reason: `Order ${order.invoiceNumber || ""} paid after retry`.trim(),
     });
 
-    // Mark as paid and confirm the order
+    // Payment and fulfillment are separate. The payment is recorded first; the
+    // order is confirmed only when no prescription review is pending.
+    const prescription = order.prescriptionId
+      ? await ctx.db.get(order.prescriptionId)
+      : null;
+    const canConfirm = canConfirmAfterPayment({
+      requiresPrescriptionVerification:
+        order.prescriptionVerificationRequired ?? Boolean(order.prescriptionId),
+      prescriptionStatus: prescription?.status,
+    });
+
+    const now = Date.now();
     await ctx.db.patch(args.orderId, {
       paymentStatus: "paid",
       razorpayOrderId: args.razorpayOrderId,
       razorpayPaymentId: args.razorpayPaymentId,
       razorpaySignature: args.razorpaySignature,
-      status: "confirmed",
-      updatedAt: Date.now(),
+      updatedAt: now,
     });
+
+    await ctx.db.insert("order_events", {
+      orderId: args.orderId,
+      type: "payment_verified",
+      fromStatus: order.status,
+      toStatus: order.status,
+      source: "system",
+      note: "Razorpay payment verified",
+      dedupeKey: "payment_verified",
+      createdAt: now,
+    });
+
+    if (canConfirm) {
+      await applyOrderEventToOrder(ctx, {
+        orderId: args.orderId,
+        event: "order_confirmed",
+        source: "system",
+        note: "Online payment verified",
+        dedupeKey: "order_confirmed",
+        notify: false,
+      });
+    } else {
+      await ctx.db.patch(args.orderId, {
+        statusHistory: [
+          ...(order.statusHistory ?? []),
+          {
+            status: "pending",
+            timestamp: now,
+            note: "Payment received — awaiting prescription verification",
+            source: "system",
+          },
+        ],
+      });
+    }
 
     // Wallet reservation becomes final now that payment succeeded.
     await settleWalletReservation(ctx, args.orderId);
@@ -77,10 +123,12 @@ export const confirmPayment = mutation({
       userId,
       type: "order_status",
       title: "Payment Successful ✓",
-      body: `Payment of ₹${order.totalAmount.toLocaleString("en-IN")} received for order ${order.invoiceNumber || ""}. Your order has been confirmed.`,
+      body: canConfirm
+        ? `Payment of ₹${order.totalAmount.toLocaleString("en-IN")} received for order ${order.invoiceNumber || ""}. Your order has been confirmed.`
+        : `Payment of ₹${order.totalAmount.toLocaleString("en-IN")} received for order ${order.invoiceNumber || ""}. Your order will be confirmed once our pharmacist verifies your prescription.`,
       read: false,
       link: `/orders/${args.orderId}`,
-      createdAt: Date.now(),
+      createdAt: now,
     });
 
     return { success: true };

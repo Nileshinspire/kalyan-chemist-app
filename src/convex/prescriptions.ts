@@ -6,6 +6,11 @@ import {
   prescriptionExpiresAt,
 } from "./prescriptionCore";
 import { loadLinkedRxProductIds } from "./prescriptionServer";
+import {
+  applyOrderEventToOrder,
+  confirmOrderIfEligible,
+} from "./orderWorkflow";
+import { canConfirmAfterPrescriptionApproval } from "./orderWorkflowCore";
 
 // ──────────────────────────────────────────────
 // Customer functions
@@ -391,6 +396,41 @@ export const approve = mutation({
       createdAt: Date.now(),
     });
 
+    // Orders linked to this prescription move out of "verification pending"
+    // automatically. Confirmation still respects the payment rule: COD orders
+    // confirm now, online orders confirm once payment is verified.
+    const linkedOrders = await ctx.db
+      .query("orders")
+      .withIndex("by_prescription", (q) => q.eq("prescriptionId", args.prescriptionId))
+      .collect();
+
+    for (const linkedOrder of linkedOrders) {
+      await applyOrderEventToOrder(ctx, {
+        orderId: linkedOrder._id,
+        event: "prescription_approved",
+        source: "pharmacist",
+        actorId: userId,
+        note: "Prescription approved by pharmacist",
+        dedupeKey: "prescription_approved",
+        notify: false,
+        strict: false,
+      });
+
+      if (
+        canConfirmAfterPrescriptionApproval({
+          paymentMethod: linkedOrder.paymentMethod,
+          paymentStatus: linkedOrder.paymentStatus,
+        })
+      ) {
+        await confirmOrderIfEligible(ctx, {
+          orderId: linkedOrder._id,
+          source: "pharmacist",
+          actorId: userId,
+          note: "Prescription approved — order confirmed",
+        });
+      }
+    }
+
     return { success: true };
   },
 });
@@ -440,6 +480,26 @@ export const reject = mutation({
       link: "/account/prescriptions",
       createdAt: Date.now(),
     });
+
+    // Record the rejection against each linked order so the customer's tracking
+    // page can show the reason. The fulfillment status is left untouched; the
+    // pharmacy decides whether to cancel/refund the order.
+    const linkedOrders = await ctx.db
+      .query("orders")
+      .withIndex("by_prescription", (q) => q.eq("prescriptionId", args.prescriptionId))
+      .collect();
+    for (const linkedOrder of linkedOrders) {
+      await applyOrderEventToOrder(ctx, {
+        orderId: linkedOrder._id,
+        event: "prescription_rejected",
+        source: "pharmacist",
+        actorId: userId,
+        note: `Prescription rejected: ${args.rejectionReason.trim()}`,
+        dedupeKey: "prescription_rejected",
+        notify: false,
+        strict: false,
+      });
+    }
 
     return { success: true };
   },

@@ -8,6 +8,8 @@ import {
   normalizePhone,
   validateDeliveryAccount,
 } from "./deliveryTrackingCore";
+import { applyOrderEventToOrder } from "./orderWorkflow";
+import { generateDeliveryOtp } from "./orderWorkflowCore";
 
 async function requireAdmin(ctx: any) {
   const userId = await getAuthUserId(ctx);
@@ -95,12 +97,28 @@ export const assignOrder = mutation({
     if (isTerminalDeliveryStatus(order.status)) {
       throw new Error("Completed or cancelled orders cannot be assigned.");
     }
+    if (
+      args.deliveryBoyId &&
+      !["ready_for_dispatch", "out_for_delivery"].includes(order.status)
+    ) {
+      throw new Error("Complete packing before assigning a delivery partner.");
+    }
 
     let deliveryBoy = null;
     if (args.deliveryBoyId) {
       deliveryBoy = await ctx.db.get(args.deliveryBoyId);
       if (!deliveryBoy || deliveryBoy.role !== "delivery") {
         throw new Error("Select a valid delivery partner.");
+      }
+      // An order follows one delivery path at a time.
+      const shipment = await ctx.db
+        .query("courier_shipments")
+        .withIndex("by_order", (q) => q.eq("orderId", args.orderId))
+        .first();
+      if (shipment && shipment.status !== "cancelled") {
+        throw new Error(
+          "This order is already booked with a courier. Courier deliveries cannot also be assigned to an internal partner.",
+        );
       }
     }
 
@@ -128,8 +146,36 @@ export const assignOrder = mutation({
     await ctx.db.patch(args.orderId, {
       deliveryBoyId: args.deliveryBoyId ?? undefined,
       deliveryAssignedAt: args.deliveryBoyId ? now : undefined,
+      deliveryMode: args.deliveryBoyId
+        ? "own"
+        : order.deliveryMode === "own"
+          ? undefined
+          : order.deliveryMode,
+      deliveryAssignmentStatus: args.deliveryBoyId ? "assigned" : undefined,
+      deliveryAcceptedAt: undefined,
+      deliveryPickedUpAt: undefined,
+      // A new partner always gets a fresh completion OTP.
+      ...(args.deliveryBoyId
+        ? {
+            deliveryOtp: generateDeliveryOtp(),
+            deliveryOtpGeneratedAt: now,
+            deliveryOtpAttempts: 0,
+          }
+        : {}),
       updatedAt: now,
     });
+
+    if (args.deliveryBoyId) {
+      await applyOrderEventToOrder(ctx, {
+        orderId: args.orderId,
+        event: "driver_assigned",
+        source: "admin",
+        note: `Delivery partner assigned: ${deliveryBoy?.name ?? "Delivery partner"}`,
+        dedupeKey: `driver_assigned:${args.deliveryBoyId}:${now}`,
+        notify: false,
+        strict: false,
+      });
+    }
 
     return {
       success: true,

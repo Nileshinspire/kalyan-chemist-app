@@ -1,7 +1,7 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
-import { handleOrderStatusChange, reserveWalletForOrder } from "./referralWallet";
+import { reserveWalletForOrder } from "./referralWallet";
 import { loadEngine } from "./discountEngine";
 import { loadPrescriptionUsage } from "./prescriptionServer";
 import { resolveProductDiscount } from "../lib/discount";
@@ -11,6 +11,8 @@ import {
   resolveCoupon,
   type ResolvedCoupon,
 } from "./couponRedemptions";
+import { planOrderCreation, resolvePrescriptionState } from "./orderWorkflowCore";
+import { applyOrderEventToOrder } from "./orderWorkflow";
 
 // ── List orders for current user (newest first) ──
 export const list = query({
@@ -19,11 +21,28 @@ export const list = query({
     const userId = await getAuthUserId(ctx);
     if (userId === null) return [];
 
-    return await ctx.db
+    const orders = await ctx.db
       .query("orders")
       .withIndex("by_user_created", (q) => q.eq("userId", userId))
       .order("desc")
       .collect();
+
+    // Prescription review is separate from fulfillment, so the customer list
+    // carries the linked review state for its status label.
+    return await Promise.all(
+      orders.map(async (order) => {
+        const prescription = order.prescriptionId
+          ? await ctx.db.get(order.prescriptionId)
+          : null;
+        return {
+          ...order,
+          prescriptionStatus: prescription?.status ?? null,
+          prescriptionRejectionReason: prescription?.rejectionReason ?? null,
+          prescriptionClarificationNote:
+            prescription?.clarificationNote ?? null,
+        };
+      }),
+    );
   },
 });
 
@@ -44,8 +63,18 @@ export const getById = query({
     );
 
     const address = order.addressId ? await ctx.db.get(order.addressId) : null;
+    const prescription = order.prescriptionId
+      ? await ctx.db.get(order.prescriptionId)
+      : null;
 
-    return { ...order, items: itemsWithProducts, address };
+    return {
+      ...order,
+      items: itemsWithProducts,
+      address,
+      prescriptionStatus: prescription?.status ?? null,
+      prescriptionRejectionReason: prescription?.rejectionReason ?? null,
+      prescriptionClarificationNote: prescription?.clarificationNote ?? null,
+    };
   },
 });
 
@@ -250,6 +279,18 @@ export const create = mutation({
       paymentStatus = "pending";
     }
 
+    // Prescription review is tracked separately from fulfillment. Its status
+    // decides whether the order may be confirmed automatically.
+    const linkedPrescription = args.prescriptionId
+      ? await ctx.db.get(args.prescriptionId)
+      : null;
+    const requiresPrescriptionVerification = rxProductIds.length > 0;
+    const creationPlan = planOrderCreation({
+      requiresPrescriptionVerification,
+      prescriptionStatus: linkedPrescription?.status,
+      paymentMethod: args.paymentMethod,
+    });
+
     // Create order with initial status history
     const now = Date.now();
     const orderId = await ctx.db.insert("orders", {
@@ -265,7 +306,7 @@ export const create = mutation({
       phone: args.phone,
       deliveryLatitude: args.deliveryLatitude,
       deliveryLongitude: args.deliveryLongitude,
-      status: "pending",
+      status: creationPlan.status,
       paymentMethod: args.paymentMethod,
       paymentStatus,
       razorpayOrderId: args.razorpayOrderId,
@@ -273,13 +314,56 @@ export const create = mutation({
       razorpaySignature: args.razorpaySignature,
       invoiceNumber,
       prescriptionId: args.prescriptionId,
+      prescriptionVerificationRequired: requiresPrescriptionVerification,
+      confirmedAt: creationPlan.status === "confirmed" ? now : undefined,
       notes: args.notes,
       couponCode: appliedCouponCode,
       couponDiscount: couponDiscountAmount > 0 ? couponDiscountAmount : undefined,
-      statusHistory: [{ status: "pending", timestamp: now, note: "Order placed" }],
+      statusHistory: [
+        {
+          status: "pending",
+          timestamp: now,
+          note: creationPlan.status === "pending" ? creationPlan.note : "Order placed",
+          source: "customer",
+        },
+        ...(creationPlan.status === "confirmed"
+          ? [
+              {
+                status: "confirmed",
+                timestamp: now,
+                note: creationPlan.note,
+                source: "system",
+              },
+            ]
+          : []),
+      ],
       createdAt: now,
       updatedAt: now,
     });
+
+    // Event log: placement, plus the automatic confirmation when eligible.
+    await ctx.db.insert("order_events", {
+      orderId,
+      type: "order_placed",
+      toStatus: "pending",
+      source: "customer",
+      actorId: userId,
+      note: "Order placed",
+      dedupeKey: "order_placed",
+      createdAt: now,
+    });
+    if (creationPlan.status === "confirmed") {
+      await ctx.db.insert("order_events", {
+        orderId,
+        type: "order_confirmed",
+        fromStatus: "pending",
+        toStatus: "confirmed",
+        source: "system",
+        note: creationPlan.note,
+        dedupeKey: "order_confirmed",
+        createdAt: now,
+      });
+    }
 
     // Batch-wise FEFO reservation. Inside this same mutation, so a concurrent
     // order for the last units simply fails here and rolls the order back.
@@ -316,12 +400,27 @@ export const create = mutation({
       }
     }
 
-    // Create order notification
+    // One clear notification describing the state the order actually entered.
+    const notification =
+      creationPlan.status === "confirmed"
+        ? {
+            title: "Order Confirmed ✓",
+            body: `Your order ${invoiceNumber} has been confirmed. Total: ₹${totalAmount.toLocaleString("en-IN")}. We will update you as it is prepared.`,
+          }
+        : creationPlan.prescriptionVerificationPending
+          ? {
+              title: "Order Received — Prescription Verification Pending",
+              body: `Your order ${invoiceNumber} has been received. Our pharmacist will verify your prescription; the order will be confirmed after approval.`,
+            }
+          : {
+              title: "Order Placed Successfully ✓",
+              body: `Your order ${invoiceNumber} has been placed. Total: ₹${totalAmount.toLocaleString("en-IN")}. You will receive updates as your order progresses.`,
+            };
     await ctx.db.insert("notifications", {
       userId,
       type: "order_status",
-      title: "Order Placed Successfully ✓",
-      body: `Your order ${invoiceNumber} has been placed. Total: ₹${totalAmount.toLocaleString("en-IN")}. You will receive updates as your order progresses.`,
+      title: notification.title,
+      body: notification.body,
       read: false,
       link: `/orders/${orderId}`,
       createdAt: now,
@@ -418,13 +517,17 @@ export const cancel = mutation({
       reason: "Order cancelled by customer",
     });
 
-    await ctx.db.patch(args.orderId, {
-      status: "cancelled",
-      updatedAt: Date.now(),
+    // The event engine records the timestamped transition + source and restores
+    // any wallet amount tied to this order / reverses an earned reward.
+    await applyOrderEventToOrder(ctx, {
+      orderId: args.orderId,
+      event: "cancelled",
+      source: "customer",
+      actorId: userId,
+      note: "Order cancelled by customer",
+      dedupeKey: "cancelled",
+      notify: false,
     });
-
-    // Restore any wallet amount tied to this order and reverse an earned reward.
-    await handleOrderStatusChange(ctx, args.orderId, "cancelled");
 
     await ctx.db.insert("notifications", {
       userId,
@@ -449,8 +552,27 @@ export const getTracking = query({
     if (!order) return null;
     if (userId === null || order.userId !== userId) return null;
 
+    const prescription = order.prescriptionId
+      ? await ctx.db.get(order.prescriptionId)
+      : null;
+    const prescriptionState = resolvePrescriptionState(
+      order.prescriptionVerificationRequired ?? Boolean(order.prescriptionId),
+      prescription?.status,
+    );
+
     const steps = [
-      { status: "pending", label: "Order Placed", description: "Your order has been received and is awaiting confirmation." },
+      {
+        status: "pending",
+        label: prescriptionState === "pending" ? "Order Received" : "Order Placed",
+        description:
+          prescriptionState === "pending"
+            ? "Prescription verification pending. Your order will be confirmed after our pharmacist approves it."
+            : prescriptionState === "rejected"
+              ? "Your prescription was rejected. Upload a new prescription to continue."
+              : prescriptionState === "clarification"
+                ? "Our pharmacist needs clarification on your prescription."
+                : "Your order has been received and is awaiting confirmation.",
+      },
       { status: "confirmed", label: "Order Confirmed", description: "Your order has been confirmed by our pharmacy team." },
       { status: "processing", label: "Being Prepared", description: "Your medicines are being packed and verified by our pharmacist." },
       { status: "ready_for_dispatch", label: "Ready for Dispatch", description: "Your order has been packed and is ready for dispatch." },
@@ -459,9 +581,17 @@ export const getTracking = query({
     ];
 
     const statusOrder = ["pending", "confirmed", "processing", "ready_for_dispatch", "out_for_delivery", "delivered"];
-    const currentIdx = order.status === "cancelled"
-      ? -1
-      : statusOrder.indexOf(order.status);
+    let currentIdx = statusOrder.indexOf(order.status);
+    // Legacy refund states sit outside the fulfillment progression. Keep the
+    // highest fulfillment step the order actually reached so a delivered order
+    // never appears to move backward.
+    if (currentIdx === -1 && order.status !== "cancelled") {
+      for (const entry of order.statusHistory ?? []) {
+        currentIdx = Math.max(currentIdx, statusOrder.indexOf(entry.status));
+      }
+    }
+    if (order.status === "cancelled") currentIdx = -1;
+    if (order.deliveredAt || order.status === "delivered") currentIdx = 5;
 
     // Map statusHistory entries by status for timestamp lookup
     const historyMap = new Map<string, number>();
@@ -507,6 +637,27 @@ export const getTracking = query({
       }
     }
 
+    const events = (
+      await ctx.db
+        .query("order_events")
+        .withIndex("by_order", (q) => q.eq("orderId", args.orderId))
+        .collect()
+    )
+      .sort((a, b) => a.createdAt - b.createdAt)
+      .map((event) => ({
+        type: event.type,
+        fromStatus: event.fromStatus ?? null,
+        toStatus: event.toStatus ?? null,
+        source: event.source,
+        note: event.note ?? null,
+        createdAt: event.createdAt,
+      }));
+
+    const shipment = await ctx.db
+      .query("courier_shipments")
+      .withIndex("by_order", (q) => q.eq("orderId", args.orderId))
+      .first();
+
     return {
       steps: steps.map((step, i) => ({
         ...step,
@@ -517,7 +668,34 @@ export const getTracking = query({
       })),
       currentStep: currentIdx,
       totalSteps: steps.length,
-      progressPercent: order.status === "cancelled" ? 0 : Math.round((currentIdx / (steps.length - 1)) * 100),
+      progressPercent:
+        order.status === "cancelled"
+          ? 0
+          : Math.max(0, Math.round((currentIdx / (steps.length - 1)) * 100)),
+      prescriptionVerification: {
+        required: Boolean(
+          order.prescriptionVerificationRequired ?? order.prescriptionId,
+        ),
+        state: prescriptionState,
+        status: prescription?.status ?? null,
+        rejectionReason: prescription?.rejectionReason ?? null,
+        clarificationNote: prescription?.clarificationNote ?? null,
+        reviewedAt: prescription?.reviewedAt ?? null,
+      },
+      deliveryOtp:
+        order.deliveryMode === "own" && !["delivered", "cancelled"].includes(order.status)
+          ? order.deliveryOtp ?? null
+          : null,
+      courier: shipment
+        ? {
+            provider: shipment.provider,
+            awb: shipment.awb,
+            trackingUrl: shipment.trackingUrl ?? null,
+            status: shipment.status,
+            lastEventAt: shipment.lastEventAt ?? null,
+          }
+        : null,
+      events,
       estimatedDeliveryTime,
       estimatedDeliveryWindow,
       storeName,
@@ -672,6 +850,16 @@ export const createDirectOrder = mutation({
     const invoiceNumber = `KC-${String(orderCount + 1).padStart(5, "0")}`;
 
     let paymentStatus: "pending" | "paid" | "failed" = "pending";
+
+    const linkedPrescription = args.prescriptionId
+      ? await ctx.db.get(args.prescriptionId)
+      : null;
+    const requiresPrescriptionVerification = Boolean(product.prescriptionRequired);
+    const creationPlan = planOrderCreation({
+      requiresPrescriptionVerification,
+      prescriptionStatus: linkedPrescription?.status,
+      paymentMethod: args.paymentMethod,
+    });
     const now = Date.now();
     const orderId = await ctx.db.insert("orders", {
       userId,
@@ -686,18 +874,63 @@ export const createDirectOrder = mutation({
       phone: args.phone,
       deliveryLatitude: args.deliveryLatitude,
       deliveryLongitude: args.deliveryLongitude,
-      status: "pending",
+      status: creationPlan.status,
       paymentMethod: args.paymentMethod,
       paymentStatus,
       invoiceNumber,
       prescriptionId: args.prescriptionId,
+      prescriptionVerificationRequired: requiresPrescriptionVerification,
+      confirmedAt: creationPlan.status === "confirmed" ? now : undefined,
       notes: args.notes,
       couponCode: appliedCouponCode,
       couponDiscount: couponDiscountAmount > 0 ? couponDiscountAmount : undefined,
-      statusHistory: [{ status: "pending", timestamp: now, note: "Order placed (Buy Now)" }],
+      statusHistory: [
+        {
+          status: "pending",
+          timestamp: now,
+          note:
+            creationPlan.status === "pending"
+              ? creationPlan.note
+              : "Order placed (Buy Now)",
+          source: "customer",
+        },
+        ...(creationPlan.status === "confirmed"
+          ? [
+              {
+                status: "confirmed",
+                timestamp: now,
+                note: creationPlan.note,
+                source: "system",
+              },
+            ]
+          : []),
+      ],
       createdAt: now,
       updatedAt: now,
     });
+
+    await ctx.db.insert("order_events", {
+      orderId,
+      type: "order_placed",
+      toStatus: "pending",
+      source: "customer",
+      actorId: userId,
+      note: "Order placed (Buy Now)",
+      dedupeKey: "order_placed",
+      createdAt: now,
+    });
+    if (creationPlan.status === "confirmed") {
+      await ctx.db.insert("order_events", {
+        orderId,
+        type: "order_confirmed",
+        fromStatus: "pending",
+        toStatus: "confirmed",
+        source: "system",
+        note: creationPlan.note,
+        dedupeKey: "order_confirmed",
+        createdAt: now,
+      });
+    }
 
     await reserveStockForOrder(ctx, {
       orderId,
@@ -733,11 +966,26 @@ export const createDirectOrder = mutation({
     }
 
     // Notification
+    const notification =
+      creationPlan.status === "confirmed"
+        ? {
+            title: "Order Confirmed ✓",
+            body: `Your order ${invoiceNumber} has been confirmed. Total: ₹${totalAmount.toLocaleString("en-IN")}. We will update you as it is prepared.`,
+          }
+        : creationPlan.prescriptionVerificationPending
+          ? {
+              title: "Order Received — Prescription Verification Pending",
+              body: `Your order ${invoiceNumber} has been received. Our pharmacist will verify your prescription; the order will be confirmed after approval.`,
+            }
+          : {
+              title: "Order Placed Successfully ✓",
+              body: `Your order ${invoiceNumber} has been placed. Total: ₹${totalAmount.toLocaleString("en-IN")}. You will receive updates as your order progresses.`,
+            };
     await ctx.db.insert("notifications", {
       userId,
       type: "order_status",
-      title: "Order Placed Successfully ✓",
-      body: `Your order ${invoiceNumber} has been placed. Total: ₹${totalAmount.toLocaleString("en-IN")}. You will receive updates as your order progresses.`,
+      title: notification.title,
+      body: notification.body,
       read: false,
       link: `/orders/${orderId}`,
       createdAt: now,

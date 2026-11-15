@@ -587,6 +587,7 @@ const schema = defineSchema(
         v.literal("pending"),
         v.literal("paid"),
         v.literal("failed"),
+        v.literal("refund_initiated"),
         v.literal("refunded"),
       )),
       razorpayOrderId: v.optional(v.string()),
@@ -610,6 +611,35 @@ const schema = defineSchema(
       // has not been handed to a delivery partner yet.
       deliveryBoyId: v.optional(v.id("users")),
       deliveryAssignedAt: v.optional(v.number()),
+      // ── Event-driven fulfillment (additive; older orders stay valid) ──
+      /** True only for orders that contain prescription-required medicines. */
+      prescriptionVerificationRequired: v.optional(v.boolean()),
+      confirmedAt: v.optional(v.number()),
+      processingStartedAt: v.optional(v.number()),
+      packedAt: v.optional(v.number()),
+      dispatchedAt: v.optional(v.number()),
+      deliveredAt: v.optional(v.number()),
+      cancellationReason: v.optional(v.string()),
+      /** How this order is being delivered: an internal partner or a courier. */
+      deliveryMode: v.optional(v.union(v.literal("own"), v.literal("courier"))),
+      /** Internal delivery lifecycle, kept separate from the order status. */
+      deliveryAssignmentStatus: v.optional(
+        v.union(
+          v.literal("assigned"),
+          v.literal("accepted"),
+          v.literal("picked_up"),
+        )
+      ),
+      deliveryAcceptedAt: v.optional(v.number()),
+      deliveryPickedUpAt: v.optional(v.number()),
+      /** Completion OTP shown to the customer and entered by the partner. */
+      deliveryOtp: v.optional(v.string()),
+      deliveryOtpGeneratedAt: v.optional(v.number()),
+      deliveryOtpAttempts: v.optional(v.number()),
+      // Third-party courier snapshot (details also live in courier_shipments)
+      courierProvider: v.optional(v.string()),
+      courierAwb: v.optional(v.string()),
+      courierTrackingUrl: v.optional(v.string()),
       /**
        * When the units this order reserved were handed back to stock (payment
        * failure or cancellation). Presence is the idempotency guard: a release
@@ -623,6 +653,8 @@ const schema = defineSchema(
             status: v.string(),
             timestamp: v.number(),
             note: v.optional(v.string()),
+            /** What caused the transition (admin, system, courier, delivery). */
+            source: v.optional(v.string()),
           })
         )
       ),
@@ -634,6 +666,49 @@ const schema = defineSchema(
       .index("by_user_created", ["userId", "createdAt"])
       .index("by_delivery_boy", ["deliveryBoyId"])
       .index("by_prescription", ["prescriptionId"]),
+
+    // Immutable audit log of every order event. `dedupeKey` makes external and
+    // repeated callbacks idempotent: an event is applied at most once per order.
+    order_events: defineTable({
+      orderId: v.id("orders"),
+      /** Business event, e.g. order_confirmed, packing_completed, delivered. */
+      type: v.string(),
+      fromStatus: v.optional(v.string()),
+      toStatus: v.optional(v.string()),
+      /** admin | system | customer | pharmacist | delivery_partner | courier */
+      source: v.string(),
+      actorId: v.optional(v.id("users")),
+      note: v.optional(v.string()),
+      dedupeKey: v.string(),
+      createdAt: v.number(),
+    })
+      .index("by_order", ["orderId"])
+      .index("by_order_dedupe", ["orderId", "dedupeKey"])
+      .index("by_createdAt", ["createdAt"]),
+
+    // Third-party courier shipment for an order. Tracking events are only ever
+    // written from verified courier callbacks — never generated locally.
+    courier_shipments: defineTable({
+      orderId: v.id("orders"),
+      provider: v.string(),
+      awb: v.string(),
+      trackingUrl: v.optional(v.string()),
+      status: v.union(
+        v.literal("booked"),
+        v.literal("picked_up"),
+        v.literal("in_transit"),
+        v.literal("out_for_delivery"),
+        v.literal("delivered"),
+        v.literal("exception"),
+        v.literal("cancelled"),
+      ),
+      lastEventAt: v.optional(v.number()),
+      lastEventNote: v.optional(v.string()),
+      createdAt: v.number(),
+      updatedAt: v.number(),
+    })
+      .index("by_order", ["orderId"])
+      .index("by_awb", ["awb"]),
 
     // Delivery addresses saved to a user's account
     addresses: defineTable({

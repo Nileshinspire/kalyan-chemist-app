@@ -17,8 +17,12 @@ import {
   Navigation,
   Phone,
   ArrowLeft,
+  FileText,
+  KeyRound,
+  ExternalLink,
 } from "lucide-react";
 import { LiveDeliveryMap } from "@/components/tracking/LiveDeliveryMap";
+import { getOrderStatusLabel } from "@/convex/orderWorkflowCore";
 
 const STATUS_STEPS = [
   "pending",
@@ -133,6 +137,18 @@ export default function AccountTrackOrder() {
     isClosedStatus(o.status),
   );
 
+  const trackingLabel = customerTracking
+    ? getOrderStatusLabel(
+        {
+          status: customerTracking.orderStatus,
+          prescriptionVerificationRequired:
+            customerTracking.prescription?.required,
+          prescriptionStatus: customerTracking.prescription?.status,
+        },
+        STATUS_LABELS,
+      )
+    : "";
+
   const orderUnavailable = (
     <div className="rounded-xl border border-dashed border-border/60 bg-muted/30 p-4 text-center">
       <p className="text-sm font-medium text-foreground">Order not available</p>
@@ -243,8 +259,7 @@ export default function AccountTrackOrder() {
                 <Badge
                   className={`text-[10px] capitalize ${STATUS_COLORS[customerTracking.orderStatus] || ""}`}
                 >
-                  {STATUS_LABELS[customerTracking.orderStatus] ||
-                    customerTracking.orderStatus}
+                  {trackingLabel}
                 </Badge>
               )}
             </div>
@@ -283,10 +298,78 @@ export default function AccountTrackOrder() {
                             minute: "2-digit",
                           })}`
                         : "Waiting for the first GPS update"
-                      : STATUS_LABELS[customerTracking.orderStatus] ??
-                        customerTracking.orderStatus}
+                      : trackingLabel}
                   </span>
                 </div>
+
+                {customerTracking.prescription?.required &&
+                  (customerTracking.prescription.status === "rejected" ||
+                    customerTracking.prescription.status === "needs_clarification" ||
+                    (customerTracking.prescription.status !== "approved" &&
+                      customerTracking.orderStatus === "pending")) && (
+                    <div
+                      className={`rounded-xl border p-3 text-xs ${
+                        customerTracking.prescription.status === "rejected"
+                          ? "border-rose-200 bg-rose-50 text-rose-900"
+                          : "border-amber-200 bg-amber-50 text-amber-900"
+                      }`}
+                    >
+                      <p className="flex items-center gap-1.5 font-semibold">
+                        <FileText className="size-3.5" />
+                        {customerTracking.prescription.status === "rejected"
+                          ? "Prescription rejected"
+                          : customerTracking.prescription.status ===
+                                "needs_clarification"
+                            ? "Prescription clarification needed"
+                            : "Order received — prescription verification pending"}
+                      </p>
+                      <p className="mt-1 leading-relaxed">
+                        {customerTracking.prescription.rejectionReason ||
+                          customerTracking.prescription.clarificationNote ||
+                          "Our pharmacist is verifying your prescription. Your order will be confirmed automatically once it is approved."}
+                      </p>
+                    </div>
+                  )}
+
+                {customerTracking.deliveryOtp &&
+                  customerTracking.orderStatus !== "delivered" && (
+                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-primary/20 bg-primary/[0.04] px-3 py-2 text-xs">
+                      <span className="flex items-center gap-1.5 font-medium text-foreground">
+                        <KeyRound className="size-3.5 text-primary" /> Delivery OTP
+                      </span>
+                      <span className="font-mono text-base font-bold tracking-[0.3em] text-primary">
+                        {customerTracking.deliveryOtp}
+                      </span>
+                      <span className="w-full text-[11px] text-muted-foreground">
+                        Share this OTP with your delivery partner only when you receive
+                        the order.
+                      </span>
+                    </div>
+                  )}
+
+                {customerTracking.courier && (
+                  <div className="rounded-xl border border-border/60 px-3 py-2 text-xs">
+                    <p className="flex items-center gap-1.5 font-medium text-foreground">
+                      <Package className="size-3.5 text-primary" />
+                      {customerTracking.courier.provider} · AWB{" "}
+                      {customerTracking.courier.awb}
+                    </p>
+                    <p className="mt-1 text-[11px] capitalize text-muted-foreground">
+                      Shipment status:{" "}
+                      {customerTracking.courier.status.replace(/_/g, " ")}
+                    </p>
+                    {customerTracking.courier.trackingUrl && (
+                      <a
+                        href={customerTracking.courier.trackingUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-1 inline-flex items-center gap-1 font-medium text-primary hover:underline"
+                      >
+                        Track with courier <ExternalLink className="size-3" />
+                      </a>
+                    )}
+                  </div>
+                )}
 
                 {customerTracking.assigned && (
                   <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/60 px-3 py-2 text-xs">
@@ -451,7 +534,7 @@ export default function AccountTrackOrder() {
                           <Badge
                             className={`text-[10px] capitalize ${STATUS_COLORS[order.status] || ""}`}
                           >
-                            {STATUS_LABELS[order.status] || order.status}
+                            {getOrderStatusLabel(order, STATUS_LABELS)}
                           </Badge>
                         </div>
                         <OrderProgressTracker status={order.status} />
@@ -507,7 +590,7 @@ export default function AccountTrackOrder() {
                           <Badge
                             className={`text-[10px] capitalize ${STATUS_COLORS[order.status] || ""}`}
                           >
-                            {STATUS_LABELS[order.status] || order.status}
+                            {getOrderStatusLabel(order, STATUS_LABELS)}
                           </Badge>
                           <MapPin className="size-4 text-muted-foreground" />
                         </div>

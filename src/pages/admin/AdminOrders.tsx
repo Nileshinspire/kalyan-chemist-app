@@ -29,6 +29,8 @@ import {
   Loader2,
   Search,
   Eye,
+  CheckCircle2,
+  XCircle,
   ChevronRight,
   MapPin,
   CreditCard,
@@ -50,6 +52,7 @@ import {
   type AdminWhatsAppTemplateId,
 } from "@/lib/whatsapp";
 import { formatCurrency, getStatusColor } from "@/lib/auth-utils";
+import { getOrderStatusLabel } from "@/convex/orderWorkflowCore";
 import { toast } from "sonner";
 import { geocodeAddress } from "@/lib/geocode";
 
@@ -194,13 +197,25 @@ export default function AdminOrders() {
     phone: "",
     password: "",
   });
+  const [busyAction, setBusyAction] = useState<string | null>(null);
+  const [cancelReason, setCancelReason] = useState("");
+  const [courierProvider, setCourierProvider] = useState("");
+  const [courierAwb, setCourierAwb] = useState("");
+  const [courierTrackingUrl, setCourierTrackingUrl] = useState("");
 
   const orders = useQuery(api.admin.listOrders);
   const orderDetail = useQuery(
     api.admin.getOrderById,
     selectedOrder ? { orderId: selectedOrder._id } : "skip"
   );
-  const updateStatus = useMutation(api.admin.updateOrderStatus);
+  const confirmOrder = useMutation(api.admin.confirmOrder);
+  const startProcessing = useMutation(api.admin.startProcessing);
+  const completePacking = useMutation(api.admin.completePacking);
+  const cancelOrder = useMutation(api.admin.cancelOrder);
+  const confirmDelivery = useMutation(api.admin.confirmDelivery);
+  const initiateRefund = useMutation(api.admin.initiateRefund);
+  const completeRefund = useMutation(api.admin.completeRefund);
+  const bookCourier = useMutation(api.courier.bookCourier);
   const sendEmail = useAction(api.emailService.sendOrderStatusEmail);
   const sendSms = useAction(api.smsService.sendOrderStatusSms);
   const deliveryBoys = useQuery(api.deliveryAdmin.listDeliveryBoys);
@@ -217,43 +232,54 @@ export default function AdminOrders() {
     return matchesSearch && matchesStatus;
   });
 
-  const handleStatusChange = async (orderId: string, newStatus: string) => {
+  const notifyCustomer = (newStatus: string) => {
+    if (!orderDetail) return;
+    const invoiceNumber =
+      orderDetail.invoiceNumber || orderDetail._id.slice(-6);
+    if (orderDetail.userEmail) {
+      sendEmail({
+        toEmail: orderDetail.userEmail,
+        toName: orderDetail.userName || "Customer",
+        status: newStatus,
+        invoiceNumber,
+        paymentMethod: orderDetail.paymentMethod || "cod",
+      }).catch(() => {});
+    }
+    if (orderDetail.userPhone || orderDetail.phone) {
+      sendSms({
+        toPhone: orderDetail.userPhone || orderDetail.phone,
+        status: newStatus,
+        invoiceNumber,
+      }).catch(() => {});
+    }
+  };
+
+  const runOrderAction = async (
+    key: string,
+    successMessage: string,
+    action: () => Promise<unknown>,
+    nextStatus?: string,
+  ) => {
+    if (busyAction) return;
+    setBusyAction(key);
     try {
-      await updateStatus({
-        orderId: orderId as any,
-        status: newStatus as any,
-      });
-      toast.success(`Order status updated to ${STATUS_LABELS[newStatus] || newStatus}`);
-      // Refresh detail
-      if (selectedOrder?._id === orderId) {
-        setSelectedOrder({ ...selectedOrder, status: newStatus });
-      }
-      // Send email notification (non-blocking)
-      if (orderDetail?.userEmail) {
-        sendEmail({
-          toEmail: orderDetail.userEmail,
-          toName: orderDetail.userName || "Customer",
-          status: newStatus,
-          invoiceNumber: orderDetail.invoiceNumber || orderId.slice(-6),
-          paymentMethod: orderDetail.paymentMethod || "cod",
-        }).catch(() => {}); // non-blocking
-      }
-      // Send SMS notification (non-blocking)
-      if (orderDetail?.userPhone || orderDetail?.phone) {
-        sendSms({
-          toPhone: orderDetail.userPhone || orderDetail.phone,
-          status: newStatus,
-          invoiceNumber: orderDetail.invoiceNumber || orderId.slice(-6),
-        }).catch(() => {}); // non-blocking
-      }
+      await action();
+      toast.success(successMessage);
+      if (nextStatus) notifyCustomer(nextStatus);
     } catch (error: any) {
-      toast.error(error.message || "Failed to update status");
+      toast.error(error?.message ?? "The action could not be completed");
+    } finally {
+      setBusyAction(null);
     }
   };
 
   const openDetail = (order: any) => {
     setSelectedOrder(order);
     setShowDetail(true);
+    setCancelReason("");
+    setCourierProvider("");
+    setCourierAwb("");
+    setCourierTrackingUrl("");
   };
 
   /**
@@ -446,7 +472,7 @@ export default function AdminOrders() {
                     </div>
                     <div className="flex flex-col items-end gap-1 shrink-0">
                       <Badge className={`text-[10px] capitalize ${getStatusColor(order.status)}`}>
-                        {STATUS_LABELS[order.status] || order.status}
+                        {getOrderStatusLabel(order, STATUS_LABELS)}
                       </Badge>
                       {order.trackingActive && (
                         <span className="flex items-center gap-1 text-[9px] font-medium text-emerald-600">
@@ -472,28 +498,205 @@ export default function AdminOrders() {
                 <DialogTitle className="flex items-center gap-2">
                   Order #{orderDetail.invoiceNumber || orderDetail._id.slice(-6)}
                   <Badge className={`text-[10px] capitalize ${getStatusColor(orderDetail.status)}`}>
-                    {STATUS_LABELS[orderDetail.status]}
+                    {getOrderStatusLabel(orderDetail, STATUS_LABELS)}
                   </Badge>
                 </DialogTitle>
               </DialogHeader>
 
               <div className="space-y-4">
-                {/* Status Update */}
+                {/* Action-based order management */}
                 <div className="p-3 rounded-xl bg-muted/30 border border-border/40">
-                  <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 block">Update Status</Label>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {STATUS_OPTIONS.map((s) => (
-                      <Button
-                        key={s}
-                        variant={orderDetail.status === s ? "default" : "outline"}
-                        size="sm"
-                        className={`text-[10px] ${orderDetail.status === s ? "gradient-primary text-white" : ""}`}
-                        onClick={() => handleStatusChange(orderDetail._id, s)}
-                      >
-                        {STATUS_LABELS[s]}
+                  <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 block">Order actions</Label>
+
+                  {orderDetail.prescriptionId && orderDetail.prescriptionStatus !== "approved" && (
+                    <div className="mb-2 rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-[11px] text-amber-900">
+                      <p className="font-semibold capitalize">
+                        Prescription {(orderDetail.prescriptionStatus || "pending").replace(/_/g, " ")}
+                      </p>
+                      <p className="mt-0.5 leading-relaxed">
+                        {orderDetail.prescriptionRejectionReason ||
+                          orderDetail.prescriptionClarificationNote ||
+                          "Verify the prescription before this order can be confirmed."}
+                      </p>
+                      <Button asChild variant="outline" size="sm" className="mt-2 h-7 gap-1 text-[11px]">
+                        <a href="/admin/prescriptions">Verify prescription</a>
                       </Button>
-                    ))}
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {orderDetail.status === "pending" &&
+                      (orderDetail.prescriptionId &&
+                      orderDetail.prescriptionStatus !== "approved" ? (
+                        <span className="text-[11px] text-muted-foreground">
+                          Waiting for prescription verification.
+                        </span>
+                      ) : (
+                        <Button
+                          size="sm"
+                          className="text-[10px] gradient-primary text-white"
+                          disabled={busyAction === "confirm"}
+                          onClick={() =>
+                            runOrderAction(
+                              "confirm",
+                              "Order confirmed",
+                              () => confirmOrder({ orderId: orderDetail._id }),
+                              "confirmed",
+                            )
+                          }
+                        >
+                          {busyAction === "confirm" ? <Loader2 className="size-3 animate-spin" /> : <CheckCircle2 className="size-3" />}
+                          Confirm order
+                        </Button>
+                      ))}
+
+                    {orderDetail.status === "confirmed" && (
+                      <Button
+                        size="sm"
+                        className="text-[10px] gradient-primary text-white"
+                        disabled={busyAction === "processing"}
+                        onClick={() =>
+                          runOrderAction(
+                            "processing",
+                            "Processing started",
+                            () => startProcessing({ orderId: orderDetail._id }),
+                            "processing",
+                          )
+                        }
+                      >
+                        {busyAction === "processing" ? <Loader2 className="size-3 animate-spin" /> : <Package className="size-3" />}
+                        Start processing
+                      </Button>
+                    )}
+
+                    {orderDetail.status === "processing" && (
+                      <Button
+                        size="sm"
+                        className="text-[10px] gradient-primary text-white"
+                        disabled={busyAction === "packing"}
+                        onClick={() =>
+                          runOrderAction(
+                            "packing",
+                            "Packing completed — ready for dispatch",
+                            () => completePacking({ orderId: orderDetail._id }),
+                            "ready_for_dispatch",
+                          )
+                        }
+                      >
+                        {busyAction === "packing" ? <Loader2 className="size-3 animate-spin" /> : <Package className="size-3" />}
+                        Complete packing
+                      </Button>
+                    )}
+
+                    {orderDetail.status === "ready_for_dispatch" && (
+                      <span className="text-[11px] text-muted-foreground">
+                        Packed and ready. Assign a delivery partner or book a courier below.
+                      </span>
+                    )}
+                    {orderDetail.status === "out_for_delivery" && (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-[11px] text-muted-foreground">
+                          Out for delivery. Completion is confirmed by OTP or a verified courier event.
+                        </span>
+                        <Button
+                          size="sm"
+                          className="h-7 text-[10px] bg-emerald-600 text-white hover:bg-emerald-700"
+                          disabled={busyAction === "deliver"}
+                          onClick={() =>
+                            runOrderAction(
+                              "deliver",
+                              "Delivery confirmed",
+                              () => confirmDelivery({ orderId: orderDetail._id }),
+                              "delivered",
+                            )
+                          }
+                        >
+                          {busyAction === "deliver" ? <Loader2 className="size-3 animate-spin" /> : <CheckCircle2 className="size-3" />}
+                          Confirm delivery
+                        </Button>
+                      </div>
+                    )}
+                    {orderDetail.status === "delivered" && (
+                      <span className="rounded-lg bg-emerald-50 px-2 py-1 text-[11px] font-medium text-emerald-800">
+                        Delivered {"deliveredAt" in orderDetail && orderDetail.deliveredAt ? new Date(orderDetail.deliveredAt).toLocaleString("en-IN") : ""}
+                      </span>
+                    )}
                   </div>
+
+                  {!["delivered", "cancelled", "refunded"].includes(orderDetail.status) && (
+                    <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border/40 pt-3">
+                      <Input
+                        value={cancelReason}
+                        onChange={(event) => setCancelReason(event.target.value)}
+                        placeholder="Cancellation reason (shown to the customer)"
+                        className="h-8 max-w-xs text-xs"
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 text-[11px] text-destructive border-destructive/30 hover:bg-destructive/5"
+                        disabled={busyAction === "cancel"}
+                        onClick={() => {
+                          if (!confirm("Cancel this order and release its stock?")) return;
+                          runOrderAction(
+                            "cancel",
+                            "Order cancelled",
+                            () =>
+                              cancelOrder({
+                                orderId: orderDetail._id,
+                                reason: cancelReason.trim() || undefined,
+                              }),
+                            "cancelled",
+                          );
+                        }}
+                      >
+                        {busyAction === "cancel" ? <Loader2 className="size-3 animate-spin" /> : <XCircle className="size-3" />}
+                        Cancel order
+                      </Button>
+                    </div>
+                  )}
+
+                  {(orderDetail.paymentStatus === "paid" ||
+                    orderDetail.paymentStatus === "refund_initiated") &&
+                    ["cancelled", "delivered"].includes(orderDetail.status) && (
+                      <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border/40 pt-3">
+                        {orderDetail.paymentStatus === "paid" ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 text-[11px]"
+                            disabled={busyAction === "refund-initiate"}
+                            onClick={() =>
+                              runOrderAction(
+                                "refund-initiate",
+                                "Refund initiated",
+                                () => initiateRefund({ orderId: orderDetail._id }),
+                              )
+                            }
+                          >
+                            {busyAction === "refund-initiate" ? <Loader2 className="size-3 animate-spin" /> : <CreditCard className="size-3" />}
+                            Initiate refund
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 text-[11px]"
+                            disabled={busyAction === "refund-complete"}
+                            onClick={() =>
+                              runOrderAction(
+                                "refund-complete",
+                                "Refund completed",
+                                () => completeRefund({ orderId: orderDetail._id }),
+                              )
+                            }
+                          >
+                            {busyAction === "refund-complete" ? <Loader2 className="size-3 animate-spin" /> : <CreditCard className="size-3" />}
+                            Mark refunded
+                          </Button>
+                        )}
+                      </div>
+                    )}
 
                   {/* WhatsApp customer communication — pre-filled only */}
                   <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border/40 pt-3">
@@ -561,7 +764,12 @@ export default function AdminOrders() {
                     <Select
                       value={orderDetail.deliveryBoyId || "unassigned"}
                       onValueChange={(value) => handleAssignDelivery(orderDetail._id, value)}
-                      disabled={assigning}
+                      disabled={
+                        assigning ||
+                        !["ready_for_dispatch", "out_for_delivery"].includes(
+                          orderDetail.status,
+                        )
+                      }
                     >
                       <SelectTrigger className="h-9 bg-background">
                         <SelectValue placeholder="Unassigned" />
@@ -583,9 +791,20 @@ export default function AdminOrders() {
                         <Radio className="size-2.5 mr-1 animate-pulse" /> Live location sharing
                       </Badge>
                     ) : orderDetail.deliveryBoyId ? (
-                      <Badge variant="outline" className="text-[10px]">Assigned · not sharing</Badge>
+                      <Badge variant="outline" className="text-[10px] capitalize">
+                        {String(
+                          orderDetail.deliveryAssignmentStatus || "assigned",
+                        ).replace(/_/g, " ")}{" "}
+                        · not sharing
+                      </Badge>
                     ) : (
-                      <span>No delivery partner assigned yet.</span>
+                      <span>
+                        {["ready_for_dispatch", "out_for_delivery"].includes(
+                          orderDetail.status,
+                        )
+                          ? "No delivery partner assigned yet."
+                          : "Complete packing before assigning a delivery partner."}
+                      </span>
                     )}
                     {orderDetail.trackingActive && orderDetail.lastLocationAt && (
                       <span>
@@ -604,6 +823,122 @@ export default function AdminOrders() {
                       No delivery partners yet. Use “Add delivery boy” to create a login.
                     </p>
                   )}
+
+                  {orderDetail.deliveryOtp &&
+                    !["delivered", "cancelled"].includes(orderDetail.status) && (
+                      <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-primary/20 bg-primary/[0.04] px-2.5 py-2 text-[11px]">
+                        <span className="font-medium text-foreground">
+                          Delivery OTP (customer sees this)
+                        </span>
+                        <span className="font-mono text-base font-bold tracking-[0.3em] text-primary">
+                          {orderDetail.deliveryOtp}
+                        </span>
+                      </div>
+                    )}
+
+                  {/* Third-party courier */}
+                  <div className="mt-3 border-t border-border/40 pt-3">
+                    <Label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Third-party courier
+                    </Label>
+                    {orderDetail.shipment ? (
+                      <div className="space-y-1 rounded-lg border border-border/60 bg-background p-2.5 text-[11px]">
+                        <p className="font-medium text-foreground">
+                          {orderDetail.shipment.provider} · AWB{" "}
+                          <span className="font-mono">{orderDetail.shipment.awb}</span>
+                        </p>
+                        <p className="capitalize text-muted-foreground">
+                          Shipment status:{" "}
+                          {String(orderDetail.shipment.status).replace(/_/g, " ")}
+                        </p>
+                        <p className="leading-relaxed text-muted-foreground">
+                          Status changes are applied only from verified courier
+                          callbacks; no tracking events are generated locally.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Select
+                            value={courierProvider}
+                            onValueChange={setCourierProvider}
+                          >
+                            <SelectTrigger className="h-8 w-[150px] text-[11px]">
+                              <SelectValue placeholder="Select courier" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {[
+                                "Delhivery",
+                                "Blue Dart",
+                                "India Post",
+                                "DTDC",
+                                "Shadowfax",
+                                "Other",
+                              ].map((provider) => (
+                                <SelectItem key={provider} value={provider}>
+                                  {provider}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Input
+                            value={courierAwb}
+                            onChange={(event) => setCourierAwb(event.target.value)}
+                            placeholder="AWB / tracking number"
+                            className="h-8 w-[170px] text-[11px]"
+                          />
+                          <Input
+                            value={courierTrackingUrl}
+                            onChange={(event) =>
+                              setCourierTrackingUrl(event.target.value)
+                            }
+                            placeholder="Tracking URL (optional)"
+                            className="h-8 w-[190px] text-[11px]"
+                          />
+                          <Button
+                            size="sm"
+                            className="h-8 text-[11px]"
+                            disabled={
+                              busyAction === "courier" ||
+                              !courierProvider.trim() ||
+                              courierAwb.trim().length < 4 ||
+                              !["ready_for_dispatch", "out_for_delivery"].includes(
+                                orderDetail.status,
+                              )
+                            }
+                            onClick={() =>
+                              runOrderAction(
+                                "courier",
+                                "Courier booking recorded",
+                                () =>
+                                  bookCourier({
+                                    orderId: orderDetail._id,
+                                    provider: courierProvider,
+                                    awb: courierAwb,
+                                    trackingUrl:
+                                      courierTrackingUrl.trim() || undefined,
+                                  }),
+                              )
+                            }
+                          >
+                            {busyAction === "courier" ? (
+                              <Loader2 className="size-3 animate-spin" />
+                            ) : (
+                              <Truck className="size-3" />
+                            )}
+                            Record booking
+                          </Button>
+                        </div>
+                        <p className="text-[10px] leading-relaxed text-muted-foreground">
+                          No courier API credentials are bundled. Book with the courier
+                          and record the real AWB here; verified status updates then
+                          arrive through <span className="font-mono">/courier-webhook</span>{" "}
+                          (requires COURIER_WEBHOOK_SECRET). Packing must be completed
+                          first, and an internal partner cannot also be assigned.
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Status History Timeline */}
@@ -620,7 +955,14 @@ export default function AdminOrders() {
                             )}
                           </div>
                           <div className="pb-3">
-                            <p className="text-sm font-medium capitalize">{entry.status.replace(/_/g, " ")}</p>
+                            <p className="text-sm font-medium capitalize">
+                              {entry.status.replace(/_/g, " ")}
+                              {entry.source && (
+                                <span className="ml-1.5 text-[10px] font-normal lowercase text-muted-foreground">
+                                  · {entry.source.replace(/_/g, " ")}
+                                </span>
+                              )}
+                            </p>
                             <p className="text-[10px] text-muted-foreground">
                               {new Date(entry.timestamp).toLocaleString("en-IN", {
                                 day: "numeric", month: "short", year: "numeric",

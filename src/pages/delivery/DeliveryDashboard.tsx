@@ -100,6 +100,8 @@ export default function DeliveryDashboard() {
   const { user, signOut } = useAuth();
   const assignments = useQuery(api.deliveryTracking.myAssignments, {});
   const startTracking = useMutation(api.deliveryTracking.startTracking);
+  const acceptDelivery = useMutation(api.deliveryTracking.acceptDelivery);
+  const pickupOrder = useMutation(api.deliveryTracking.pickupOrder);
   const updateLocation = useMutation(api.deliveryTracking.updateLocation);
   const stopTracking = useMutation(api.deliveryTracking.stopTracking);
   const markDelivered = useMutation(api.deliveryTracking.markDelivered);
@@ -107,6 +109,7 @@ export default function DeliveryDashboard() {
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
   const [busyOrderId, setBusyOrderId] = useState<string | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [deliveryOtp, setDeliveryOtp] = useState("");
   const [gpsError, setGpsError] = useState<string | null>(null);
   const [networkError, setNetworkError] = useState<string | null>(null);
   const [lastSentAt, setLastSentAt] = useState<number | null>(null);
@@ -262,17 +265,57 @@ export default function DeliveryDashboard() {
     [busyOrderId, beginWatch, sendLocation],
   );
 
+  const handleAccept = useCallback(
+    async (orderId: string) => {
+      if (busyOrderId) return;
+      setBusyOrderId(orderId);
+      try {
+        await acceptDelivery({ orderId: orderId as Id<"orders"> });
+        toast.success("Delivery accepted.");
+      } catch (error: any) {
+        toast.error(error?.message ?? "Could not accept the delivery.");
+      } finally {
+        setBusyOrderId(null);
+      }
+    },
+    [busyOrderId, acceptDelivery],
+  );
+
+  const handlePickup = useCallback(
+    async (orderId: string) => {
+      if (busyOrderId) return;
+      setBusyOrderId(orderId);
+      try {
+        await pickupOrder({ orderId: orderId as Id<"orders"> });
+        toast.success("Package picked up — order is out for delivery.");
+      } catch (error: any) {
+        toast.error(error?.message ?? "Could not confirm the pickup.");
+      } finally {
+        setBusyOrderId(null);
+      }
+    },
+    [busyOrderId, pickupOrder],
+  );
+
   const handleMarkDelivered = useCallback(
     async (orderId: string) => {
       if (busyOrderId) return;
+      if (deliveryOtp.trim().length !== 6) {
+        toast.error("Enter the 6-digit OTP shown on the customer's Track Order page.");
+        return;
+      }
       setBusyOrderId(orderId);
       clearGpsTimers();
       activeOrderRef.current = null;
       setActiveOrderId(null);
       setNetworkError(null);
       try {
-        await markDelivered({ orderId: orderId as Id<"orders"> });
+        await markDelivered({
+          orderId: orderId as Id<"orders">,
+          otp: deliveryOtp.trim(),
+        });
         setConfirmingId(null);
+        setDeliveryOtp("");
         toast.success("Delivery completed — location sharing stopped.");
       } catch (error: any) {
         toast.error(error?.message ?? "Could not mark the order delivered.");
@@ -280,7 +323,7 @@ export default function DeliveryDashboard() {
         setBusyOrderId(null);
       }
     },
-    [busyOrderId, clearGpsTimers, markDelivered],
+    [busyOrderId, clearGpsTimers, deliveryOtp, markDelivered],
   );
 
   const handleStop = useCallback(
@@ -585,6 +628,35 @@ export default function DeliveryDashboard() {
                               <Square className="size-3.5" /> Stop
                             </Button>
                           </>
+                        ) : row.assignmentStatus !== "accepted" &&
+                          row.assignmentStatus !== "picked_up" ? (
+                          <Button
+                            size="sm"
+                            className="h-8 gap-1.5 text-xs gradient-primary text-white"
+                            disabled={isBusy}
+                            onClick={() => handleAccept(row._id)}
+                          >
+                            {isBusy ? (
+                              <Loader2 className="size-3.5 animate-spin" />
+                            ) : (
+                              <CheckCircle2 className="size-3.5" />
+                            )}
+                            Accept delivery
+                          </Button>
+                        ) : row.status !== "out_for_delivery" ? (
+                          <Button
+                            size="sm"
+                            className="h-8 gap-1.5 text-xs gradient-primary text-white"
+                            disabled={isBusy}
+                            onClick={() => handlePickup(row._id)}
+                          >
+                            {isBusy ? (
+                              <Loader2 className="size-3.5 animate-spin" />
+                            ) : (
+                              <Package className="size-3.5" />
+                            )}
+                            Confirm pickup
+                          </Button>
                         ) : (
                           <Button
                             size="sm"
@@ -622,16 +694,30 @@ export default function DeliveryDashboard() {
                     </div>
 
                     {!terminal && confirmingId === row._id && (
-                      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-2.5 text-xs">
+                      <div className="space-y-2 rounded-xl border border-emerald-200 bg-emerald-50 p-2.5 text-xs">
                         <p className="text-emerald-900">
-                          Confirm this order was delivered? Live location sharing will
-                          stop and the customer will see it as completed.
+                          Ask the customer for the 6-digit delivery OTP shown on their
+                          Track Order page. Delivered is recorded only after it is
+                          verified.
                         </p>
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <input
+                            value={deliveryOtp}
+                            onChange={(event) =>
+                              setDeliveryOtp(
+                                event.target.value.replace(/\D/g, "").slice(0, 6),
+                              )
+                            }
+                            inputMode="numeric"
+                            autoComplete="one-time-code"
+                            placeholder="6-digit OTP"
+                            aria-label="Delivery OTP"
+                            className="h-8 w-32 rounded-md border border-emerald-300 bg-white px-2 text-center font-mono text-sm tracking-[0.25em] text-emerald-900 outline-none focus:border-emerald-500"
+                          />
                           <Button
                             size="sm"
                             className="h-7 gap-1 text-xs bg-emerald-600 text-white hover:bg-emerald-700"
-                            disabled={isBusy}
+                            disabled={isBusy || deliveryOtp.trim().length !== 6}
                             onClick={() => handleMarkDelivered(row._id)}
                           >
                             {isBusy ? (
@@ -639,13 +725,16 @@ export default function DeliveryDashboard() {
                             ) : (
                               <CheckCircle2 className="size-3.5" />
                             )}
-                            Yes, delivered
+                            Verify OTP &amp; complete
                           </Button>
                           <Button
                             size="sm"
                             variant="ghost"
                             className="h-7 text-xs"
-                            onClick={() => setConfirmingId(null)}
+                            onClick={() => {
+                              setConfirmingId(null);
+                              setDeliveryOtp("");
+                            }}
                           >
                             Cancel
                           </Button>

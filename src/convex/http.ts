@@ -1,6 +1,6 @@
 import { httpRouter } from "convex/server";
 import { httpAction } from "./_generated/server";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 import { auth } from "./auth";
 import { handleWebhook } from "./whatsappWebhook";
 
@@ -24,6 +24,79 @@ http.route({
   path: "/whatsapp-webhook",
   method: "POST",
   handler: handleWebhook,
+});
+
+// ── Third-party courier webhook ──
+// POST /courier-webhook with header `x-courier-secret` matching
+// COURIER_WEBHOOK_SECRET. Body: { awb, status, provider?, eventId?, note?, occurredAt? }.
+// Only verified callbacks are applied; no tracking data is generated locally.
+http.route({
+  path: "/courier-webhook",
+  method: "POST",
+  handler: httpAction(async (ctx, request) => {
+    const secret = process.env.COURIER_WEBHOOK_SECRET;
+    if (!secret) {
+      return Response.json(
+        {
+          error:
+            "Courier webhook is not configured. Set COURIER_WEBHOOK_SECRET to enable verified courier updates.",
+        },
+        { status: 501 },
+      );
+    }
+    if (request.headers.get("x-courier-secret") !== secret) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return Response.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
+    const payload =
+      body && typeof body === "object"
+        ? (body as Record<string, unknown>)
+        : {};
+
+    const awb =
+      typeof payload.awb === "string" ? payload.awb.trim() : "";
+    const status =
+      typeof payload.status === "string" ? payload.status.trim() : "";
+    if (!awb || !status) {
+      return Response.json(
+        { error: "Both awb and status are required" },
+        { status: 400 },
+      );
+    }
+
+    try {
+      const result = await ctx.runMutation(internal.courier.applyCourierEvent, {
+        awb,
+        status,
+        provider:
+          typeof payload.provider === "string" ? payload.provider : undefined,
+        eventId:
+          typeof payload.eventId === "string" ? payload.eventId : undefined,
+        note: typeof payload.note === "string" ? payload.note : undefined,
+        occurredAt:
+          typeof payload.occurredAt === "number"
+            ? payload.occurredAt
+            : undefined,
+      });
+      return Response.json(result);
+    } catch (error: unknown) {
+      return Response.json(
+        {
+          error:
+            error instanceof Error
+              ? error.message
+              : "Could not apply the courier event",
+        },
+        { status: 400 },
+      );
+    }
+  }),
 });
 
 // ── RFC 8058 one-click unsubscribe ──
