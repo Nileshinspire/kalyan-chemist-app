@@ -157,6 +157,17 @@ const Navbar = memo(function Navbar() {
           onClick={() => navigate("/")}
         >
           <BrandMark className="size-9 transition-all duration-300 group-hover:scale-105" />
+          {/* Phones only: compact two-line wordmark beside the existing symbol.
+              The mark itself is untouched; from `sm` up the original text block
+              below is used exactly as before. */}
+          <div className="sm:hidden leading-none">
+            <span className="block text-[10px] font-bold tracking-tight text-foreground">
+              Kalyan Chemist
+            </span>
+            <span className="mt-0.5 block text-[6px] font-medium uppercase tracking-[0.14em] text-primary/60">
+              Trusted Pharmacy
+            </span>
+          </div>
           <div className="hidden sm:block leading-tight">
             <span className="text-base font-bold tracking-tight text-foreground">
               Kalyan Chemist
@@ -344,7 +355,13 @@ const Navbar = memo(function Navbar() {
                 <Menu className="size-5" />
               </Button>
             </SheetTrigger>
-            <SheetContent side="right" className="w-72 p-0 border-border/30">
+            {/* The sheet header below renders its own close button, so the
+                built-in one is disabled — exactly one X on mobile. */}
+            <SheetContent
+              side="right"
+              showCloseButton={false}
+              className="w-72 p-0 border-border/30"
+            >
               <div className="flex flex-col h-full">
                 <div className="flex items-center justify-between p-4 border-b border-border/40">
                   <div className="flex items-center gap-2">

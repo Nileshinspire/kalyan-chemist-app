@@ -1,17 +1,17 @@
 import { useNavigate, useLocation } from "react-router";
-import { useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
 import { useAuth } from "@/context/AuthContext";
-import { Home, LayoutGrid, ShoppingCart, User } from "lucide-react";
+import { Home, LayoutGrid, Tags, User } from "lucide-react";
 import { preloadRoute } from "@/lib/route-preload";
 
 /**
- * Mobile-only bottom navigation bar (Home · Categories · Cart · Account).
+ * Mobile-only bottom navigation bar (Home · Categories · Offers · Account).
  *
  * A single instance is mounted at the app root. It is `md:hidden`, so desktop
  * and laptop screens are byte-for-byte unchanged. All four destinations reuse
- * the EXISTING routes, the reactive cart query (same source as the header
- * badge) and the existing auth state — no new navigation or business logic.
+ * EXISTING routes and the existing auth state — no new navigation or business
+ * logic. "Offers" opens the existing Value Deals Under ₹100 page, which is
+ * driven by the same deals/discount data the homepage section uses. The cart
+ * stays in the top mobile header with its badge and full functionality.
  *
  * Hidden on the admin area (which has its own layout) and on the full-screen
  * chatbot, matching the existing floating-button visibility rules.
@@ -20,9 +20,6 @@ export default function MobileBottomNav() {
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthenticated } = useAuth();
-  // Same reactive source as the header cart badge — stays in sync with no refresh.
-  const cartCountQuery = useQuery(api.cart.getCount);
-  const cartCount = typeof cartCountQuery === "number" ? cartCountQuery : 0;
 
   const pathname = location.pathname;
   if (pathname.startsWith("/admin") || pathname === "/chatbot") return null;
@@ -33,8 +30,8 @@ export default function MobileBottomNav() {
         return pathname === "/";
       case "categories":
         return pathname.startsWith("/categories");
-      case "cart":
-        return pathname === "/cart";
+      case "offers":
+        return pathname === "/value-deals";
       case "account":
         return pathname.startsWith("/account");
       default:
@@ -45,7 +42,7 @@ export default function MobileBottomNav() {
   const items = [
     { key: "home", label: "Home", icon: Home, to: "/" },
     { key: "categories", label: "Categories", icon: LayoutGrid, to: "/categories" },
-    { key: "cart", label: "Cart", icon: ShoppingCart, to: "/cart" },
+    { key: "offers", label: "Offers", icon: Tags, to: "/value-deals" },
     {
       key: "account",
       label: "Account",
@@ -85,14 +82,6 @@ export default function MobileBottomNav() {
             >
               <span className="relative inline-flex">
                 <Icon className="size-5" />
-                {item.key === "cart" && cartCount > 0 && (
-                  <span
-                    aria-hidden="true"
-                    className="pointer-events-none absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#E53935] px-0.5 text-[9.5px] font-semibold leading-none text-white shadow-sm ring-[1.5px] ring-background"
-                  >
-                    {cartCount > 99 ? "99+" : cartCount}
-                  </span>
-                )}
               </span>
               {item.label}
             </button>
