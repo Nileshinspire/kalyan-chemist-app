@@ -532,11 +532,11 @@ export default function Landing() {
                       navigate(`/products/${product.slug}`, { state: { from: location.pathname + location.search } });
                     }}
                   >
-                    {/* Media: near-square white packshot field with the real
-                        rating pill and the compact `Add` control on its bottom
-                        edge, matching the shared card. */}
-                    <div className="relative shrink-0">
-                      <div className="relative flex aspect-square items-center justify-center overflow-hidden rounded-xl bg-white max-sm:rounded-b-none max-sm:border-b max-sm:border-border/40 sm:aspect-auto sm:h-36 sm:ring-1 sm:ring-border/50 sm:ring-inset xl:h-40">
+                                        {/* Media: compact image with subtle rounded border, rating pill
+                        on its bottom-left and an outlined Add button on its
+                        bottom-right overlapping the lower edge (Apollo style). */}
+                    <div className="relative shrink-0 rounded-xl border border-border/60 overflow-hidden">
+                      <div className="relative flex aspect-[4/3] items-center justify-center overflow-hidden rounded-[10px] bg-white">
                         {product.imageUrl ? (
                           <img
                             src={product.imageUrl}
@@ -549,65 +549,48 @@ export default function Landing() {
                           <Pill className="size-10 text-primary/20 group-hover:text-primary/30 transition-all duration-500" />
                         )}
                         {product.prescriptionRequired && (
-                          <Badge variant="secondary" className="absolute top-2 left-2 z-[1] text-[10px] bg-red-50 text-red-700">Rx</Badge>
+                          <Badge variant="secondary" className="absolute top-1.5 left-1.5 z-[1] text-[9px] bg-red-50 text-red-700">Rx</Badge>
                         )}
                       </div>
-                      <div className="pointer-events-none absolute bottom-1.5 left-2 z-[1] sm:-bottom-2">
+                      <div className="pointer-events-none absolute bottom-0.5 left-1 z-[1]">
                         <ProductRatingBadge productId={product._id} />
                       </div>
-                      <div className="pointer-events-none absolute right-0 bottom-1.5 z-[2] max-sm:block sm:hidden">
+                      <div className="pointer-events-none absolute right-0.5 bottom-0.5 z-[2]">
                         <button
                           type="button"
                           aria-label={product.stockQuantity === 0 ? `${product.name} is out of stock` : `Add ${product.name} to cart`}
-                          className={`h-8 w-[58px] rounded-lg border border-emerald-700 bg-white px-1 text-center text-[11px] font-semibold text-emerald-700 shadow-sm transition-all duration-300 hover:border-emerald-600 hover:bg-emerald-50 hover:text-emerald-800 hover:shadow-sm active:scale-[0.97] ${product.stockQuantity === 0 ? "opacity-40 cursor-not-allowed" : ""}`}
+                          className={`h-7 w-[48px] rounded border border-emerald-700 bg-white px-0 text-center text-[10px] font-semibold text-emerald-700 shadow-sm transition-all duration-300 hover:border-emerald-600 hover:bg-emerald-50 hover:text-emerald-800 active:scale-95 ${product.stockQuantity === 0 ? "opacity-40 cursor-not-allowed" : ""}`}
                           onClick={(e) => { e.stopPropagation(); handleAddToCart(product._id); }}
                           disabled={product.stockQuantity === 0}
                         >
                           {product.stockQuantity === 0 ? "Sold out" : "Add"}
                         </button>
                       </div>
-                      <div className="absolute right-0 bottom-1.5 z-[2] max-sm:hidden sm:-bottom-3">
-                        <Button
-                          size="sm"
-                          aria-label={product.stockQuantity === 0 ? `${product.name} is out of stock` : `Add ${product.name} to cart`}
-                          className={`h-8 w-[58px] rounded-lg px-1 text-[11px] font-semibold gradient-primary text-white shadow-sm transition-all duration-300 hover:shadow-glow hover:scale-[1.03] active:scale-[0.97] ${product.stockQuantity === 0 ? "text-[8px]" : ""}`}
-                          onClick={(e) => { e.stopPropagation(); handleAddToCart(product._id); }}
-                          disabled={product.stockQuantity === 0}
-                        >
-                          {product.stockQuantity === 0 ? "Sold out" : "Add"}
-                        </Button>
-                      </div>
                     </div>
                     {attributes && (
-                      <p className="mt-5 truncate text-[11px] leading-4 text-muted-foreground sm:mt-6">{attributes}</p>
+                      <p className="truncate text-[10px] leading-3 text-muted-foreground">{attributes}</p>
                     )}
-                    <h3 className="mt-1 line-clamp-2 min-h-[2.5rem] text-sm max-sm:text-[13px] font-semibold transition-colors group-hover:text-primary">{product.name}</h3>
-                    <p className="mt-0.5 truncate text-[11px] leading-4 text-muted-foreground sm:text-xs">{product.manufacturer}</p>
-                    {deliveryEstimate && (
-                      <p className="mt-1 flex items-center gap-1 text-[10px] leading-3 text-muted-foreground sm:mt-1.5 sm:text-[11px]">
-                        <Truck className="size-3 shrink-0 text-primary/80" aria-hidden />
-                        <span className="min-w-0 truncate">Delivery: {deliveryEstimate}</span>
-                      </p>
-                    )}
-                    {/* Price hierarchy: struck-through MRP + the one discount
-                        percentage, then the effective selling price. */}
-                    <div className="mt-auto pt-2">
+                    <h3 className="line-clamp-2 min-h-0 text-[12px] leading-snug font-semibold transition-colors group-hover:text-primary">{product.name}</h3>
+                    <p className="truncate text-[10px] leading-3 text-muted-foreground">{product.manufacturer}</p>
+                    <div className="flex flex-col gap-0.5">
                       {hasDiscount && (
-                        <div className="flex flex-wrap items-baseline gap-x-1.5 text-[10px] leading-3 text-muted-foreground sm:text-[11px]">
+                        <div className="flex items-baseline gap-x-1 text-[10px] leading-3 text-muted-foreground">
                           <span>MRP</span>
                           <span className="line-through">{formatCurrency(product.price)}</span>
                           {discountPct > 0 && (
-                            <span className="font-semibold text-emerald-600">{discountPct}% off</span>
+                            <span className="font-semibold text-emerald-700">{discountPct}% off</span>
                           )}
                         </div>
                       )}
-                      <div className="mt-0.5 text-base leading-6 font-extrabold">
-                        {formatCurrency(hasDiscount ? product.discountPrice! : product.price)}
+                      <div className="flex items-baseline gap-1">
+                        <div className="min-w-0 text-base leading-6 font-extrabold">
+                          {formatCurrency(hasDiscount ? product.discountPrice! : product.price)}
+                        </div>
                       </div>
                     </div>
                     <Button
                       size="sm"
-                      className="mt-2 h-9 w-full rounded-lg text-xs font-semibold gradient-primary text-white max-sm:min-h-9 sm:hidden"
+                      className="mt-1.5 h-9 w-full rounded-lg text-xs font-semibold gradient-primary text-white"
                       onClick={(e) => { e.stopPropagation(); handleAddToCart(product._id); }}
                       disabled={product.stockQuantity === 0}
                     >

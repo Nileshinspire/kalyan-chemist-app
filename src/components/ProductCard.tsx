@@ -220,7 +220,7 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
       initial="hidden"
       animate="visible"
       data-slot="card"
-      className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-border/70 bg-card cursor-pointer transition-all duration-500 hover:shadow-card-hover hover:border-primary/20 hover:-translate-y-1 max-sm:rounded-xl max-sm:border-border/60 max-sm:shadow-sm sm:min-h-[var(--kc-card-h)] sm:p-4"
+      className={`group relative flex flex-col overflow-hidden cursor-pointer transition-all duration-500 hover:shadow-card-hover hover:-translate-y-1 max-sm:rounded-[10px] max-sm:border max-sm:border-border/40 max-sm:bg-white max-sm:shadow-sm ${product.stockQuantity === 0 ? "max-sm:opacity-70" : ""} sm:rounded-2xl sm:border sm:border-border/70 sm:bg-card sm:min-h-[var(--kc-card-h)] sm:p-4 sm:shadow-sm`}
       onPointerEnter={warmProductDetail}
       onPointerLeave={warmProductDetail}
       onMouseEnter={warmProductDetail}
@@ -228,22 +228,23 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
       onPointerDown={warmProductDetail}
       onClick={() => goProduct(navigate, location.pathname + location.search, product.slug)}
     >
+      {/* Wishlist heart — only on desktop (hidden on mobile compact card). */}
       <Button
         variant="ghost"
         size="icon"
         aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
-        className="absolute top-2 right-2 z-10 h-7 w-7 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background hover:scale-110 transition-all duration-300 opacity-100 sm:h-6 sm:w-6 sm:opacity-0 sm:group-hover:opacity-100"
+        className="absolute top-1.5 right-1.5 z-10 h-6 w-6 rounded-full bg-white/80 backdrop-blur-sm hover:bg-white hover:scale-110 transition-all duration-300 opacity-100 sm:h-6 sm:w-6 sm:opacity-0 sm:group-hover:opacity-100 sm:block max-sm:hidden"
         onClick={handleWishlist}
       >
-        <Heart className={`size-3.5 transition-colors ${isWishlisted ? "fill-rose-500 text-rose-500" : "text-muted-foreground group-hover:text-rose-500"}`} />
+        <Heart className={`size-3 transition-colors ${isWishlisted ? "fill-rose-500 text-rose-500" : "text-muted-foreground group-hover:text-rose-500"}`} />
       </Button>
 
-      {/* Media — near-square white packshot field. The rating pill sits on
-          its bottom-left edge and deliberately straddles it, so the packshot
-          keeps its full width at every grid size. Phones keep the full-bleed
-          square band and their own Buy Now / Cart row. */}
-      <div className="relative shrink-0">
-        <div className="relative flex aspect-square items-center justify-center overflow-hidden rounded-xl bg-white max-sm:rounded-b-none max-sm:border-b max-sm:border-border/40 sm:aspect-auto sm:h-36 sm:ring-1 sm:ring-border/50 sm:ring-inset xl:h-40">
+      <div className="flex flex-col gap-1.5">
+        {/* Image — compact square-ish picture with subtle rounded border,
+          rating pill on its bottom-left and an outlined Add button on its
+          bottom-right overlapping the lower edge (exactly like Apollo). */}
+      <div className="relative shrink-0 rounded-xl border border-border/60 overflow-hidden">
+        <div className="relative flex aspect-[4/3] items-center justify-center overflow-hidden rounded-[10px] bg-white">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.08] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
           {realImage ? (
             <ProductImage src={realImage} alt={product.name} />
@@ -253,100 +254,67 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
             />
           )}
           {newArrival && (
-            <div className="absolute top-2 left-2 z-[1]">
-              <Badge className="text-[10px] font-bold bg-gradient-to-r from-teal-600 to-emerald-600 text-white border-0 shadow-md">
+            <div className="absolute top-1.5 left-1.5 z-[1]">
+              <Badge className="text-[9px] font-bold bg-gradient-to-r from-teal-600 to-emerald-600 text-white border-0 shadow-sm">
                 New
               </Badge>
             </div>
           )}
-          {/* Rx rides on the media. There is deliberately no discount badge
-              here: the percentage is printed once, in the price block below. */}
           {product.prescriptionRequired && (
-            <div className={`absolute left-2 z-[1] ${newArrival ? "top-9" : "top-2"}`}>
-              <Badge variant="secondary" className="text-[10px] font-medium bg-red-50 text-red-700 border-red-200">
+            <div className={`absolute left-1.5 z-[1] ${newArrival ? "top-6" : "top-1.5"}`}>
+              <Badge variant="secondary" className="text-[9px] font-medium bg-red-50 text-red-700 border-red-200">
                 Rx
               </Badge>
             </div>
           )}
         </div>
 
-        {/* The real review summary, on the media's bottom-left edge like the
-            reference. It renders nothing at all when the product has no saved
-            reviews — no placeholder stars, no zero counts. */}
-        <div className="pointer-events-none absolute bottom-1.5 left-2 z-[1] sm:-bottom-2">
+        {/* Rating pill on the image's bottom-left edge. */}
+        <div className="pointer-events-none absolute bottom-0.5 left-1 z-[1]">
           <ProductRatingBadge productId={product._id} />
         </div>
 
-        {/* Compact Add control on the image's bottom-right, overlapping its
-            lower edge — exact Apollo-style white button with dark-green outline. */}
-        <div className="pointer-events-none absolute right-0 bottom-1.5 z-[2] max-sm:block sm:hidden">
+        {/* Compact outlined Add button on the image's bottom-right, overlapping
+            the lower edge — Apollo style. */}
+        <div className="pointer-events-none absolute right-0.5 bottom-0.5 z-[2]">
           <button
             type="button"
             aria-label={product.stockQuantity === 0 ? `${product.name} is out of stock` : `Add ${product.name} to cart`}
-            className={`h-8 w-[58px] rounded-lg border border-emerald-700 bg-white px-1 text-center text-[11px] font-semibold text-emerald-700 shadow-sm transition-all duration-300 hover:border-emerald-600 hover:bg-emerald-50 hover:text-emerald-800 hover:shadow-sm active:scale-[0.97] ${product.stockQuantity === 0 ? "opacity-40 cursor-not-allowed" : ""}`}
+            className={`h-7 w-[48px] rounded border border-emerald-700 bg-white px-0 text-center text-[10px] font-semibold text-emerald-700 shadow-sm transition-all duration-300 hover:border-emerald-600 hover:bg-emerald-50 hover:text-emerald-800 active:scale-95 ${product.stockQuantity === 0 ? "opacity-40 cursor-not-allowed" : ""}`}
             onClick={handleAddToCart}
             disabled={product.stockQuantity === 0}
           >
             {product.stockQuantity === 0 ? "Sold out" : "Add"}
           </button>
         </div>
-
       </div>
 
-      {/* On phones the image band is full-bleed and this block carries the
-          10px card padding (exactly as before); from `sm` up the card itself is
-          padded and this block adds nothing. */}
-      <div data-slot="card-content" className="flex flex-1 flex-col max-sm:p-2.5">
-        <div className="flex flex-1 flex-col">
-          {/* Pack/packaging attributes — one compact line under the media,
-              exactly like the reference's "150 ml Spray · Bottle". Saved
-              fields only; the line is omitted if none are stored. */}
+        {/* Compact product details directly below the image, no outer card border. */}
+        <div className="flex flex-col gap-0.5">
+          {/* Compact grey quantity/size labels (e.g. "650 ml Shampoo · Bottle"). */}
           {attributeLine && (
-            <p className="mt-5 truncate text-[11px] leading-4 text-muted-foreground sm:mt-6">
+            <p className="truncate text-[10px] leading-3 text-muted-foreground sm:text-[11px]">
               {attributeLine}
             </p>
           )}
 
-          {/* Name, then manufacturer. Two clamped lines are reserved so cards
-              keep the same rhythm whether a name is short or long. */}
-          <h3 className="mt-1 line-clamp-2 min-h-[2.5rem] text-[13px] leading-tight font-semibold text-foreground transition-colors duration-300 group-hover:text-primary sm:text-sm sm:leading-5">
+          {/* Product name — two-line clamp. */}
+          <h3 className="line-clamp-2 min-h-0 text-[12px] leading-snug font-semibold text-foreground sm:text-sm sm:leading-5">
             {product.name}
           </h3>
-          <p className="mt-0.5 truncate text-[11px] leading-4 text-muted-foreground sm:text-xs sm:leading-4">
+
+          {/* Brand name, compact, grey. */}
+          <p className="truncate text-[10px] leading-3 text-muted-foreground sm:text-xs sm:leading-4">
             {product.manufacturer}
           </p>
 
-          {/* One availability line: the store's own admin-configured delivery
-              estimate (only when that setting exists — never invented) and the
-              saved low-stock count. Both live here, on one fixed-height line,
-              so neither can sit under the media's rating pill or the Add
-              control, and a card never changes height because of them. */}
-          {(deliveryEstimate || isLowStock) && (
-            <p className="mt-1 flex min-w-0 items-center gap-1 text-[10px] leading-3 text-muted-foreground sm:text-[11px]">
-              {deliveryEstimate && (
-                <>
-                  <Truck className="size-3 shrink-0 text-primary/80" aria-hidden />
-                  <span className="min-w-0 truncate">Delivery: {deliveryEstimate}</span>
-                </>
-              )}
-              {isLowStock && (
-                <span className={`shrink-0 font-medium text-amber-600 ${deliveryEstimate ? "ml-auto" : ""}`}>
-                  Only {product.stockQuantity} left
-                </span>
-              )}
-            </p>
-          )}
-
-          {/* Price hierarchy, reference order: struck-through MRP with the one
-              and only discount percentage (dark green), then the effective
-              selling price. Anchored to the bottom of the card so the block
-              stays aligned with siblings. */}
-          <div className="mt-auto pt-1.5">
+          {/* Price block: MRP strikethrough + green discount %, then selling price
+              with compact unit-price suffix when available. */}
+          <div className="flex flex-col gap-0.5">
             {hasDiscount && (
-              <div className="flex flex-wrap items-baseline gap-x-1.5 text-[10px] leading-3 text-muted-foreground sm:text-[11px]">
+              <div className="flex items-baseline gap-x-1 text-[10px] leading-3 text-muted-foreground sm:flex-wrap sm:items-baseline sm:gap-x-1.5 sm:text-[11px]">
                 <span>MRP</span>
                 <span className="line-through">{formatCurrency(product.price)}</span>
-                {/* The one and only discount percentage on the card. */}
                 {discountPct > 0 && (
                   <span data-slot="discount-pct" className="font-semibold text-emerald-700">
                     {discountPct}% off
@@ -354,47 +322,107 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
                 )}
               </div>
             )}
-            {/* Selling price, bold, left-aligned, then the Add control on the
-                bottom-right (desktop) or the full-width Buy Now row (mobile). */}
-            <div className="mt-0.5 flex items-center justify-between gap-2">
+            <div className="flex items-baseline gap-1">
               <div className="min-w-0 text-base leading-6 font-extrabold text-foreground">
                 {formatCurrency(hasDiscount ? product.discountPrice! : product.price)}
               </div>
-              <div className="max-sm:hidden shrink-0">
-                <Button
-                  size="sm"
-                  aria-label={product.stockQuantity === 0 ? `${product.name} is out of stock` : `Add ${product.name} to cart`}
-                  className={`h-8 w-[58px] rounded-lg px-1 text-[11px] font-semibold gradient-primary text-white shadow-sm transition-all duration-300 hover:shadow-glow hover:scale-[1.03] active:scale-[0.97] ${product.stockQuantity === 0 ? "text-[8px]" : ""}`}
-                  onClick={handleAddToCart}
-                  disabled={product.stockQuantity === 0}
-                >
-                  {product.stockQuantity === 0 ? "Sold out" : "Add"}
-                </Button>
-              </div>
+              {/* Compact unit-price suffix, Apollo-style, only when packSize has a number. */}
+              {product.price > 0 && hasDiscount && product.discountPrice && product.packSize && Number.isFinite(Number(product.packSize.match(/\d+/)?.[0])) && (
+                <span className="text-[9px] font-normal text-muted-foreground ml-0.5">
+                  ({formatCurrency(product.discountPrice! / Number(product.packSize.match(/\d+/)?.[0]))})
+                </span>
+              )}
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Phone action row. The desktop `Add` control sits beside the price. */}
-        <div className="flex flex-wrap max-sm:gap-1.5 max-sm:pt-2">
-          {/* Phones: the unchanged two-button row. */}
-          <Button
-            size="sm"
-            className="h-7 max-sm:h-8 max-sm:min-h-8 max-sm:px-0 max-sm:py-0 flex-1 min-w-0 px-1.5 sm:px-2 text-[11px] max-sm:text-[10px] sm:text-xs font-semibold gap-0.5 gradient-primary text-white shadow-sm hover:shadow-glow transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] sm:hidden"
-            onClick={handleBuyNow}
-            disabled={product.stockQuantity === 0}
-          >
-            {product.stockQuantity === 0 ? "Out of Stock" : "Buy Now"}
-          </Button>
-          <Button
-            size="sm"
-            variant="secondary"
-            className="h-7 max-sm:h-8 max-sm:min-h-8 max-sm:px-0 max-sm:py-0 shrink-0 px-1.5 sm:px-2 text-[11px] max-sm:text-[10px] sm:text-xs font-semibold gap-0.5 border border-border/60 hover:border-primary/30 hover:bg-primary/[0.03] transition-all duration-300 sm:hidden"
-            onClick={handleAddToCart}
-            disabled={product.stockQuantity === 0}
-          >
-            Cart
-          </Button>
+      {/* ── Desktop-only card content (sm+) — unchanged bordered card ───
+          * Only renders on desktop/tablet so the compact mobile card above
+          * is the only thing phones see. Keeps the existing image-on-top,
+          * Buy Now / Cart row layout, border, hover effect exactly as before. */}
+      <div className="hidden sm:block">
+        <div data-slot="card-content" className="flex flex-1 flex-col p-4">
+          <div className="flex flex-1 flex-col">
+            {attributeLine && (
+              <p className="mt-5 truncate text-[11px] leading-4 text-muted-foreground sm:mt-6">
+                {attributeLine}
+              </p>
+            )}
+
+            <h3 className="mt-1 line-clamp-2 min-h-[2.5rem] text-[13px] leading-tight font-semibold text-foreground transition-colors duration-300 group-hover:text-primary sm:text-sm sm:leading-5">
+              {product.name}
+            </h3>
+            <p className="mt-0.5 truncate text-[11px] leading-4 text-muted-foreground sm:text-xs sm:leading-4">
+              {product.manufacturer}
+            </p>
+
+            {(deliveryEstimate || isLowStock) && (
+              <p className="mt-1 flex min-w-0 items-center gap-1 text-[10px] leading-3 text-muted-foreground sm:text-[11px]">
+                {deliveryEstimate && (
+                  <>
+                    <Truck className="size-3 shrink-0 text-primary/80" aria-hidden />
+                    <span className="min-w-0 truncate">Delivery: {deliveryEstimate}</span>
+                  </>
+                )}
+                {isLowStock && (
+                  <span className={`shrink-0 font-medium text-amber-600 ${deliveryEstimate ? "ml-auto" : ""}`}>
+                    Only {product.stockQuantity} left
+                  </span>
+                )}
+              </p>
+            )}
+
+            <div className="mt-auto pt-2">
+              {hasDiscount && (
+                <div className="flex flex-wrap items-baseline gap-x-1.5 text-[10px] leading-3 text-muted-foreground sm:text-[11px]">
+                  <span>MRP</span>
+                  <span className="line-through">{formatCurrency(product.price)}</span>
+                  {discountPct > 0 && (
+                    <span data-slot="discount-pct" className="font-semibold text-emerald-700">
+                      {discountPct}% off
+                    </span>
+                  )}
+                </div>
+              )}
+              <div className="mt-0.5 flex items-center justify-between gap-2">
+                <div className="min-w-0 text-base leading-6 font-extrabold text-foreground">
+                  {formatCurrency(hasDiscount ? product.discountPrice! : product.price)}
+                </div>
+                <div className="shrink-0">
+                  <Button
+                    size="sm"
+                    aria-label={product.stockQuantity === 0 ? `${product.name} is out of stock` : `Add ${product.name} to cart`}
+                    className={`h-8 w-[58px] rounded-lg px-1 text-[11px] font-semibold gradient-primary text-white shadow-sm transition-all duration-300 hover:shadow-glow hover:scale-[1.03] active:scale-[0.97] ${product.stockQuantity === 0 ? "text-[8px]" : ""}`}
+                    onClick={handleAddToCart}
+                    disabled={product.stockQuantity === 0}
+                  >
+                    {product.stockQuantity === 0 ? "Sold out" : "Add"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap pt-2">
+            <Button
+              size="sm"
+              className="h-8 min-h-8 px-2 text-xs font-semibold gap-0.5 gradient-primary text-white shadow-sm hover:shadow-glow transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
+              onClick={handleBuyNow}
+              disabled={product.stockQuantity === 0}
+            >
+              {product.stockQuantity === 0 ? "Out of Stock" : "Buy Now"}
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              className="px-2 text-xs font-semibold gap-0.5 border border-border/60 hover:border-primary/30 hover:bg-primary/[0.03] transition-all duration-300"
+              onClick={handleAddToCart}
+              disabled={product.stockQuantity === 0}
+            >
+              Cart
+            </Button>
+          </div>
         </div>
       </div>
     </motion.div>
