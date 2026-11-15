@@ -555,6 +555,17 @@ export default function Landing() {
                       <div className="pointer-events-none absolute bottom-1.5 left-2 z-[1] sm:-bottom-2">
                         <ProductRatingBadge productId={product._id} />
                       </div>
+                      <div className="pointer-events-none absolute right-0 bottom-1.5 z-[2] max-sm:block sm:hidden">
+                        <button
+                          type="button"
+                          aria-label={product.stockQuantity === 0 ? `${product.name} is out of stock` : `Add ${product.name} to cart`}
+                          className={`h-8 w-[58px] rounded-lg border border-emerald-700 bg-white px-1 text-center text-[11px] font-semibold text-emerald-700 shadow-sm transition-all duration-300 hover:border-emerald-600 hover:bg-emerald-50 hover:text-emerald-800 hover:shadow-sm active:scale-[0.97] ${product.stockQuantity === 0 ? "opacity-40 cursor-not-allowed" : ""}`}
+                          onClick={(e) => { e.stopPropagation(); handleAddToCart(product._id); }}
+                          disabled={product.stockQuantity === 0}
+                        >
+                          {product.stockQuantity === 0 ? "Sold out" : "Add"}
+                        </button>
+                      </div>
                       <div className="absolute right-0 bottom-1.5 z-[2] max-sm:hidden sm:-bottom-3">
                         <Button
                           size="sm"

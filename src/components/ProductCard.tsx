@@ -79,7 +79,7 @@ function ProductImage({ src, alt }: { src: string; alt: string }) {
   );
 }
 
-/**
+/***
  * The real review summary for one product, rendered as the compact reference
  * badge (★ 4.3 (12)). It reads the existing `reviews.getAverageRating` query —
  * the same one the product page uses — so the figure on a card is the average
@@ -203,6 +203,7 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
     .join(" · ");
   const isLowStock = product.stockQuantity > 0 && product.stockQuantity < 10;
 
+  // Keep the existing hover behaviour but also add explicit pointer leaves.
   const warmProductDetail = useCallback(() => {
     preloadProductDetail();
     convexClient.prewarmQuery({ query: api.products.getBySlug, args: { slug: product.slug } });
@@ -220,10 +221,12 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
       animate="visible"
       data-slot="card"
       className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-border/70 bg-card cursor-pointer transition-all duration-500 hover:shadow-card-hover hover:border-primary/20 hover:-translate-y-1 max-sm:rounded-xl max-sm:border-border/60 max-sm:shadow-sm sm:min-h-[var(--kc-card-h)] sm:p-4"
-      onClick={() => goProduct(navigate, location.pathname + location.search, product.slug)}
+      onPointerEnter={warmProductDetail}
+      onPointerLeave={warmProductDetail}
       onMouseEnter={warmProductDetail}
       onFocus={warmProductDetail}
       onPointerDown={warmProductDetail}
+      onClick={() => goProduct(navigate, location.pathname + location.search, product.slug)}
     >
       <Button
         variant="ghost"
@@ -274,6 +277,20 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
           <ProductRatingBadge productId={product._id} />
         </div>
 
+        {/* Compact Add control on the image's bottom-right, overlapping its
+            lower edge — exact Apollo-style white button with dark-green outline. */}
+        <div className="pointer-events-none absolute right-0 bottom-1.5 z-[2] max-sm:block sm:hidden">
+          <button
+            type="button"
+            aria-label={product.stockQuantity === 0 ? `${product.name} is out of stock` : `Add ${product.name} to cart`}
+            className={`h-8 w-[58px] rounded-lg border border-emerald-700 bg-white px-1 text-center text-[11px] font-semibold text-emerald-700 shadow-sm transition-all duration-300 hover:border-emerald-600 hover:bg-emerald-50 hover:text-emerald-800 hover:shadow-sm active:scale-[0.97] ${product.stockQuantity === 0 ? "opacity-40 cursor-not-allowed" : ""}`}
+            onClick={handleAddToCart}
+            disabled={product.stockQuantity === 0}
+          >
+            {product.stockQuantity === 0 ? "Sold out" : "Add"}
+          </button>
+        </div>
+
       </div>
 
       {/* On phones the image band is full-bleed and this block carries the
@@ -321,24 +338,24 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
           )}
 
           {/* Price hierarchy, reference order: struck-through MRP with the one
-              and only discount percentage, then the effective selling price.
-              Anchored to the bottom of the card so the block stays aligned. */}
-          <div className="mt-auto pt-2">
+              and only discount percentage (dark green), then the effective
+              selling price. Anchored to the bottom of the card so the block
+              stays aligned with siblings. */}
+          <div className="mt-auto pt-1.5">
             {hasDiscount && (
               <div className="flex flex-wrap items-baseline gap-x-1.5 text-[10px] leading-3 text-muted-foreground sm:text-[11px]">
                 <span>MRP</span>
                 <span className="line-through">{formatCurrency(product.price)}</span>
                 {/* The one and only discount percentage on the card. */}
                 {discountPct > 0 && (
-                  <span data-slot="discount-pct" className="font-semibold text-emerald-600">
+                  <span data-slot="discount-pct" className="font-semibold text-emerald-700">
                     {discountPct}% off
                   </span>
                 )}
               </div>
             )}
-            {/* Price on the left, `Add` on the right, one row — the button
-                sits at the card's bottom-right aligned with the price.
-                Phones keep their own Buy Now / Cart row below. */}
+            {/* Selling price, bold, left-aligned, then the Add control on the
+                bottom-right (desktop) or the full-width Buy Now row (mobile). */}
             <div className="mt-0.5 flex items-center justify-between gap-2">
               <div className="min-w-0 text-base leading-6 font-extrabold text-foreground">
                 {formatCurrency(hasDiscount ? product.discountPrice! : product.price)}
