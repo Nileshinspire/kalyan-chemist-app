@@ -61,11 +61,13 @@ interface ProductCardProps {
  *   6. price      struck-through MRP + the single discount percentage, then
  *                 the effective selling price. The MRP line is ALWAYS reserved
  *                 (empty for full-price products) so the rows below never move
- *   7. delivery   the store's own admin-configured estimate with a clock icon,
- *                 on a reserved line so every card keeps the same rhythm
- *   8. action     ONE main `Add to Cart`; when out of stock, a compact
- *                 "Out of Stock" label above the existing `Notify Me` control,
- *                 so every card in a row shares the same button baseline
+ *   7. status     ONE fixed-height status line. In stock it holds the store's
+ *                 own admin-configured estimate with a clock icon; out of stock
+ *                 it holds the "Out of Stock" label in that same line. Both are
+ *                 vertically centred in the same box, so stock status can never
+ *                 move the row or the buttons below it
+ *   8. action     ONE main `Add to Cart`, or the existing compact `Notify Me`
+ *                 control when out of stock — same height, same baseline
  *
  * The discount percentage is rendered in exactly ONE place (the price block).
  * There is no discount badge on or over the media in any product card, and no
@@ -169,7 +171,7 @@ export function ProductWishlistButton({
       aria-pressed={Boolean(isWishlisted)}
       data-slot="wishlist-toggle"
       onClick={handle}
-      className={`flex size-6 items-center justify-center rounded-full border border-border/60 bg-white/90 shadow-sm backdrop-blur-sm transition-all duration-300 hover:scale-110 hover:bg-white ${className}`}
+      className={`flex size-5 items-center justify-center rounded-full border border-border/60 bg-white/90 shadow-sm backdrop-blur-sm transition-all duration-300 hover:scale-110 hover:bg-white ${className}`}
     >
       <Heart
         className={`size-3.5 transition-colors ${isWishlisted ? "fill-rose-500 text-rose-500" : "text-muted-foreground"}`}
@@ -195,8 +197,9 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
   const deliveryEstimate = deliveryConfig?.estimatedDeliveryTime?.trim() || null;
   const hasDiscount = Boolean(product.discountPrice && product.discountPrice < product.price);
   const isOutOfStock = product.stockQuantity === 0;
-  // Out-of-stock products don't show a delivery estimate; the row itself stays
-  // reserved (see the delivery row below) so neighbouring cards don't shift.
+  // Out-of-stock products don't show a delivery estimate. They fill the same
+  // status row with the Out of Stock label instead (see the status row below),
+  // so the row never disappears and neighbouring cards don't shift.
   const showDelivery = Boolean(deliveryEstimate) && !isOutOfStock;
 
   const handleAddToCart = async (e: React.MouseEvent) => {
@@ -272,7 +275,7 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
     >
       {/* Card top strip — the existing wishlist toggle in its own reserved row at
           the card's top-right, so it never covers the packshot. */}
-      <div className="mb-1 flex h-6 shrink-0 items-center justify-end">
+      <div className="mb-1 flex h-5 shrink-0 items-center justify-end">
         <ProductWishlistButton productId={product._id} productName={product.name} />
       </div>
 
@@ -304,7 +307,7 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
 
       {/* Details — one flex column so every card keeps the same rhythm and the
           action button always lands on the same baseline. */}
-      <div className="flex flex-1 flex-col pt-1 sm:pt-1.5">
+      <div className="flex flex-1 flex-col pt-1">
         {/* Pack/packaging attributes — saved fields only, on a reserved line so
             a product without them cannot pull the rest of the card up. */}
         <p className="min-h-3 truncate text-[10px] leading-3 text-muted-foreground sm:min-h-4 sm:text-[11px] sm:leading-4">
@@ -346,24 +349,35 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
             )}
           </div>
           <div className="mt-0.5 flex items-baseline gap-1">
-            <div className="min-w-0 text-base leading-6 font-extrabold text-foreground">
+            <div className="min-w-0 text-base leading-5 font-extrabold text-foreground">
               {formatCurrency(hasDiscount ? product.discountPrice! : product.price)}
             </div>
           </div>
         </div>
 
-        {/* Delivery estimate — the store's own admin-configured value, with a
-            clock icon, on a reserved line so every card matches. Nothing is
-            invented when no estimate is configured. */}
+        {/* Status line — ONE fixed-height row for every card. In stock it shows
+            the store's own admin-configured estimate with a clock icon; out of
+            stock it shows the Out of Stock label in this exact same row, never
+            in a row of its own. Both are vertically centred, so the row's top
+            and the buttons below it are identical in every card of a row. */}
         <div
-          data-slot="delivery-row"
-          className="mt-0.5 flex min-h-[14px] min-w-0 items-center gap-1 text-[10px] leading-3 text-muted-foreground sm:text-[11px]"
+          data-slot="status-row"
+          className="mt-0.5 flex h-4 min-h-4 min-w-0 items-center gap-1 overflow-hidden text-[10px] leading-3 text-muted-foreground sm:h-[18px] sm:min-h-[18px] sm:text-[11px]"
         >
-          {showDelivery && (
-            <>
-              <Clock className="size-3 shrink-0 text-primary/80" aria-hidden />
-              <span className="min-w-0 truncate">Delivery: {deliveryEstimate}</span>
-            </>
+          {isOutOfStock ? (
+            <span
+              data-slot="out-of-stock-label"
+              className="inline-flex min-w-0 shrink-0 items-center rounded-[3px] bg-rose-50 px-1.5 py-px text-[10px] leading-3 font-semibold text-rose-600 sm:text-[11px]"
+            >
+              Out of Stock
+            </span>
+          ) : (
+            showDelivery && (
+              <>
+                <Clock className="size-3 shrink-0 text-primary/80" aria-hidden />
+                <span className="min-w-0 truncate">Delivery: {deliveryEstimate}</span>
+              </>
+            )
           )}
           {isLowStock && (
             <span className={`shrink-0 font-medium text-amber-600 ${showDelivery ? "ml-auto" : ""}`}>
@@ -375,15 +389,12 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
         {/* Action area — ONE main button per card, pinned to the bottom so all
             buttons in a row share the same baseline. Out of stock swaps the
             Add to Cart button for the existing Notify Me control. */}
-        <div className="mt-auto pt-1.5" onClick={(e) => e.stopPropagation()}>
+        <div className="mt-auto pt-1" onClick={(e) => e.stopPropagation()}>
           {isOutOfStock ? (
-            <div className="flex flex-col gap-1" data-slot="out-of-stock-action">
-              {/* Compact out-of-stock label, above the Notify Me button and
-                  inside the card's action area, so it is visible without
-                  opening the product page. In-stock cards never render it. */}
-              <span className="w-full rounded-[3px] bg-rose-50 px-1.5 py-0.5 text-center text-[10px] leading-4 font-semibold text-rose-600 sm:text-[11px]">
-                Out of Stock
-              </span>
+            <div data-slot="out-of-stock-action">
+              {/* The compact Notify Me control alone — the Out of Stock state
+                  lives in the status row above, so this button starts on the
+                  same baseline as Add to Cart on every other card. */}
               <StockAlertButton productId={product._id as any} productName={product.name} compact />
             </div>
           ) : (
