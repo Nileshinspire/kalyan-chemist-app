@@ -48,22 +48,24 @@ interface ProductCardProps {
 /* ─── The one product card ───
  * One responsive structure for both phone and desktop, top-down:
  *
- *   1. media      the packshot field. A plate holds the rating/wishlist row
- *                 in normal flow at its top (their own reserved band), and the
- *                 packshot fills the remaining area edge to edge, `object-contain`
- *                 so it keeps its aspect ratio and is never cropped or stretched
- *   2. rating     the product's real average + review count, at the media's
- *                 TOP-LEFT; nothing renders when it has no reviews
- *   3. wishlist   the existing wishlist toggle at the media's TOP-RIGHT
- *   4. attributes one compact pack/form line under the media, saved data only
- *   5. name       two clamped lines, then the manufacturer, one clamped line
+ *   1. wishlist   the existing wishlist toggle in its own reserved strip at the
+ *                 card's TOP-RIGHT, above the packshot — never on the photo
+ *   2. media      the packshot plate; the photo fills it edge to edge with
+ *                 `object-contain`, so it keeps its aspect ratio and is never
+ *                 cropped or stretched
+ *   3. attributes one compact pack/form line under the media, saved data only
+ *   4. name row   the name in a fixed two-line box, with the product's real
+ *                 average + review count beside it on the right; nothing renders
+ *                 when it has no reviews
+ *   5. brand      one clamped line
  *   6. price      struck-through MRP + the single discount percentage, then
  *                 the effective selling price. The MRP line is ALWAYS reserved
  *                 (empty for full-price products) so the rows below never move
  *   7. delivery   the store's own admin-configured estimate with a clock icon,
  *                 on a reserved line so every card keeps the same rhythm
- *   8. action     ONE main `Add to Cart`, or `Notify Me` when out of stock, so
- *                 every card in a row shares the same button baseline
+ *   8. action     ONE main `Add to Cart`; when out of stock, a compact
+ *                 "Out of Stock" label above the existing `Notify Me` control,
+ *                 so every card in a row shares the same button baseline
  *
  * The discount percentage is rendered in exactly ONE place (the price block).
  * There is no discount badge on or over the media in any product card, and no
@@ -89,8 +91,7 @@ function ProductImage({ src, alt }: { src: string; alt: string }) {
  * of that product's saved reviews and their count. With no saved reviews it
  * renders nothing at all: no placeholder stars, no zero counts.
  *
- * Exported so the homepage's Hot Sellers strip, which has its own card markup,
- * shows the identical treatment from the same data.
+ * Rendered in the card's name row, beside the product name.
  */
 export function ProductRatingBadge({
   productId,
@@ -116,9 +117,9 @@ export function ProductRatingBadge({
     <span
       title={`${summary.count} ${summary.count === 1 ? "review" : "reviews"}`}
       aria-label={`Rated ${summary.average.toFixed(1)} out of 5 by ${summary.count} ${summary.count === 1 ? "review" : "reviews"}`}
-      className={`inline-flex shrink-0 items-center gap-0.5 rounded-full bg-emerald-600 px-1.5 py-0.5 text-[10px] leading-3 font-semibold text-white shadow-sm ${className}`}
+      className={`inline-flex shrink-0 items-center gap-0.5 rounded-full bg-emerald-600 px-1 py-0.5 text-[9px] leading-3 font-semibold text-white shadow-sm sm:gap-1 sm:px-1.5 sm:text-[10px] ${className}`}
     >
-      <Star className="size-2.5 fill-white text-white" aria-hidden />
+      <Star className="size-2 fill-white text-white sm:size-2.5" aria-hidden />
       {summary.average.toFixed(1)}
       <span className="font-normal text-white/85">({summary.count})</span>
     </span>
@@ -130,7 +131,7 @@ export function ProductRatingBadge({
  * same `wishlist.toggle` / `wishlist.isWishlisted` API the account Wishlist
  * page uses — no separate list, no separate records.
  *
- * Exported so the homepage's Hot Sellers strip renders the identical control.
+ * Rendered in its own reserved strip at the card's top-right, above the photo.
  */
 export function ProductWishlistButton({
   productId,
@@ -266,59 +267,57 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
       onPointerDown={warmProductDetail}
       onClick={() => goProduct(navigate, location.pathname + location.search, product.slug)}
     >
-      {/* Media plate. The top band is a real layout row that holds the rating
-          badge (left) and the wishlist Save icon (right), so neither can cover
-          the packshot. The packshot below it fills the whole remaining plate,
-          edge to edge, which is what makes it read larger than before. */}
-      <div className="relative shrink-0 overflow-hidden rounded-xl border border-border/50 bg-white">
-        <div className="relative flex aspect-square flex-col overflow-hidden sm:aspect-[10/9]">
-          {/* Reserved control band — same on every card, every section. */}
-          <div className="relative z-[2] flex h-6 shrink-0 items-center justify-between gap-1 px-1 sm:h-[26px] sm:px-1.5">
-            <ProductRatingBadge productId={product._id} />
-            <ProductWishlistButton productId={product._id} productName={product.name} />
-          </div>
+      {/* Card top strip — the existing wishlist toggle in its own reserved row at
+          the card's top-right, so it never covers the packshot. */}
+      <div className="flex h-6 shrink-0 items-center justify-end">
+        <ProductWishlistButton productId={product._id} productName={product.name} />
+      </div>
 
-          {/* Packshot area — occupies everything under the band. */}
-          <div className="relative min-h-0 flex-1">
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.08] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-            {realImage ? (
-              <ProductImage src={realImage} alt={product.name} />
-            ) : (
-              <Pill className="absolute inset-0 m-auto size-10 text-primary/20 transition-all duration-500 group-hover:scale-125 group-hover:text-primary/35 group-hover:rotate-6" />
-            )}
-            {newArrival && (
-              <div className="absolute bottom-1 right-1 z-[1]">
-                <Badge className="text-[9px] font-bold bg-gradient-to-r from-teal-600 to-emerald-600 text-white border-0 shadow-sm">
-                  New
-                </Badge>
-              </div>
-            )}
-            {product.prescriptionRequired && (
-              <div className={`absolute z-[1] ${newArrival ? "bottom-5" : "bottom-1"} right-1`}>
-                <Badge variant="secondary" className="text-[9px] font-medium bg-red-50 text-red-700 border-red-200">
-                  Rx
-                </Badge>
-              </div>
-            )}
-          </div>
+      {/* Packshot plate — the photo fills it edge to edge. */}
+      <div className="relative shrink-0 overflow-hidden rounded-lg border border-border/50 bg-white">
+        <div className="relative flex aspect-[4/3] items-center justify-center overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.08] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          {realImage ? (
+            <ProductImage src={realImage} alt={product.name} />
+          ) : (
+            <Pill className="size-10 text-primary/20 transition-all duration-500 group-hover:scale-125 group-hover:text-primary/35 group-hover:rotate-6" />
+          )}
+          {newArrival && (
+            <div className="absolute bottom-1 right-1 z-[1]">
+              <Badge className="text-[9px] font-bold bg-gradient-to-r from-teal-600 to-emerald-600 text-white border-0 shadow-sm">
+                New
+              </Badge>
+            </div>
+          )}
+          {product.prescriptionRequired && (
+            <div className={`absolute z-[1] ${newArrival ? "bottom-5" : "bottom-1"} right-1`}>
+              <Badge variant="secondary" className="text-[9px] font-medium bg-red-50 text-red-700 border-red-200">
+                Rx
+              </Badge>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Details — one flex column so every card keeps the same rhythm and the
           action button always lands on the same baseline. */}
-      <div className="flex flex-1 flex-col pt-1.5 sm:pt-2">
+      <div className="flex flex-1 flex-col pt-1 sm:pt-1.5">
         {/* Pack/packaging attributes — saved fields only, on a reserved line so
             a product without them cannot pull the rest of the card up. */}
         <p className="min-h-3 truncate text-[10px] leading-3 text-muted-foreground sm:min-h-4 sm:text-[11px] sm:leading-4">
           {attributeLine}
         </p>
 
-        {/* Name — two clamped lines in a FIXED two-line box, so a one-line name
-            and a two-line name occupy exactly the same space and nothing below
-            them can move. */}
-        <h3 className="mt-0.5 line-clamp-2 h-[34px] text-[12px] leading-snug font-semibold text-foreground transition-colors duration-300 group-hover:text-primary sm:h-10 sm:text-sm sm:leading-5">
-          {product.name}
-        </h3>
+        {/* Name row — the name takes the free space and the real rating badge
+            sits at its right. The name is clamped in a fixed two-line box, so a
+            one-line name and a two-line name occupy exactly the same space and
+            a long name can never push the badge or the rows below it. */}
+        <div className="mt-0.5 flex items-start gap-1.5">
+          <h3 className="line-clamp-2 h-8 min-w-0 flex-1 text-[12px] leading-4 font-semibold text-foreground transition-colors duration-300 group-hover:text-primary sm:h-10 sm:text-sm sm:leading-5">
+            {product.name}
+          </h3>
+          <ProductRatingBadge productId={product._id} className="mt-px" />
+        </div>
 
         <p className="mt-0.5 min-h-3 truncate text-[10px] leading-3 text-muted-foreground sm:min-h-4 sm:text-xs sm:leading-4">
           {product.manufacturer}
@@ -329,7 +328,7 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
             reserved, always-present row (empty for full-price products), so a
             product WITH a discount and one WITHOUT still put the selling price
             and the delivery line on exactly the same vertical position. */}
-        <div className="mt-1">
+        <div className="mt-0.5">
           <div className="flex min-h-3 flex-wrap items-baseline gap-x-1 text-[10px] leading-3 text-muted-foreground sm:min-h-4 sm:gap-x-1.5 sm:text-[11px]">
             {hasDiscount && (
               <>
@@ -353,7 +352,7 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
         {/* Delivery estimate — the store's own admin-configured value, with a
             clock icon, on a reserved line so every card matches. Nothing is
             invented when no estimate is configured. */}
-        <div className="mt-1 flex min-h-[14px] min-w-0 items-center gap-1 text-[10px] leading-3 text-muted-foreground sm:text-[11px]">
+        <div className="mt-0.5 flex min-h-[14px] min-w-0 items-center gap-1 text-[10px] leading-3 text-muted-foreground sm:text-[11px]">
           {deliveryEstimate && (
             <>
               <Clock className="size-3 shrink-0 text-primary/80" aria-hidden />
@@ -370,15 +369,23 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
         {/* Action area — ONE main button per card, pinned to the bottom so all
             buttons in a row share the same baseline. Out of stock swaps the
             Add to Cart button for the existing Notify Me control. */}
-        <div className="mt-auto pt-2" onClick={(e) => e.stopPropagation()}>
+        <div className="mt-auto pt-1.5" onClick={(e) => e.stopPropagation()}>
           {isOutOfStock ? (
-            <StockAlertButton productId={product._id as any} productName={product.name} compact />
+            <div className="flex flex-col gap-1" data-slot="out-of-stock-action">
+              {/* Compact out-of-stock label, above the Notify Me button and
+                  inside the card's action area, so it is visible without
+                  opening the product page. In-stock cards never render it. */}
+              <span className="w-full rounded-[3px] bg-rose-50 px-1.5 py-0.5 text-center text-[10px] leading-4 font-semibold text-rose-600 sm:text-[11px]">
+                Out of Stock
+              </span>
+              <StockAlertButton productId={product._id as any} productName={product.name} compact />
+            </div>
           ) : (
             <div className="flex items-center gap-1.5">
               <Button
                 size="sm"
                 aria-label={`Add ${product.name} to cart`}
-                className="h-9 min-h-9 flex-1 gap-1 rounded-lg px-2 text-[11px] font-semibold gradient-primary text-white shadow-sm transition-all duration-300 hover:shadow-glow active:scale-[0.98] sm:text-xs"
+                className="h-9 min-h-9 flex-1 gap-1 rounded-[4px] border border-emerald-900/20 px-2 text-[11px] font-semibold gradient-primary text-white shadow-sm transition-all duration-300 hover:shadow-glow active:scale-[0.98] sm:text-xs"
                 onClick={handleAddToCart}
               >
                 <ShoppingCart className="size-3.5 shrink-0 max-sm:hidden" aria-hidden />
@@ -388,7 +395,7 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
                 size="sm"
                 variant="outline"
                 aria-label={`Buy ${product.name} now`}
-                className="hidden h-9 shrink-0 rounded-lg border-border/60 px-2 text-[11px] font-semibold hover:border-primary/30 hover:bg-primary/[0.03] sm:inline-flex"
+                className="hidden h-9 shrink-0 rounded-[4px] border-border/60 px-2 text-[11px] font-semibold hover:border-primary/30 hover:bg-primary/[0.03] sm:inline-flex"
                 onClick={handleBuyNow}
               >
                 Buy Now
