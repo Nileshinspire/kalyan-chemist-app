@@ -367,7 +367,7 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
           {isOutOfStock ? (
             <span
               data-slot="out-of-stock-label"
-              className="inline-flex min-w-0 shrink-0 items-center rounded-[3px] bg-rose-50 px-1.5 py-px text-[10px] leading-3 font-semibold text-rose-600 sm:text-[11px]"
+              className="mx-auto inline-flex min-w-0 shrink-0 items-center rounded-[3px] bg-rose-50 px-1.5 py-px text-[10px] leading-3 font-semibold text-rose-600 sm:text-[11px]"
             >
               Out of Stock
             </span>
