@@ -75,7 +75,7 @@ export function StockAlertButton({
         <Button
           variant="secondary"
           aria-label={`Cancel restock alert for ${productName}`}
-          className="h-9 min-h-9 w-full gap-1 rounded-[4px] border border-border/60 px-2 text-[11px] font-semibold sm:text-xs"
+          className="h-8 min-h-8 w-full gap-1 rounded-[4px] border border-border/60 px-2 py-0 text-[11px] font-semibold sm:text-xs"
           onClick={cancel}
           disabled={pending !== null}
         >
@@ -92,7 +92,7 @@ export function StockAlertButton({
       <Button
         variant="outline"
         aria-label={`Notify me when ${productName} is available`}
-        className="h-9 min-h-9 w-full gap-1 rounded-[4px] border border-border/60 px-2 text-[11px] font-semibold hover:border-primary/30 hover:bg-primary/[0.03] sm:text-xs"
+        className="h-8 min-h-8 w-full gap-1 rounded-[4px] border border-border/60 px-2 py-0 text-[11px] font-semibold hover:border-primary/30 hover:bg-primary/[0.03] sm:text-xs"
         onClick={subscribe}
         disabled={pending !== null || (isAuthenticated && waiting === undefined)}
       >

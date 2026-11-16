@@ -195,6 +195,9 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
   const deliveryEstimate = deliveryConfig?.estimatedDeliveryTime?.trim() || null;
   const hasDiscount = Boolean(product.discountPrice && product.discountPrice < product.price);
   const isOutOfStock = product.stockQuantity === 0;
+  // Out-of-stock products don't show a delivery estimate; the row itself stays
+  // reserved (see the delivery row below) so neighbouring cards don't shift.
+  const showDelivery = Boolean(deliveryEstimate) && !isOutOfStock;
 
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -269,7 +272,7 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
     >
       {/* Card top strip — the existing wishlist toggle in its own reserved row at
           the card's top-right, so it never covers the packshot. */}
-      <div className="flex h-6 shrink-0 items-center justify-end">
+      <div className="mb-1 flex h-6 shrink-0 items-center justify-end">
         <ProductWishlistButton productId={product._id} productName={product.name} />
       </div>
 
@@ -352,15 +355,18 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
         {/* Delivery estimate — the store's own admin-configured value, with a
             clock icon, on a reserved line so every card matches. Nothing is
             invented when no estimate is configured. */}
-        <div className="mt-0.5 flex min-h-[14px] min-w-0 items-center gap-1 text-[10px] leading-3 text-muted-foreground sm:text-[11px]">
-          {deliveryEstimate && (
+        <div
+          data-slot="delivery-row"
+          className="mt-0.5 flex min-h-[14px] min-w-0 items-center gap-1 text-[10px] leading-3 text-muted-foreground sm:text-[11px]"
+        >
+          {showDelivery && (
             <>
               <Clock className="size-3 shrink-0 text-primary/80" aria-hidden />
               <span className="min-w-0 truncate">Delivery: {deliveryEstimate}</span>
             </>
           )}
           {isLowStock && (
-            <span className={`shrink-0 font-medium text-amber-600 ${deliveryEstimate ? "ml-auto" : ""}`}>
+            <span className={`shrink-0 font-medium text-amber-600 ${showDelivery ? "ml-auto" : ""}`}>
               Only {product.stockQuantity} left
             </span>
           )}
@@ -385,7 +391,7 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
               <Button
                 size="sm"
                 aria-label={`Add ${product.name} to cart`}
-                className="h-9 min-h-9 flex-1 gap-1 rounded-[4px] border border-emerald-900/20 px-2 text-[11px] font-semibold gradient-primary text-white shadow-sm transition-all duration-300 hover:shadow-glow active:scale-[0.98] sm:text-xs"
+                className="h-8 min-h-8 flex-1 gap-1 rounded-[4px] border border-emerald-900/20 px-2 py-0 text-[11px] font-semibold gradient-primary text-white shadow-sm transition-all duration-300 hover:shadow-glow active:scale-[0.98] sm:text-xs"
                 onClick={handleAddToCart}
               >
                 <ShoppingCart className="size-3.5 shrink-0 max-sm:hidden" aria-hidden />
@@ -395,7 +401,7 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
                 size="sm"
                 variant="outline"
                 aria-label={`Buy ${product.name} now`}
-                className="hidden h-9 shrink-0 rounded-[4px] border-border/60 px-2 text-[11px] font-semibold hover:border-primary/30 hover:bg-primary/[0.03] sm:inline-flex"
+                className="hidden h-8 shrink-0 rounded-[4px] border border-border/60 px-2 py-0 text-[11px] font-semibold hover:border-primary/30 hover:bg-primary/[0.03] sm:inline-flex"
                 onClick={handleBuyNow}
               >
                 Buy Now
