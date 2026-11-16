@@ -985,6 +985,22 @@ export default function ProductDetail() {
                 ) : (
                   <Pill className="size-24 text-primary/15" />
                 )}
+                {/* Batch expiry, straight from the admin-entered date on this
+                    product. Rendered only when that date exists, so a product
+                    with no recorded expiry shows no badge at all. */}
+                {p.expiryDate && (
+                  <span
+                    data-slot="expiry-badge"
+                    className="pointer-events-none absolute bottom-3 right-3 z-10 rounded-md bg-neutral-700/95 px-2 py-1 text-[11px] font-semibold leading-none text-white shadow-sm sm:bottom-4 sm:right-4 sm:text-xs"
+                  >
+                    Expiry{" "}
+                    {new Date(p.expiryDate).toLocaleDateString("en-IN", {
+                      day: "2-digit",
+                      month: "short",
+                      year: "numeric",
+                    })}
+                  </span>
+                )}
                 {/* No discount badge over the image: the percentage is shown
                     exactly once, in the price block below, beside the MRP. */}
               </div>
