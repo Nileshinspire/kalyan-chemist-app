@@ -48,15 +48,18 @@ interface ProductCardProps {
 /* ─── The one product card ───
  * One responsive structure for both phone and desktop, top-down:
  *
- *   1. media      packshot field, `object-contain` so the product keeps its
- *                 aspect ratio and is never cropped
- *   2. rating     the product's real average + review count, badge on the
- *                 media's TOP-LEFT; nothing renders when it has no reviews
- *   3. wishlist   the existing wishlist toggle, icon on the media's TOP-RIGHT
+ *   1. media      the packshot field. A plate holds the rating/wishlist row
+ *                 in normal flow at its top (their own reserved band), and the
+ *                 packshot fills the remaining area edge to edge, `object-contain`
+ *                 so it keeps its aspect ratio and is never cropped or stretched
+ *   2. rating     the product's real average + review count, at the media's
+ *                 TOP-LEFT; nothing renders when it has no reviews
+ *   3. wishlist   the existing wishlist toggle at the media's TOP-RIGHT
  *   4. attributes one compact pack/form line under the media, saved data only
  *   5. name       two clamped lines, then the manufacturer, one clamped line
  *   6. price      struck-through MRP + the single discount percentage, then
- *                 the effective selling price
+ *                 the effective selling price. The MRP line is ALWAYS reserved
+ *                 (empty for full-price products) so the rows below never move
  *   7. delivery   the store's own admin-configured estimate with a clock icon,
  *                 on a reserved line so every card keeps the same rhythm
  *   8. action     ONE main `Add to Cart`, or `Notify Me` when out of stock, so
@@ -74,7 +77,7 @@ function ProductImage({ src, alt }: { src: string; alt: string }) {
       alt={alt}
       loading="lazy"
       decoding="async"
-      className="absolute inset-0 h-full w-full object-center object-contain p-2 sm:p-1.5"
+      className="absolute inset-0 h-full w-full object-center object-contain"
     />
   );
 }
@@ -255,7 +258,7 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
       initial="hidden"
       animate="visible"
       data-slot="card"
-      className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-border/70 bg-card cursor-pointer transition-all duration-500 hover:shadow-card-hover hover:border-primary/20 hover:-translate-y-1 max-sm:rounded-[10px] max-sm:border-border/40 max-sm:bg-white max-sm:shadow-sm sm:min-h-[var(--kc-card-h)] sm:p-3.5"
+      className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-border/70 bg-card p-1.5 cursor-pointer transition-all duration-500 hover:shadow-card-hover hover:border-primary/20 hover:-translate-y-1 max-sm:rounded-[10px] max-sm:border-border/40 max-sm:bg-white max-sm:shadow-sm sm:min-h-[var(--kc-card-h)] sm:p-3.5"
       onPointerEnter={warmProductDetail}
       onPointerLeave={warmProductDetail}
       onMouseEnter={warmProductDetail}
@@ -263,39 +266,40 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
       onPointerDown={warmProductDetail}
       onClick={() => goProduct(navigate, location.pathname + location.search, product.slug)}
     >
-      {/* Media — the packshot keeps its aspect ratio; the rating badge sits on
-          its top-left and the wishlist Save icon on its top-right. */}
+      {/* Media plate. The top band is a real layout row that holds the rating
+          badge (left) and the wishlist Save icon (right), so neither can cover
+          the packshot. The packshot below it fills the whole remaining plate,
+          edge to edge, which is what makes it read larger than before. */}
       <div className="relative shrink-0 overflow-hidden rounded-xl border border-border/50 bg-white">
-        <div className="relative flex aspect-[4/3] items-center justify-center overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.08] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-          {realImage ? (
-            <ProductImage src={realImage} alt={product.name} />
-          ) : (
-            <Pill className="size-10 text-primary/20 transition-all duration-500 group-hover:scale-125 group-hover:text-primary/35 group-hover:rotate-6" />
-          )}
-          {newArrival && (
-            <div className="absolute bottom-1.5 right-1.5 z-[1]">
-              <Badge className="text-[9px] font-bold bg-gradient-to-r from-teal-600 to-emerald-600 text-white border-0 shadow-sm">
-                New
-              </Badge>
-            </div>
-          )}
-          {product.prescriptionRequired && (
-            <div className={`absolute z-[1] ${newArrival ? "bottom-6" : "bottom-1.5"} right-1.5`}>
-              <Badge variant="secondary" className="text-[9px] font-medium bg-red-50 text-red-700 border-red-200">
-                Rx
-              </Badge>
-            </div>
-          )}
-
-          {/* Real customer rating — top-left of the image. */}
-          <div className="absolute left-1.5 top-1.5 z-[2]">
+        <div className="relative flex aspect-square flex-col overflow-hidden sm:aspect-[10/9]">
+          {/* Reserved control band — same on every card, every section. */}
+          <div className="relative z-[2] flex h-6 shrink-0 items-center justify-between gap-1 px-1 sm:h-[26px] sm:px-1.5">
             <ProductRatingBadge productId={product._id} />
+            <ProductWishlistButton productId={product._id} productName={product.name} />
           </div>
 
-          {/* Existing wishlist toggle — top-right of the image. */}
-          <div className="absolute right-1.5 top-1.5 z-[2]">
-            <ProductWishlistButton productId={product._id} productName={product.name} />
+          {/* Packshot area — occupies everything under the band. */}
+          <div className="relative min-h-0 flex-1">
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.08] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            {realImage ? (
+              <ProductImage src={realImage} alt={product.name} />
+            ) : (
+              <Pill className="absolute inset-0 m-auto size-10 text-primary/20 transition-all duration-500 group-hover:scale-125 group-hover:text-primary/35 group-hover:rotate-6" />
+            )}
+            {newArrival && (
+              <div className="absolute bottom-1 right-1 z-[1]">
+                <Badge className="text-[9px] font-bold bg-gradient-to-r from-teal-600 to-emerald-600 text-white border-0 shadow-sm">
+                  New
+                </Badge>
+              </div>
+            )}
+            {product.prescriptionRequired && (
+              <div className={`absolute z-[1] ${newArrival ? "bottom-5" : "bottom-1"} right-1`}>
+                <Badge variant="secondary" className="text-[9px] font-medium bg-red-50 text-red-700 border-red-200">
+                  Rx
+                </Badge>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -303,34 +307,42 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
       {/* Details — one flex column so every card keeps the same rhythm and the
           action button always lands on the same baseline. */}
       <div className="flex flex-1 flex-col pt-1.5 sm:pt-2">
-        {/* Pack/packaging attributes — saved fields only. */}
-        <p className="truncate text-[10px] leading-3 text-muted-foreground sm:text-[11px] sm:leading-4">
+        {/* Pack/packaging attributes — saved fields only, on a reserved line so
+            a product without them cannot pull the rest of the card up. */}
+        <p className="min-h-3 truncate text-[10px] leading-3 text-muted-foreground sm:min-h-4 sm:text-[11px] sm:leading-4">
           {attributeLine}
         </p>
 
-        {/* Name — two clamped lines, always the same height. */}
-        <h3 className="mt-0.5 line-clamp-2 min-h-[2.2rem] text-[12px] leading-snug font-semibold text-foreground transition-colors duration-300 group-hover:text-primary sm:text-sm sm:leading-5">
+        {/* Name — two clamped lines in a FIXED two-line box, so a one-line name
+            and a two-line name occupy exactly the same space and nothing below
+            them can move. */}
+        <h3 className="mt-0.5 line-clamp-2 h-[34px] text-[12px] leading-snug font-semibold text-foreground transition-colors duration-300 group-hover:text-primary sm:h-10 sm:text-sm sm:leading-5">
           {product.name}
         </h3>
 
-        <p className="mt-0.5 truncate text-[10px] leading-3 text-muted-foreground sm:text-xs sm:leading-4">
+        <p className="mt-0.5 min-h-3 truncate text-[10px] leading-3 text-muted-foreground sm:min-h-4 sm:text-xs sm:leading-4">
           {product.manufacturer}
         </p>
 
         {/* Price hierarchy: struck-through MRP with the single discount
-            percentage, then the effective selling price. */}
+            percentage, then the effective selling price. The MRP line is a
+            reserved, always-present row (empty for full-price products), so a
+            product WITH a discount and one WITHOUT still put the selling price
+            and the delivery line on exactly the same vertical position. */}
         <div className="mt-1">
-          {hasDiscount && (
-            <div className="flex flex-wrap items-baseline gap-x-1 text-[10px] leading-3 text-muted-foreground sm:gap-x-1.5 sm:text-[11px]">
-              <span>MRP</span>
-              <span className="line-through">{formatCurrency(product.price)}</span>
-              {discountPct > 0 && (
-                <span data-slot="discount-pct" className="font-semibold text-emerald-700">
-                  {discountPct}% off
-                </span>
-              )}
-            </div>
-          )}
+          <div className="flex min-h-3 flex-wrap items-baseline gap-x-1 text-[10px] leading-3 text-muted-foreground sm:min-h-4 sm:gap-x-1.5 sm:text-[11px]">
+            {hasDiscount && (
+              <>
+                <span>MRP</span>
+                <span className="line-through">{formatCurrency(product.price)}</span>
+                {discountPct > 0 && (
+                  <span data-slot="discount-pct" className="font-semibold text-emerald-700">
+                    {discountPct}% off
+                  </span>
+                )}
+              </>
+            )}
+          </div>
           <div className="mt-0.5 flex items-baseline gap-1">
             <div className="min-w-0 text-base leading-6 font-extrabold text-foreground">
               {formatCurrency(hasDiscount ? product.discountPrice! : product.price)}

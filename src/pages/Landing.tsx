@@ -9,13 +9,10 @@ import {
   Sparkles,
   ArrowRight,
   Search,
-  ShoppingCart,
   MessageCircle,
-  Clock,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useNavigate, useLocation } from "react-router";
+import { useNavigate } from "react-router";
 import { useRef } from "react";
 import { preloadRoute } from "@/lib/route-preload";
 import Navbar from "@/components/layout/Navbar";
@@ -27,18 +24,13 @@ import HealthcareDevices from "@/components/HealthcareDevices";
 import NewArrivals from "@/components/NewArrivals";
 import ValueDeals from "@/components/ValueDeals";
 import MinimumDiscount from "@/components/MinimumDiscount";
-import { ProductRatingBadge, ProductWishlistButton } from "@/components/ProductCard";
-import { StockAlertButton } from "@/components/product/StockAlertButton";
+import ProductCard from "@/components/ProductCard";
 import HowItWorks from "@/components/HowItWorks";
 import PromotionalCarousel from "@/components/PromotionalCarousel";
 import WhyKalyanChemist from "@/components/WhyKalyanChemist";
 import ShopByBrand from "@/components/ShopByBrand";
-import { beginProductTransition } from "@/lib/product-transition";
-import type { Id } from "@/convex/_generated/dataModel";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { formatCurrency } from "@/lib/auth-utils";
-import { toast } from "sonner";
 
 const fadeUp: Variants = {
   hidden: { opacity: 0, y: 30 },
@@ -141,37 +133,15 @@ const HEALTH_CONDITION_SLUGS = new Set([
 
 export default function Landing() {
   const navigate = useNavigate();
-  const location = useLocation();
   const heroRef = useRef(null);
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ["start start", "end start"] });
   useTransform(scrollYProgress, [0, 0.8], [1, 0]);
 
   useMutation(api.whatsappEnquiries.log);
-  const deliveryConfig = useQuery(api.deliveryConfig.getPublic);
-  // Store-wide estimate set by the admin; shown on cards only when it exists.
-  const deliveryEstimate = deliveryConfig?.estimatedDeliveryTime?.trim() || null;
-
-  const addToCart = useMutation(api.cart.addItem);
 
   // Real data from Convex
   const categories = useQuery(api.categories.list);
   const hotSellers = useQuery(api.publicProducts.hotSellers, { limit: 4 });
-
-  const handleAddToCart = async (productId: string) => {
-    try {
-      await addToCart({ productId: productId as Id<'products'>, quantity: 1 });
-      toast.success("Added to cart");
-    } catch (error: unknown) {
-      // Convex prefixes the thrown message, so an exact comparison never
-      // matches and the raw server error is shown to the customer instead.
-      if (/not authenticated/i.test(String(error ?? ""))) {
-        toast.error("Please sign in to add items to cart");
-        navigate(`/auth?returnTo=${encodeURIComponent(location.pathname + location.search)}`);
-      } else {
-        toast.error(error instanceof Error ? error.message : "Failed to add to cart");
-      }
-    }
-  };
 
   return (
     <div className="min-h-screen bg-background text-foreground overflow-x-clip">
@@ -512,104 +482,16 @@ export default function Landing() {
               </Button>
             </div>
             <div className="flex gap-3 overflow-x-auto scrollbar-none snap-x snap-mandatory max-sm:overscroll-x-contain sm:grid sm:grid-cols-3 sm:gap-4 md:grid-cols-4 lg:grid-cols-5 sm:overflow-visible">
-              {hotSellers.map((product) => {
-                const hasDiscount = product.discountPrice && product.discountPrice < product.price;
-                const discountPct = hasDiscount ? Math.round(((product.price - product.discountPrice!) / product.price) * 100) : 0;
-                // Same compact attribute line as the shared card: saved fields
-                // only, de-duplicated, joined like "150 ml Spray · Bottle".
-                const attributes = [product.packSize, (product as any).form]
-                  .filter((v): v is string => Boolean(v && String(v).trim()))
-                  .filter((v) => !/^n\/?a$/i.test(String(v).trim()))
-                  .filter((v, i, all) => all.indexOf(v) === i)
-                  .join(" · ");
-                return (
-                  <motion.div
-                    key={product._id}
-                    initial={{ opacity: 0, y: 16 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    className="group flex min-w-[calc(50%-0.5rem)] shrink-0 snap-start flex-col rounded-2xl border border-border/70 bg-card p-2.5 sm:min-h-[var(--kc-card-h)] sm:min-w-0 sm:p-4 cursor-pointer transition-all duration-500 hover:shadow-card-hover hover:border-primary/20 hover:-translate-y-1 max-sm:min-w-[calc(42%-0.375rem)]"
-                    onClick={() => {
-                      beginProductTransition();
-                      navigate(`/products/${product.slug}`, { state: { from: location.pathname + location.search } });
-                    }}
-                  >
-                    {/* Media: the packshot keeps its aspect ratio; the real
-                        rating badge sits on its top-left and the existing
-                        wishlist save icon on its top-right. */}
-                    <div className="relative shrink-0 overflow-hidden rounded-xl border border-border/50 bg-white">
-                      <div className="relative flex aspect-[4/3] items-center justify-center overflow-hidden">
-                        {product.imageUrl ? (
-                          <img
-                            src={product.imageUrl}
-                            alt={product.name}
-                            loading="lazy"
-                            decoding="async"
-                            className="absolute inset-0 h-full w-full object-contain p-1.5"
-                          />
-                        ) : (
-                          <Pill className="size-10 text-primary/20 group-hover:text-primary/30 transition-all duration-500" />
-                        )}
-                        {product.prescriptionRequired && (
-                          <Badge variant="secondary" className="absolute bottom-1.5 right-1.5 z-[1] text-[9px] bg-red-50 text-red-700">Rx</Badge>
-                        )}
-                        <div className="absolute left-1.5 top-1.5 z-[2]">
-                          <ProductRatingBadge productId={product._id} />
-                        </div>
-                        <div className="absolute right-1.5 top-1.5 z-[2]">
-                          <ProductWishlistButton productId={product._id} productName={product.name} />
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex flex-1 flex-col pt-1.5">
-                      <p className="truncate text-[10px] leading-3 text-muted-foreground">{attributes}</p>
-                      <h3 className="mt-0.5 line-clamp-2 min-h-[2.2rem] text-[12px] leading-snug font-semibold transition-colors group-hover:text-primary">{product.name}</h3>
-                      <p className="truncate text-[10px] leading-3 text-muted-foreground">{product.manufacturer}</p>
-                      <div className="mt-1">
-                        {hasDiscount && (
-                          <div className="flex flex-wrap items-baseline gap-x-1 text-[10px] leading-3 text-muted-foreground">
-                            <span>MRP</span>
-                            <span className="line-through">{formatCurrency(product.price)}</span>
-                            {discountPct > 0 && (
-                              <span className="font-semibold text-emerald-700">{discountPct}% off</span>
-                            )}
-                          </div>
-                        )}
-                        <div className="mt-0.5 flex items-baseline gap-1">
-                          <div className="min-w-0 text-base leading-6 font-extrabold">
-                            {formatCurrency(hasDiscount ? product.discountPrice! : product.price)}
-                          </div>
-                        </div>
-                      </div>
-                      {/* Admin-configured delivery estimate, reserved line. */}
-                      <div className="mt-1 flex min-h-[14px] min-w-0 items-center gap-1 text-[10px] leading-3 text-muted-foreground">
-                        {deliveryEstimate && (
-                          <>
-                            <Clock className="size-3 shrink-0 text-primary/80" aria-hidden />
-                            <span className="min-w-0 truncate">Delivery: {deliveryEstimate}</span>
-                          </>
-                        )}
-                      </div>
-                      {/* ONE main action, pinned to the bottom of every card. */}
-                      <div className="mt-auto pt-2">
-                        {product.stockQuantity === 0 ? (
-                          <StockAlertButton productId={product._id} productName={product.name} compact />
-                        ) : (
-                          <Button
-                            size="sm"
-                            aria-label={`Add ${product.name} to cart`}
-                            className="h-9 w-full gap-1 rounded-lg px-2 text-xs font-semibold gradient-primary text-white"
-                            onClick={(e) => { e.stopPropagation(); handleAddToCart(product._id); }}
-                          >
-                            <ShoppingCart className="size-3.5 shrink-0" aria-hidden />
-                            <span className="truncate">Add to Cart</span>
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </motion.div>
-                );
-              })}
+              {hotSellers.map((product) => (
+                <div
+                  key={product._id}
+                  className="min-w-[calc(50%-0.5rem)] shrink-0 snap-start sm:min-w-0 max-sm:min-w-[calc(42%-0.375rem)]"
+                >
+                  {/* The shared product card — the same component, markup and
+                      spacing every other product section renders. */}
+                  <ProductCard product={product} />
+                </div>
+              ))}
             </div>
           </div>
         </section>
