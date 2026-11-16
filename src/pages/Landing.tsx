@@ -11,6 +11,7 @@ import {
   Search,
   ShoppingCart,
   MessageCircle,
+  Clock,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,7 +27,8 @@ import HealthcareDevices from "@/components/HealthcareDevices";
 import NewArrivals from "@/components/NewArrivals";
 import ValueDeals from "@/components/ValueDeals";
 import MinimumDiscount from "@/components/MinimumDiscount";
-import { ProductRatingBadge } from "@/components/ProductCard";
+import { ProductRatingBadge, ProductWishlistButton } from "@/components/ProductCard";
+import { StockAlertButton } from "@/components/product/StockAlertButton";
 import HowItWorks from "@/components/HowItWorks";
 import PromotionalCarousel from "@/components/PromotionalCarousel";
 import WhyKalyanChemist from "@/components/WhyKalyanChemist";
@@ -532,11 +534,11 @@ export default function Landing() {
                       navigate(`/products/${product.slug}`, { state: { from: location.pathname + location.search } });
                     }}
                   >
-                                        {/* Media: compact image with subtle rounded border, rating pill
-                        on its bottom-left and an outlined Add button on its
-                        bottom-right overlapping the lower edge (Apollo style). */}
-                    <div className="relative shrink-0 rounded-xl border border-border/60 overflow-hidden">
-                      <div className="relative flex aspect-[4/3] items-center justify-center overflow-hidden rounded-[10px] bg-white">
+                    {/* Media: the packshot keeps its aspect ratio; the real
+                        rating badge sits on its top-left and the existing
+                        wishlist save icon on its top-right. */}
+                    <div className="relative shrink-0 overflow-hidden rounded-xl border border-border/50 bg-white">
+                      <div className="relative flex aspect-[4/3] items-center justify-center overflow-hidden">
                         {product.imageUrl ? (
                           <img
                             src={product.imageUrl}
@@ -549,54 +551,62 @@ export default function Landing() {
                           <Pill className="size-10 text-primary/20 group-hover:text-primary/30 transition-all duration-500" />
                         )}
                         {product.prescriptionRequired && (
-                          <Badge variant="secondary" className="absolute top-1.5 left-1.5 z-[1] text-[9px] bg-red-50 text-red-700">Rx</Badge>
+                          <Badge variant="secondary" className="absolute bottom-1.5 right-1.5 z-[1] text-[9px] bg-red-50 text-red-700">Rx</Badge>
+                        )}
+                        <div className="absolute left-1.5 top-1.5 z-[2]">
+                          <ProductRatingBadge productId={product._id} />
+                        </div>
+                        <div className="absolute right-1.5 top-1.5 z-[2]">
+                          <ProductWishlistButton productId={product._id} productName={product.name} />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex flex-1 flex-col pt-1.5">
+                      <p className="truncate text-[10px] leading-3 text-muted-foreground">{attributes}</p>
+                      <h3 className="mt-0.5 line-clamp-2 min-h-[2.2rem] text-[12px] leading-snug font-semibold transition-colors group-hover:text-primary">{product.name}</h3>
+                      <p className="truncate text-[10px] leading-3 text-muted-foreground">{product.manufacturer}</p>
+                      <div className="mt-1">
+                        {hasDiscount && (
+                          <div className="flex flex-wrap items-baseline gap-x-1 text-[10px] leading-3 text-muted-foreground">
+                            <span>MRP</span>
+                            <span className="line-through">{formatCurrency(product.price)}</span>
+                            {discountPct > 0 && (
+                              <span className="font-semibold text-emerald-700">{discountPct}% off</span>
+                            )}
+                          </div>
+                        )}
+                        <div className="mt-0.5 flex items-baseline gap-1">
+                          <div className="min-w-0 text-base leading-6 font-extrabold">
+                            {formatCurrency(hasDiscount ? product.discountPrice! : product.price)}
+                          </div>
+                        </div>
+                      </div>
+                      {/* Admin-configured delivery estimate, reserved line. */}
+                      <div className="mt-1 flex min-h-[14px] min-w-0 items-center gap-1 text-[10px] leading-3 text-muted-foreground">
+                        {deliveryEstimate && (
+                          <>
+                            <Clock className="size-3 shrink-0 text-primary/80" aria-hidden />
+                            <span className="min-w-0 truncate">Delivery: {deliveryEstimate}</span>
+                          </>
                         )}
                       </div>
-                      <div className="pointer-events-none absolute bottom-0.5 left-1 z-[1]">
-                        <ProductRatingBadge productId={product._id} />
-                      </div>
-                      <div className="pointer-events-none absolute right-0.5 bottom-0.5 z-[2]">
-                        <button
-                          type="button"
-                          aria-label={product.stockQuantity === 0 ? `${product.name} is out of stock` : `Add ${product.name} to cart`}
-                          className={`h-7 w-[48px] rounded border border-emerald-700 bg-white px-0 text-center text-[10px] font-semibold text-emerald-700 shadow-sm transition-all duration-300 hover:border-emerald-600 hover:bg-emerald-50 hover:text-emerald-800 active:scale-95 ${product.stockQuantity === 0 ? "opacity-40 cursor-not-allowed" : ""}`}
-                          onClick={(e) => { e.stopPropagation(); handleAddToCart(product._id); }}
-                          disabled={product.stockQuantity === 0}
-                        >
-                          {product.stockQuantity === 0 ? "Sold out" : "Add"}
-                        </button>
-                      </div>
-                    </div>
-                    {attributes && (
-                      <p className="truncate text-[10px] leading-3 text-muted-foreground">{attributes}</p>
-                    )}
-                    <h3 className="line-clamp-2 min-h-0 text-[12px] leading-snug font-semibold transition-colors group-hover:text-primary">{product.name}</h3>
-                    <p className="truncate text-[10px] leading-3 text-muted-foreground">{product.manufacturer}</p>
-                    <div className="flex flex-col gap-0.5">
-                      {hasDiscount && (
-                        <div className="flex items-baseline gap-x-1 text-[10px] leading-3 text-muted-foreground">
-                          <span>MRP</span>
-                          <span className="line-through">{formatCurrency(product.price)}</span>
-                          {discountPct > 0 && (
-                            <span className="font-semibold text-emerald-700">{discountPct}% off</span>
-                          )}
-                        </div>
-                      )}
-                      <div className="flex items-baseline gap-1">
-                        <div className="min-w-0 text-base leading-6 font-extrabold">
-                          {formatCurrency(hasDiscount ? product.discountPrice! : product.price)}
-                        </div>
+                      {/* ONE main action, pinned to the bottom of every card. */}
+                      <div className="mt-auto pt-2">
+                        {product.stockQuantity === 0 ? (
+                          <StockAlertButton productId={product._id} productName={product.name} compact />
+                        ) : (
+                          <Button
+                            size="sm"
+                            aria-label={`Add ${product.name} to cart`}
+                            className="h-9 w-full gap-1 rounded-lg px-2 text-xs font-semibold gradient-primary text-white"
+                            onClick={(e) => { e.stopPropagation(); handleAddToCart(product._id); }}
+                          >
+                            <ShoppingCart className="size-3.5 shrink-0" aria-hidden />
+                            <span className="truncate">Add to Cart</span>
+                          </Button>
+                        )}
                       </div>
                     </div>
-                    <Button
-                      size="sm"
-                      className="mt-1.5 h-9 w-full rounded-lg text-xs font-semibold gradient-primary text-white"
-                      onClick={(e) => { e.stopPropagation(); handleAddToCart(product._id); }}
-                      disabled={product.stockQuantity === 0}
-                    >
-                      <ShoppingCart className="size-3 mr-1" />
-                      {product.stockQuantity === 0 ? "Out of Stock" : "Add to Cart"}
-                    </Button>
                   </motion.div>
                 );
               })}

@@ -18,9 +18,12 @@ import { useAuth } from "@/context/AuthContext";
 export function StockAlertButton({
   productId,
   productName,
+  compact = false,
 }: {
   productId: Id<"products">;
   productName: string;
+  /** Card variant: one full-width button in the card's action slot. */
+  compact?: boolean;
 }) {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
@@ -64,6 +67,43 @@ export function StockAlertButton({
     } finally {
       setPending(null);
     }
+  }
+
+  if (compact) {
+    if (waiting === true) {
+      return (
+        <Button
+          variant="secondary"
+          aria-label={`Cancel restock alert for ${productName}`}
+          className="h-9 min-h-9 w-full gap-1 rounded-lg px-2 text-[11px] font-semibold sm:text-xs"
+          onClick={cancel}
+          disabled={pending !== null}
+        >
+          {pending === "cancel" ? (
+            <Loader2 className="size-3.5 shrink-0 animate-spin" />
+          ) : (
+            <BellRing className="size-3.5 shrink-0 text-primary" />
+          )}
+          <span className="truncate">Alert On</span>
+        </Button>
+      );
+    }
+    return (
+      <Button
+        variant="outline"
+        aria-label={`Notify me when ${productName} is available`}
+        className="h-9 min-h-9 w-full gap-1 rounded-lg border-border/60 px-2 text-[11px] font-semibold hover:border-primary/30 hover:bg-primary/[0.03] sm:text-xs"
+        onClick={subscribe}
+        disabled={pending !== null || (isAuthenticated && waiting === undefined)}
+      >
+        {pending === "subscribe" ? (
+          <Loader2 className="size-3.5 shrink-0 animate-spin" />
+        ) : (
+          <Bell className="size-3.5 shrink-0" />
+        )}
+        <span className="truncate">Notify Me</span>
+      </Button>
+    );
   }
 
   if (waiting === true) {
