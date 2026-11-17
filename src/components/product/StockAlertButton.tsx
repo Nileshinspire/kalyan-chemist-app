@@ -19,12 +19,16 @@ export function StockAlertButton({
   productId,
   productName,
   compact = false,
+  slim = false,
 }: {
   productId: Id<"products">;
   productName: string;
   /** Card variant: one full-width button in the card's action slot. */
   compact?: boolean;
+  /** Listing-card variant: the same compact button, phones only. */
+  slim?: boolean;
 }) {
+  const compactHeight = slim ? "max-sm:h-7 max-sm:min-h-7" : "";
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -75,7 +79,7 @@ export function StockAlertButton({
         <Button
           variant="secondary"
           aria-label={`Cancel restock alert for ${productName}`}
-          className="h-8 min-h-8 w-full gap-1 rounded-[4px] border border-border/60 px-2 py-0 text-[11px] font-semibold sm:text-xs"
+          className={`h-8 min-h-8 w-full gap-1 rounded-[4px] border border-border/60 px-2 py-0 text-[11px] font-semibold sm:text-xs ${compactHeight}`}
           onClick={cancel}
           disabled={pending !== null}
         >
@@ -92,7 +96,7 @@ export function StockAlertButton({
       <Button
         variant="outline"
         aria-label={`Notify me when ${productName} is available`}
-        className="h-8 min-h-8 w-full gap-1 rounded-[4px] border border-border/60 px-2 py-0 text-[11px] font-semibold hover:border-primary/30 hover:bg-primary/[0.03] sm:text-xs"
+        className={`h-8 min-h-8 w-full gap-1 rounded-[4px] border border-border/60 px-2 py-0 text-[11px] font-semibold hover:border-primary/30 hover:bg-primary/[0.03] sm:text-xs ${compactHeight}`}
         onClick={subscribe}
         disabled={pending !== null || (isAuthenticated && waiting === undefined)}
       >

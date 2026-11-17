@@ -13,6 +13,10 @@ import { beginProductTransition } from "@/lib/product-transition";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { StockAlertButton } from "@/components/product/StockAlertButton";
+import {
+  RatingSummaryBadge,
+  hasRatingSummary,
+} from "@/components/product/RatingSummaryBadge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -991,6 +995,20 @@ export default function ProductDetail() {
                 {/* No discount badge over the image: the percentage is shown
                     exactly once, in the price block below, beside the MRP. */}
               </div>
+              {/* Customer rating summary, bottom-LEFT of the packshot and
+                  mirroring the expiry badge on the right. Average and count
+                  come from the same `reviews.getAverageRating` query used by
+                  the product cards, so it updates the moment a review is
+                  saved, and a product with no reviews renders no badge at
+                  all (rather than a fake rating or a zero count). */}
+              {avgRating && hasRatingSummary(avgRating) && (
+                <RatingSummaryBadge
+                  variant="plate"
+                  average={avgRating.average}
+                  count={avgRating.count}
+                  className="absolute -bottom-1 left-3 z-10 sm:left-4"
+                />
+              )}
               {/* Batch expiry, straight from the admin-entered date on this
                   product. Rendered only when that date exists, so a product
                   with no recorded expiry shows no badge at all. Sits just

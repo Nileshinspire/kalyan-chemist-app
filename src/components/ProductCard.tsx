@@ -5,7 +5,7 @@ import { useQuery, useMutation, useConvex } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { BookmarkPlus, Pill, Star, Clock, ShoppingCart } from "lucide-react";
+import { BookmarkPlus, Pill, Clock, ShoppingCart } from "lucide-react";
 import { formatCurrency } from "@/lib/auth-utils";
 import { productDiscountPercent } from "@/lib/discount";
 import { preloadProductDetail } from "@/lib/route-preload";
@@ -13,6 +13,10 @@ import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { motion, type Variants } from "framer-motion";
 import { StockAlertButton } from "@/components/product/StockAlertButton";
+import {
+  RatingSummaryBadge,
+  hasRatingSummary,
+} from "@/components/product/RatingSummaryBadge";
 
 function goProduct(navigate: NavigateFunction, currentPath: string, slug: string) {
   beginProductTransition();
@@ -43,6 +47,13 @@ interface ProductCardProps {
     imageUrl?: string;
   };
   newArrival?: boolean;
+  /**
+   * Mobile listing variant: used only by the View All / category / Hot Sellers
+   * / Value Deals listing pages. Every adjustment is scoped to `max-sm`, so
+   * tablet, laptop and desktop cards keep their existing size, and homepage
+   * sections (which never pass this) are untouched.
+   */
+  dense?: boolean;
 }
 
 /* ─── The one product card ───
@@ -107,24 +118,13 @@ export function ProductRatingBadge({
   });
   // Nothing renderable unless the review data actually carries a positive
   // average and a positive count — never a placeholder for absent data.
-  if (
-    !summary ||
-    !Number.isFinite(summary.average) ||
-    !Number.isFinite(summary.count) ||
-    summary.average <= 0 ||
-    summary.count <= 0
-  )
-    return null;
+  if (!hasRatingSummary(summary)) return null;
   return (
-    <span
-      title={`${summary.count} ${summary.count === 1 ? "review" : "reviews"}`}
-      aria-label={`Rated ${summary.average.toFixed(1)} out of 5 by ${summary.count} ${summary.count === 1 ? "review" : "reviews"}`}
-      className={`inline-flex shrink-0 items-center gap-0.5 rounded-full bg-emerald-600 px-1 py-0.5 text-[9px] leading-3 font-semibold text-white shadow-sm sm:gap-1 sm:px-1.5 sm:text-[10px] ${className}`}
-    >
-      <Star className="size-2 fill-white text-white sm:size-2.5" aria-hidden />
-      {summary.average.toFixed(1)}
-      <span className="font-normal text-white/85">({summary.count})</span>
-    </span>
+    <RatingSummaryBadge
+      average={summary.average}
+      count={summary.count}
+      className={className}
+    />
   );
 }
 
@@ -182,7 +182,21 @@ export function ProductWishlistButton({
   );
 }
 
-const ProductCard = memo(function ProductCard({ product, newArrival = false }: ProductCardProps) {
+const ProductCard = memo(function ProductCard({
+  product,
+  newArrival = false,
+  dense = false,
+}: ProductCardProps) {
+  // Every `dense` adjustment below is a `max-sm` override of an existing value,
+  // so it only tightens the card on phones in the listing views. `sm:` and up
+  // resolve to the unchanged desktop values.
+  const denseCard = dense ? " max-sm:p-1" : "";
+  const denseStrip = dense ? " max-sm:mb-0.5" : "";
+  const denseDetails = dense ? " max-sm:pt-0.5" : "";
+  const densePrice = dense ? " max-sm:text-[15px] max-sm:leading-[18px]" : "";
+  const denseStatus = dense ? " max-sm:h-[14px] max-sm:min-h-[14px]" : "";
+  const denseAction = dense ? " max-sm:pt-0.5" : "";
+  const denseButton = dense ? " max-sm:h-7 max-sm:min-h-7" : "";
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
@@ -267,7 +281,7 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
       initial="hidden"
       animate="visible"
       data-slot="card"
-      className="group relative flex h-full flex-col overflow-hidden rounded-2xl border border-border/70 bg-card p-1.5 cursor-pointer transition-all duration-500 hover:shadow-card-hover hover:border-primary/20 hover:-translate-y-1 max-sm:rounded-[10px] max-sm:border-border/40 max-sm:bg-white max-sm:shadow-sm sm:min-h-[var(--kc-card-h)] sm:p-3.5"
+      className={`group relative flex h-full flex-col overflow-hidden rounded-2xl border border-border/70 bg-card p-1.5 cursor-pointer transition-all duration-500 hover:shadow-card-hover hover:border-primary/20 hover:-translate-y-1 max-sm:rounded-[10px] max-sm:border-border/40 max-sm:bg-white max-sm:shadow-sm sm:min-h-[var(--kc-card-h)] sm:p-3.5${denseCard}`}
       onPointerEnter={warmProductDetail}
       onPointerLeave={warmProductDetail}
       onMouseEnter={warmProductDetail}
@@ -277,7 +291,7 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
     >
       {/* Card top strip — the existing wishlist toggle in its own reserved row at
           the card's top-right, so it never covers the packshot. */}
-      <div className="mb-1 flex h-5 shrink-0 items-center justify-end">
+      <div className={`mb-1 flex h-5 shrink-0 items-center justify-end${denseStrip}`}>
         <ProductWishlistButton productId={product._id} productName={product.name} />
       </div>
 
@@ -309,7 +323,7 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
 
       {/* Details — one flex column so every card keeps the same rhythm and the
           action button always lands on the same baseline. */}
-      <div className="flex flex-1 flex-col pt-1">
+      <div className={`flex flex-1 flex-col pt-1${denseDetails}`}>
         {/* Pack/packaging attributes — saved fields only, on a reserved line so
             a product without them cannot pull the rest of the card up. */}
         <p className="min-h-3 truncate text-[10px] leading-3 text-muted-foreground sm:min-h-4 sm:text-[11px] sm:leading-4">
@@ -351,7 +365,7 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
             )}
           </div>
           <div className="mt-0.5 flex items-baseline gap-1">
-            <div className="min-w-0 text-base leading-5 font-extrabold text-foreground">
+            <div className={`min-w-0 text-base leading-5 font-extrabold text-foreground${densePrice}`}>
               {formatCurrency(hasDiscount ? product.discountPrice! : product.price)}
             </div>
           </div>
@@ -364,7 +378,7 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
             and the buttons below it are identical in every card of a row. */}
         <div
           data-slot="status-row"
-          className="mt-0.5 flex h-4 min-h-4 min-w-0 items-center gap-1 overflow-hidden text-[10px] leading-3 text-muted-foreground sm:h-[18px] sm:min-h-[18px] sm:text-[11px]"
+          className={`mt-0.5 flex h-4 min-h-4 min-w-0 items-center gap-1 overflow-hidden text-[10px] leading-3 text-muted-foreground sm:h-[18px] sm:min-h-[18px] sm:text-[11px]${denseStatus}`}
         >
           {isOutOfStock ? (
             <span
@@ -393,20 +407,25 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
         {/* Action area — ONE main button per card, pinned to the bottom so all
             buttons in a row share the same baseline. Out of stock swaps the
             Add to Cart button for the existing Notify Me control. */}
-        <div className="mt-auto pt-1" onClick={(e) => e.stopPropagation()}>
+        <div className={`mt-auto pt-1${denseAction}`} onClick={(e) => e.stopPropagation()}>
           {isOutOfStock ? (
             <div data-slot="out-of-stock-action">
               {/* The compact Notify Me control alone — the Out of Stock state
                   lives in the status row above, so this button starts on the
                   same baseline as Add to Cart on every other card. */}
-              <StockAlertButton productId={product._id as any} productName={product.name} compact />
+              <StockAlertButton
+                productId={product._id as any}
+                productName={product.name}
+                compact
+                slim={dense}
+              />
             </div>
           ) : (
             <div className="flex items-center gap-1.5">
               <Button
                 size="sm"
                 aria-label={`Add ${product.name} to cart`}
-                className="h-8 min-h-8 flex-1 gap-1 rounded-[4px] border border-emerald-900/20 px-2 py-0 text-[11px] font-semibold gradient-primary text-white shadow-sm transition-all duration-300 hover:shadow-glow active:scale-[0.98] sm:text-xs"
+                className={`h-8 min-h-8 flex-1 gap-1 rounded-[4px] border border-emerald-900/20 px-2 py-0 text-[11px] font-semibold gradient-primary text-white shadow-sm transition-all duration-300 hover:shadow-glow active:scale-[0.98] sm:text-xs${denseButton}`}
                 onClick={handleAddToCart}
               >
                 <ShoppingCart className="size-3.5 shrink-0 max-sm:hidden" aria-hidden />

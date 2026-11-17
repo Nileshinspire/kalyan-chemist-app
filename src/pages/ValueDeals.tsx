@@ -82,9 +82,12 @@ export default function ValueDealsPage() {
               </Button>
             </motion.div>
           ) : (
-            <div className="grid gap-4 grid-cols-2 kc-card-track">
+            /* Same 3-column phone grid and the same slimmer listing cards as
+               every other listing view. `.kc-card-track` still sets the 3/4/5
+               column tablet and desktop layout. */
+            <div className="grid gap-2 grid-cols-3 sm:gap-4 kc-card-track">
               {deals.map((product) => (
-                <ProductCard key={product._id} product={product as any} />
+                <ProductCard key={product._id} product={product as any} dense />
               ))}
             </div>
           )}

@@ -702,7 +702,7 @@ export default function Products() {
                   className={`grid grid-cols-3 gap-2 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 transition-opacity duration-200${isSwappingPages ? " opacity-50" : ""}`}
                 >
                   {displayedProducts.map((product) => (
-                    <ProductCard key={product._id} product={product as any} />
+                    <ProductCard key={product._id} product={product as any} dense />
                   ))}
                 </div>
               )}
