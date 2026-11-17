@@ -1,5 +1,7 @@
 import { useNavigate, useLocation } from "react-router";
 import { Bot, Sparkles } from "lucide-react";
+import { toast } from "sonner";
+import { useAuth } from "@/context/AuthContext";
 import { preloadRoute } from "@/lib/route-preload";
 
 /**
@@ -18,6 +20,20 @@ import { preloadRoute } from "@/lib/route-preload";
 export default function AIChatbotFloat() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { isAuthenticated, isAuthLoading } = useAuth();
+
+  // The assistant is a signed-in customer feature: guests are sent to the
+  // existing sign-in flow (returning to /chatbot afterwards) instead of the
+  // chat screen. The icon itself is untouched.
+  const openChatbot = () => {
+    if (isAuthLoading) return;
+    if (!isAuthenticated) {
+      toast.error("Please sign in to use Kalyan Chemist AI");
+      navigate(`/login?returnTo=${encodeURIComponent("/chatbot")}`);
+      return;
+    }
+    navigate("/chatbot");
+  };
 
   // Customer-facing only: not on the chatbot page itself (you're already
   // there) and not on admin pages.
@@ -42,7 +58,7 @@ export default function AIChatbotFloat() {
       <button
         onMouseEnter={() => preloadRoute("/chatbot")}
         onFocus={() => preloadRoute("/chatbot")}
-        onClick={() => navigate("/chatbot")}
+        onClick={openChatbot}
         aria-label="Open Kalyan Chemist AI assistant"
         className="relative outline-none"
       >

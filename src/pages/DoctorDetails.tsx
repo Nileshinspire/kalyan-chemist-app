@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams, useLocation } from "react-router";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { useAuth } from "@/context/AuthContext";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { usePageBreadcrumbs } from "@/hooks/usePageBreadcrumbs";
 import {
@@ -35,6 +36,8 @@ function toDateStr(d: Date) {
 export default function DoctorDetails() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { isAuthenticated } = useAuth();
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -85,7 +88,20 @@ export default function DoctorDetails() {
     );
   }
 
+  // Browsing a doctor is public; booking creates a personal appointment record
+  // and therefore needs the existing sign-in flow.
+  const requireSignInToBook = () => {
+    toast.error("Please sign in to book an appointment");
+    navigate(
+      `/login?returnTo=${encodeURIComponent(location.pathname + location.search)}`
+    );
+  };
+
   const handleBookAppointment = () => {
+    if (!isAuthenticated) {
+      requireSignInToBook();
+      return;
+    }
     if (!selectedSlot) {
       toast.error("Please select a time slot");
       return;
@@ -94,6 +110,10 @@ export default function DoctorDetails() {
   };
 
   const confirmBooking = async () => {
+    if (!isAuthenticated) {
+      requireSignInToBook();
+      return;
+    }
     setBooking(true);
     try {
       await bookAppointment({

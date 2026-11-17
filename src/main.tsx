@@ -15,6 +15,7 @@ import { PageErrorBoundary } from "@/components/PageErrorBoundary";
 import AIChatbotFloat from "@/components/AIChatbotFloat";
 import MobileBottomNav from "@/components/layout/MobileBottomNav";
 import LoginMessagePopup from "@/components/LoginMessagePopup";
+import CartHandoff from "@/components/CartHandoff";
 import RouteLoading from "@/components/RouteLoading";
 import { AppThemeProvider } from "@/components/theme/AppThemeProvider";
 import { ThemePreferenceSync } from "@/components/theme/ThemePreferenceSync";
@@ -363,12 +364,13 @@ function AnimatedRoutes() {
             
           }
         />
+        {/* Public service information + its upload requirements. Selecting a
+            file still requires sign-in (UploadPrescription gates the upload
+            itself), so personal prescription records stay private. */}
         <Route
           path="/upload-prescription"
           element={
-            <RequireAuth>
-                <UploadPrescription />
-              </RequireAuth>
+            <UploadPrescription />
             
           }
         />
@@ -397,30 +399,28 @@ function AnimatedRoutes() {
             
           }
         />
+        {/* Lab tests are public service information: the catalogue, categories
+            and test details can be browsed by guests. Booking itself still
+            requires sign-in (see LabTestDetail), which preserves personal
+            booking records without locking public content. */}
         <Route
           path="/lab-tests"
           element={
-            <RequireAuth>
-                <LabTests />
-              </RequireAuth>
+            <LabTests />
             
           }
         />
         <Route
           path="/lab-tests/test/:testId"
           element={
-            <RequireAuth>
-                <LabTestDetail />
-              </RequireAuth>
+            <LabTestDetail />
             
           }
         />
         <Route
           path="/lab-tests/:category"
           element={
-            <RequireAuth>
-                <LabTestCategory />
-              </RequireAuth>
+            <LabTestCategory />
             
           }
         />
@@ -833,6 +833,9 @@ createRoot(document.getElementById("root")!).render(
           <ProductTransitionVeil />
           <RouteSyncer />
           <ThemePreferenceSync />
+          {/* Hands a guest's staged cart selections to the account they sign in
+              with — the existing cart, filled once authentication completes. */}
+          <CartHandoff />
           <PageErrorBoundary>
             <AnimatedRoutes />
           </PageErrorBoundary>

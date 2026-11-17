@@ -38,7 +38,8 @@ const OTP_LENGTH = 6;
 
 function resolveRedirectAfterAuth(
   returnTo: string | null,
-  fallback = "/dashboard",
+  // Signed-in customers land on the existing My Account dashboard.
+  fallback = "/account",
 ) {
   if (returnTo?.startsWith("/") && !returnTo.startsWith("//")) {
     return returnTo;

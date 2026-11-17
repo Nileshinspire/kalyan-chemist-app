@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
 import { motion, type Variants } from "framer-motion";
 import { StockAlertButton } from "@/components/product/StockAlertButton";
+import { stagePendingCartLine } from "@/lib/pending-cart";
 import {
   RatingSummaryBadge,
   hasRatingSummary,
@@ -227,7 +228,10 @@ const ProductCard = memo(function ProductCard({
     e.stopPropagation();
     const signInUrl = `/auth?returnTo=${encodeURIComponent(`/products/${product.slug}`)}`;
     if (!user) {
-      toast.error("Please sign in to add items to cart");
+      // Guests choose the product now and sign in to complete it: the selection
+      // is staged and handed to this account's real cart by <CartHandoff />.
+      stagePendingCartLine(product._id);
+      toast.success(`${product.name} saved — sign in to add it to your cart`);
       navigate(signInUrl);
       return;
     }

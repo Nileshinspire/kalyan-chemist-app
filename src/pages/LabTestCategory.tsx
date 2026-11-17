@@ -1,10 +1,12 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router";
+import { useNavigate, useParams, useSearchParams, useLocation } from "react-router";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { X, SlidersHorizontal, ShoppingCart, Check, FlaskConical, Beaker, Heart, Shield, Stethoscope, Pill, Activity, Calendar, MapPin, Clock, AlertTriangle, Loader2 } from "lucide-react";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { usePageBreadcrumbs } from "@/hooks/usePageBreadcrumbs";
+import { useAuth } from "@/context/AuthContext";
+import { toast } from "sonner";
 
 /* ── Types ── */
 interface IncludedTest {
@@ -306,6 +308,8 @@ function FilterDrawer({
 export default function LabTestCategory() {
   const { category } = useParams<{ category: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { isAuthenticated } = useAuth();
 
   /* ── Breadcrumb hierarchy ── */
   const categoryName = category?.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ") || "Category";
@@ -465,7 +469,20 @@ export default function LabTestCategory() {
     }
   }, [bookingTest]);
 
+  // Booking creates a personal lab-test record, so it needs an account. The
+  // category catalogue itself stays public.
+  const requireSignInToBook = useCallback(() => {
+    toast.error("Please sign in to book this lab test");
+    navigate(
+      `/login?returnTo=${encodeURIComponent(location.pathname + location.search)}`
+    );
+  }, [navigate, location.pathname, location.search]);
+
   const openBookingModal = useCallback((item: LabTestItem) => {
+    if (!isAuthenticated) {
+      requireSignInToBook();
+      return;
+    }
     setBookingTest(item);
     setBookingError("");
     setBookingTime("");
@@ -484,6 +501,10 @@ export default function LabTestCategory() {
 
   const handleBookingSubmit = useCallback(async () => {
     if (!bookingTest) return;
+    if (!isAuthenticated) {
+      requireSignInToBook();
+      return;
+    }
     const isHomeCollection = bookingType === "home";
     if (!bookingDate || !bookingTime) {
       setBookingError("Please select a date and time slot.");

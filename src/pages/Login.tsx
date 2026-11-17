@@ -12,10 +12,12 @@ export default function LoginPage() {
 
   useEffect(() => {
     const returnTo = searchParams.get("returnTo");
+    // With no requested destination, /auth resolves it by role: administrators
+    // to the admin panel, customers to their My Account dashboard.
     const target =
       returnTo && returnTo.startsWith("/") && !returnTo.startsWith("//")
         ? `/auth?returnTo=${encodeURIComponent(returnTo)}`
-        : "/auth?returnTo=/dashboard";
+        : "/auth";
     navigate(target, { replace: true });
   }, [navigate, searchParams]);
 

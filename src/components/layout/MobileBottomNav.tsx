@@ -47,7 +47,8 @@ export default function MobileBottomNav() {
       key: "account",
       label: "Account",
       icon: User,
-      to: isAuthenticated ? "/account" : "/login",
+      // Guests get the sign-in flow and land on My Account afterwards.
+      to: isAuthenticated ? "/account" : `/login?returnTo=${encodeURIComponent("/account")}`,
     },
   ] as const;
 

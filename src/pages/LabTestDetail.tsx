@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router";
+import { useParams, useNavigate, useLocation } from "react-router";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Breadcrumb } from "@/components/ui/breadcrumb";
+import { useAuth } from "@/context/AuthContext";
 import { usePageBreadcrumbs } from "@/hooks/usePageBreadcrumbs";
 
 /* ── FAQ item ── */
@@ -148,6 +149,8 @@ function PriceDisplay({
 export default function LabTestDetail() {
   const { testId } = useParams<{ testId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { isAuthenticated } = useAuth();
   const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
   const [expandedIncluded, setExpandedIncluded] = useState<number | null>(null);
 
@@ -210,7 +213,20 @@ export default function LabTestDetail() {
     "05:00 PM - 07:00 PM",
   ];
 
+  // Booking creates a personal lab-test record, so it needs an account. The
+  // test information itself stays public.
+  const requireSignInToBook = () => {
+    toast.error("Please sign in to book this lab test");
+    navigate(
+      `/login?returnTo=${encodeURIComponent(location.pathname + location.search)}`
+    );
+  };
+
   const openBookingModal = () => {
+    if (!isAuthenticated) {
+      requireSignInToBook();
+      return;
+    }
     setBookingOpen(true);
     setBookingError("");
     setBookingTime("");
@@ -231,6 +247,10 @@ export default function LabTestDetail() {
 
   const handleBookingSubmit = async () => {
     if (!test) return;
+    if (!isAuthenticated) {
+      requireSignInToBook();
+      return;
+    }
     const isHomeCollection = bookingType === "home";
     if (!bookingDate || !bookingTime) {
       setBookingError("Please select a date and time slot.");

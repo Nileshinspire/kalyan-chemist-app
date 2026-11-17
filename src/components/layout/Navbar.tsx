@@ -39,11 +39,13 @@ import {
  * Desktop/laptop already had these links via SubNav; the sheet is a
  * mobile-only surface. */
 const SERVICE_NAV_ITEMS = [
-  { label: "Upload Prescription", route: "/upload-prescription" },
-  { label: "Doctor Appointment", route: "/doctor-appointment" },
-  { label: "Lab Tests", route: "/lab-tests" },
-  { label: "Medicine Refill", route: "/refill" },
-  { label: "AI Chatbot", route: "/chatbot" },
+  { label: "Upload Prescription", route: "/upload-prescription", accountOnly: false },
+  { label: "Doctor Appointment", route: "/doctor-appointment", accountOnly: false },
+  { label: "Lab Tests", route: "/lab-tests", accountOnly: false },
+  // Personal account functionality — signed-in customers only, so the guest
+  // menu never offers a private area it would only bounce back to sign-in.
+  { label: "Medicine Refill", route: "/refill", accountOnly: true },
+  { label: "AI Chatbot", route: "/chatbot", accountOnly: true },
 ] as const;
 
 /* ─── Global Category Navigation Items ─── */
@@ -420,7 +422,9 @@ const Navbar = memo(function Navbar() {
                         Services
                       </p>
                     </div>
-                    {SERVICE_NAV_ITEMS.map((item) => (
+                    {SERVICE_NAV_ITEMS.filter(
+                      (item) => isAuthenticated || !item.accountOnly
+                    ).map((item) => (
                       <Button
                         key={item.route}
                         variant="ghost"

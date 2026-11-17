@@ -87,6 +87,7 @@ import { formatCurrency } from "@/lib/auth-utils";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { generateProductMessage } from "@/lib/whatsapp";
+import { stagePendingCartLine } from "@/lib/pending-cart";
 import { openStoreWhatsApp } from "@/lib/whatsappConfig";
 
 function StarRating({
@@ -454,7 +455,10 @@ export default function ProductDetail() {
   const handleAddToCart = async () => {
     if (!product) return;
     if (!isAuthenticated) {
-      toast.error("Please sign in to add items to cart");
+      // The cart is account-scoped, so the guest's choice is staged here and
+      // added to this account's cart as soon as sign-in completes.
+      stagePendingCartLine(product._id);
+      toast.success(`${product.name} saved — sign in to add it to your cart`);
       // HashRouter keeps the real route in the hash, so window.location.pathname
       // is always "/" — use the router location or the customer is sent back to
       // the home page after signing in instead of this product.

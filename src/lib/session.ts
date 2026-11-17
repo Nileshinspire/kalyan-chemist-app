@@ -200,7 +200,13 @@ export function decidePostSignInDestination({
   redirect: string;
 }): { path: string; forceHome: boolean } {
   if (role === "admin") return { path: redirect, forceHome: false };
+  // The account home is the generic dashboard every customer may see after
+  // signing in — it holds no record id, so it is safe even after a switch.
+  // Deeper private pages (a specific order, another account's notification)
+  // keep the existing forced-home protection.
+  const isAccountHome = /^\/account\/?$/.test(redirect);
   const forceHome =
-    state.pending || (state.differentUser && isCustomerPrivateRoute(redirect));
+    !isAccountHome &&
+    (state.pending || (state.differentUser && isCustomerPrivateRoute(redirect)));
   return { path: forceHome ? "/" : redirect, forceHome };
 }
