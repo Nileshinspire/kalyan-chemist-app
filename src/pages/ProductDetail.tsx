@@ -1018,7 +1018,7 @@ export default function ProductDetail() {
               {p.expiryDate && (
                 <span
                   data-slot="expiry-badge"
-                  className="pointer-events-none absolute bottom-1 right-3 z-10 rounded-md bg-neutral-700/95 px-2 py-1 text-[11px] font-semibold leading-none text-white shadow-sm sm:right-4 sm:text-xs"
+                  className="pointer-events-none absolute bottom-0 right-3 z-10 rounded-md bg-neutral-700/95 px-2 py-1 text-[11px] font-semibold leading-none text-white shadow-sm sm:right-4 sm:text-xs"
                 >
                   Expiry{" "}
                   {new Date(p.expiryDate).toLocaleDateString("en-IN", {
