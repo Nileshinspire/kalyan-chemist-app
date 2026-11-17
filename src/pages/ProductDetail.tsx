@@ -933,9 +933,12 @@ export default function ProductDetail() {
                 </div>
               )}
 
-              {/* Main image — cursor-following magnifier on hover */}
+              {/* Main image — cursor-following magnifier on hover. The outer
+                  wrapper only anchors the expiry badge; the image plate keeps
+                  its own size, clipping and zoom behaviour unchanged. */}
+              <div className="relative w-full lg:flex-1">
               <div
-                className={`w-full lg:flex-1 rounded-2xl border border-border/60 bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] flex items-center justify-center h-[300px] sm:h-[400px] overflow-hidden relative ${
+                className={`w-full rounded-2xl border border-border/60 bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] flex items-center justify-center h-[300px] sm:h-[400px] overflow-hidden relative ${
                   allImages.length > 0 ? "cursor-zoom-in" : ""
                 }`}
                 onMouseEnter={(e) => {
@@ -985,24 +988,27 @@ export default function ProductDetail() {
                 ) : (
                   <Pill className="size-24 text-primary/15" />
                 )}
-                {/* Batch expiry, straight from the admin-entered date on this
-                    product. Rendered only when that date exists, so a product
-                    with no recorded expiry shows no badge at all. */}
-                {p.expiryDate && (
-                  <span
-                    data-slot="expiry-badge"
-                    className="pointer-events-none absolute bottom-1 right-3 z-10 rounded-md bg-neutral-700/95 px-2 py-1 text-[11px] font-semibold leading-none text-white shadow-sm sm:bottom-1 sm:right-4 sm:text-xs"
-                  >
-                    Expiry{" "}
-                    {new Date(p.expiryDate).toLocaleDateString("en-IN", {
-                      day: "2-digit",
-                      month: "short",
-                      year: "numeric",
-                    })}
-                  </span>
-                )}
                 {/* No discount badge over the image: the percentage is shown
                     exactly once, in the price block below, beside the MRP. */}
+              </div>
+              {/* Batch expiry, straight from the admin-entered date on this
+                  product. Rendered only when that date exists, so a product
+                  with no recorded expiry shows no badge at all. Sits just
+                  below the image area (which ends 24px inside the plate),
+                  leaving clear space from the packshot. */}
+              {p.expiryDate && (
+                <span
+                  data-slot="expiry-badge"
+                  className="pointer-events-none absolute -bottom-1 right-3 z-10 rounded-md bg-neutral-700/95 px-2 py-1 text-[11px] font-semibold leading-none text-white shadow-sm sm:right-4 sm:text-xs"
+                >
+                  Expiry{" "}
+                  {new Date(p.expiryDate).toLocaleDateString("en-IN", {
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric",
+                  })}
+                </span>
+              )}
               </div>
             </div>
 
