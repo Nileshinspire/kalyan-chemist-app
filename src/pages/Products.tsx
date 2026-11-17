@@ -699,7 +699,7 @@ export default function Products() {
                    card within a few px of the Hot Sellers reference width
                    instead of shrinking it. Phones are untouched. */
                 <div
-                  className={`grid grid-cols-3 gap-2 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 transition-opacity duration-200${isSwappingPages ? " opacity-50" : ""}`}
+                  className={`grid grid-cols-3 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 transition-opacity duration-200${isSwappingPages ? " opacity-50" : ""}`}
                 >
                   {displayedProducts.map((product) => (
                     <ProductCard key={product._id} product={product as any} dense />

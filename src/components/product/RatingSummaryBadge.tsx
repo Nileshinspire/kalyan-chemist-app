@@ -52,7 +52,7 @@ export function RatingSummaryBadge({
         title={title}
         aria-label={ariaLabel}
         data-slot="rating-badge"
-        className={`pointer-events-none inline-flex items-center gap-1 rounded-md border border-border/70 bg-white px-1.5 py-1 text-[11px] leading-none font-bold text-foreground shadow-sm sm:text-xs ${className}`}
+        className={`pointer-events-none inline-flex items-center gap-1 rounded-md border border-border/70 bg-white px-1.5 py-0.5 text-[11px] leading-none font-bold text-foreground shadow-sm sm:text-xs ${className}`}
       >
         {average.toFixed(1)}
         <Star className="size-2.5 fill-emerald-600 text-emerald-600 sm:size-3" aria-hidden />

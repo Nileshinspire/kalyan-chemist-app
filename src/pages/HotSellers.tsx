@@ -85,7 +85,7 @@ export default function HotSellers() {
             /* Same 3-column phone grid and the same slimmer listing cards as
                every other listing view. `.kc-card-track` still sets the 3/4/5
                column tablet and desktop layout. */
-            <div className="grid grid-cols-3 gap-2 sm:gap-4 kc-card-track">
+            <div className="grid grid-cols-3 gap-3 sm:gap-4 kc-card-track">
               {products.map((product) => (
                 <ProductCard key={product._id} product={product} dense />
               ))}

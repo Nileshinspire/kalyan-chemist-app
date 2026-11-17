@@ -28,7 +28,7 @@ export function StockAlertButton({
   /** Listing-card variant: the same compact button, phones only. */
   slim?: boolean;
 }) {
-  const compactHeight = slim ? "max-sm:h-7 max-sm:min-h-7" : "";
+  const compactHeight = slim ? "max-sm:h-[26px] max-sm:min-h-[26px]" : "";
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();

@@ -190,13 +190,18 @@ const ProductCard = memo(function ProductCard({
   // Every `dense` adjustment below is a `max-sm` override of an existing value,
   // so it only tightens the card on phones in the listing views. `sm:` and up
   // resolve to the unchanged desktop values.
-  const denseCard = dense ? " max-sm:p-1" : "";
+  const denseCard = dense ? " max-sm:p-[3px]" : "";
   const denseStrip = dense ? " max-sm:mb-0.5" : "";
   const denseDetails = dense ? " max-sm:pt-0.5" : "";
-  const densePrice = dense ? " max-sm:text-[15px] max-sm:leading-[18px]" : "";
+  const denseName = dense ? " max-sm:h-7 max-sm:leading-[14px]" : "";
+  const densePrice = dense ? " max-sm:text-[15px] max-sm:leading-4" : "";
   const denseStatus = dense ? " max-sm:h-[14px] max-sm:min-h-[14px]" : "";
-  const denseAction = dense ? " max-sm:pt-0.5" : "";
-  const denseButton = dense ? " max-sm:h-7 max-sm:min-h-7" : "";
+  const denseAction = dense ? " max-sm:pt-0" : "";
+  const denseButton = dense ? " max-sm:h-[26px] max-sm:min-h-[26px]" : "";
+  // The packshot plate's own 1px outline is dropped in the listing views only,
+  // using a transparent border rather than removing it so the plate, the image
+  // box and the 4:3 aspect ratio keep exactly the geometry they have today.
+  const densePlate = dense ? " max-sm:border-transparent" : "";
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
@@ -296,7 +301,7 @@ const ProductCard = memo(function ProductCard({
       </div>
 
       {/* Packshot plate — the photo fills it edge to edge. */}
-      <div className="relative shrink-0 overflow-hidden rounded-lg border border-border/50 bg-white">
+      <div className={`relative shrink-0 overflow-hidden rounded-lg border border-border/50 bg-white${densePlate}`}>
         <div className="relative flex aspect-[4/3] items-center justify-center overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.08] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
           {realImage ? (
@@ -335,7 +340,7 @@ const ProductCard = memo(function ProductCard({
             one-line name and a two-line name occupy exactly the same space and
             a long name can never push the badge or the rows below it. */}
         <div className="mt-0.5 flex items-start gap-1.5">
-          <h3 className="line-clamp-2 h-8 min-w-0 flex-1 text-[12px] leading-4 font-semibold text-foreground transition-colors duration-300 group-hover:text-primary sm:h-10 sm:text-sm sm:leading-5">
+          <h3 className={`line-clamp-2 h-8 min-w-0 flex-1 text-[12px] leading-4 font-semibold text-foreground transition-colors duration-300 group-hover:text-primary sm:h-10 sm:text-sm sm:leading-5${denseName}`}>
             {product.name}
           </h3>
           <ProductRatingBadge productId={product._id} className="mt-px" />
@@ -409,7 +414,7 @@ const ProductCard = memo(function ProductCard({
             Add to Cart button for the existing Notify Me control. */}
         <div className={`mt-auto pt-1${denseAction}`} onClick={(e) => e.stopPropagation()}>
           {isOutOfStock ? (
-            <div data-slot="out-of-stock-action">
+            <div data-slot="out-of-stock-action" className="flex">
               {/* The compact Notify Me control alone — the Out of Stock state
                   lives in the status row above, so this button starts on the
                   same baseline as Add to Cart on every other card. */}
