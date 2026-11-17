@@ -5,7 +5,7 @@ import { useQuery, useMutation, useConvex } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Heart, Pill, Star, Clock, ShoppingCart } from "lucide-react";
+import { BookmarkPlus, Pill, Star, Clock, ShoppingCart } from "lucide-react";
 import { formatCurrency } from "@/lib/auth-utils";
 import { productDiscountPercent } from "@/lib/discount";
 import { preloadProductDetail } from "@/lib/route-preload";
@@ -173,8 +173,10 @@ export function ProductWishlistButton({
       onClick={handle}
       className={`flex size-5 items-center justify-center rounded-full border border-border/60 bg-white/90 shadow-sm backdrop-blur-sm transition-all duration-300 hover:scale-110 hover:bg-white ${className}`}
     >
-      <Heart
-        className={`size-3.5 transition-colors ${isWishlisted ? "fill-rose-500 text-rose-500" : "text-muted-foreground"}`}
+      <BookmarkPlus
+        aria-hidden
+        strokeWidth={1.75}
+        className={`size-4 transition-colors ${isWishlisted ? "fill-rose-500 text-rose-500" : "text-muted-foreground"}`}
       />
     </button>
   );
@@ -367,7 +369,7 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
           {isOutOfStock ? (
             <span
               data-slot="out-of-stock-label"
-              className="mx-auto inline-flex min-w-0 shrink-0 items-center rounded-[3px] bg-rose-50 px-1.5 py-px text-[10px] leading-3 font-semibold text-rose-600 sm:text-[11px]"
+              className="inline-flex min-w-0 shrink-0 items-center rounded-[3px] bg-rose-50 px-1.5 py-px text-[10px] leading-3 font-semibold text-rose-600 sm:text-[11px]"
             >
               Out of Stock
             </span>
@@ -375,7 +377,9 @@ const ProductCard = memo(function ProductCard({ product, newArrival = false }: P
             showDelivery && (
               <>
                 <Clock className="size-3 shrink-0 text-primary/80" aria-hidden />
-                <span className="min-w-0 truncate">Delivery: {deliveryEstimate}</span>
+                <span className="min-w-0 truncate">
+                  Delivery: <span className="font-semibold text-foreground/80">{deliveryEstimate}</span>
+                </span>
               </>
             )
           )}
