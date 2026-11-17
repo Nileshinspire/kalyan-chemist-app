@@ -156,7 +156,7 @@ const Navbar = memo(function Navbar() {
         {/* Logo — phones sit the wordmark a little closer to the mark; from
             `sm` up the original 10px gap is kept exactly. */}
         <div
-          className="flex items-center gap-1.5 sm:gap-2.5 cursor-pointer shrink-0 group"
+          className="flex items-center gap-1 sm:gap-2.5 cursor-pointer shrink-0 group"
           onClick={() => navigate("/")}
         >
           <BrandMark className="size-9 transition-all duration-300 group-hover:scale-105" />
