@@ -56,6 +56,38 @@ describe("customer dashboard care tools", () => {
     expect(setTheme).not.toHaveBeenCalled();
   });
 
+  it("lists all account options above Wallet & Refer", () => {
+    renderDashboard();
+
+    const options = [
+      "Profile",
+      "Addresses",
+      "My Orders",
+      "Track Order",
+      "My Prescriptions",
+      "My Lab Tests",
+      "My Appointments",
+      "Medicine Refill",
+      "Pill Reminders",
+      "Wishlist",
+      "Notifications",
+      "Help & Support",
+      "Logout",
+    ];
+    // Mobile options render before the (desktop-only) quick links, so the
+    // first match for each label is the option card in the new list.
+    const nodes = options.map((label) => screen.getAllByText(label)[0]);
+    expect(nodes).toHaveLength(13);
+
+    const wallet = screen.getByText("Wallet and refer");
+    // Every option sits above the untouched Wallet & Refer section.
+    for (const node of nodes) {
+      expect(
+        node.compareDocumentPosition(wallet) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    }
+  });
+
   it("keeps the existing dashboard sections in place", () => {
     renderDashboard();
 

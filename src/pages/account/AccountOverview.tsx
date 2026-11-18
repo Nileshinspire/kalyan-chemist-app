@@ -13,7 +13,31 @@ import {
   Bell,
   ArrowRight,
   Shield,
+  Truck,
+  FlaskConical,
+  Stethoscope,
+  RefreshCw,
+  Headphones,
+  LogOut,
+  type LucideIcon,
 } from "lucide-react";
+
+// Mobile-only account options, inserted above Wallet & Refer. Same routes,
+// icons and ordering as the account sidebar.
+const ACCOUNT_OPTIONS = [
+  { to: "/account/profile", label: "Profile", icon: User, description: "Update your name, email, and phone" },
+  { to: "/account/addresses", label: "Addresses", icon: MapPin, description: "Add or edit delivery addresses" },
+  { to: "/account/orders", label: "My Orders", icon: ClipboardList, description: "Track your recent orders" },
+  { to: "/account/track-order", label: "Track Order", icon: Truck, description: "Follow a delivery in progress" },
+  { to: "/account/prescriptions", label: "My Prescriptions", icon: Pill, description: "Track, view and download prescriptions" },
+  { to: "/account/my-lab-tests", label: "My Lab Tests", icon: FlaskConical, description: "View your lab test bookings" },
+  { to: "/account/my-appointments", label: "My Appointments", icon: Stethoscope, description: "Manage doctor appointments" },
+  { to: "/account/refill", label: "Medicine Refill", icon: RefreshCw, description: "Reorder your regular medicines" },
+  { to: "/account/pill-reminders", label: "Pill Reminders", icon: Pill, description: "Set reminders for your medicines" },
+  { to: "/account/wishlist", label: "Wishlist", icon: Heart, description: "Products you saved for later" },
+  { to: "/account/notifications", label: "Notifications", icon: Bell, description: "Order updates and offers" },
+  { to: "/account/help-support", label: "Help & Support", icon: Headphones, description: "Get help with your account and orders" },
+];
 
 const QUICK_LINKS = [
   { to: "/account/profile", label: "Edit Profile", icon: User, description: "Update your name, email, and phone" },
@@ -24,8 +48,42 @@ const QUICK_LINKS = [
   { to: "/account/notifications", label: "Notifications", icon: Bell, description: "Order updates and offers" },
 ];
 
+function AccountOptionCard({
+  label,
+  description,
+  icon: Icon,
+  onClick,
+}: {
+  label: string;
+  description: string;
+  icon: LucideIcon;
+  onClick: () => void;
+}) {
+  return (
+    <Card
+      className="group cursor-pointer border-border/60 hover:shadow-card-hover hover:border-primary/20 transition-all duration-300"
+      onClick={onClick}
+    >
+      <CardContent className="p-5">
+        <div className="flex items-start gap-3">
+          <div className="size-10 rounded-xl bg-primary/[0.06] flex items-center justify-center shrink-0 group-hover:bg-primary/10 transition-colors">
+            <Icon className="size-5 text-primary" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
+              {label}
+            </h3>
+            <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
+          </div>
+          <ArrowRight className="size-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0 mt-1" />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function AccountOverview() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
 
   return (
@@ -51,34 +109,38 @@ export default function AccountOverview() {
         </div>
       </div>
 
+      {/* Account options — mobile only, above Wallet & Refer */}
+      <div className="grid gap-3 lg:hidden">
+        {ACCOUNT_OPTIONS.map((option) => (
+          <AccountOptionCard
+            key={option.to}
+            label={option.label}
+            description={option.description}
+            icon={option.icon}
+            onClick={() => navigate(option.to)}
+          />
+        ))}
+        <AccountOptionCard
+          label="Logout"
+          description="Sign out of your account"
+          icon={LogOut}
+          onClick={() => logout()}
+        />
+      </div>
+
       {/* Wallet & Refer — part of the existing account dashboard */}
       <WalletReferSection />
 
-      {/* Quick Links Grid */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {/* Quick Links Grid — desktop/laptop only; mobile uses the options above */}
+      <div className="hidden lg:grid gap-4 lg:grid-cols-3">
         {QUICK_LINKS.map((link) => (
-          <Card
+          <AccountOptionCard
             key={link.to}
-            className="group cursor-pointer border-border/60 hover:shadow-card-hover hover:border-primary/20 transition-all duration-300"
+            label={link.label}
+            description={link.description}
+            icon={link.icon}
             onClick={() => navigate(link.to)}
-          >
-            <CardContent className="p-5">
-              <div className="flex items-start gap-3">
-                <div className="size-10 rounded-xl bg-primary/[0.06] flex items-center justify-center shrink-0 group-hover:bg-primary/10 transition-colors">
-                  <link.icon className="size-5 text-primary" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
-                    {link.label}
-                  </h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {link.description}
-                  </p>
-                </div>
-                <ArrowRight className="size-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0 mt-1" />
-              </div>
-            </CardContent>
-          </Card>
+          />
         ))}
       </div>
 
