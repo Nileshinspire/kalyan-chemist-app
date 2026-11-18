@@ -18,12 +18,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import {
   Search,
   ShoppingCart,
   User,
-  Menu,
   LogOut,
   Home,
   Package,
@@ -38,7 +37,7 @@ import {
  * are surfaced here in the mobile menu sheet — nothing becomes unreachable.
  * Desktop/laptop already had these links via SubNav; the sheet is a
  * mobile-only surface. */
-const SERVICE_NAV_ITEMS = [
+export const SERVICE_NAV_ITEMS = [
   { label: "Upload Prescription", route: "/upload-prescription", accountOnly: false },
   { label: "Doctor Appointment", route: "/doctor-appointment", accountOnly: false },
   { label: "Lab Tests", route: "/lab-tests", accountOnly: false },
@@ -49,7 +48,7 @@ const SERVICE_NAV_ITEMS = [
 ] as const;
 
 /* ─── Global Category Navigation Items ─── */
-const CATEGORY_NAV_ITEMS = [
+export const CATEGORY_NAV_ITEMS = [
   { label: "Kalyan Chemist Products", slug: "", key: "all" },
   { label: "Baby Care", slug: "baby-mother", key: "baby-care" },
   { label: "Nutritional Drinks & Supplements", slug: "nutrition", key: "nutrition" },
@@ -352,12 +351,40 @@ const Navbar = memo(function Navbar() {
               <CartCountBadge count={cartCount} />
             </span>
           </Button>
+          {/* Auth control in the exact slot the mobile hamburger used to
+              occupy. Guests see a Login label plus an outline user icon;
+              signed-in customers see only the outline profile icon. */}
+          {isAuthenticated ? (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="rounded-xl"
+              aria-label="My Account"
+              onMouseEnter={() => preloadRoute("/account")}
+              onFocus={() => preloadRoute("/account")}
+              onClick={() => navigate("/account")}
+            >
+              <User className="size-5" strokeWidth={1.75} />
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 rounded-xl px-2.5 text-xs font-semibold"
+              aria-label="Login"
+              onClick={() =>
+                navigate(
+                  `/login?returnTo=${encodeURIComponent(location.pathname)}`
+                )
+              }
+            >
+              Login
+              <User className="size-4" strokeWidth={1.75} />
+            </Button>
+          )}
+          {/* The old right-side sheet is no longer reachable: the Menu tab in
+              the mobile bottom navigation opens the full-page /menu route. */}
           <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="rounded-xl">
-                <Menu className="size-5" />
-              </Button>
-            </SheetTrigger>
             {/* The sheet header below renders its own close button, so the
                 built-in one is disabled — exactly one X on mobile. */}
             <SheetContent

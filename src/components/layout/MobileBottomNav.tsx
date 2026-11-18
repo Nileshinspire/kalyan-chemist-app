@@ -1,17 +1,19 @@
 import { useNavigate, useLocation } from "react-router";
 import { useAuth } from "@/context/AuthContext";
-import { Home, LayoutGrid, Tags, User } from "lucide-react";
+import { Home, LayoutGrid, Tags, User, Menu } from "lucide-react";
 import { preloadRoute } from "@/lib/route-preload";
 
 /**
- * Mobile-only bottom navigation bar (Home · Categories · Offers · Account).
+ * Mobile-only bottom navigation bar (Home · Categories · Offers · Account ·
+ * Menu).
  *
  * A single instance is mounted at the app root. It is `md:hidden`, so desktop
- * and laptop screens are byte-for-byte unchanged. All four destinations reuse
+ * and laptop screens are byte-for-byte unchanged. All five destinations reuse
  * EXISTING routes and the existing auth state — no new navigation or business
  * logic. "Offers" opens the existing Value Deals Under ₹100 page, which is
- * driven by the same deals/discount data the homepage section uses. The cart
- * stays in the top mobile header with its badge and full functionality.
+ * driven by the same deals/discount data the homepage section uses. "Menu"
+ * opens the full-page /menu route (not the old side sheet). The cart stays in
+ * the top mobile header with its badge and full functionality.
  *
  * Hidden on the admin area (which has its own layout) and on the full-screen
  * chatbot, matching the existing floating-button visibility rules.
@@ -34,6 +36,8 @@ export default function MobileBottomNav() {
         return pathname === "/value-deals";
       case "account":
         return pathname.startsWith("/account");
+      case "menu":
+        return pathname === "/menu";
       default:
         return false;
     }
@@ -50,6 +54,7 @@ export default function MobileBottomNav() {
       // Guests get the sign-in flow and land on My Account afterwards.
       to: isAuthenticated ? "/account" : `/login?returnTo=${encodeURIComponent("/account")}`,
     },
+    { key: "menu", label: "Menu", icon: Menu, to: "/menu" },
   ] as const;
 
   return (
@@ -64,7 +69,7 @@ export default function MobileBottomNav() {
         aria-label="Mobile navigation"
         className="fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-background/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)] md:hidden"
       >
-      <div className="mx-auto grid max-w-md grid-cols-4">
+      <div className="mx-auto grid max-w-md grid-cols-5">
         {items.map((item) => {
           const active = isActive(item.key);
           const Icon = item.icon;

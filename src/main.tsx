@@ -75,6 +75,7 @@ const AdminSettings = lazy(() => import("./pages/admin/AdminSettings"));
 const AdminActivityLog = lazy(() => import("./pages/admin/AdminActivityLog"));
 const AdminReferralWallet = lazy(() => import("./pages/admin/AdminReferralWalletPage"));
 import CategoriesPage from "./pages/Categories.tsx";
+import MenuPage from "./pages/MenuPage.tsx";
 import BrandsPage from "./pages/Brands.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import AccountLayout from "./components/account/AccountLayout";
@@ -298,6 +299,12 @@ function AnimatedRoutes() {
           element={
             <ValueDealsPage />
             
+          }
+        />
+        <Route
+          path="/menu"
+          element={
+            <MenuPage />
           }
         />
         <Route
