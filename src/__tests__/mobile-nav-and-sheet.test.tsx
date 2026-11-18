@@ -45,7 +45,7 @@ import {
 beforeEach(() => navigate.mockReset());
 
 describe("Mobile bottom navigation", () => {
-  it("shows Home · Categories · Offers · Account with Offers pointing at the deals page", () => {
+  it("shows Home · Categories · Offers · Account · Menu with the existing destinations intact", () => {
     render(
       <MemoryRouter>
         <MobileBottomNav />
@@ -55,11 +55,15 @@ describe("Mobile bottom navigation", () => {
     const labels = screen
       .getAllByRole("button")
       .map((button) => button.textContent?.trim());
-    expect(labels).toEqual(["Home", "Categories", "Offers", "Account"]);
+    expect(labels).toEqual(["Home", "Categories", "Offers", "Account", "Menu"]);
     expect(screen.queryByText("Cart")).toBeNull();
 
     fireEvent.click(screen.getByLabelText("Offers"));
     expect(navigate).toHaveBeenCalledWith("/value-deals");
+
+    // Menu opens the full-page route, not the old side sheet.
+    fireEvent.click(screen.getByLabelText("Menu"));
+    expect(navigate).toHaveBeenCalledWith("/menu");
   });
 });
 
@@ -92,20 +96,20 @@ describe("Mobile header branding", () => {
   });
 });
 
-describe("Mobile menu close button", () => {
-  it("renders only one X inside the opened mobile menu", () => {
+describe("Mobile header auth control", () => {
+  it("offers no sheet trigger and opens My Account from the profile icon", () => {
     const { container } = render(
       <MemoryRouter>
         <Navbar />
       </MemoryRouter>
     );
 
-    fireEvent.click(container.querySelector('[data-slot="sheet-trigger"]')!);
+    // The hamburger/side-sheet entry point is gone; the bottom Menu tab owns
+    // full-page navigation now.
+    expect(container.querySelector('[data-slot="sheet-trigger"]')).toBeNull();
 
-    // The header's own close control is the ONLY X in the sheet.
-    expect(
-      document.querySelectorAll('[data-slot="sheet-content"] svg.lucide-x').length
-    ).toBe(1);
+    fireEvent.click(screen.getByLabelText("My Account"));
+    expect(navigate).toHaveBeenCalledWith("/account");
   });
 
   it("renders exactly one close control when the sheet header supplies its own", () => {
