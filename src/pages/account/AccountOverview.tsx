@@ -90,7 +90,7 @@ export default function AccountOverview() {
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      className="space-y-6"
+      className="space-y-6 max-lg:space-y-4"
     >
       {/* Welcome Banner */}
       <div className="bg-gradient-to-br from-primary/[0.08] to-primary/[0.02] border border-primary/10 rounded-2xl p-6">

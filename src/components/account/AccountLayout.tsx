@@ -41,7 +41,7 @@ export default function AccountLayout() {
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
       <main className="flex-1 mx-auto max-w-7xl w-full px-4 sm:px-6 py-8">
-        <div className="flex flex-col lg:flex-row gap-8">
+        <div className="flex flex-col lg:flex-row gap-8 max-lg:gap-5">
           {/* Desktop Sidebar */}
           <aside className="hidden lg:block w-64 shrink-0">
             <div className="sticky top-24">
@@ -80,9 +80,9 @@ export default function AccountLayout() {
             </div>
           </aside>
 
-          {/* Mobile Header — heading only; account options live in the page body */}
+          {/* Mobile Header — heading only; spacing comes from the column gap */}
           <div className="lg:hidden">
-            <h2 className="text-lg font-bold text-foreground mb-4">My Account</h2>
+            <h2 className="text-lg font-bold text-foreground">My Account</h2>
           </div>
 
           {/* Content Area */}
