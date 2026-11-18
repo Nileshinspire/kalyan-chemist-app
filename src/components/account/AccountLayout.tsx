@@ -3,8 +3,6 @@ import { useAuth } from "@/context/AuthContext";
 import { AccountLayoutProvider } from "@/context/AccountLayoutContext";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
-import { Button } from "@/components/ui/button";
-import { motion } from "framer-motion";
 import {
   User,
   MapPin,
@@ -13,15 +11,12 @@ import {
   Bell,
   Heart,
   LogOut,
-  Menu,
-  X,
   Truck,
   Headphones,
   FlaskConical,
   Stethoscope,
   RefreshCw,
 } from "lucide-react";
-import { useState } from "react";
 
 const NAV_ITEMS = [
   { to: "/account", label: "My Account", icon: User, end: true },
@@ -41,8 +36,6 @@ const NAV_ITEMS = [
 
 export default function AccountLayout() {
   const { logout } = useAuth();
-  const [mobileOpen, setMobileOpen] = useState(false);
-
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -87,56 +80,9 @@ export default function AccountLayout() {
             </div>
           </aside>
 
-          {/* Mobile Header */}
+          {/* Mobile Header — heading only; account options live in the page body */}
           <div className="lg:hidden">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-foreground">My Account</h2>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setMobileOpen(!mobileOpen)}
-                className="gap-2"
-              >
-                {mobileOpen ? <X className="size-4" /> : <Menu className="size-4" />}
-                Menu
-              </Button>
-            </div>
-            {mobileOpen && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                className="mb-6 bg-card border border-border/60 rounded-xl p-3"
-              >
-                <nav className="space-y-1">
-                  {NAV_ITEMS.map((item) => (
-                    <NavLink
-                      key={item.to}
-                      to={item.to}
-                      end={item.end}
-                      onClick={() => setMobileOpen(false)}
-                      className={({ isActive }) =>
-                        `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
-                          isActive
-                            ? "bg-primary/10 text-primary"
-                            : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                        }`
-                      }
-                    >
-                      <item.icon className="size-4" />
-                      {item.label}
-                    </NavLink>
-                  ))}
-                  <button
-                    onClick={() => logout()}
-                    className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/5 w-full transition-all duration-200"
-                  >
-                    <LogOut className="size-4" />
-                    Logout
-                  </button>
-                </nav>
-              </motion.div>
-            )}
+            <h2 className="text-lg font-bold text-foreground mb-4">My Account</h2>
           </div>
 
           {/* Content Area */}
