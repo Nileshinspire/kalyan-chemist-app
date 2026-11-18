@@ -45,7 +45,7 @@ import {
 beforeEach(() => navigate.mockReset());
 
 describe("Mobile bottom navigation", () => {
-  it("shows Home · Categories · Offers · Account · Menu with the existing destinations intact", () => {
+  it("shows Home · Categories · Offers · Menu with the existing destinations intact", () => {
     render(
       <MemoryRouter>
         <MobileBottomNav />
@@ -55,7 +55,9 @@ describe("Mobile bottom navigation", () => {
     const labels = screen
       .getAllByRole("button")
       .map((button) => button.textContent?.trim());
-    expect(labels).toEqual(["Home", "Categories", "Offers", "Account", "Menu"]);
+    expect(labels).toEqual(["Home", "Categories", "Offers", "Menu"]);
+    // Account is header-only now; no duplicate tab in the bottom bar.
+    expect(screen.queryByLabelText("Account")).toBeNull();
     expect(screen.queryByText("Cart")).toBeNull();
 
     fireEvent.click(screen.getByLabelText("Offers"));
