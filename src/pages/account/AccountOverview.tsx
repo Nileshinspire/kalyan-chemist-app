@@ -64,7 +64,7 @@ function AccountOptionCard({
       className="group cursor-pointer border-border/60 hover:shadow-card-hover hover:border-primary/20 transition-all duration-300"
       onClick={onClick}
     >
-      <CardContent className="p-5 max-lg:py-3">
+      <CardContent className="p-5 max-lg:py-2.5">
         <div className="flex items-start gap-3">
           <div className="size-10 rounded-xl bg-primary/[0.06] flex items-center justify-center shrink-0 group-hover:bg-primary/10 transition-colors">
             <Icon className="size-5 text-primary" />
