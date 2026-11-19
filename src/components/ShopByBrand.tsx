@@ -153,7 +153,7 @@ export default function ShopByBrand() {
         <div
           ref={trackRef}
           onScroll={updateArrows}
-          className="flex flex-nowrap snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:gap-4"
+          className="flex flex-nowrap snap-x snap-mandatory gap-4 overflow-x-auto overscroll-x-contain pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:gap-4"
         >
           {brands.map((brand) => (
             <button
@@ -162,7 +162,9 @@ export default function ShopByBrand() {
               data-brand-tile
               onClick={() => openBrand(brand.slug)}
               title={brand.description ?? brand.name}
-              className="group flex w-[46vw] max-w-[200px] shrink-0 grow-0 snap-start flex-col items-center gap-2.5 rounded-2xl border border-border/70 bg-card px-3 py-5 transition-all duration-300 hover:border-primary/30 hover:shadow-glow active:scale-[0.97] sm:w-[150px] sm:max-w-none md:w-[168px] lg:w-[190px]"
+              /* Phones: no outer card — just the circular logo and name.
+                 From `sm` up the original bordered card is restored exactly. */
+              className="group flex w-24 shrink-0 grow-0 snap-start flex-col items-center gap-2 rounded-none border-0 bg-transparent px-0 py-0 transition-all duration-300 active:scale-[0.97] sm:w-[150px] sm:gap-2.5 sm:rounded-2xl sm:border sm:border-border/70 sm:bg-card sm:px-3 sm:py-5 sm:hover:border-primary/30 sm:hover:shadow-glow md:w-[168px] lg:w-[190px]"
             >
               {/* Phones: a larger equal-sized circular light-grey tile, matching
                   the reference. From `sm` up the original rectangular plate is
