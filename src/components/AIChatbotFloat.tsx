@@ -1,4 +1,6 @@
 import { useNavigate, useLocation } from "react-router";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import { Bot, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
@@ -35,17 +37,24 @@ export default function AIChatbotFloat() {
     navigate("/chatbot");
   };
 
+  const isHome = location.pathname === "/";
+  // Only the homepage can show the fixed coupon bar. When it does, the
+  // floating buttons move up by exactly the bar's height so neither overlaps
+  // it; when the bar is hidden (e.g. the coupon was redeemed) they return to
+  // their original offsets. Desktop offsets are untouched (`md:`).
+  const banner = useQuery(api.coupons.homepageBanner, isHome ? {} : "skip");
+  const bannerVisible = isHome && !!banner?.offer;
+
   // Customer-facing only: not on the chatbot page itself (you're already
   // there) and not on admin pages.
   if (location.pathname === "/chatbot" || location.pathname.startsWith("/admin")) {
     return null;
   }
 
-  const isHome = location.pathname === "/";
-  // Below `md` the button stacks above the mobile bottom navigation and the
-  // WhatsApp button; from `md` up the original desktop offsets are restored.
   const verticalOffset = isHome
-    ? "bottom-[calc(11rem+env(safe-area-inset-bottom))] md:bottom-44"
+    ? bannerVisible
+      ? "bottom-[calc(14.25rem+env(safe-area-inset-bottom))] md:bottom-44"
+      : "bottom-[calc(11rem+env(safe-area-inset-bottom))] md:bottom-44"
     : "bottom-[calc(8.5rem+env(safe-area-inset-bottom))] md:bottom-24";
 
   return (

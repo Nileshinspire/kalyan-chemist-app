@@ -144,6 +144,10 @@ export default function Landing() {
   // Real data from Convex
   const categories = useQuery(api.categories.list);
   const hotSellers = useQuery(api.publicProducts.hotSellers, { limit: 4 });
+  // Drives the fixed mobile coupon bar AND the floating-icon offset, so both
+  // flip together when the customer has used the coupon.
+  const homepageBanner = useQuery(api.coupons.homepageBanner);
+  const bannerOffer = homepageBanner?.offer ?? null;
 
   return (
     <div className="min-h-screen bg-background text-foreground overflow-x-clip">
@@ -528,10 +532,10 @@ export default function Landing() {
       <Footer />
 
       {/* Mobile-only fixed coupon bar (sits above the bottom navigation) */}
-      <MobileCouponBar />
+      <MobileCouponBar offer={bannerOffer} />
 
       {/* Floating WhatsApp Button */}
-      <WhatsAppFloat />
+      <WhatsAppFloat raised={!!bannerOffer} />
     </div>
   );
 }

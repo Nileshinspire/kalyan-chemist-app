@@ -1,6 +1,5 @@
-import { useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
 import { useAuth } from "@/context/AuthContext";
+import type { CouponOffer } from "@/components/CouponOfferCard";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/auth-utils";
 import { BadgePercent } from "lucide-react";
@@ -15,11 +14,13 @@ import { useNavigate } from "react-router";
  * Desktop/tablet (`md` and up) renders nothing; the existing Offers & Coupons
  * section remains the desktop presentation.
  */
-export default function MobileCouponBar() {
+export default function MobileCouponBar({
+  offer,
+}: {
+  offer: CouponOffer | null;
+}) {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
-  const data = useQuery(api.coupons.publicOffers, { placement: "homepage", limit: 1 });
-  const offer = data?.offers?.[0];
 
   if (!offer) return null;
 

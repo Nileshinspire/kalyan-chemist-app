@@ -11,7 +11,7 @@ import { generateDirectChatMessage } from "@/lib/whatsapp";
  * with a short pre-filled greeting the customer can edit before sending.
  * Nothing is ever sent automatically.
  */
-export default function WhatsAppFloat() {
+export default function WhatsAppFloat({ raised = false }: { raised?: boolean } = {}) {
   const [showTooltip, setShowTooltip] = useState(false);
 
   // Show tooltip after 3 seconds on page load
@@ -32,7 +32,13 @@ export default function WhatsAppFloat() {
   // Mobile lifts the button above the app's bottom navigation (below `md`);
   // from `md` up the original desktop position is restored exactly.
   return (
-    <div className="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-[max(1rem,env(safe-area-inset-right))] z-50 flex flex-col items-end gap-3 md:bottom-[max(1.5rem,env(safe-area-inset-bottom))] sm:right-[max(1.5rem,env(safe-area-inset-right))]">
+    <div
+      className={`fixed ${
+        raised
+          ? "bottom-[calc(7.75rem+env(safe-area-inset-bottom))]"
+          : "bottom-[calc(4.5rem+env(safe-area-inset-bottom))]"
+      } right-[max(1rem,env(safe-area-inset-right))] z-50 flex flex-col items-end gap-3 md:bottom-[max(1.5rem,env(safe-area-inset-bottom))] sm:right-[max(1.5rem,env(safe-area-inset-right))]`}
+    >
       {/* Tooltip */}
       <AnimatePresence>
         {showTooltip && (

@@ -255,6 +255,59 @@ export const publicOffers = query({
 });
 
 /**
+ * Coupon for the fixed mobile homepage bar.
+ *
+ * Guest customers see the first live homepage coupon. For a signed-in
+ * customer the SAME eligibility rules the checkout enforces are applied:
+ * a coupon they have already redeemed successfully (a consumed redemption) is
+ * skipped, as are first-order-only coupons after their first order and
+ * coupons whose per-customer limit is used up. The next eligible coupon is
+ * returned instead — or null, which hides the bar entirely.
+ */
+export const homepageBanner = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    const now = Date.now();
+    const coupons = await ctx.db.query("coupons").collect();
+
+    const candidates = coupons
+      .filter((coupon) => couponStatus(coupon, now) === "active")
+      .filter((coupon) => coupon.showOnHomepage === true)
+      .sort((a, b) => b.createdAt - a.createdAt);
+
+    if (userId === null) {
+      return { offer: candidates[0] ? toPublicOffer(candidates[0]) : null };
+    }
+
+    const isFirstOrder = await isFirstOrderCustomer(ctx, userId);
+
+    for (const coupon of candidates) {
+      if (coupon.firstOrderOnly && !isFirstOrder) continue;
+
+      const rows = await ctx.db
+        .query("coupon_redemptions")
+        .withIndex("by_user_coupon", (q) =>
+          q.eq("userId", userId).eq("couponId", coupon._id)
+        )
+        .collect();
+
+      // A successful order consumes the redemption — that customer has used
+      // this coupon, so the banner moves on (or disappears).
+      if (rows.some((row) => row.status === "consumed")) continue;
+
+      const perUserLimit = coupon.perUserLimit ?? 0;
+      const counted = rows.filter((row) => row.status !== "released").length;
+      if (perUserLimit > 0 && counted >= perUserLimit) continue;
+
+      return { offer: toPublicOffer(coupon) };
+    }
+
+    return { offer: null };
+  },
+});
+
+/**
  * Coupons relevant to one product, for the small offer hint beside the price.
  * Applies the same category eligibility the checkout enforces.
  */
