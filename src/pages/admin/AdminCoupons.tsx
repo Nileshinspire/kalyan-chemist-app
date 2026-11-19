@@ -32,6 +32,12 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { couponStatus, type CouponLifecycleStatus } from "@/convex/couponLogic";
+import {
+  endDateBeforeStart,
+  endOfDayFromInput,
+  startOfDayFromInput,
+  toDateInputValue,
+} from "@/lib/couponDates";
 
 interface CouponForm {
   code: string;
@@ -104,18 +110,7 @@ const STATUS_BADGES: Record<CouponLifecycleStatus, { label: string; className: s
   archived: { label: "Archived", className: "bg-gray-200 text-gray-700" },
 };
 
-/** date → ms at start of day (for validity windows). */
-const startOfDay = (value: string): number => {
-  const ms = new Date(`${value}T00:00:00`).getTime();
-  return Number.isFinite(ms) ? ms : 0;
-};
-/** date → ms at end of day, so "valid till 31 Oct" really includes the 31st. */
-const endOfDay = (value: string): number => {
-  const ms = new Date(`${value}T23:59:59`).getTime();
-  return Number.isFinite(ms) ? ms : 0;
-};
-const toDateInput = (ms: number | null | undefined): string =>
-  ms ? new Date(ms).toISOString().split("T")[0] : "";
+
 
 const PERIODS = [
   { label: "All time", days: 0 },
@@ -240,8 +235,8 @@ export default function AdminCoupons() {
       toast.error("Flat discount must be greater than ₹0");
       return;
     }
-    if (form.startsAt && form.startsAt >= form.expiresAt) {
-      toast.error("Start date must be before the expiry date");
+    if (form.expiresAt && endDateBeforeStart(form.startsAt, form.expiresAt)) {
+      toast.error("Expiry date cannot be earlier than the start date");
       return;
     }
     if (form.publicationStatus === "scheduled" && !form.startsAt) {
@@ -651,11 +646,13 @@ export default function AdminCoupons() {
                 <Label>Start Date</Label>
                 <Input
                   type="date"
-                  value={toDateInput(form.startsAt)}
+                  value={toDateInputValue(form.startsAt)}
                   onChange={(e) =>
                     setForm({
                       ...form,
-                      startsAt: e.target.value ? startOfDay(e.target.value) : null,
+                      startsAt: e.target.value
+                        ? startOfDayFromInput(e.target.value)
+                        : null,
                     })
                   }
                 />
@@ -664,9 +661,12 @@ export default function AdminCoupons() {
                 <Label>Expires At</Label>
                 <Input
                   type="date"
-                  value={toDateInput(form.expiresAt)}
+                  value={toDateInputValue(form.expiresAt)}
+                  min={toDateInputValue(form.startsAt) || undefined}
                   onChange={(e) => {
-                    if (e.target.value) setForm({ ...form, expiresAt: endOfDay(e.target.value) });
+                    if (e.target.value) {
+                      setForm({ ...form, expiresAt: endOfDayFromInput(e.target.value) });
+                    }
                   }}
                 />
               </div>
