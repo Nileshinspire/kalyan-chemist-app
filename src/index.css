@@ -271,8 +271,41 @@ button, a, [role="button"], [role="link"], select, input[type="submit"], input[t
  * where the rows are controlled by their existing responsive utilities.
  */
 @media (max-width: 767.98px) {
-  header[data-kc-scrolled="true"]:not([data-kc-home="true"]) .kc-collapse-on-scroll {
-    display: none;
+  /*
+   * The rows are ALWAYS in the DOM. Collapsing animates their height instead
+   * of toggling `display`, so the sticky header never inserts/removes layout
+   * abruptly and the page underneath does not jump between frames.
+   */
+  .kc-collapse-on-scroll,
+  .kc-home-search {
+    max-height: 140px;
+    overflow: hidden;
+    transition:
+      max-height 280ms cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 200ms ease;
+    opacity: 1;
+  }
+
+  header[data-kc-scrolled="true"]:not([data-kc-home="true"])
+    .kc-collapse-on-scroll {
+    max-height: 0;
+    opacity: 0;
+    pointer-events: none;
+    border-bottom-width: 0;
+  }
+
+  /* Homepage: the hero owns the search at rest; this row expands in lockstep
+     with the same scroll state instead of mounting mid-scroll. */
+  .kc-home-search {
+    max-height: 0;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  header[data-kc-home="true"][data-kc-scrolled="true"] .kc-home-search {
+    max-height: 140px;
+    opacity: 1;
+    pointer-events: auto;
   }
 }
 

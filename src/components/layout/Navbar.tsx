@@ -89,20 +89,27 @@ const Navbar = memo(function Navbar() {
   const [searchFocused, setSearchFocused] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
-  // Track scroll for navbar background enhancement. The listener is throttled to
-  // one read per animation frame: a raw scroll handler runs on every event the
-  // browser emits (often several per frame) and each `setScrolled` re-renders
-  // the entire header stack. The value is a boolean, so it only re-renders when
-  // the customer actually crosses the 10px threshold.
+  // Track scroll for the navbar background and the mobile compact header.
+  //
+  // Two details keep this stable:
+  //  • one read per animation frame (scroll fires several times per frame and
+  //    every state change re-renders the whole header stack); and
+  //  • hysteresis — collapse after 96px, expand again only below 48px. A
+  //    single 10px threshold made the header flip back and forth while a
+  //    finger rested near the top or with momentum scrolling, which is what
+  //    produced the flicker. The gap means a change has to be unambiguous.
   useEffect(() => {
     let frame = 0;
+    const read = () => {
+      frame = 0;
+      const y = window.scrollY;
+      setScrolled((previous) => (previous ? y > 48 : y > 96));
+    };
     const handleScroll = () => {
       if (frame) return;
-      frame = window.requestAnimationFrame(() => {
-        frame = 0;
-        setScrolled(window.scrollY > 10);
-      });
+      frame = window.requestAnimationFrame(read);
     };
+    read();
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => {
       if (frame) window.cancelAnimationFrame(frame);
@@ -603,13 +610,21 @@ const Navbar = memo(function Navbar() {
           hero owns the rest-state search, so this row joins it on scroll (the
           same `scrolled` state already tracked above) to keep search reachable
           while scrolling. */}
-      {(!isHomePage || scrolled) && (
-        <form
-          onSubmit={handleSearch}
-          role="search"
-          aria-label="Search medicines"
-          className="kc-collapse-on-scroll md:hidden mx-auto max-w-7xl px-4 sm:px-6 pb-2.5 sm:pb-3"
-        >
+      {/* Always mounted, so scrolling never inserts/removes a row. On inner
+          pages the row is visible at rest and tucks away (animated) once the
+          header is well past the top; on the homepage it mirrors the hero
+          search and expands only after the same unambiguous threshold. */}
+      <form
+        onSubmit={handleSearch}
+        role="search"
+        aria-label="Search medicines"
+        className={`${
+          isHomePage ? "kc-home-search" : "kc-collapse-on-scroll"
+        } md:hidden mx-auto max-w-7xl`}
+      >
+        {/* Padding lives on the inner wrapper so a collapsed row has zero
+            height — the form itself can then animate fully to 0. */}
+        <div className="px-4 sm:px-6 pb-2.5 sm:pb-3">
           <div className="relative w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
             <Input
@@ -619,8 +634,8 @@ const Navbar = memo(function Navbar() {
               className="pl-9 h-10 rounded-xl bg-muted/40 border-border/40 hover:border-border/70"
             />
           </div>
-        </form>
-      )}
+        </div>
+      </form>
 
       {/* ═══════════════════════════════════════════════════════
           GLOBAL CATEGORY NAVIGATION BAR
