@@ -259,10 +259,10 @@ export const publicOffers = query({
  *
  * Guest customers see the first live homepage coupon. For a signed-in
  * customer the SAME eligibility rules the checkout enforces are applied:
- * a coupon they have already redeemed successfully (a consumed redemption) is
- * skipped, as are first-order-only coupons after their first order and
- * coupons whose per-customer limit is used up. The next eligible coupon is
- * returned instead — or null, which hides the bar entirely.
+ * a coupon they have already redeemed on a placed order (any redemption that
+ * is not released — COD holds stay active until delivery) is skipped, as are
+ * first-order-only coupons after their first order. The next eligible coupon
+ * is returned instead — or null, which hides the bar entirely.
  */
 export const homepageBanner = query({
   args: {},
@@ -292,13 +292,33 @@ export const homepageBanner = query({
         )
         .collect();
 
-      // A successful order consumes the redemption — that customer has used
-      // this coupon, so the banner moves on (or disappears).
-      if (rows.some((row) => row.status === "consumed")) continue;
-
-      const perUserLimit = coupon.perUserLimit ?? 0;
-      const counted = rows.filter((row) => row.status !== "released").length;
-      if (perUserLimit > 0 && counted >= perUserLimit) continue;
+      // Has this customer already used the coupon on a successfully placed
+      // order?
+      //  • `consumed` — online payment verified (or a completed order).
+      //  • `active` — a hold; COD orders stay active until delivery because
+      //    there is no online step to consume them, so they count as soon as
+      //    the order is placed. A still-pending ONLINE payment does not count,
+      //    which is why the order itself is checked instead of blanket-hiding
+      //    on any non-released row. Failed payments / cancellations release
+      //    the row and the coupon returns through the existing lifecycle.
+      let used = false;
+      for (const row of rows) {
+        if (row.status === "released") continue;
+        if (row.status === "consumed") {
+          used = true;
+          break;
+        }
+        const order = await ctx.db.get(row.orderId);
+        if (!order) continue;
+        if (order.status === "cancelled" || order.paymentStatus === "failed") {
+          continue;
+        }
+        if (order.paymentMethod === "cod" || order.paymentStatus === "paid") {
+          used = true;
+          break;
+        }
+      }
+      if (used) continue;
 
       return { offer: toPublicOffer(coupon) };
     }
