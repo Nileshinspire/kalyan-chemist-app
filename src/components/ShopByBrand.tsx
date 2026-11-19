@@ -164,7 +164,10 @@ export default function ShopByBrand() {
               title={brand.description ?? brand.name}
               className="group flex w-[46vw] max-w-[200px] shrink-0 grow-0 snap-start flex-col items-center gap-2.5 rounded-2xl border border-border/70 bg-card px-3 py-5 transition-all duration-300 hover:border-primary/30 hover:shadow-glow active:scale-[0.97] sm:w-[150px] sm:max-w-none md:w-[168px] lg:w-[190px]"
             >
-              <span className="flex h-20 w-full items-center justify-center rounded-xl border border-border/50 bg-white p-2.5 sm:h-24">
+              {/* Phones: a larger equal-sized circular light-grey tile, matching
+                  the reference. From `sm` up the original rectangular plate is
+                  unchanged. Logos keep object-contain so nothing is stretched. */}
+              <span className="flex size-24 items-center justify-center rounded-full border border-border/40 bg-muted/60 p-4 sm:h-24 sm:w-full sm:rounded-xl sm:border-border/50 sm:bg-white sm:p-2.5">
                 <BrandLogo src={brand.logoUrl} name={brand.name} />
               </span>
               <span className="line-clamp-2 text-center text-[13px] font-medium leading-snug text-foreground">

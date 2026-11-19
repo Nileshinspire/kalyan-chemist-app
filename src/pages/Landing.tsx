@@ -28,6 +28,7 @@ import ProductCard from "@/components/ProductCard";
 import HowItWorks from "@/components/HowItWorks";
 import PromotionalCarousel from "@/components/PromotionalCarousel";
 import CouponOffersSection from "@/components/CouponOffersSection";
+import MobileCouponBar from "@/components/MobileCouponBar";
 import WhyKalyanChemist from "@/components/WhyKalyanChemist";
 import ShopByBrand from "@/components/ShopByBrand";
 import { useQuery, useMutation } from "convex/react";
@@ -340,8 +341,12 @@ export default function Landing() {
       {/* ── Promotional Campaign Carousel ── */}
       <PromotionalCarousel />
 
-      {/* ── Offers & Coupons (admin-controlled visibility) ── */}
-      <CouponOffersSection />
+      {/* ── Offers & Coupons (admin-controlled visibility) ──
+          Phones use the fixed bottom coupon bar instead; the section is the
+          desktop/tablet presentation and is unchanged. */}
+      <div className="hidden md:block">
+        <CouponOffersSection />
+      </div>
 
       {/* ── Browse by Health Conditions ── */}
       <HealthConditions />
@@ -521,6 +526,9 @@ export default function Landing() {
       {/* Uses the shared footer system so every route shows the same
           navigation, contact details, policies and trust information. */}
       <Footer />
+
+      {/* Mobile-only fixed coupon bar (sits above the bottom navigation) */}
+      <MobileCouponBar />
 
       {/* Floating WhatsApp Button */}
       <WhatsAppFloat />
