@@ -27,6 +27,7 @@ import MinimumDiscount from "@/components/MinimumDiscount";
 import ProductCard from "@/components/ProductCard";
 import HowItWorks from "@/components/HowItWorks";
 import PromotionalCarousel from "@/components/PromotionalCarousel";
+import CouponOffersSection from "@/components/CouponOffersSection";
 import WhyKalyanChemist from "@/components/WhyKalyanChemist";
 import ShopByBrand from "@/components/ShopByBrand";
 import { useQuery, useMutation } from "convex/react";
@@ -338,6 +339,9 @@ export default function Landing() {
 
       {/* ── Promotional Campaign Carousel ── */}
       <PromotionalCarousel />
+
+      {/* ── Offers & Coupons (admin-controlled visibility) ── */}
+      <CouponOffersSection />
 
       {/* ── Browse by Health Conditions ── */}
       <HealthConditions />

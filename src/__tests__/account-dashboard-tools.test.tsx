@@ -69,6 +69,7 @@ describe("customer dashboard care tools", () => {
       "My Appointments",
       "Medicine Refill",
       "Pill Reminders",
+      "My Coupons",
       "Wishlist",
       "Notifications",
       "Help & Support",
@@ -77,7 +78,7 @@ describe("customer dashboard care tools", () => {
     // Mobile options render before the (desktop-only) quick links, so the
     // first match for each label is the option card in the new list.
     const nodes = options.map((label) => screen.getAllByText(label)[0]);
-    expect(nodes).toHaveLength(13);
+    expect(nodes).toHaveLength(14);
 
     const wallet = screen.getByText("Wallet and refer");
     // Every option sits above the untouched Wallet & Refer section.

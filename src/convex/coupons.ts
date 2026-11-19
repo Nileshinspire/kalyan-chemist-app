@@ -178,8 +178,189 @@ export const listAvailable = query({
   },
 });
 
+// ── Customer-facing offer surfaces ──
+// One sanitized shape re-used by the homepage section, the dedicated Offers
+// page, product pages and My Coupons. No internal fields are exposed and no
+// discount is calculated here — checkout still validates everything.
+export interface PublicCouponOffer {
+  couponId: string;
+  code: string;
+  name?: string;
+  description?: string;
+  discountType: "percentage" | "fixed" | "free_delivery";
+  discountPercent: number;
+  fixedDiscount: number;
+  maxDiscount: number;
+  minOrder: number;
+  startsAt?: number;
+  expiresAt: number;
+  firstOrderOnly: boolean;
+  perUserLimit?: number;
+  eligibleCategoryIds: string[];
+  offerText: string;
+}
+
+function toPublicOffer(coupon: any): PublicCouponOffer {
+  return {
+    couponId: coupon._id,
+    code: coupon.code,
+    name: coupon.name,
+    description: coupon.description,
+    discountType: coupon.discountType,
+    discountPercent: coupon.discountPercent,
+    fixedDiscount: coupon.fixedDiscount,
+    maxDiscount: coupon.maxDiscount,
+    minOrder: coupon.minOrder,
+    startsAt: coupon.startsAt,
+    expiresAt: coupon.expiresAt,
+    firstOrderOnly: !!coupon.firstOrderOnly,
+    perUserLimit: coupon.perUserLimit,
+    eligibleCategoryIds: (coupon.eligibleCategoryIds ?? []).map(String),
+    offerText: describeOffer(coupon),
+  };
+}
+
+/**
+ * Coupons customers may see in a placement. Only currently active coupons
+ * with the matching admin visibility switch are returned; draft, scheduled,
+ * deactivated, expired, exhausted and archived coupons never are.
+ */
+export const publicOffers = query({
+  args: {
+    placement: v.optional(v.union(v.literal("homepage"), v.literal("all"))),
+    limit: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const placement = args.placement ?? "all";
+    const limit = Math.min(Math.max(args.limit ?? 50, 1), 100);
+    const now = Date.now();
+
+    const coupons = await ctx.db.query("coupons").collect();
+    const offers = coupons
+      .filter((coupon) => couponStatus(coupon, now) === "active")
+      .filter((coupon) => {
+        if (placement === "homepage") return coupon.showOnHomepage === true;
+        return (
+          coupon.showOnHomepage === true ||
+          coupon.showOnProductPages === true ||
+          coupon.showInMyCoupons === true
+        );
+      })
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .slice(0, limit)
+      .map(toPublicOffer);
+
+    return { offers };
+  },
+});
+
+/**
+ * Coupons relevant to one product, for the small offer hint beside the price.
+ * Applies the same category eligibility the checkout enforces.
+ */
+export const productOffers = query({
+  args: { productId: v.id("products"), limit: v.optional(v.number()) },
+  handler: async (ctx, args) => {
+    const product = await ctx.db.get(args.productId);
+    if (!product || !product.isActive) return { offers: [] };
+
+    const limit = Math.min(Math.max(args.limit ?? 3, 1), 10);
+    const now = Date.now();
+    const coupons = await ctx.db.query("coupons").collect();
+
+    const offers = coupons
+      .filter((coupon) => couponStatus(coupon, now) === "active")
+      .filter((coupon) => coupon.showOnProductPages === true)
+      .filter((coupon) => {
+        const ids = (coupon.eligibleCategoryIds ?? []).map(String);
+        if (ids.length === 0) return true;
+        return !!product.categoryId && ids.includes(String(product.categoryId));
+      })
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .slice(0, limit)
+      .map(toPublicOffer);
+
+    return { offers };
+  },
+});
+
+/**
+ * My Coupons — available / used / expired for the signed-in customer.
+ * Availability honours first-order-only, per-customer limits and exhausted
+ * global usage on the backend, so a coupon can never look available here and
+ * still fail at checkout for eligibility reasons.
+ */
+export const myCoupons = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) {
+      return { signInRequired: true, available: [], used: [], expired: [] };
+    }
+
+    const now = Date.now();
+    const [coupons, isFirstOrder] = await Promise.all([
+      ctx.db.query("coupons").collect(),
+      isFirstOrderCustomer(ctx, userId),
+    ]);
+
+    const available: (PublicCouponOffer & { userRedemptions: number })[] = [];
+    const used: (PublicCouponOffer & { usedAt: number })[] = [];
+    const expired: PublicCouponOffer[] = [];
+
+    for (const coupon of coupons) {
+      if (coupon.showInMyCoupons !== true) continue;
+
+      const rows = await ctx.db
+        .query("coupon_redemptions")
+        .withIndex("by_user_coupon", (q) =>
+          q.eq("userId", userId).eq("couponId", coupon._id)
+        )
+        .collect();
+      const consumed = rows.filter((row) => row.status === "consumed");
+      const counted = rows.filter((row) => row.status !== "released");
+      const status = couponStatus(coupon, now);
+
+      if (consumed.length > 0) {
+        used.push({
+          ...toPublicOffer(coupon),
+          usedAt: Math.max(...consumed.map((row) => row.updatedAt)),
+        });
+        continue;
+      }
+
+      if (status === "expired") {
+        expired.push(toPublicOffer(coupon));
+        continue;
+      }
+
+      // Draft, deactivated, archived or fully used coupons are not shown.
+      if (status !== "active") continue;
+
+      const perUserLimit = coupon.perUserLimit ?? 0;
+      const limitReached =
+        perUserLimit > 0 && counted.length >= perUserLimit;
+      if (limitReached) {
+        used.push({
+          ...toPublicOffer(coupon),
+          usedAt: Math.max(...rows.map((row) => row.updatedAt)),
+        });
+        continue;
+      }
+
+      if (coupon.firstOrderOnly && !isFirstOrder) continue;
+
+      available.push({ ...toPublicOffer(coupon), userRedemptions: counted.length });
+    }
+
+    return { signInRequired: false, available, used, expired };
+  },
+});
+
 function statusReason(status: ReturnType<typeof couponStatus>): string {
   switch (status) {
+    case "draft":
+      return "This coupon is not available yet";
     case "scheduled":
       return "This coupon is not active yet";
     case "expired":

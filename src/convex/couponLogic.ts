@@ -37,9 +37,22 @@ export interface CouponRecord {
   firstOrderOnly?: boolean;
   eligibleCategoryIds?: string[];
   archived?: boolean;
+  /** Admin publication state. Undefined on legacy rows (derive from isActive). */
+  publicationStatus?: CouponPublicationStatus;
+  showOnHomepage?: boolean;
+  showOnProductPages?: boolean;
+  showInMyCoupons?: boolean;
+  allowCampaignStacking?: boolean;
 }
 
+export type CouponPublicationStatus =
+  | "draft"
+  | "scheduled"
+  | "active"
+  | "deactivated";
+
 export type CouponLifecycleStatus =
+  | "draft"
   | "active"
   | "scheduled"
   | "expired"
@@ -88,15 +101,33 @@ export function isValidCouponCodeFormat(code: string): boolean {
 }
 
 /** Derived lifecycle status for display / admin filters. */
+/**
+ * Derived lifecycle status.
+ *
+ * The admin's explicit publication state is authoritative; dates, usage and
+ * archiving still apply on top of it, so a "scheduled" coupon becomes active
+ * on its start date without another admin save, and an "active" coupon turns
+ * expired the moment its end date passes. Legacy rows without a publication
+ * state keep the original isActive behaviour.
+ */
 export function couponStatus(
   coupon: Pick<
     CouponRecord,
-    "isActive" | "expiresAt" | "usageLimit" | "usedCount" | "archived" | "startsAt"
+    | "isActive"
+    | "expiresAt"
+    | "usageLimit"
+    | "usedCount"
+    | "archived"
+    | "startsAt"
+    | "publicationStatus"
   >,
   now: number = Date.now()
 ): CouponLifecycleStatus {
   if (coupon.archived) return "archived";
-  if (!coupon.isActive) return "inactive";
+  const publication = coupon.publicationStatus;
+  if (publication === "draft") return "draft";
+  if (publication === "deactivated") return "inactive";
+  if (!publication && !coupon.isActive) return "inactive";
   if (coupon.expiresAt < now) return "expired";
   if (coupon.startsAt && coupon.startsAt > now) return "scheduled";
   if (coupon.usageLimit > 0 && coupon.usedCount >= coupon.usageLimit) return "exhausted";
@@ -185,6 +216,9 @@ export function evaluateCoupon(
 
   if (status === "archived") {
     return invalid("This coupon is no longer active");
+  }
+  if (status === "draft") {
+    return invalid("This coupon is not available yet");
   }
   if (status === "inactive") {
     return invalid("This coupon is no longer active");

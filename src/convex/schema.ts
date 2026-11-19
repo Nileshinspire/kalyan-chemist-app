@@ -796,6 +796,21 @@ const schema = defineSchema(
       eligibleCategoryIds: v.optional(v.array(v.id("categories"))),
       // Archived coupons are hidden from customers and cannot be redeemed.
       archived: v.optional(v.boolean()),
+      // ── Admin publication + customer visibility settings ──
+      // Undefined on legacy rows: their state is derived from `isActive`.
+      publicationStatus: v.optional(
+        v.union(
+          v.literal("draft"),
+          v.literal("scheduled"),
+          v.literal("active"),
+          v.literal("deactivated")
+        )
+      ),
+      showOnHomepage: v.optional(v.boolean()),
+      showOnProductPages: v.optional(v.boolean()),
+      showInMyCoupons: v.optional(v.boolean()),
+      // When false, the coupon cannot be combined with a live campaign offer.
+      allowCampaignStacking: v.optional(v.boolean()),
     })
       .index("by_code", ["code"])
       .index("by_isActive", ["isActive"]),

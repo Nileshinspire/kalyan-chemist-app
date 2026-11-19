@@ -18,6 +18,7 @@ import {
   Stethoscope,
   RefreshCw,
   Headphones,
+  Ticket,
   LogOut,
   type LucideIcon,
 } from "lucide-react";
@@ -34,6 +35,7 @@ const ACCOUNT_OPTIONS = [
   { to: "/account/my-appointments", label: "My Appointments", icon: Stethoscope, description: "Manage doctor appointments" },
   { to: "/account/refill", label: "Medicine Refill", icon: RefreshCw, description: "Reorder your regular medicines" },
   { to: "/account/pill-reminders", label: "Pill Reminders", icon: Pill, description: "Set reminders for your medicines" },
+  { to: "/account/my-coupons", label: "My Coupons", icon: Ticket, description: "Coupons you can use and have used" },
   { to: "/account/wishlist", label: "Wishlist", icon: Heart, description: "Products you saved for later" },
   { to: "/account/notifications", label: "Notifications", icon: Bell, description: "Order updates and offers" },
   { to: "/account/help-support", label: "Help & Support", icon: Headphones, description: "Get help with your account and orders" },
@@ -44,6 +46,7 @@ const QUICK_LINKS = [
   { to: "/account/addresses", label: "Manage Addresses", icon: MapPin, description: "Add or edit delivery addresses" },
   { to: "/account/orders", label: "View Orders", icon: ClipboardList, description: "Track your recent orders" },
   { to: "/account/prescriptions", label: "My Prescriptions", icon: Pill, description: "Track, view and download prescriptions" },
+  { to: "/account/my-coupons", label: "My Coupons", icon: Ticket, description: "Coupons you can use and have used" },
   { to: "/account/wishlist", label: "Wishlist", icon: Heart, description: "Products you saved for later" },
   { to: "/account/notifications", label: "Notifications", icon: Bell, description: "Order updates and offers" },
 ];

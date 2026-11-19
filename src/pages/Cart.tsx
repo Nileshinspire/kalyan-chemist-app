@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { beginProductTransition } from "@/lib/product-transition";
 import { useAuth } from "@/context/AuthContext";
@@ -9,6 +9,7 @@ import Footer from "@/components/layout/Footer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -89,6 +90,32 @@ export default function Cart() {
     api.coupons.listAvailable,
     subtotal > 0 ? { subtotal, deliveryFee, items: couponItems, limit: 3 } : "skip"
   );
+
+  // ── Coupon applied directly in the cart ──
+  // The server evaluates the code against this exact cart; nothing is
+  // trusted locally, and checkout re-validates again before the order.
+  const [appliedCode, setAppliedCode] = useState<string | null>(null);
+  const [couponInput, setCouponInput] = useState("");
+  const previewCode =
+    appliedCode ??
+    (couponInput.trim().length >= 3 ? couponInput.trim().toUpperCase() : null);
+  const couponValidation = useQuery(
+    api.coupons.computeDiscount,
+    previewCode && subtotal > 0
+      ? { code: previewCode, subtotal, deliveryFee, items: couponItems }
+      : "skip"
+  );
+
+  const appliedCoupon =
+    appliedCode && couponValidation?.valid && couponValidation.code === appliedCode
+      ? couponValidation
+      : null;
+  const couponDiscount = appliedCoupon?.discount ?? 0;
+  const couponDeliveryWaived = appliedCoupon?.deliveryWaived ?? 0;
+  const effectiveDeliveryFee = Math.max(0, deliveryFee - couponDeliveryWaived);
+  const cartTotal = Math.max(0, subtotal - couponDiscount) + effectiveDeliveryFee;
+  const totalSavings =
+    savings + couponDiscount + couponDeliveryWaived;
 
   const handleUpdateQuantity = async (cartItemId: string, newQty: number) => {
     try {
@@ -193,9 +220,29 @@ export default function Cart() {
 
   // Cart with items
   const handleApplyOffer = (code: string) => {
-    // The coupon is applied on the checkout screen (where the order is
-    // finally priced), carrying the explicit customer choice across.
-    navigate(`/checkout?coupon=${encodeURIComponent(code)}`);
+    setAppliedCode(code);
+    setCouponInput("");
+    toast.success(`Coupon ${code} selected`);
+  };
+
+  const handleApplyCouponInput = () => {
+    const code = couponInput.trim().toUpperCase();
+    if (!code) {
+      toast.error("Please enter a coupon code");
+      return;
+    }
+    if (couponValidation?.valid && couponValidation.code === code) {
+      setAppliedCode(code);
+      setCouponInput("");
+      toast.success(couponValidation.message || "Coupon applied");
+    } else if (couponValidation && !couponValidation.valid) {
+      toast.error(couponValidation.reason || "Invalid coupon");
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCode(null);
+    setCouponInput("");
   };
 
   const eligibleOffers = (offers?.offers ?? []).filter((offer) => offer.valid);
@@ -362,16 +409,33 @@ export default function Cart() {
                         <span className="font-medium">-{formatCurrency(savings)}</span>
                       </div>
                     )}
+                    {appliedCoupon && (
+                      <div className="flex justify-between text-green-600">
+                        <span className="flex items-center gap-1 min-w-0">
+                          <Tag className="size-3 shrink-0" />
+                          <span className="truncate">{appliedCoupon.code}</span>
+                        </span>
+                        <span className="font-medium">
+                          -{formatCurrency(couponDiscount + couponDeliveryWaived)}
+                        </span>
+                      </div>
+                    )}
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Delivery</span>
-                      <span className={`font-medium ${deliveryFee === 0 ? "text-green-600" : ""}`}>
-                        {deliveryFee === 0 ? "Free" : formatCurrency(deliveryFee)}
+                      <span className={`font-medium ${effectiveDeliveryFee === 0 ? "text-green-600" : ""}`}>
+                        {effectiveDeliveryFee === 0 ? "Free" : formatCurrency(effectiveDeliveryFee)}
                       </span>
                     </div>
                     <div className="border-t border-border/60 pt-3 flex justify-between">
                       <span className="font-bold">Total</span>
-                      <span className="font-extrabold text-lg">{formatCurrency(subtotal + deliveryFee)}</span>
+                      <span className="font-extrabold text-lg">{formatCurrency(cartTotal)}</span>
                     </div>
+                    {totalSavings > 0 && (
+                      <div className="flex justify-between text-xs text-green-600">
+                        <span>Total savings</span>
+                        <span className="font-semibold">{formatCurrency(totalSavings)}</span>
+                      </div>
+                    )}
                   </div>
 
                   {hasPrescriptionItems && (
@@ -381,9 +445,59 @@ export default function Cart() {
                     </div>
                   )}
 
+                  {/* Apply Coupon — manual entry or pick one of the eligible
+                      offers below. The backend validates every code. */}
+                  {appliedCoupon ? (
+                    <div className="flex items-center justify-between p-2 rounded-lg bg-green-50 border border-green-200">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <Tag className="size-3 text-green-600 shrink-0" />
+                        <span className="text-xs font-semibold text-green-800">{appliedCoupon.code}</span>
+                        <span className="text-[10px] text-green-700 truncate">
+                          applied · saves {"₹"}{couponDiscount + couponDeliveryWaived}
+                        </span>
+                      </div>
+                      <button
+                        onClick={handleRemoveCoupon}
+                        aria-label="Remove coupon"
+                        className="text-green-600 hover:text-green-800 shrink-0"
+                      >
+                        <Trash2 className="size-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Coupon code"
+                          value={couponInput}
+                          onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                          onKeyDown={(e) => e.key === "Enter" && handleApplyCouponInput()}
+                          className="flex-1 h-9 text-xs uppercase"
+                          aria-label="Coupon code"
+                        />
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-9 text-xs"
+                          onClick={handleApplyCouponInput}
+                          disabled={!couponInput.trim()}
+                        >
+                          Apply
+                        </Button>
+                      </div>
+                      {couponInput.trim().length >= 3 &&
+                        couponValidation &&
+                        !couponValidation.valid && (
+                          <p className="text-[10px] text-amber-700">
+                            {couponValidation.reason}
+                          </p>
+                        )}
+                    </div>
+                  )}
+
                   {/* Available offers for this cart — copy the code or apply
-                      it directly at checkout. Only coupons this customer and
-                      cart can actually use are listed. */}
+                      it directly. Only coupons this customer and cart can
+                      actually use are listed. */}
                   {eligibleOffers.length > 0 && (
                     <div className="space-y-2">
                       <p className="text-xs font-semibold flex items-center gap-1.5">
@@ -440,7 +554,13 @@ export default function Cart() {
 
                   <Button
                     className="w-full h-12 text-sm font-semibold gradient-primary text-white shadow-glow rounded-xl"
-                    onClick={() => navigate("/checkout")}
+                    onClick={() =>
+                      navigate(
+                        appliedCode
+                          ? `/checkout?coupon=${encodeURIComponent(appliedCode)}`
+                          : "/checkout"
+                      )
+                    }
                   >
                     Proceed to Checkout
                     <ArrowRight className="ml-2 size-4" />

@@ -69,6 +69,44 @@ describe("lifecycle status", () => {
     expect(couponStatus(makeCoupon(), NOW)).toBe("active");
   });
 
+  it("honours the admin publication state", () => {
+    expect(couponStatus(makeCoupon({ publicationStatus: "draft" }), NOW)).toBe("draft");
+    expect(
+      couponStatus(makeCoupon({ publicationStatus: "deactivated" }), NOW)
+    ).toBe("inactive");
+    expect(
+      couponStatus(
+        makeCoupon({ publicationStatus: "scheduled", startsAt: NOW + DAY }),
+        NOW
+      )
+    ).toBe("scheduled");
+    // A scheduled coupon goes live by itself once the start date passes.
+    expect(
+      couponStatus(
+        makeCoupon({ publicationStatus: "scheduled", startsAt: NOW - DAY }),
+        NOW
+      )
+    ).toBe("active");
+    // Dates still win: an active coupon past its expiry is expired.
+    expect(
+      couponStatus(
+        makeCoupon({ publicationStatus: "active", expiresAt: NOW - 1 }),
+        NOW
+      )
+    ).toBe("expired");
+  });
+
+  it("never evaluates a draft, deactivated or scheduled coupon as valid", () => {
+    for (const publicationStatus of ["draft", "deactivated", "scheduled"] as const) {
+      const evaluation = evaluateCoupon(
+        makeCoupon({ publicationStatus, ...(publicationStatus === "scheduled" ? { startsAt: NOW + DAY } : {}) }),
+        makeCtx()
+      );
+      expect(evaluation.valid).toBe(false);
+      expect(evaluation.discount).toBe(0);
+    }
+  });
+
   it("an exhausted coupon stays exhausted even if the window is open", () => {
     expect(
       couponStatus(

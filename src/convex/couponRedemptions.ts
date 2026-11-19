@@ -78,6 +78,43 @@ export async function countUserRedemptions(
   return rows.filter((row) => row.status !== "released").length;
 }
 
+/**
+ * Returns the title of a live campaign offer that covers this cart, or null.
+ * Only campaigns that are active, inside their date window and actually carry
+ * an offer count; a campaign targeting a category only conflicts when the
+ * cart contains a line from that category.
+ */
+async function findLiveCampaignConflict(
+  ctx: QueryCtx | MutationCtx,
+  items?: { categoryId?: string | null; amount: number }[]
+): Promise<string | null> {
+  const now = Date.now();
+  const campaigns = await ctx.db
+    .query("campaigns")
+    .withIndex("by_active_dates", (q) => q.eq("isActive", true))
+    .collect();
+
+  const cartCategories = new Set(
+    (items ?? [])
+      .map((item) => (item.categoryId ? String(item.categoryId) : ""))
+      .filter(Boolean)
+  );
+
+  const match = campaigns.find((campaign) => {
+    if (!campaign.isActive) return false;
+    if (campaign.startDate > now || campaign.endDate < now) return false;
+    if (!campaign.offerType || campaign.offerType === "none") return false;
+    if (campaign.targetType === "category") {
+      return !!campaign.targetId && cartCategories.has(String(campaign.targetId));
+    }
+    // Store-wide campaigns (and page/product targets with no cart context)
+    // apply across the storefront, so they conflict with the whole cart.
+    return true;
+  });
+
+  return match ? match.title : null;
+}
+
 export interface ResolvedCoupon {
   ok: true;
   coupon: Doc<"coupons">;
@@ -128,6 +165,21 @@ export async function resolveCoupon(
       reason: evaluation.reason || "This coupon cannot be applied",
     };
   }
+
+  // Campaign compatibility is an admin setting on the coupon. Campaigns are
+  // the existing homepage carousel records; when one carries a live offer
+  // (offerType / offerValue) and covers the cart, a coupon that is not
+  // combinable is refused rather than silently stacked.
+  if (coupon.allowCampaignStacking === false) {
+    const conflict = await findLiveCampaignConflict(ctx, args.items);
+    if (conflict) {
+      return {
+        ok: false,
+        reason: `This coupon cannot be combined with the current ${conflict} offer`,
+      };
+    }
+  }
+
   return { ok: true, coupon, evaluation };
 }
 

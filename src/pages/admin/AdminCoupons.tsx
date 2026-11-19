@@ -28,6 +28,7 @@ import {
   ChevronDown,
   ChevronUp,
   BarChart3,
+  Eye,
 } from "lucide-react";
 import { toast } from "sonner";
 import { couponStatus, type CouponLifecycleStatus } from "@/convex/couponLogic";
@@ -48,6 +49,11 @@ interface CouponForm {
   perUserLimit: number;
   firstOrderOnly: boolean;
   eligibleCategoryIds: string[];
+  publicationStatus: "draft" | "scheduled" | "active" | "deactivated";
+  showOnHomepage: boolean;
+  showOnProductPages: boolean;
+  showInMyCoupons: boolean;
+  allowCampaignStacking: boolean;
 }
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -68,6 +74,11 @@ const EMPTY_FORM: CouponForm = {
   perUserLimit: 0,
   firstOrderOnly: false,
   eligibleCategoryIds: [],
+  publicationStatus: "active",
+  showOnHomepage: true,
+  showOnProductPages: false,
+  showInMyCoupons: true,
+  allowCampaignStacking: true,
 };
 
 type StatusFilter = "all" | CouponLifecycleStatus;
@@ -76,18 +87,20 @@ const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
   { key: "all", label: "All" },
   { key: "active", label: "Active" },
   { key: "scheduled", label: "Scheduled" },
+  { key: "draft", label: "Draft" },
   { key: "expired", label: "Expired" },
   { key: "exhausted", label: "Exhausted" },
-  { key: "inactive", label: "Inactive" },
+  { key: "inactive", label: "Deactivated" },
   { key: "archived", label: "Archived" },
 ];
 
 const STATUS_BADGES: Record<CouponLifecycleStatus, { label: string; className: string }> = {
   active: { label: "Active", className: "bg-green-100 text-green-800" },
   scheduled: { label: "Scheduled", className: "bg-blue-100 text-blue-800" },
+  draft: { label: "Draft", className: "bg-slate-100 text-slate-700" },
   expired: { label: "Expired", className: "bg-red-100 text-red-800" },
   exhausted: { label: "Exhausted", className: "bg-orange-100 text-orange-800" },
-  inactive: { label: "Inactive", className: "bg-gray-100 text-gray-800" },
+  inactive: { label: "Deactivated", className: "bg-gray-100 text-gray-800" },
   archived: { label: "Archived", className: "bg-gray-200 text-gray-700" },
 };
 
@@ -121,8 +134,13 @@ export default function AdminCoupons() {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleteDialog, setDeleteDialog] = useState<{ id: string; code: string } | null>(null);
+  const [viewId, setViewId] = useState<string | null>(null);
 
   const coupons = useQuery(api.admin.listCoupons);
+  const viewedCoupon = useQuery(
+    api.admin.couponDetails,
+    viewId ? { couponId: viewId as any } : "skip"
+  );
   const categories = useQuery(api.admin.listCategories);
   const analytics = useQuery(
     api.admin.couponAnalytics,
@@ -166,6 +184,13 @@ export default function AdminCoupons() {
       perUserLimit: coupon.perUserLimit ?? 0,
       firstOrderOnly: !!coupon.firstOrderOnly,
       eligibleCategoryIds: coupon.eligibleCategoryIds ?? [],
+      publicationStatus:
+        coupon.publicationStatus ??
+        (coupon.isActive ? "active" : "deactivated"),
+      showOnHomepage: coupon.showOnHomepage ?? false,
+      showOnProductPages: coupon.showOnProductPages ?? false,
+      showInMyCoupons: coupon.showInMyCoupons ?? false,
+      allowCampaignStacking: coupon.allowCampaignStacking ?? true,
     });
     setShowAdvanced(
       !!coupon.firstOrderOnly ||
@@ -184,7 +209,9 @@ export default function AdminCoupons() {
     maxDiscount: form.maxDiscount,
     minOrder: form.minOrder,
     usageLimit: form.usageLimit,
-    isActive: form.isActive,
+    isActive:
+      form.publicationStatus === "active" ||
+      form.publicationStatus === "scheduled",
     expiresAt: form.expiresAt,
     name: form.name,
     description: form.description,
@@ -192,6 +219,11 @@ export default function AdminCoupons() {
     perUserLimit: form.perUserLimit,
     firstOrderOnly: form.firstOrderOnly,
     eligibleCategoryIds: form.eligibleCategoryIds as any,
+    publicationStatus: form.publicationStatus,
+    showOnHomepage: form.showOnHomepage,
+    showOnProductPages: form.showOnProductPages,
+    showInMyCoupons: form.showInMyCoupons,
+    allowCampaignStacking: form.allowCampaignStacking,
     ...(archived !== undefined ? { archived } : {}),
   });
 
@@ -210,6 +242,10 @@ export default function AdminCoupons() {
     }
     if (form.startsAt && form.startsAt >= form.expiresAt) {
       toast.error("Start date must be before the expiry date");
+      return;
+    }
+    if (form.publicationStatus === "scheduled" && !form.startsAt) {
+      toast.error("A scheduled coupon needs a start date");
       return;
     }
 
@@ -232,7 +268,11 @@ export default function AdminCoupons() {
     try {
       await upsertCoupon({
         id: coupon._id,
-        ...buildPayloadForExisting(coupon, !coupon.isActive),
+        ...buildPayloadForExisting(
+          coupon,
+          !coupon.isActive,
+          coupon.isActive ? "deactivated" : "active"
+        ),
       });
       toast.success(
         coupon.isActive ? `${coupon.code} deactivated` : `${coupon.code} activated`
@@ -411,6 +451,9 @@ export default function AdminCoupons() {
                       <div className="flex flex-col items-end gap-2 shrink-0">
                         <Badge className={`text-[10px] ${badge.className}`}>{badge.label}</Badge>
                         <div className="flex items-center gap-2">
+                          <Button variant="outline" size="sm" className="text-[10px] gap-1" onClick={() => setViewId(coupon._id)}>
+                            <Eye className="size-3" /> View
+                          </Button>
                           <Button variant="outline" size="sm" className="text-[10px] gap-1" onClick={() => openEdit(coupon)}>
                             <Pencil className="size-3" /> Edit
                           </Button>
@@ -628,15 +671,91 @@ export default function AdminCoupons() {
                 />
               </div>
             </div>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={form.isActive}
-                onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
-                className="size-4 rounded border-gray-300"
-              />
-              <span className="text-sm text-foreground">Active</span>
-            </label>
+            <div className="space-y-1.5">
+              <Label>Coupon Status</Label>
+              <select
+                value={form.publicationStatus}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    publicationStatus: e.target.value as CouponForm["publicationStatus"],
+                  })
+                }
+                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
+              >
+                <option value="draft">Draft</option>
+                <option value="scheduled">Scheduled</option>
+                <option value="active">Active</option>
+                <option value="deactivated">Deactivated</option>
+              </select>
+              <p className="text-[10px] text-muted-foreground">
+                Draft, scheduled (before its start date), deactivated and expired coupons cannot be
+                redeemed. Scheduled coupons go live automatically on the start date.
+              </p>
+            </div>
+
+            {/* Customer visibility — each placement is independent. */}
+            <div className="space-y-2 rounded-lg border border-border/60 p-3">
+              <p className="text-sm font-medium text-foreground">Customer visibility</p>
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.showOnHomepage}
+                  onChange={(e) => setForm({ ...form, showOnHomepage: e.target.checked })}
+                  className="size-4 mt-0.5 rounded border-gray-300"
+                />
+                <span className="text-sm text-foreground">
+                  Show on homepage Offers &amp; Coupons
+                  <span className="block text-[10px] text-muted-foreground">
+                    Appears in the homepage section and on the dedicated Offers page.
+                  </span>
+                </span>
+              </label>
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.showOnProductPages}
+                  onChange={(e) => setForm({ ...form, showOnProductPages: e.target.checked })}
+                  className="size-4 mt-0.5 rounded border-gray-300"
+                />
+                <span className="text-sm text-foreground">
+                  Show on eligible product pages
+                  <span className="block text-[10px] text-muted-foreground">
+                    Only products in the coupon's eligible categories.
+                  </span>
+                </span>
+              </label>
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.showInMyCoupons}
+                  onChange={(e) => setForm({ ...form, showInMyCoupons: e.target.checked })}
+                  className="size-4 mt-0.5 rounded border-gray-300"
+                />
+                <span className="text-sm text-foreground">
+                  Show in customer My Coupons
+                  <span className="block text-[10px] text-muted-foreground">
+                    Only customers who are eligible see it as available.
+                  </span>
+                </span>
+              </label>
+              <label className="flex items-start gap-2 cursor-pointer border-t border-border/60 pt-2">
+                <input
+                  type="checkbox"
+                  checked={form.allowCampaignStacking}
+                  onChange={(e) =>
+                    setForm({ ...form, allowCampaignStacking: e.target.checked })
+                  }
+                  className="size-4 mt-0.5 rounded border-gray-300"
+                />
+                <span className="text-sm text-foreground">
+                  Allow combination with campaign discounts
+                  <span className="block text-[10px] text-muted-foreground">
+                    When off, the coupon cannot be used while a live campaign offer covers the cart.
+                  </span>
+                </span>
+              </label>
+            </div>
 
             {/* Advanced eligibility — optional, collapsed by default so
                 creating a simple coupon stays a 10-second job. */}
@@ -750,6 +869,173 @@ export default function AdminCoupons() {
         </DialogContent>
       </Dialog>
 
+      {/* Coupon Details + Analytics — real stored values only */}
+      <Dialog open={!!viewId} onOpenChange={(open) => !open && setViewId(null)}>
+        <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 font-mono">
+              <Ticket className="size-4 text-primary" />
+              {viewedCoupon?.coupon?.code ?? "Coupon details"}
+            </DialogTitle>
+            <DialogDescription>
+              {viewedCoupon?.coupon?.name || "Redemption and usage analytics"}
+            </DialogDescription>
+          </DialogHeader>
+
+          {!viewedCoupon ? (
+            <div className="flex items-center justify-center py-10">
+              <Loader2 className="size-5 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <div className="space-y-4 py-1">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Status</span>
+                <Badge className={`text-[10px] ${STATUS_BADGES[viewedCoupon.status].className}`}>
+                  {STATUS_BADGES[viewedCoupon.status].label}
+                </Badge>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div className="rounded-lg bg-muted/40 p-2.5">
+                  <p className="text-muted-foreground">Total redemptions</p>
+                  <p className="text-base font-semibold">{viewedCoupon.analytics.totalRedemptions}</p>
+                </div>
+                <div className="rounded-lg bg-muted/40 p-2.5">
+                  <p className="text-muted-foreground">Unique customers</p>
+                  <p className="text-base font-semibold">{viewedCoupon.analytics.uniqueCustomers}</p>
+                </div>
+                <div className="rounded-lg bg-muted/40 p-2.5">
+                  <p className="text-muted-foreground">Discount given</p>
+                  <p className="text-base font-semibold">
+                    ₹{(viewedCoupon.analytics.totalDiscountGranted + viewedCoupon.analytics.deliveryWaived).toLocaleString("en-IN")}
+                  </p>
+                </div>
+                <div className="rounded-lg bg-muted/40 p-2.5">
+                  <p className="text-muted-foreground">Successful orders</p>
+                  <p className="text-base font-semibold">{viewedCoupon.analytics.successfulOrders}</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {viewedCoupon.analytics.cancelledOrders} cancelled
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-border/60 p-3 space-y-1.5 text-xs">
+                <p className="text-sm font-medium text-foreground">Usage</p>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Total usage limit</span>
+                  <span className="font-medium">
+                    {viewedCoupon.usage.usageLimit ?? "Unlimited"}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Used quantity</span>
+                  <span className="font-medium">{viewedCoupon.usage.usedQuantity}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Remaining quantity</span>
+                  <span className="font-medium">
+                    {viewedCoupon.usage.remainingQuantity ?? "Unlimited"}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Available quantity</span>
+                  <span className="font-medium">
+                    {viewedCoupon.usage.availableQuantity ?? "Unlimited"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid gap-1.5 text-xs">
+                <p className="text-sm font-medium text-foreground">Configuration</p>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Discount</span>
+                  <span className="font-medium">
+                    {viewedCoupon.coupon.discountType === "free_delivery"
+                      ? "Free delivery"
+                      : viewedCoupon.coupon.discountType === "fixed"
+                        ? `Flat ₹${viewedCoupon.coupon.fixedDiscount}`
+                        : `${viewedCoupon.coupon.discountPercent}% off`}
+                    {viewedCoupon.coupon.discountType === "percentage" &&
+                      viewedCoupon.coupon.maxDiscount > 0 &&
+                      ` (up to ₹${viewedCoupon.coupon.maxDiscount})`}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Minimum order</span>
+                  <span className="font-medium">₹{viewedCoupon.coupon.minOrder}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Validity</span>
+                  <span className="font-medium text-right">
+                    {viewedCoupon.coupon.startsAt
+                      ? `${new Date(viewedCoupon.coupon.startsAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })} → `
+                      : ""}
+                    {new Date(viewedCoupon.coupon.expiresAt).toLocaleDateString("en-IN", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    })}
+                  </span>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <span className="text-muted-foreground">Eligibility</span>
+                  <span className="font-medium text-right">
+                    {(viewedCoupon.coupon.eligibleCategoryIds ?? []).length === 0
+                      ? "All products"
+                      : (viewedCoupon.coupon.eligibleCategoryIds ?? [])
+                          .map(
+                            (id: string) =>
+                              (categories ?? []).find((c: any) => c._id === id)?.name ?? "Category"
+                          )
+                          .join(", ")}
+                    {viewedCoupon.coupon.firstOrderOnly ? " · first order only" : ""}
+                    {viewedCoupon.coupon.perUserLimit
+                      ? ` · ${viewedCoupon.coupon.perUserLimit}/customer`
+                      : ""}
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid gap-1.5 text-xs">
+                <p className="text-sm font-medium text-foreground">Visibility</p>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Homepage Offers &amp; Coupons</span>
+                  <span className="font-medium">{viewedCoupon.coupon.showOnHomepage ? "Shown" : "Hidden"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Eligible product pages</span>
+                  <span className="font-medium">{viewedCoupon.coupon.showOnProductPages ? "Shown" : "Hidden"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Customer My Coupons</span>
+                  <span className="font-medium">{viewedCoupon.coupon.showInMyCoupons ? "Shown" : "Hidden"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Campaign stacking</span>
+                  <span className="font-medium">
+                    {viewedCoupon.coupon.allowCampaignStacking === false ? "Not allowed" : "Allowed"}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setViewId(null)}>Close</Button>
+            {viewedCoupon && (
+              <Button
+                className="gradient-primary text-white gap-1"
+                onClick={() => {
+                  setViewId(null);
+                  openEdit(viewedCoupon.coupon);
+                }}
+              >
+                <Pencil className="size-3" /> Edit Coupon
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Delete / Archive Dialog */}
       <Dialog open={!!deleteDialog} onOpenChange={() => setDeleteDialog(null)}>
         <DialogContent className="sm:max-w-md">
@@ -776,7 +1062,11 @@ export default function AdminCoupons() {
  * quick activate/deactivate action, so it goes through the same backend
  * validation as a full edit).
  */
-function buildPayloadForExisting(coupon: any, isActive: boolean) {
+function buildPayloadForExisting(
+  coupon: any,
+  isActive: boolean,
+  publicationStatus?: "draft" | "scheduled" | "active" | "deactivated"
+) {
   return {
     code: coupon.code,
     discountType: coupon.discountType,
@@ -793,6 +1083,14 @@ function buildPayloadForExisting(coupon: any, isActive: boolean) {
     perUserLimit: coupon.perUserLimit ?? 0,
     firstOrderOnly: !!coupon.firstOrderOnly,
     eligibleCategoryIds: coupon.eligibleCategoryIds ?? [],
+    publicationStatus:
+      publicationStatus ??
+      coupon.publicationStatus ??
+      (coupon.isActive ? "active" : "deactivated"),
+    showOnHomepage: coupon.showOnHomepage ?? false,
+    showOnProductPages: coupon.showOnProductPages ?? false,
+    showInMyCoupons: coupon.showInMyCoupons ?? false,
+    allowCampaignStacking: coupon.allowCampaignStacking ?? true,
     archived: coupon.archived ?? false,
   };
 }

@@ -13,6 +13,7 @@ import { beginProductTransition } from "@/lib/product-transition";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { StockAlertButton } from "@/components/product/StockAlertButton";
+import ProductCouponOffer from "@/components/ProductCouponOffer";
 import {
   RatingSummaryBadge,
   hasRatingSummary,
@@ -1182,6 +1183,10 @@ export default function ProductDetail() {
                 </>
               )}
             </div>
+
+            {/* Active coupon hint for this product, when the admin enabled it
+                and the product is in an eligible category. */}
+            <ProductCouponOffer productId={p._id} />
 
             {/* Pack Size Variants Selector */}
             {hasVariants && (

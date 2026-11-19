@@ -41,6 +41,7 @@ import Dashboard from "./pages/Dashboard.tsx";
 import Products from "./pages/Products.tsx";
 import ProductDetail from "./pages/ProductDetail.tsx";
 import ValueDealsPage from "./pages/ValueDeals.tsx";
+import Offers from "./pages/Offers.tsx";
 import Cart from "./pages/Cart.tsx";
 import Wishlist from "./pages/Wishlist.tsx";
 import Checkout from "./pages/Checkout.tsx";
@@ -85,6 +86,7 @@ import AccountAddresses from "./pages/account/AccountAddresses";
 import AccountOrders from "./pages/account/AccountOrders";
 import AccountPrescriptions from "./pages/account/AccountPrescriptions";
 import AccountNotifications from "./pages/account/AccountNotifications";
+import AccountMyCoupons from "./pages/account/AccountMyCoupons";
 import AccountPillReminders from "./pages/account/AccountPillReminders";
 import AccountLabReports from "./pages/account/AccountLabReports";
 import AccountLabTests from "./pages/account/AccountLabTests";
@@ -302,6 +304,13 @@ function AnimatedRoutes() {
           }
         />
         <Route
+          path="/offers"
+          element={
+            <Offers />
+            
+          }
+        />
+        <Route
           path="/menu"
           element={
             <MenuPage />
@@ -456,6 +465,7 @@ function AnimatedRoutes() {
           <Route path="orders/:id" element={<Suspense fallback={<RouteLoading />}><OrderDetail /></Suspense>} />
           <Route path="prescriptions" element={<Suspense fallback={<RouteLoading />}><AccountPrescriptions /></Suspense>} />
           <Route path="appointments" element={<Suspense fallback={<RouteLoading />}><AccountAppointments /></Suspense>} />
+          <Route path="my-coupons" element={<Suspense fallback={<RouteLoading />}><AccountMyCoupons /></Suspense>} />
           <Route path="wishlist" element={<Suspense fallback={<RouteLoading />}><AccountWishlist /></Suspense>} />
           <Route path="notifications" element={<Suspense fallback={<RouteLoading />}><AccountNotifications /></Suspense>} />
           <Route path="pill-reminders" element={<Suspense fallback={<RouteLoading />}><AccountPillReminders /></Suspense>} />

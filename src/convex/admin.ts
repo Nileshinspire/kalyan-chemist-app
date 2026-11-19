@@ -737,6 +737,19 @@ export const upsertCoupon = mutation({
     firstOrderOnly: v.optional(v.boolean()),
     eligibleCategoryIds: v.optional(v.array(v.id("categories"))),
     archived: v.optional(v.boolean()),
+    // ── Publication + customer visibility ──
+    publicationStatus: v.optional(
+      v.union(
+        v.literal("draft"),
+        v.literal("scheduled"),
+        v.literal("active"),
+        v.literal("deactivated")
+      )
+    ),
+    showOnHomepage: v.optional(v.boolean()),
+    showOnProductPages: v.optional(v.boolean()),
+    showInMyCoupons: v.optional(v.boolean()),
+    allowCampaignStacking: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
     await requireAdmin(ctx);
@@ -788,6 +801,17 @@ export const upsertCoupon = mutation({
     if (args.startsAt !== undefined && args.startsAt >= args.expiresAt) {
       throw new Error("Start date must be before the expiry date.");
     }
+    if (args.publicationStatus === "scheduled" && args.startsAt === undefined) {
+      throw new Error("A scheduled coupon needs a start date.");
+    }
+
+    // The explicit publication state (when sent) drives the legacy isActive
+    // flag, so every existing customer query keeps working unchanged: only
+    // active/scheduled coupons are live, draft and deactivated ones never are.
+    const publicationStatus =
+      args.publicationStatus ?? (args.isActive ? "active" : "deactivated");
+    const effectiveIsActive =
+      publicationStatus === "active" || publicationStatus === "scheduled";
 
     const fields = {
       code,
@@ -797,8 +821,13 @@ export const upsertCoupon = mutation({
       maxDiscount: args.maxDiscount,
       minOrder: args.minOrder,
       usageLimit: Math.floor(args.usageLimit),
-      isActive: args.isActive,
+      isActive: effectiveIsActive,
       expiresAt: args.expiresAt,
+      publicationStatus,
+      showOnHomepage: args.showOnHomepage ?? false,
+      showOnProductPages: args.showOnProductPages ?? false,
+      showInMyCoupons: args.showInMyCoupons ?? false,
+      allowCampaignStacking: args.allowCampaignStacking ?? true,
       name: args.name?.trim() || undefined,
       description: args.description?.trim() || undefined,
       startsAt: args.startsAt ?? undefined,
@@ -936,6 +965,72 @@ export const couponAnalytics = query({
     }
 
     return stats;
+  },
+});
+
+/**
+ * Full detail for one coupon — the data-backed numbers behind the admin View
+ * panel. Everything here is read from stored coupons, redemption rows and
+ * orders; no estimates and no demo values.
+ *
+ * A redemption is counted once the order has actually gone through: released
+ * holds (failed payment / cancellation) are excluded, cancelled orders are
+ * reported separately, and analytics never double-count a repeated callback.
+ */
+export const couponDetails = query({
+  args: { couponId: v.id("coupons") },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+    const coupon = await ctx.db.get(args.couponId);
+    if (!coupon) throw new Error("Coupon not found");
+
+    const [redemptions, orders] = await Promise.all([
+      ctx.db
+        .query("coupon_redemptions")
+        .withIndex("by_coupon", (q) => q.eq("couponId", args.couponId))
+        .collect(),
+      ctx.db.query("orders").collect(),
+    ]);
+
+    const relatedOrders = orders.filter((o) => o.couponCode === coupon.code);
+    const liveOrders = relatedOrders.filter((o) => o.status !== "cancelled");
+    const counted = redemptions.filter((r) => r.status !== "released");
+    const uniqueCouponOrders = new Set(counted.map((r) => r.orderId));
+
+    const usageLimit = coupon.usageLimit;
+    const usedQuantity = coupon.usedCount;
+    const remaining =
+      usageLimit > 0 ? Math.max(0, usageLimit - usedQuantity) : null;
+
+    return {
+      coupon,
+      status: couponStatus(coupon, Date.now()),
+      analytics: {
+        totalRedemptions: counted.length,
+        releasedRedemptions: redemptions.length - counted.length,
+        uniqueCustomers: new Set(counted.map((r) => r.userId)).size,
+        totalDiscountGranted: counted.reduce(
+          (sum, r) => sum + r.discountAmount,
+          0
+        ),
+        deliveryWaived: counted.reduce((sum, r) => sum + r.deliveryWaived, 0),
+        successfulOrders: uniqueCouponOrders.size,
+        orderCount: relatedOrders.length,
+        cancelledOrders: relatedOrders.length - liveOrders.length,
+        lastUsedAt:
+          counted.length > 0
+            ? Math.max(...counted.map((r) => r.updatedAt))
+            : null,
+      },
+      usage: {
+        // 0 / undefined means unlimited in the existing coupon convention.
+        usageLimit: usageLimit > 0 ? usageLimit : null,
+        usedQuantity,
+        remainingQuantity: remaining,
+        /** Quantity that can still be handed out/used; null = unlimited. */
+        availableQuantity: remaining,
+      },
+    };
   },
 });
 

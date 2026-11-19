@@ -16,6 +16,7 @@ import {
   FlaskConical,
   Stethoscope,
   RefreshCw,
+  Ticket,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -29,6 +30,7 @@ const NAV_ITEMS = [
   { to: "/account/my-appointments", label: "My Appointments", icon: Stethoscope },
   { to: "/account/refill", label: "Medicine Refill", icon: RefreshCw },
   { to: "/account/pill-reminders", label: "Pill Reminders", icon: Pill },
+  { to: "/account/my-coupons", label: "My Coupons", icon: Ticket },
   { to: "/account/wishlist", label: "Wishlist", icon: Heart },
   { to: "/account/notifications", label: "Notifications", icon: Bell },
   { to: "/account/help-support", label: "Help & Support", icon: Headphones },
