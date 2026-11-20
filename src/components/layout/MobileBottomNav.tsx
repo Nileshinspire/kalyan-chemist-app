@@ -1,6 +1,7 @@
 import { useNavigate, useLocation } from "react-router";
-import { Home, LayoutGrid, Tags, Menu } from "lucide-react";
+import { Home, LayoutGrid, Tags, Menu, HeartHandshake } from "lucide-react";
 import { preloadRoute } from "@/lib/route-preload";
+import { useLanguage } from "@/context/LanguageContext";
 
 /**
  * Mobile-only bottom navigation bar (Home · Categories · Offers · Menu).
@@ -20,6 +21,7 @@ import { preloadRoute } from "@/lib/route-preload";
 export default function MobileBottomNav() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useLanguage();
   const pathname = location.pathname;
   if (pathname.startsWith("/admin") || pathname === "/chatbot") return null;
 
@@ -33,16 +35,19 @@ export default function MobileBottomNav() {
         return pathname === "/value-deals";
       case "menu":
         return pathname === "/menu";
+      case "family":
+        return pathname.startsWith("/family-health");
       default:
         return false;
     }
   };
 
   const items = [
-    { key: "home", label: "Home", icon: Home, to: "/" },
-    { key: "categories", label: "Categories", icon: LayoutGrid, to: "/categories" },
-    { key: "offers", label: "Offers", icon: Tags, to: "/value-deals" },
-    { key: "menu", label: "Menu", icon: Menu, to: "/menu" },
+    { key: "home", label: t("home"), icon: Home, to: "/" },
+    { key: "categories", label: t("categories"), icon: LayoutGrid, to: "/categories" },
+    { key: "offers", label: t("offers"), icon: Tags, to: "/value-deals" },
+    { key: "family", label: t("familyHealth"), icon: HeartHandshake, to: "/family-health" },
+    { key: "menu", label: t("menu"), icon: Menu, to: "/menu" },
   ] as const;
 
   return (
@@ -57,7 +62,7 @@ export default function MobileBottomNav() {
         aria-label="Mobile navigation"
         className="fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-background/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)] md:hidden"
       >
-      <div className="mx-auto grid max-w-md grid-cols-4">
+      <div className="mx-auto grid max-w-md grid-cols-5">
         {items.map((item) => {
           const active = isActive(item.key);
           const Icon = item.icon;

@@ -20,8 +20,10 @@ import {
   Headphones,
   Ticket,
   LogOut,
+  Settings,
   type LucideIcon,
 } from "lucide-react";
+import { useLanguage } from "@/context/LanguageContext";
 
 // Mobile-only account options, inserted above Wallet & Refer. Same routes,
 // icons and ordering as the account sidebar.
@@ -38,6 +40,7 @@ const ACCOUNT_OPTIONS = [
   { to: "/account/my-coupons", label: "My Coupons", icon: Ticket, description: "Coupons you can use and have used" },
   { to: "/account/wishlist", label: "Wishlist", icon: Heart, description: "Products you saved for later" },
   { to: "/account/notifications", label: "Notifications", icon: Bell, description: "Order updates and offers" },
+  { to: "/account/settings", label: "Settings", icon: Settings, description: "Language, appearance and account information" },
   { to: "/account/help-support", label: "Help & Support", icon: Headphones, description: "Get help with your account and orders" },
 ];
 
@@ -88,6 +91,7 @@ function AccountOptionCard({
 export default function AccountOverview() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const { t } = useLanguage();
 
   return (
     <motion.div
@@ -117,7 +121,7 @@ export default function AccountOverview() {
         {ACCOUNT_OPTIONS.map((option) => (
           <AccountOptionCard
             key={option.to}
-            label={option.label}
+            label={option.to === "/account/settings" ? t("settings") : option.label}
             description={option.description}
             icon={option.icon}
             onClick={() => navigate(option.to)}

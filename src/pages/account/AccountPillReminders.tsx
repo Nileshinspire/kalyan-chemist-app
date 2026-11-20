@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -8,6 +9,13 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -52,6 +60,8 @@ const MAX_TIMES = 6;
 
 type Reminder = {
   _id: Id<"pill_reminders">;
+  memberId?: Id<"family_members">;
+  memberName?: string | null;
   medicineName: string;
   doctorSchedule?: string;
   times: string[];
@@ -109,6 +119,7 @@ function to12Hour(time: string) {
 }
 
 type FormState = {
+  memberId: string;
   medicineName: string;
   doctorSchedule: string;
   times: string[];
@@ -116,7 +127,8 @@ type FormState = {
   endDate: string;
 };
 
-const EMPTY_FORM = (): FormState => ({
+const EMPTY_FORM = (memberId = ""): FormState => ({
+  memberId,
   medicineName: "",
   doctorSchedule: "",
   times: ["09:00"],
@@ -125,8 +137,10 @@ const EMPTY_FORM = (): FormState => ({
 });
 
 export default function AccountPillReminders() {
+  const [searchParams] = useSearchParams();
   const reminders = useQuery(api.pillReminders.list, {});
   const history = useQuery(api.pillReminders.history, {});
+  const familyMembers = useQuery(api.familyHealth.list);
   const createReminder = useMutation(api.pillReminders.create);
   const updateReminder = useMutation(api.pillReminders.update);
   const removeReminder = useMutation(api.pillReminders.remove);
@@ -158,13 +172,14 @@ export default function AccountPillReminders() {
 
   function openCreate() {
     setEditing(null);
-    setForm(EMPTY_FORM());
+    setForm(EMPTY_FORM(searchParams.get("member") ?? ""));
     setDialogOpen(true);
   }
 
   function openEdit(reminder: Reminder) {
     setEditing(reminder);
     setForm({
+      memberId: reminder.memberId ?? "",
       medicineName: reminder.medicineName,
       doctorSchedule: reminder.doctorSchedule ?? "",
       times: reminder.times.length > 0 ? reminder.times : ["09:00"],
@@ -213,6 +228,9 @@ export default function AccountPillReminders() {
           times: form.times,
           startDate,
           endDate,
+          memberId: form.memberId
+            ? (form.memberId as Id<"family_members">)
+            : null,
         });
         toast.success("Pill reminder updated");
       } else {
@@ -223,6 +241,9 @@ export default function AccountPillReminders() {
           startDate,
           endDate: endDate ?? undefined,
           timezoneOffsetMinutes: offset,
+          memberId: form.memberId
+            ? (form.memberId as Id<"family_members">)
+            : undefined,
         });
         toast.success("Pill reminder created");
       }
@@ -352,6 +373,11 @@ export default function AccountPillReminders() {
                           </Badge>
                         )}
                       </CardTitle>
+                      {reminder.memberName && (
+                        <Badge variant="outline" className="mt-1 text-[10px]">
+                          For {reminder.memberName}
+                        </Badge>
+                      )}
                       {reminder.doctorSchedule ? (
                         <CardDescription className="mt-1">
                           {reminder.doctorSchedule}
@@ -580,6 +606,33 @@ export default function AccountPillReminders() {
           </DialogHeader>
 
           <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>For family member</Label>
+              <Select
+                value={form.memberId || "self"}
+                onValueChange={(value) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    memberId: value === "self" ? "" : value,
+                  }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="self">Myself</SelectItem>
+                  {(familyMembers ?? [])
+                    .filter((member: any) => member.relationship !== "self")
+                    .map((member: any) => (
+                      <SelectItem key={member._id} value={member._id}>
+                        {member.name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="pill-medicine">Medicine name</Label>
               <Input

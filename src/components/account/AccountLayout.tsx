@@ -17,27 +17,31 @@ import {
   Stethoscope,
   RefreshCw,
   Ticket,
+  Settings,
 } from "lucide-react";
+import { useLanguage } from "@/context/LanguageContext";
 
 const NAV_ITEMS = [
-  { to: "/account", label: "My Account", icon: User, end: true },
-  { to: "/account/profile", label: "Profile", icon: User },
-  { to: "/account/addresses", label: "Addresses", icon: MapPin },
-  { to: "/account/orders", label: "My Orders", icon: ClipboardList },
-  { to: "/account/track-order", label: "Track Order", icon: Truck },
-  { to: "/account/prescriptions", label: "My Prescriptions", icon: Pill },
-  { to: "/account/my-lab-tests", label: "My Lab Tests", icon: FlaskConical },
-  { to: "/account/my-appointments", label: "My Appointments", icon: Stethoscope },
-  { to: "/account/refill", label: "Medicine Refill", icon: RefreshCw },
-  { to: "/account/pill-reminders", label: "Pill Reminders", icon: Pill },
-  { to: "/account/my-coupons", label: "My Coupons", icon: Ticket },
-  { to: "/account/wishlist", label: "Wishlist", icon: Heart },
-  { to: "/account/notifications", label: "Notifications", icon: Bell },
-  { to: "/account/help-support", label: "Help & Support", icon: Headphones },
+  { to: "/account", labelKey: "myAccount", icon: User, end: true },
+  { to: "/account/profile", labelKey: "profile", icon: User },
+  { to: "/account/addresses", labelKey: "addresses", icon: MapPin },
+  { to: "/account/orders", labelKey: "myOrders", icon: ClipboardList },
+  { to: "/account/track-order", labelKey: "trackOrder", icon: Truck },
+  { to: "/account/prescriptions", labelKey: "myPrescriptions", icon: Pill },
+  { to: "/account/my-lab-tests", labelKey: "myLabTests", icon: FlaskConical },
+  { to: "/account/my-appointments", labelKey: "myAppointments", icon: Stethoscope },
+  { to: "/account/refill", labelKey: "medicineRefill", icon: RefreshCw },
+  { to: "/account/pill-reminders", labelKey: "pillReminders", icon: Pill },
+  { to: "/account/my-coupons", labelKey: "myCoupons", icon: Ticket },
+  { to: "/account/wishlist", labelKey: "wishlist", icon: Heart },
+  { to: "/account/notifications", labelKey: "notifications", icon: Bell },
+  { to: "/account/settings", labelKey: "settings", icon: Settings },
+  { to: "/account/help-support", labelKey: "helpSupport", icon: Headphones },
 ];
 
 export default function AccountLayout() {
   const { logout } = useAuth();
+  const { t } = useLanguage();
 
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -48,7 +52,7 @@ export default function AccountLayout() {
           <aside className="hidden lg:block w-64 shrink-0">
             <div className="sticky top-24">
               <div className="mb-6">
-                <h2 className="text-lg font-bold text-foreground">My Account</h2>
+                <h2 className="text-lg font-bold text-foreground">{t("myAccount")}</h2>
                 <p className="text-sm text-muted-foreground mt-1">
                   Manage your profile and orders
                 </p>
@@ -68,7 +72,7 @@ export default function AccountLayout() {
                     }
                   >
                     <item.icon className="size-4" />
-                    {item.label}
+                    {t(item.labelKey)}
                   </NavLink>
                 ))}
                 <button
@@ -76,7 +80,7 @@ export default function AccountLayout() {
                   className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/5 w-full transition-all duration-200 mt-2"
                 >
                   <LogOut className="size-4" />
-                  Logout
+                  {t("logout")}
                 </button>
               </nav>
             </div>
@@ -84,7 +88,7 @@ export default function AccountLayout() {
 
           {/* Mobile Header — heading only; spacing comes from the column gap */}
           <div className="lg:hidden">
-            <h2 className="text-lg font-bold text-foreground">My Account</h2>
+            <h2 className="text-lg font-bold text-foreground">{t("myAccount")}</h2>
           </div>
 
           {/* Content Area */}

@@ -35,6 +35,7 @@ import {
   X,
   Wallet,
   Upload,
+  Users,
 } from "lucide-react";
 import { usePrescriptionUpload } from "@/hooks/usePrescriptionUpload";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -75,6 +76,7 @@ export default function Checkout() {
 
   const [step, setStep] = useState(0);
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
+  const [selectedFamilyMemberId, setSelectedFamilyMemberId] = useState<string>("");
   const [selectedPrescriptionId, setSelectedPrescriptionId] = useState<string | null>(null);
   const [showRxUpload, setShowRxUpload] = useState(false);
   const [rxFile, setRxFile] = useState<File | null>(null);
@@ -113,6 +115,7 @@ export default function Checkout() {
   }, [isBuyNow, buyNowProduct, cartItemsRaw]);
 
   const addresses = useQuery(api.addresses.list);
+  const familyMembers = useQuery(api.familyHealth.list);
   // Server-evaluated reuse rules: ownership, pharmacist approval, 180-day
   // validity and the medicines the prescription was approved for.
   const prescriptions = useQuery(
@@ -522,6 +525,7 @@ export default function Checkout() {
           deliveryLatitude,
           deliveryLongitude,
           walletAmount: useWallet ? walletAllowed : 0,
+          familyMemberId: (selectedFamilyMemberId as any) || undefined,
         });
       } else {
         result = await createOrder({
@@ -536,6 +540,7 @@ export default function Checkout() {
           deliveryLatitude,
           deliveryLongitude,
           walletAmount: useWallet ? walletAllowed : 0,
+          familyMemberId: (selectedFamilyMemberId as any) || undefined,
         });
       }
 
@@ -1047,6 +1052,40 @@ export default function Checkout() {
                             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Delivering to</p>
                             <p className="text-sm font-medium mt-0.5">{selectedAddress.fullName}</p>
                             <p className="text-xs text-muted-foreground">{addressToString(selectedAddress)}</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {(familyMembers ?? []).length > 0 && (
+                    <Card className="border-border/60">
+                      <CardContent className="p-4">
+                        <div className="flex items-start gap-2.5">
+                          <Users className="mt-0.5 size-4 shrink-0 text-primary" />
+                          <div className="min-w-0 flex-1">
+                            <Label htmlFor="order-for-member" className="text-xs font-semibold">
+                              Order for
+                            </Label>
+                            <p className="mt-0.5 text-[11px] text-muted-foreground">
+                              Choose a family member from Family Health. Their name is attached
+                              to this order for your records.
+                            </p>
+                            <select
+                              id="order-for-member"
+                              value={selectedFamilyMemberId}
+                              onChange={(e) => setSelectedFamilyMemberId(e.target.value)}
+                              className="mt-2 h-10 w-full rounded-xl border border-input bg-background px-3 text-sm"
+                            >
+                              <option value="">Myself</option>
+                              {(familyMembers ?? [])
+                                .filter((member: any) => member.relationship !== "self")
+                                .map((member: any) => (
+                                  <option key={member._id} value={member._id}>
+                                    {member.name} ({member.relationship})
+                                  </option>
+                                ))}
+                            </select>
                           </div>
                         </div>
                       </CardContent>

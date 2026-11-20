@@ -99,10 +99,21 @@ export const create = mutation({
     deliveryLongitude: v.optional(v.number()),
     /** Rupees to pay from the wallet. Server re-clamps; never trusted as-is. */
     walletAmount: v.optional(v.number()),
+    /** Optional family member this order is for. Ownership is checked here. */
+    familyMemberId: v.optional(v.id("family_members")),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) throw new Error("Not authenticated");
+
+    let familyMemberName: string | undefined;
+    if (args.familyMemberId) {
+      const member = await ctx.db.get(args.familyMemberId);
+      if (!member || member.ownerId !== userId) {
+        throw new Error("Family member not found.");
+      }
+      familyMemberName = member.name;
+    }
 
     // Get all cart items
     const cartItems = await ctx.db
@@ -329,6 +340,8 @@ export const create = mutation({
       razorpaySignature: args.razorpaySignature,
       invoiceNumber,
       prescriptionId: args.prescriptionId,
+      familyMemberId: args.familyMemberId,
+      familyMemberName,
       prescriptionVerificationRequired: requiresPrescriptionVerification,
       confirmedAt: creationPlan.status === "confirmed" ? now : undefined,
       notes: args.notes,
@@ -739,10 +752,20 @@ export const createDirectOrder = mutation({
     deliveryLongitude: v.optional(v.number()),
     /** Rupees to pay from the wallet. Server re-clamps; never trusted as-is. */
     walletAmount: v.optional(v.number()),
+    familyMemberId: v.optional(v.id("family_members")),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) throw new Error("Not authenticated");
+
+    let familyMemberName: string | undefined;
+    if (args.familyMemberId) {
+      const member = await ctx.db.get(args.familyMemberId);
+      if (!member || member.ownerId !== userId) {
+        throw new Error("Family member not found.");
+      }
+      familyMemberName = member.name;
+    }
 
     const product = await ctx.db.get(args.productId);
     if (!product || !product.isActive) throw new Error("Product is no longer available");
@@ -894,6 +917,8 @@ export const createDirectOrder = mutation({
       paymentStatus,
       invoiceNumber,
       prescriptionId: args.prescriptionId,
+      familyMemberId: args.familyMemberId,
+      familyMemberName,
       prescriptionVerificationRequired: requiresPrescriptionVerification,
       confirmedAt: creationPlan.status === "confirmed" ? now : undefined,
       notes: args.notes,

@@ -200,10 +200,18 @@ export const upload = mutation({
     fileName: v.string(),
     fileType: v.string(),
     fileSize: v.number(),
+    memberId: v.optional(v.id("family_members")),
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
     if (userId === null) throw new Error("Not authenticated");
+
+    if (args.memberId) {
+      const member = await ctx.db.get(args.memberId);
+      if (!member || member.ownerId !== userId) {
+        throw new Error("Family member not found.");
+      }
+    }
 
     // Validate file type
     const allowedTypes = ["image/jpeg", "image/png", "application/pdf"];
@@ -240,6 +248,7 @@ export const upload = mutation({
 
     const prescriptionId = await ctx.db.insert("prescriptions", {
       userId,
+      memberId: args.memberId,
       patientName: args.patientName.trim(),
       doctorName: args.doctorName?.trim() || undefined,
       prescriptionDate: args.prescriptionDate,

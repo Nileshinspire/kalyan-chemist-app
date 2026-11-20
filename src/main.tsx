@@ -1,6 +1,7 @@
 import "@vly-ai/integrations";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/context/AuthContext";
+import { LanguageProvider } from "@/context/LanguageContext";
 import { RequireAuth } from "@/components/RequireAuth";
 import { VlyToolbar } from "../vly-toolbar-readonly.tsx";
 import { ConvexAuthProvider } from "@convex-dev/auth/react";
@@ -80,6 +81,9 @@ const AdminActivityLog = lazy(() => import("./pages/admin/AdminActivityLog"));
 const AdminReferralWallet = lazy(() => import("./pages/admin/AdminReferralWalletPage"));
 import CategoriesPage from "./pages/Categories.tsx";
 import MenuPage from "./pages/MenuPage.tsx";
+import FamilyHealth from "./pages/FamilyHealth.tsx";
+import FamilyMemberHealth from "./pages/FamilyMemberHealth.tsx";
+import Membership from "./pages/Membership.tsx";
 import BrandsPage from "./pages/Brands.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import AccountLayout from "./components/account/AccountLayout";
@@ -112,6 +116,7 @@ import LabTestCategory from "./pages/LabTestCategory";
 import LabTestDetail from "./pages/LabTestDetail";
 const AdminLabTests = lazy(() => import("./pages/admin/AdminLabTests"));
 import AccountHelpSupport from "./pages/account/AccountHelpSupport";
+import AccountSettings from "./pages/account/AccountSettings";
 import MedicineRefill from "./pages/MedicineRefill";
 import AIChatbot from "./pages/AIChatbot";
 const AdminRefills = lazy(() => import("./pages/admin/AdminRefills"));
@@ -459,6 +464,36 @@ function AnimatedRoutes() {
           }
         />
         <Route
+          path="/family-health"
+          element={
+            <RequireAuth>
+              <Suspense fallback={<RouteLoading />}>
+                <FamilyHealth />
+              </Suspense>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/family-health/:memberId"
+          element={
+            <RequireAuth>
+              <Suspense fallback={<RouteLoading />}>
+                <FamilyMemberHealth />
+              </Suspense>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/membership"
+          element={
+            <RequireAuth>
+              <Suspense fallback={<RouteLoading />}>
+                <Membership />
+              </Suspense>
+            </RequireAuth>
+          }
+        />
+        <Route
           path="/account"
           element={
             <RequireAuth>
@@ -484,6 +519,7 @@ function AnimatedRoutes() {
           <Route path="my-lab-tests" element={<Suspense fallback={<RouteLoading />}><AccountLabTests /></Suspense>} />
           <Route path="my-appointments" element={<Suspense fallback={<RouteLoading />}><AccountDoctorAppointments /></Suspense>} />
           <Route path="track-order" element={<Suspense fallback={<RouteLoading />}><AccountTrackOrder /></Suspense>} />
+          <Route path="settings" element={<Suspense fallback={<RouteLoading />}><AccountSettings /></Suspense>} />
           <Route path="help-support" element={<Suspense fallback={<RouteLoading />}><AccountHelpSupport /></Suspense>} />
           <Route path="refill" element={<Suspense fallback={<RouteLoading />}><MedicineRefill /></Suspense>} />
         </Route>
@@ -867,6 +903,7 @@ createRoot(document.getElementById("root")!).render(
       <AppThemeProvider>
       <ConvexAuthProvider client={convex}>
       <AuthProvider>
+      <LanguageProvider>
         <HashRouter>
           <ScrollRestorer />
           <ProductTransitionVeil />
@@ -886,6 +923,7 @@ createRoot(document.getElementById("root")!).render(
           <MobileBottomNav />
         </HashRouter>
         <Toaster />
+      </LanguageProvider>
       </AuthProvider>
       </ConvexAuthProvider>
       </AppThemeProvider>

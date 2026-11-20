@@ -159,6 +159,8 @@ const schema = defineSchema(
       // theme. Absent means "light", so every existing user record is valid.
       theme: v.optional(v.union(v.literal("light"), v.literal("dark"))),
       adminTheme: v.optional(v.union(v.literal("light"), v.literal("dark"))),
+      /** Interface language: en, hi or mr. Absent means English. */
+      language: v.optional(v.string()),
     })
       .index("email", ["email"])
       .index("phone", ["phone"])
@@ -628,6 +630,9 @@ const schema = defineSchema(
       razorpaySignature: v.optional(v.string()),
       invoiceNumber: v.optional(v.string()),
       prescriptionId: v.optional(v.id("prescriptions")),
+      /** Family member this order was placed for (absent = account holder). */
+      familyMemberId: v.optional(v.id("family_members")),
+      familyMemberName: v.optional(v.string()),
       notes: v.optional(v.string()),
       couponCode: v.optional(v.string()),
       couponDiscount: v.optional(v.number()),
@@ -1173,6 +1178,8 @@ const schema = defineSchema(
     // Customer prescriptions — uploaded documents for Rx medicines
     prescriptions: defineTable({
       userId: v.id("users"),
+      /** Optional family member this prescription belongs to. */
+      memberId: v.optional(v.id("family_members")),
       patientName: v.string(),
       doctorName: v.optional(v.string()),
       prescriptionDate: v.optional(v.number()),   // timestamp
@@ -1650,6 +1657,8 @@ const schema = defineSchema(
     // never infers a medicine, dose or frequency.
     pill_reminders: defineTable({
       userId: v.id("users"),
+      /** Optional family member this reminder is for (absent = the account holder). */
+      memberId: v.optional(v.id("family_members")),
       medicineName: v.string(),
       /** Doctor-prescribed schedule as the customer typed it, e.g. "1 tablet after breakfast". */
       doctorSchedule: v.optional(v.string()),
@@ -2145,6 +2154,138 @@ const schema = defineSchema(
     })
       .index("by_customer", ["customerId"])
       .index("by_source", ["sourceType", "sourceId"]),
+
+    // ── Family Health ──
+    // One row per family member owned by a customer account. Health data is
+    // scoped by both ownerId and memberId so members are strictly isolated.
+    family_members: defineTable({
+      ownerId: v.id("users"),
+      name: v.string(),
+      relationship: v.union(
+        v.literal("self"),
+        v.literal("father"),
+        v.literal("mother"),
+        v.literal("child"),
+        v.literal("spouse"),
+        v.literal("other"),
+      ),
+      dateOfBirth: v.optional(v.number()),
+      gender: v.optional(v.union(v.literal("male"), v.literal("female"), v.literal("other"))),
+      bloodGroup: v.optional(v.string()),
+      phone: v.optional(v.string()),
+      notes: v.optional(v.string()),
+      createdAt: v.number(),
+      updatedAt: v.number(),
+    })
+      .index("by_owner", ["ownerId"]),
+
+    // Customer-entered health readings. Never exposed to admin lists.
+    health_readings: defineTable({
+      ownerId: v.id("users"),
+      memberId: v.id("family_members"),
+      typeKey: v.string(),
+      value: v.number(),
+      secondaryValue: v.optional(v.number()),
+      unit: v.string(),
+      recordedAt: v.number(),
+      notes: v.optional(v.string()),
+      createdAt: v.number(),
+      updatedAt: v.number(),
+    })
+      .index("by_member", ["memberId", "recordedAt"])
+      .index("by_owner", ["ownerId"]),
+
+    // Private health reports (files in private Convex storage).
+    health_reports: defineTable({
+      ownerId: v.id("users"),
+      memberId: v.id("family_members"),
+      title: v.string(),
+      fileId: v.string(),
+      fileName: v.string(),
+      fileType: v.string(),
+      fileSize: v.number(),
+      recordedAt: v.number(),
+      createdAt: v.number(),
+    })
+      .index("by_member", ["memberId", "createdAt"])
+      .index("by_owner", ["ownerId"]),
+
+    // Admin-configurable Health Tracker availability, measurement types and
+    // educational content. One singleton row; absent = defaults.
+    health_tracker_settings: defineTable({
+      enabled: v.boolean(),
+      familyHealthEnabled: v.optional(v.boolean()),
+      measurementTypes: v.array(
+        v.object({
+          key: v.string(),
+          label: v.string(),
+          unit: v.string(),
+          secondaryLabel: v.optional(v.string()),
+          secondaryUnit: v.optional(v.string()),
+          min: v.number(),
+          max: v.number(),
+        }),
+      ),
+      educationalContent: v.string(),
+      updatedBy: v.optional(v.id("users")),
+      updatedAt: v.number(),
+    }),
+
+    // ── Membership ──
+    membership_plans: defineTable({
+      name: v.string(),
+      description: v.string(),
+      price: v.number(),
+      durationDays: v.number(),
+      benefits: v.array(v.string()),
+      /** Informational restriction labels configured by the admin. */
+      restrictions: v.array(v.string()),
+      isActive: v.boolean(),
+      sortOrder: v.number(),
+      highlight: v.optional(v.boolean()),
+      createdAt: v.number(),
+      updatedAt: v.number(),
+    }).index("by_active", ["isActive"]),
+
+    // One row per purchase attempt. Paid rows start pending and are activated
+    // only by a verified Razorpay payment; free plans activate immediately.
+    membership_purchases: defineTable({
+      userId: v.id("users"),
+      planId: v.id("membership_plans"),
+      planName: v.string(),
+      amount: v.number(),
+      durationDays: v.number(),
+      status: v.union(v.literal("pending"), v.literal("active"), v.literal("failed")),
+      paymentMethod: v.union(v.literal("free"), v.literal("razorpay")),
+      razorpayOrderId: v.optional(v.string()),
+      razorpayPaymentId: v.optional(v.string()),
+      razorpaySignature: v.optional(v.string()),
+      startedAt: v.optional(v.number()),
+      expiresAt: v.optional(v.number()),
+      createdAt: v.number(),
+      updatedAt: v.number(),
+    })
+      .index("by_user", ["userId"])
+      .index("by_status", ["status"])
+      .index("by_plan", ["planId"]),
+
+    // ── Language / localisation ──
+    app_languages: defineTable({
+      code: v.string(),
+      label: v.string(),
+      nativeLabel: v.string(),
+      isActive: v.boolean(),
+      sortOrder: v.number(),
+      updatedBy: v.optional(v.id("users")),
+      updatedAt: v.number(),
+    }).index("by_code", ["code"]),
+
+    app_translations: defineTable({
+      languageCode: v.string(),
+      key: v.string(),
+      value: v.string(),
+      updatedAt: v.number(),
+    }).index("by_language_key", ["languageCode", "key"]),
 
     // ── Referral / wallet settings (singleton) ──
     referralSettings: defineTable({

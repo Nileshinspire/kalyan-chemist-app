@@ -28,6 +28,15 @@ function cleanMedicineName(name: string): string {
   return value;
 }
 
+async function validateMember(ctx: any, userId: any, memberId: any) {
+  if (memberId === undefined || memberId === null) return undefined;
+  const member = await ctx.db.get(memberId);
+  if (!member || member.ownerId !== userId) {
+    throw new Error("Family member not found.");
+  }
+  return member._id;
+}
+
 function cleanDoctorSchedule(value: string | undefined): string | undefined {
   if (value === undefined) return undefined;
   const trimmed = value.trim();
@@ -51,9 +60,18 @@ export const list = query({
       .collect();
 
     const now = Date.now();
+    const members = await ctx.db
+      .query("family_members")
+      .withIndex("by_owner", (q: any) => q.eq("ownerId", userId))
+      .collect();
+    const memberMap = new Map(members.map((m: any) => [m._id as string, m]));
+
     return reminders
       .map((reminder) => ({
         ...reminder,
+        memberName: reminder.memberId
+          ? (memberMap.get(reminder.memberId as string) as any)?.name ?? "Family member"
+          : null,
         todayDoses: todayDoseSlots(reminder, now),
       }))
       .sort((a, b) => b.createdAt - a.createdAt);
@@ -70,6 +88,7 @@ export const create = mutation({
     endDate: v.optional(v.number()),
     timezoneOffsetMinutes: v.number(),
     notes: v.optional(v.string()),
+    memberId: v.optional(v.id("family_members")),
   },
   handler: async (ctx, args) => {
     const userId = await requireUser(ctx);
@@ -86,9 +105,11 @@ export const create = mutation({
       throw new Error("End date cannot be before the start date.");
     }
 
+    const memberId = await validateMember(ctx, userId, args.memberId);
     const now = Date.now();
     const id = await ctx.db.insert("pill_reminders", {
       userId,
+      memberId,
       medicineName: cleanMedicineName(args.medicineName),
       doctorSchedule: cleanDoctorSchedule(args.doctorSchedule),
       times,
@@ -116,6 +137,7 @@ export const update = mutation({
     endDate: v.optional(v.union(v.number(), v.null())),
     isActive: v.optional(v.boolean()),
     notes: v.optional(v.string()),
+    memberId: v.optional(v.union(v.id("family_members"), v.null())),
   },
   handler: async (ctx, args) => {
     const userId = await requireUser(ctx);
@@ -155,6 +177,9 @@ export const update = mutation({
     }
     if (args.isActive !== undefined) {
       patch.isActive = args.isActive;
+    }
+    if (args.memberId !== undefined) {
+      patch.memberId = await validateMember(ctx, userId, args.memberId);
     }
 
     const nextStart = (patch.startDate as number | undefined) ?? reminder.startDate;
@@ -312,11 +337,14 @@ export const processDue = internalMutation({
         const schedule = reminder.doctorSchedule
           ? ` (${reminder.doctorSchedule})`
           : "";
+        const member = reminder.memberId
+          ? await ctx.db.get(reminder.memberId)
+          : null;
         await ctx.db.insert("notifications", {
           userId: reminder.userId,
           type: "system",
           title: `Pill reminder: ${reminder.medicineName}`,
-          body: `It is ${time} — time for ${reminder.medicineName}${schedule}. Mark it Taken or Skipped in your Pill Reminders.`,
+          body: `It is ${time} — time for ${member ? `${member.name}'s ` : ""}${reminder.medicineName}${schedule}. Mark it Taken or Skipped in your Pill Reminders.`,
           read: false,
           link: "/account/pill-reminders",
           metadata: JSON.stringify({

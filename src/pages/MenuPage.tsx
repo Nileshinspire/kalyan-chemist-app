@@ -7,10 +7,12 @@ import { Button } from "@/components/ui/button";
 import {
   ArrowLeft,
   ChevronRight,
+  Crown,
   Home,
   Package,
   Shield,
 } from "lucide-react";
+import { useLanguage } from "@/context/LanguageContext";
 
 /* ─── Full-page Menu ───
  * Opened by the "Menu" tab in the mobile bottom navigation. It is a normal
@@ -62,6 +64,7 @@ function MenuRow({
 export default function MenuPage() {
   const navigate = useNavigate();
   const { isAuthenticated, isAdmin } = useAuth();
+  const { t } = useLanguage();
 
   const goBack = () => {
     if (window.history.length > 1) navigate(-1);
@@ -114,16 +117,21 @@ export default function MenuPage() {
             </div>
           )}
 
-          <Section title="Shop">
-            <MenuRow label="Home" icon={Home} onClick={() => navigate("/")} />
+          <Section title={t("shop")}>
+            <MenuRow label={t("home")} icon={Home} onClick={() => navigate("/")} />
             <MenuRow
-              label="Browse Medicines"
+              label={t("browseMedicines")}
               icon={Package}
               onClick={() => navigate("/products")}
             />
+            <MenuRow
+              label={t("membership")}
+              icon={Crown}
+              onClick={() => navigate("/membership")}
+            />
           </Section>
 
-          <Section title="Services">
+          <Section title={t("services")}>
             {SERVICE_NAV_ITEMS.filter(
               (item) => isAuthenticated || !item.accountOnly
             ).map((item) => (
@@ -146,9 +154,9 @@ export default function MenuPage() {
           </Section>
 
           {isAdmin && (
-            <Section title="Administration">
+            <Section title={t("administration")}>
               <MenuRow
-                label="Admin Panel"
+                label={t("adminPanel")}
                 icon={Shield}
                 onClick={() => navigate("/admin")}
               />

@@ -11,6 +11,8 @@ export type PrescriptionUploadMeta = {
   doctorName?: string;
   prescriptionDate?: number;
   notes?: string;
+  /** Optional family member this prescription belongs to. */
+  memberId?: Id<"family_members">;
 };
 
 /**
@@ -57,6 +59,7 @@ export function usePrescriptionUpload() {
           fileName: file.name,
           fileType: file.type,
           fileSize: file.size,
+          memberId: meta.memberId,
         });
         return result.prescriptionId;
       } finally {

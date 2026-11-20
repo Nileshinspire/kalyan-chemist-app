@@ -1,6 +1,7 @@
 "use node";
 
 import { action } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import crypto from "node:crypto";
 
@@ -98,6 +99,88 @@ export const verifyPayment = action({
     });
 
     return { success: true };
+  },
+});
+
+// ── Membership payment: create a Razorpay order ──
+// Reuses the same gateway and keys as checkout. The amount is always the
+// server-stored purchase amount, never a client-supplied value.
+export const createMembershipPaymentOrder = action({
+  args: {
+    purchaseId: v.id("membership_purchases"),
+  },
+  handler: async (ctx, args): Promise<any> => {
+    const purchase: { amount: number; status: string } = await ctx.runQuery(
+      internal.memberships.getPurchaseForPayment,
+      { purchaseId: args.purchaseId },
+    );
+    if (!purchase || purchase.status !== "pending") {
+      throw new Error("This membership purchase is not awaiting payment.");
+    }
+
+    const keyId = process.env.RAZORPAY_KEY_ID;
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    const receipt = `MEM-${String(args.purchaseId).slice(-10)}`;
+
+    if (!keyId || !keySecret) {
+      return {
+        id: `order_demo_mem_${Date.now()}`,
+        amount: Math.round(purchase.amount * 100),
+        currency: "INR",
+        receipt,
+        status: "created",
+        _demo: true,
+      };
+    }
+
+    const auth = Buffer.from(`${keyId}:${keySecret}`).toString("base64");
+    const response = await fetch("https://api.razorpay.com/v1/orders", {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${auth}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        amount: Math.round(purchase.amount * 100),
+        currency: "INR",
+        receipt,
+      }),
+    });
+    if (!response.ok) {
+      throw new Error(`Razorpay order creation failed: ${await response.text()}`);
+    }
+    return await response.json();
+  },
+});
+
+// ── Membership payment: verify signature, then activate ──
+export const verifyMembershipPayment = action({
+  args: {
+    purchaseId: v.id("membership_purchases"),
+    razorpayOrderId: v.string(),
+    razorpayPaymentId: v.string(),
+    razorpaySignature: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+
+    if (keySecret) {
+      const hmac = crypto.createHmac("sha256", keySecret);
+      hmac.update(`${args.razorpayOrderId}|${args.razorpayPaymentId}`);
+      const expected = hmac.digest("hex");
+      if (expected !== args.razorpaySignature) {
+        throw new Error("Payment verification failed: invalid signature");
+      }
+    }
+
+    await ctx.runMutation(internal.memberships.confirmPurchase, {
+      purchaseId: args.purchaseId,
+      razorpayOrderId: args.razorpayOrderId,
+      razorpayPaymentId: args.razorpayPaymentId,
+      razorpaySignature: args.razorpaySignature,
+    });
+
+    return { success: true, demo: !keySecret };
   },
 });
 
