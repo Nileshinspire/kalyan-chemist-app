@@ -19,6 +19,19 @@ vi.mock("@/context/AuthContext", () => ({
 
 vi.mock("@/lib/route-preload", () => ({ preloadRoute: () => {} }));
 
+vi.mock("@/context/LanguageContext", () => ({
+  useLanguage: () => ({
+    t: (key: string) =>
+      ({
+        home: "Home",
+        categories: "Categories",
+        offers: "Offers",
+        familyHealth: "Family Health",
+        menu: "Menu",
+      })[key] ?? key,
+  }),
+}));
+
 vi.mock("convex/react", () => ({
   useQuery: () => undefined,
   useMutation: () => vi.fn(),
@@ -45,7 +58,7 @@ import {
 beforeEach(() => navigate.mockReset());
 
 describe("Mobile bottom navigation", () => {
-  it("shows Home · Categories · Offers · Menu with the existing destinations intact", () => {
+  it("shows Home · Categories · Offers · Family Health · Menu with existing destinations intact", () => {
     render(
       <MemoryRouter>
         <MobileBottomNav />
@@ -55,7 +68,7 @@ describe("Mobile bottom navigation", () => {
     const labels = screen
       .getAllByRole("button")
       .map((button) => button.textContent?.trim());
-    expect(labels).toEqual(["Home", "Categories", "Offers", "Menu"]);
+    expect(labels).toEqual(["Home", "Categories", "Offers", "Family Health", "Menu"]);
     // Account is header-only now; no duplicate tab in the bottom bar.
     expect(screen.queryByLabelText("Account")).toBeNull();
     expect(screen.queryByText("Cart")).toBeNull();
@@ -64,6 +77,9 @@ describe("Mobile bottom navigation", () => {
     expect(navigate).toHaveBeenCalledWith("/value-deals");
 
     // Menu opens the full-page route, not the old side sheet.
+    fireEvent.click(screen.getByLabelText("Family Health"));
+    expect(navigate).toHaveBeenCalledWith("/family-health");
+
     fireEvent.click(screen.getByLabelText("Menu"));
     expect(navigate).toHaveBeenCalledWith("/menu");
   });

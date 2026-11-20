@@ -64,6 +64,9 @@ const AdminProducts = lazy(() => import("./pages/admin/AdminProducts"));
 const AdminCategories = lazy(() => import("./pages/admin/AdminCategories"));
 const AdminHealthcareDevices = lazy(() => import("./pages/admin/AdminHealthcareDevices"));
 const AdminHealthKits = lazy(() => import("./pages/admin/AdminHealthKits"));
+const AdminFamilyHealth = lazy(() => import("./pages/admin/AdminFamilyHealth"));
+const AdminMemberships = lazy(() => import("./pages/admin/AdminMemberships"));
+const AdminLanguages = lazy(() => import("./pages/admin/AdminLanguages"));
 const AdminBrands = lazy(() => import("./pages/admin/AdminBrands"));
 const AdminInventory = lazy(() => import("./pages/admin/AdminInventory"));
 const AdminOrders = lazy(() => import("./pages/admin/AdminOrders"));
@@ -568,6 +571,36 @@ function AnimatedRoutes() {
                 </Suspense>
               </RequireAuth>
             
+          }
+        />
+        <Route
+          path="/admin/family-health"
+          element={
+            <RequireAuth adminOnly>
+              <Suspense fallback={<RouteLoading />}>
+                <AdminFamilyHealth />
+              </Suspense>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/admin/memberships"
+          element={
+            <RequireAuth adminOnly>
+              <Suspense fallback={<RouteLoading />}>
+                <AdminMemberships />
+              </Suspense>
+            </RequireAuth>
+          }
+        />
+        <Route
+          path="/admin/languages"
+          element={
+            <RequireAuth adminOnly>
+              <Suspense fallback={<RouteLoading />}>
+                <AdminLanguages />
+              </Suspense>
+            </RequireAuth>
           }
         />
         <Route

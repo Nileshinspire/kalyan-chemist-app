@@ -37,6 +37,9 @@ import {
   BadgePercent,
   Send,
   BriefcaseMedical,
+  HeartHandshake,
+  Crown,
+  Languages,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -45,6 +48,9 @@ const NAV_ITEMS = [
   { label: "Categories", path: "/admin/categories", icon: Tag },
   { label: "Healthcare Devices", path: "/admin/healthcare-devices", icon: Activity },
   { label: "Health Kits", path: "/admin/health-kits", icon: BriefcaseMedical },
+  { label: "Family Health", path: "/admin/family-health", icon: HeartHandshake },
+  { label: "Membership", path: "/admin/memberships", icon: Crown },
+  { label: "Languages", path: "/admin/languages", icon: Languages },
   { label: "Brands", path: "/admin/brands", icon: Building2 },
   { label: "Inventory", path: "/admin/inventory", icon: Warehouse },
   { label: "Orders", path: "/admin/orders", icon: ClipboardList },

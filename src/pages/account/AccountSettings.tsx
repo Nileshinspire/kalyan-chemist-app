@@ -176,9 +176,9 @@ export default function AccountSettings() {
                 <p className="text-[11px] text-muted-foreground">{t("emailOtp")}</p>
               </div>
             </div>
-            <Badge variant="secondary" className="text-[10px]">
+            <span className="max-w-[45%] truncate text-[11px] text-muted-foreground">
               {profile?.email || user?.email || ""}
-            </Badge>
+            </span>
           </div>
           <div className="flex items-center justify-between gap-3 rounded-xl border border-border/60 p-3">
             <div className="flex items-center gap-2.5">

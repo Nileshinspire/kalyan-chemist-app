@@ -109,6 +109,10 @@ export const startPurchase = mutation({
     const expiresAt = base + plan.durationDays * 24 * 60 * 60 * 1000;
 
     if (plan.price === 0) {
+      // Never silently downgrade an active paid membership to a free plan.
+      if (current && current.amount > 0) {
+        throw new Error("You already have an active paid membership. Renew that plan instead.");
+      }
       // Free plans never require a payment.
       const id = await ctx.db.insert("membership_purchases", {
         userId,

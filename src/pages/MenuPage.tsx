@@ -143,7 +143,7 @@ export default function MenuPage() {
             ))}
           </Section>
 
-          <Section title="Categories">
+          <Section title={t("categories")}>
             {CATEGORY_NAV_ITEMS.map((cat) => (
               <MenuRow
                 key={cat.key}

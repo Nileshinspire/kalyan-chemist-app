@@ -249,6 +249,14 @@ export const remove = mutation({
       throw new Error("This member has prescriptions. They must be kept with a profile.");
     }
 
+    const orders = await ctx.db
+      .query("orders")
+      .withIndex("by_user_created", (q) => q.eq("userId", userId))
+      .collect();
+    if (orders.some((order) => order.familyMemberId === member._id)) {
+      throw new Error("This member has orders. Keep the profile so order history stays linked.");
+    }
+
     await ctx.db.delete(member._id);
     return { success: true };
   },

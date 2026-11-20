@@ -529,7 +529,12 @@ export default function FamilyMemberHealth() {
                     </p>
                   </div>
                   {config?.enabled !== false && (
-                    <Button size="sm" className="shrink-0 rounded-xl" onClick={openAddReading}>
+                    <Button
+                      size="sm"
+                      aria-label={t("addReading")}
+                      className="shrink-0 rounded-xl"
+                      onClick={openAddReading}
+                    >
                       <Plus className="size-4" />
                       <span className="hidden sm:inline">{t("addReading")}</span>
                     </Button>
@@ -779,7 +784,7 @@ export default function FamilyMemberHealth() {
                     ) : (
                       <Upload className="size-3.5" />
                     )}
-                    {t("uploadReport")}
+                    {t("uploadPrescription")}
                   </Button>
                 </CardContent>
               </Card>

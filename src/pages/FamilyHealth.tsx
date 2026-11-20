@@ -176,21 +176,33 @@ export default function FamilyHealth() {
     }
     setSaving(true);
     try {
-      const payload = {
+      const base = {
         name: form.name.trim(),
         relationship: form.relationship as (typeof RELATIONSHIPS)[number],
-        dateOfBirth: fromInputDate(form.dateOfBirth),
-        gender: form.gender
-          ? (form.gender as "male" | "female" | "other")
-          : undefined,
-        bloodGroup: form.bloodGroup.trim() || undefined,
-        phone: form.phone || undefined,
-        notes: form.notes.trim() || undefined,
       };
       if (editing) {
-        await updateMember({ memberId: editing._id, ...payload });
+        await updateMember({
+          memberId: editing._id,
+          ...base,
+          dateOfBirth: form.dateOfBirth ? fromInputDate(form.dateOfBirth) : null,
+          gender: form.gender
+            ? (form.gender as "male" | "female" | "other")
+            : null,
+          bloodGroup: form.bloodGroup.trim(),
+          phone: form.phone,
+          notes: form.notes.trim(),
+        });
       } else {
-        await createMember(payload);
+        await createMember({
+          ...base,
+          dateOfBirth: form.dateOfBirth ? fromInputDate(form.dateOfBirth) : undefined,
+          gender: form.gender
+            ? (form.gender as "male" | "female" | "other")
+            : undefined,
+          bloodGroup: form.bloodGroup.trim() || undefined,
+          phone: form.phone || undefined,
+          notes: form.notes.trim() || undefined,
+        });
       }
       toast.success(t("memberSaved"));
       setDialogOpen(false);
@@ -257,6 +269,7 @@ export default function FamilyHealth() {
             </div>
             <Button
               size="sm"
+              aria-label={t("addFamilyMember")}
               className="rounded-xl gradient-primary font-semibold text-white"
               onClick={openCreate}
             >

@@ -4,10 +4,10 @@ import { preloadRoute } from "@/lib/route-preload";
 import { useLanguage } from "@/context/LanguageContext";
 
 /**
- * Mobile-only bottom navigation bar (Home · Categories · Offers · Menu).
+ * Mobile-only bottom navigation bar (Home · Categories · Offers · Family Health · Menu).
  *
  * A single instance is mounted at the app root. It is `md:hidden`, so desktop
- * and laptop screens are byte-for-byte unchanged. All four destinations reuse
+ * and laptop screens are byte-for-byte unchanged. All five destinations reuse
  * EXISTING routes and the existing auth state — no new navigation or business
  * logic. "Offers" opens the existing Value Deals Under ₹100 page, which is
  * driven by the same deals/discount data the homepage section uses. "Menu"
