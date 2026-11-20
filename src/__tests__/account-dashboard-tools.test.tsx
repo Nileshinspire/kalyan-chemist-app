@@ -17,6 +17,12 @@ vi.mock("@/context/AuthContext", () => ({
   useAuth: () => ({ user: { name: "Asha", email: "asha@example.com" }, isAuthenticated: true }),
 }));
 
+vi.mock("@/context/LanguageContext", () => ({
+  useLanguage: () => ({
+    t: (key: string) => ({ settings: "Settings" })[key] ?? key,
+  }),
+}));
+
 vi.mock("@/components/account/WalletReferSection", () => ({
   default: () => <div>Wallet and refer</div>,
 }));
@@ -72,13 +78,14 @@ describe("customer dashboard care tools", () => {
       "My Coupons",
       "Wishlist",
       "Notifications",
+      "Settings",
       "Help & Support",
       "Logout",
     ];
     // Mobile options render before the (desktop-only) quick links, so the
     // first match for each label is the option card in the new list.
     const nodes = options.map((label) => screen.getAllByText(label)[0]);
-    expect(nodes).toHaveLength(14);
+    expect(nodes).toHaveLength(15);
 
     const wallet = screen.getByText("Wallet and refer");
     // Every option sits above the untouched Wallet & Refer section.
