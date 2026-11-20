@@ -750,7 +750,7 @@ export default function FamilyMemberHealth() {
                           <p className="truncate text-xs font-medium">{rx.fileName}</p>
                           <div className="mt-1 flex items-center justify-between gap-2">
                             <Badge variant="secondary" className="text-[10px] capitalize">
-                              {String(rx.status).replaceAll("_", " ")}
+                              {String(rx.status).replace(/_/g, " ")}
                             </Badge>
                             <span className="text-[10px] text-muted-foreground">
                               {formatDate(rx.createdAt)}
@@ -859,7 +859,7 @@ export default function FamilyMemberHealth() {
                               {order.invoiceNumber ?? "Order"}
                             </p>
                             <p className="text-[10px] capitalize text-muted-foreground">
-                              {String(order.status).replaceAll("_", " ")} ·{" "}
+                              {String(order.status).replace(/_/g, " ")} ·{" "}
                               {formatDate(order.createdAt)}
                             </p>
                           </div>
