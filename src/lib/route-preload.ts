@@ -42,6 +42,7 @@ const routePreloaders: Record<string, RoutePreloader> = {
 
   // Catalogue
   "/products": () => import("@/pages/Products"),
+  "/health-kits": () => import("@/pages/HealthKits"),
   "/categories": () => import("@/pages/Categories"),
   "/brands": () => import("@/pages/Brands"),
   "/value-deals": () => import("@/pages/ValueDeals"),
@@ -81,6 +82,7 @@ const routePreloaders: Record<string, RoutePreloader> = {
   "/admin/products": () => import("@/pages/admin/AdminProducts"),
   "/admin/categories": () => import("@/pages/admin/AdminCategories"),
   "/admin/healthcare-devices": () => import("@/pages/admin/AdminHealthcareDevices"),
+  "/admin/health-kits": () => import("@/pages/admin/AdminHealthKits"),
   "/admin/brands": () => import("@/pages/admin/AdminBrands"),
   "/admin/inventory": () => import("@/pages/admin/AdminInventory"),
   "/admin/orders": () => import("@/pages/admin/AdminOrders"),

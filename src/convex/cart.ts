@@ -3,6 +3,26 @@ import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
 import { withEnginePrices } from "./discountEngine";
+import { getHealthKitAvailability } from "./healthKitsCore";
+
+/**
+ * Health kits do not own stock. Their buyable quantity is derived from the
+ * included products, which are the same catalogue rows every other surface
+ * uses — no second inventory exists.
+ */
+async function assertKitCanBeAdded(
+  ctx: { db: any },
+  product: Doc<"products">,
+  quantity: number,
+) {
+  const availability = await getHealthKitAvailability(ctx.db, product);
+  if (!availability.available || quantity > availability.maxQuantity) {
+    throw new Error(
+      availability.unavailableReason ??
+        `Insufficient stock for "${product.name}". Available kits: ${availability.maxQuantity}`,
+    );
+  }
+}
 
 // ── List cart items with product details for the current user ──
 export const list = query({
@@ -29,15 +49,33 @@ export const list = query({
     );
 
     // Cart totals must show the engine-resolved price checkout will charge,
-    // even when the stored snapshot lags the current rules.
-    const pricedProducts = await withEnginePrices(
+    // even when the stored snapshot lags the current rules. Kits keep the
+    // explicit kit price the admin set (the engine never reprices a bundle)
+    // and report derived availability in place of their empty own stock.
+    const standardRows = present.filter((row) => !row.product.healthKit);
+    const pricedStandard = await withEnginePrices(
       ctx.db,
-      present.map((row) => row.product),
+      standardRows.map((row) => row.product),
     );
-    return present.map((row, index) => ({
-      ...row.item,
-      product: pricedProducts[index],
-    }));
+    const pricedById = new Map(
+      pricedStandard.map((product) => [product._id as string, product]),
+    );
+
+    return await Promise.all(
+      present.map(async (row) => {
+        if (!row.product.healthKit) {
+          return {
+            ...row.item,
+            product: pricedById.get(row.product._id as string) ?? row.product,
+          };
+        }
+        const availability = await getHealthKitAvailability(ctx.db, row.product);
+        return {
+          ...row.item,
+          product: { ...row.product, stockQuantity: availability.maxQuantity },
+        };
+      }),
+    );
   },
 });
 
@@ -75,7 +113,11 @@ export const addItem = mutation({
     if (product.expiryDate && product.expiryDate <= Date.now()) {
       throw new Error(`"${product.name}" has expired and can no longer be sold.`);
     }
-    if (product.stockQuantity < args.quantity) throw new Error("Insufficient stock");
+    if (product.healthKit) {
+      await assertKitCanBeAdded(ctx, product, args.quantity);
+    } else if (product.stockQuantity < args.quantity) {
+      throw new Error("Insufficient stock");
+    }
 
     // Check if item already in cart
     const existing = await ctx.db
@@ -87,7 +129,11 @@ export const addItem = mutation({
 
     if (existing) {
       const newQty = existing.quantity + args.quantity;
-      if (newQty > product.stockQuantity) throw new Error("Insufficient stock");
+      if (product.healthKit) {
+        await assertKitCanBeAdded(ctx, product, newQty);
+      } else if (newQty > product.stockQuantity) {
+        throw new Error("Insufficient stock");
+      }
       await ctx.db.patch(existing._id, { quantity: newQty });
       return { success: true, quantity: newQty };
     }
@@ -120,7 +166,9 @@ export const updateQuantity = mutation({
     }
 
     const product = await ctx.db.get(item.productId);
-    if (product && args.quantity > product.stockQuantity) {
+    if (product?.healthKit) {
+      await assertKitCanBeAdded(ctx, product, args.quantity);
+    } else if (product && args.quantity > product.stockQuantity) {
       throw new Error("Insufficient stock");
     }
 

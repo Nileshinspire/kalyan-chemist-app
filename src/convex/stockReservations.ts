@@ -90,13 +90,12 @@ export async function reserveStockForOrder(
   let reserved = 0;
   let batchesUsed = 0;
 
-  for (const item of args.items) {
-    const product = await ctx.db.get(item.productId);
-    if (!product || !product.isActive) {
-      throw new Error(`"${item.name}" is no longer available`);
-    }
-
-    const batches = await loadBatches(ctx, item.productId);
+  /** Reserve units of ONE real catalogue product, FEFO. */
+  const reserveUnits = async (
+    product: Doc<"products">,
+    quantity: number,
+  ) => {
+    const batches = await loadBatches(ctx, product._id);
     // A product-level expiry date is the storefront's existing hard gate and is
     // enforced by the caller exactly as before. Batch-level expiry is an extra
     // filter here, so an expired batch can never be sold even when the product
@@ -104,7 +103,7 @@ export async function reserveStockForOrder(
     const plan = allocateFefo({
       batches: toBatchStock(batches),
       productQuantity: product.stockQuantity,
-      quantity: item.quantity,
+      quantity,
       now,
     });
 
@@ -115,7 +114,7 @@ export async function reserveStockForOrder(
     }
 
     const previousProductQuantity = product.stockQuantity;
-    const newProductQuantity = previousProductQuantity - item.quantity;
+    const newProductQuantity = previousProductQuantity - quantity;
 
     for (const unit of plan.units) {
       if (!unit.batchId) continue;
@@ -176,7 +175,30 @@ export async function reserveStockForOrder(
       });
     }
 
-    reserved += item.quantity;
+    reserved += quantity;
+  };
+
+  for (const item of args.items) {
+    const product = await ctx.db.get(item.productId);
+    if (!product || !product.isActive) {
+      throw new Error(`"${item.name}" is no longer available`);
+    }
+
+    // A health kit owns no stock: reserve every included product instead, so
+    // the sale draws from the exact same inventory as buying those items
+    // individually. A kit bought twice reserves twice the component quantity.
+    if (product.healthKit) {
+      for (const component of product.healthKit.components) {
+        const componentProduct = await ctx.db.get(component.productId);
+        if (!componentProduct || !componentProduct.isActive) {
+          throw new Error(`An item in "${product.name}" is no longer available.`);
+        }
+        await reserveUnits(componentProduct, component.quantity * item.quantity);
+      }
+      continue;
+    }
+
+    await reserveUnits(product, item.quantity);
   }
 
   return { reserved, batchesUsed };
@@ -263,6 +285,11 @@ export async function releaseStockForOrder(
 
   const legacyByProduct = new Map<Id<"products">, number>();
   for (const item of order.items as OrderItem[]) {
+    // Kits have no stock row of their own. Their units were reserved from the
+    // included products above (via allocation rows), so there is no legacy
+    // un-batched remainder to restore for the kit product itself.
+    const itemProduct = await ctx.db.get(item.productId);
+    if (itemProduct?.healthKit) continue;
     const covered = coveredByProduct.get(item.productId as unknown as string) ?? 0;
     const legacy = item.quantity - covered;
     if (legacy > 0) {

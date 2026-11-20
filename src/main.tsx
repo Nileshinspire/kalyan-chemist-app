@@ -40,6 +40,8 @@ import Register from "./pages/Register.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
 import Products from "./pages/Products.tsx";
 import ProductDetail from "./pages/ProductDetail.tsx";
+import HealthKits from "./pages/HealthKits.tsx";
+import HealthKitDetail from "./pages/HealthKitDetail.tsx";
 import ValueDealsPage from "./pages/ValueDeals.tsx";
 import Offers from "./pages/Offers.tsx";
 import Cart from "./pages/Cart.tsx";
@@ -60,6 +62,7 @@ const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
 const AdminProducts = lazy(() => import("./pages/admin/AdminProducts"));
 const AdminCategories = lazy(() => import("./pages/admin/AdminCategories"));
 const AdminHealthcareDevices = lazy(() => import("./pages/admin/AdminHealthcareDevices"));
+const AdminHealthKits = lazy(() => import("./pages/admin/AdminHealthKits"));
 const AdminBrands = lazy(() => import("./pages/admin/AdminBrands"));
 const AdminInventory = lazy(() => import("./pages/admin/AdminInventory"));
 const AdminOrders = lazy(() => import("./pages/admin/AdminOrders"));
@@ -338,6 +341,14 @@ function AnimatedRoutes() {
           }
         />
         <Route
+          path="/health-kits"
+          element={<HealthKits />}
+        />
+        <Route
+          path="/health-kits/:slug"
+          element={<HealthKitDetail />}
+        />
+        <Route
           path="/cart"
           element={
             <Cart />
@@ -508,6 +519,17 @@ function AnimatedRoutes() {
           element={
             <RequireAuth adminOnly>
                 <AdminHealthcareDevices />
+              </RequireAuth>
+            
+          }
+        />
+        <Route
+          path="/admin/health-kits"
+          element={
+            <RequireAuth adminOnly>
+                <Suspense fallback={<RouteLoading />}>
+                  <AdminHealthKits />
+                </Suspense>
               </RequireAuth>
             
           }

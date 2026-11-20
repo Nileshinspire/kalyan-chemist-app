@@ -183,6 +183,21 @@ const schema = defineSchema(
       .index("by_sortOrder", ["sortOrder"])
       .index("by_homepage", ["isActive", "showOnHomepage"]),
 
+    // Discovery categories for curated health kits. These are separate from
+    // medicine categories because kits are merchandising collections, not
+    // clinical product classifications.
+    healthKitCategories: defineTable({
+      name: v.string(),
+      slug: v.string(),
+      description: v.optional(v.string()),
+      imageUrl: v.optional(v.string()),
+      isActive: v.boolean(),
+      sortOrder: v.number(),
+    })
+      .index("by_slug", ["slug"])
+      .index("by_isActive", ["isActive"])
+      .index("by_sortOrder", ["sortOrder"]),
+
     // Medicine categories (e.g. Pain Relief, Diabetes Care)
     categories: defineTable({
       name: v.string(),
@@ -210,6 +225,24 @@ const schema = defineSchema(
       categoryId: v.id("categories"),
       imageUrl: v.optional(v.string()),
       additionalImages: v.optional(v.array(v.string())),
+      /**
+       * Health-kit metadata. A kit is a normal catalogue product row so the
+       * existing cart, checkout, pricing and order screens can sell it, but its
+       * contents are references to existing products and it carries no
+       * inventory of its own. Availability is derived from the included
+       * products, and stock reservation expands the kit into those products.
+       */
+      healthKit: v.optional(
+        v.object({
+          categoryId: v.id("healthKitCategories"),
+          components: v.array(
+            v.object({
+              productId: v.id("products"),
+              quantity: v.number(),
+            }),
+          ),
+        }),
+      ),
       /**
        * Where the stored packshot came from — a source label plus the original
        * remote image URL. Recorded by the image pipeline so a later audit can

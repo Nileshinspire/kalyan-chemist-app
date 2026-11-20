@@ -3,6 +3,7 @@ import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { reserveWalletForOrder } from "./referralWallet";
 import { loadEngine } from "./discountEngine";
+import { getHealthKitAvailability, kitSellingPrice } from "./healthKitsCore";
 import { loadPrescriptionUsage } from "./prescriptionServer";
 import { resolveProductDiscount } from "../lib/discount";
 import { releaseStockForOrder, reserveStockForOrder } from "./stockReservations";
@@ -179,27 +180,41 @@ export const create = mutation({
           `"${product.name}" has expired and cannot be sold. Please remove it from your cart.`
         );
       }
-      if (product.stockQuantity < ci.quantity) {
-        throw new Error(
-          `Insufficient stock for "${product.name}". Available: ${product.stockQuantity}`
+      let effectivePrice: number;
+      if (product.healthKit) {
+        // Kit pricing is an explicit admin-set bundle price, never governed by
+        // the product discount engine. Availability is derived from the real
+        // included products (which reserveStockForOrder decrements below).
+        const availability = await getHealthKitAvailability(ctx.db, product);
+        if (ci.quantity > availability.maxQuantity) {
+          throw new Error(
+            availability.unavailableReason ??
+              `Insufficient stock for "${product.name}". Available kits: ${availability.maxQuantity}`,
+          );
+        }
+        effectivePrice = kitSellingPrice(product);
+      } else {
+        if (product.stockQuantity < ci.quantity) {
+          throw new Error(
+            `Insufficient stock for "${product.name}". Available: ${product.stockQuantity}`
+          );
+        }
+        const resolved = resolveProductDiscount(
+          {
+            _id: product._id,
+            price: product.price,
+            discountPrice: product.discountPrice ?? null,
+            categoryId: product.categoryId,
+            isActive: product.isActive,
+            discountSource: product.discountSource ?? null,
+            createdAt: product.createdAt,
+          },
+          engine,
+          engineNow,
         );
+        effectivePrice = resolved.effectivePrice;
       }
-
       const originalPrice = product.price;
-      const { percent: effectivePercent, effectivePrice } = resolveProductDiscount(
-        {
-          _id: product._id,
-          price: product.price,
-          discountPrice: product.discountPrice ?? null,
-          categoryId: product.categoryId,
-          isActive: product.isActive,
-          discountSource: product.discountSource ?? null,
-          createdAt: product.createdAt,
-        },
-        engine,
-        engineNow,
-      );
-      void effectivePercent;
 
       orderItems.push({
         productId: ci.productId,
@@ -213,7 +228,7 @@ export const create = mutation({
       });
 
       subtotal += effectivePrice * ci.quantity;
-      discount += (originalPrice - effectivePrice) * ci.quantity;
+      discount += Math.max(0, originalPrice - effectivePrice) * ci.quantity;
     }
 
     // Stock is reserved once, FEFO, after the order row exists (see below): the

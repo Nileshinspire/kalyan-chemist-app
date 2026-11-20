@@ -9,7 +9,7 @@ import {
   Sparkles,
   ArrowRight,
   Search,
-  MessageCircle,
+  BriefcaseMedical,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router";
@@ -318,23 +318,23 @@ export default function Landing() {
               </div>
             </button>
 
-            {/* AI Chatbot */}
+            {/* Health Kits */}
             <button
               type="button"
-              onMouseEnter={() => preloadRoute("/chatbot")}
-              onFocus={() => preloadRoute("/chatbot")}
-              onClick={() => navigate("/chatbot")}
+              onMouseEnter={() => preloadRoute("/health-kits")}
+              onFocus={() => preloadRoute("/health-kits")}
+              onClick={() => navigate("/health-kits")}
               className="inline-flex items-center gap-2 rounded-lg border border-border/60 bg-card hover:bg-accent/40 px-2.5 py-2 sm:px-3 sm:py-2.5 transition-all duration-300 group cursor-pointer shadow-sm hover:shadow-md max-sm:shrink-0 max-sm:snap-start max-sm:w-[104px] max-sm:grow-0 max-sm:flex-col max-sm:items-center max-sm:justify-start max-sm:gap-1.5 max-sm:p-3 max-sm:text-center"
             >
               <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary group-hover:bg-primary/15 transition-colors max-sm:size-9">
-                <MessageCircle className="size-[16px]" />
+                <BriefcaseMedical className="size-[16px]" />
               </div>
               <div className="text-left max-sm:text-center max-sm:min-w-0">
                 <h3 className="text-xs sm:text-sm font-semibold text-foreground group-hover:text-primary transition-colors">
-                  AI Chatbot
+                  Health Kits
                 </h3>
-                <p className="text-[11px] text-muted-foreground mt-0.5 max-sm:line-clamp-2">
-                  Chat for help & medicines
+                <p className="text-[10px] sm:text-[11px] font-semibold uppercase tracking-wider text-primary/70 mt-0.5 max-sm:line-clamp-2">
+                  EXPLORE NOW
                 </p>
               </div>
             </button>

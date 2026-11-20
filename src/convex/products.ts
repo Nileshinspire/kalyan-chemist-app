@@ -17,7 +17,8 @@ export const list = query({
       q = q.filter((q) => q.eq(q.field("categoryId"), args.categoryId));
     }
 
-    return await q.collect();
+    // Health kits are sold only through their dedicated experience.
+    return (await q.collect()).filter((product) => !product.healthKit);
   },
 });
 
@@ -30,7 +31,9 @@ export const getById = query({
     const category = await ctx.db.get(product.categoryId);
     // The detail page renders badge, MRP and sale price from this row, so it
     // must show the number checkout will charge (orders re-resolve the same
-    // rules when the order is placed).
+    // rules when the order is placed). A kit's explicit bundle price is never
+    // touched by the product discount engine.
+    if (product.healthKit) return { ...product, category };
     const [priced] = await withEnginePrices(ctx.db, [product]);
     return { ...priced, category };
   },
@@ -45,6 +48,7 @@ export const getBySlug = query({
       .withIndex("by_slug", (q) => q.eq("slug", args.slug))
       .first();    if (!product) return null;
     const category = await ctx.db.get(product.categoryId);
+    if (product.healthKit) return { ...product, category };
     const [priced] = await withEnginePrices(ctx.db, [product]);
     return { ...priced, category };
   },
@@ -67,7 +71,7 @@ export const search = query({
     const allProducts = await q.collect();
 
     // Filter by search term (name, manufacturer, description)
-    let filtered = allProducts;
+    let filtered = allProducts.filter((product) => !product.healthKit);
     if (searchTerm) {
       filtered = allProducts.filter(
         (p) =>
@@ -102,7 +106,10 @@ export const getByCategorySlug = query({
       .withIndex("by_category", (q) => q.eq("categoryId", category._id))
       .collect();
 
-    return { category, products: products.filter((p) => p.isActive) };
+    return {
+      category,
+      products: products.filter((p) => p.isActive && !p.healthKit),
+    };
   },
 });
 
@@ -142,7 +149,7 @@ export const getRelated = query({
       .collect();
 
     const related = products
-      .filter((p) => p._id !== args.productId && p.isActive)
+      .filter((p) => p._id !== args.productId && p.isActive && !p.healthKit)
       .slice(0, 4);
     return await withEnginePrices(ctx.db, related);
   },

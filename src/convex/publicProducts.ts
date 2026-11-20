@@ -98,6 +98,10 @@ async function runProductSearch(ctx: QueryCtx, args: SearchFilters) {
       .withIndex("by_isActive", (q) => q.eq("isActive", true))
       .collect();
 
+    // Kits have their own dedicated storefront; they are not ordinary catalogue
+    // products and must never appear in general search or category listings.
+    products = products.filter((product) => !product.healthKit);
+
     // Text search across multiple fields
     if (searchTerm) {
       products = products.filter((p) => {
@@ -237,7 +241,7 @@ export const autocomplete = query({
 
     // Product name matches
     for (const p of products) {
-      if (p.name.toLowerCase().includes(searchTerm)) {
+      if (!p.healthKit && p.name.toLowerCase().includes(searchTerm)) {
         suggestions.push({
           type: "product",
           name: p.name,
@@ -282,10 +286,10 @@ export const popular = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
     // Use createdAt as a proxy for featured/popular for now
-    const products = await ctx.db
+    const products = (await ctx.db
       .query("products")
       .withIndex("by_isActive", (q) => q.eq("isActive", true))
-      .collect();
+      .collect()).filter((product) => !product.healthKit);
 
     // Get all orders to count product popularity
     const orders = await ctx.db.query("orders").collect();
@@ -314,10 +318,10 @@ export const popular = query({
 export const hotSellers = query({
   args: { limit: v.optional(v.number()) },
   handler: async (ctx, args) => {
-    const products = await ctx.db
+    const products = (await ctx.db
       .query("products")
       .withIndex("by_isActive", (q) => q.eq("isActive", true))
-      .collect();
+      .collect()).filter((product) => !product.healthKit);
 
     // Count units sold from successful orders only (exclude cancelled).
     const orders = await ctx.db.query("orders").collect();
@@ -361,7 +365,7 @@ export const newArrivals = query({
       .collect();
 
     const recent = products
-      .filter((p) => p.createdAt >= cutoff)
+      .filter((p) => !p.healthKit && p.createdAt >= cutoff)
       .sort((a, b) => b.createdAt - a.createdAt);
 
     // Enrich with category and brand names (same shape the product cards use)
@@ -431,6 +435,7 @@ export const valueDeals = query({
     }
 
     const candidates = products.filter((p) => {
+      if (p.healthKit) return false;
       const sellingPrice = p.discountPrice ?? p.price;
       return sellingPrice <= VALUE_DEAL_MAX_PRICE;
     });
@@ -476,7 +481,7 @@ export const featured = query({
     );
 
     const withDiscount = products
-      .filter((p) => p.discountPrice && p.discountPrice < p.price)
+      .filter((p) => !p.healthKit && p.discountPrice && p.discountPrice < p.price)
       .map((p) => ({
         discountPercent: Math.round(((p.price - (p.discountPrice ?? p.price)) / p.price) * 100),
         product: p,
