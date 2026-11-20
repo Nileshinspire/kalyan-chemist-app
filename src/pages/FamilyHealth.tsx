@@ -247,55 +247,64 @@ export default function FamilyHealth() {
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
       <main className="flex-1">
-        <div className="mx-auto max-w-5xl px-4 pb-12 pt-5 sm:px-6 lg:py-9">
-          <div className="mb-5 flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label={t("back")}
-              className="rounded-xl lg:hidden"
-              onClick={() => (window.history.length > 1 ? navigate(-1) : navigate("/"))}
-            >
-              <ArrowLeft className="size-5" />
-            </Button>
-            <div className="min-w-0 flex-1">
-              <h1 className="flex items-center gap-2 text-xl font-bold text-foreground">
-                <HeartHandshake className="size-5 text-primary" />
-                {t("familyHealth")}
-              </h1>
-              <p className="mt-0.5 text-sm text-muted-foreground">
-                {t("familyHealthSubtitle")}
-              </p>
+        <div className="mx-auto max-w-6xl px-4 pb-12 pt-4 sm:px-6 sm:pt-5 lg:py-9">
+          <div className="mb-5 overflow-hidden rounded-3xl border border-primary/10 bg-gradient-to-br from-primary/[0.09] via-primary/[0.035] to-background">
+            <div className="flex items-start gap-2 p-4 sm:gap-3 sm:p-6">
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={t("back")}
+                className="-ml-1 size-9 shrink-0 rounded-xl lg:hidden"
+                onClick={() => (window.history.length > 1 ? navigate(-1) : navigate("/"))}
+              >
+                <ArrowLeft className="size-5" />
+              </Button>
+              <div className="min-w-0 flex-1">
+                <div className="mb-2 flex size-11 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm">
+                  <HeartHandshake className="size-5" />
+                </div>
+                <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
+                  {t("familyHealth")}
+                </h1>
+                <p className="mt-1 max-w-lg text-sm leading-relaxed text-muted-foreground">
+                  {t("familyHealthSubtitle")}
+                </p>
+              </div>
             </div>
-            <Button
-              size="sm"
-              aria-label={t("addFamilyMember")}
-              className="rounded-xl gradient-primary font-semibold text-white"
-              onClick={openCreate}
-            >
-              <Plus className="size-4" />
-              <span className="hidden sm:inline">{t("addFamilyMember")}</span>
-              <span className="sm:hidden">{t("add")}</span>
-            </Button>
+            <div className="flex flex-col gap-3 border-t border-primary/10 bg-background/45 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+              <p className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
+                <ShieldCheck className="size-3.5 shrink-0 text-primary" />
+                {t("privacySecurity")}
+              </p>
+              <Button
+                size="sm"
+                aria-label={t("addFamilyMember")}
+                className="h-10 w-full shrink-0 rounded-xl gradient-primary px-4 font-semibold text-white sm:w-auto"
+                onClick={openCreate}
+              >
+                <Plus className="size-4" />
+                {t("addFamilyMember")}
+              </Button>
+            </div>
           </div>
 
-          <div className="mb-6 grid grid-cols-3 gap-2 sm:gap-4">
+          <div className="mb-6 grid grid-cols-3 divide-x divide-border/60 overflow-hidden rounded-2xl border border-border/60 bg-card">
             {[
               { label: t("familyMembers"), value: summary?.members ?? memberList.length, icon: Users },
               { label: t("healthRecords"), value: summary?.readings ?? 0, icon: Activity },
               { label: t("reports"), value: summary?.reports ?? 0, icon: ShieldCheck },
             ].map((stat) => (
-              <Card key={stat.label} className="border-border/60">
-                <CardContent className="flex items-center gap-3 p-3.5 sm:p-4">
-                  <div className="hidden size-9 shrink-0 items-center justify-center rounded-xl bg-primary/[0.07] sm:flex">
-                    <stat.icon className="size-4 text-primary" />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-lg font-bold leading-tight text-foreground">{stat.value}</p>
-                    <p className="truncate text-[11px] text-muted-foreground">{stat.label}</p>
-                  </div>
-                </CardContent>
-              </Card>
+              <div key={stat.label} className="min-w-0 px-2 py-3.5 text-center sm:px-4 sm:text-left">
+                <div className="mx-auto mb-1.5 flex size-8 items-center justify-center rounded-lg bg-primary/[0.07] sm:mx-0 sm:hidden">
+                  <stat.icon className="size-3.5 text-primary" />
+                </div>
+                <p className="text-xl font-bold leading-none tracking-tight text-foreground">
+                  {stat.value}
+                </p>
+                <p className="mx-auto mt-1.5 max-w-[88px] text-[10px] leading-tight text-muted-foreground sm:max-w-none sm:text-[11px]">
+                  {stat.label}
+                </p>
+              </div>
             ))}
           </div>
 
@@ -305,103 +314,164 @@ export default function FamilyHealth() {
             </div>
           ) : memberList.length === 0 ? (
             <Card className="border-dashed border-border/70">
-              <CardContent className="flex flex-col items-center px-6 py-14 text-center">
+              <CardContent className="flex flex-col items-center px-5 py-10 text-center sm:py-14">
                 <div className="flex size-14 items-center justify-center rounded-2xl bg-primary/[0.07]">
                   <Users className="size-7 text-primary" />
                 </div>
                 <h2 className="mt-4 text-base font-semibold">{t("familyMembers")}</h2>
-                <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+                <p className="mt-1 max-w-sm text-sm leading-relaxed text-muted-foreground">
                   {t("noMembers")}
                 </p>
-                <Button className="mt-5 rounded-xl gradient-primary text-white" onClick={openCreate}>
+                <Button className="mt-5 h-10 rounded-xl gradient-primary px-5 text-white" onClick={openCreate}>
                   <Plus className="size-4" /> {t("addFamilyMember")}
                 </Button>
               </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2">
-              {memberList.map((member, index) => {
-                const Icon = RELATIONSHIP_ICON[member.relationship] ?? User;
-                return (
-                  <motion.div
-                    key={member._id}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: Math.min(index * 0.03, 0.2) }}
-                  >
-                    <Card className="group h-full border-border/60 transition-all duration-200 hover:border-primary/25 hover:shadow-card-hover">
-                      <CardContent className="p-4">
-                        <div className="flex items-start gap-3">
-                          <button
-                            type="button"
-                            onClick={() => navigate(`/family-health/${member._id}`)}
-                            className="flex min-w-0 flex-1 items-start gap-3 text-left"
-                          >
-                            <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary/[0.07] text-primary">
-                              <Icon className="size-5" />
-                            </div>
-                            <div className="min-w-0 flex-1">
-                              <div className="flex flex-wrap items-center gap-1.5">
-                                <h2 className="truncate text-sm font-semibold text-foreground">
-                                  {member.name}
-                                </h2>
-                                {member.relationship === "self" && (
-                                  <Badge variant="secondary" className="rounded-md px-1.5 py-0 text-[10px]">
-                                    {t("self")}
-                                  </Badge>
-                                )}
-                              </div>
-                              <p className="mt-0.5 text-xs capitalize text-muted-foreground">
-                                {t(member.relationship)}
-                                {member.bloodGroup ? ` · ${member.bloodGroup}` : ""}
-                                {member.gender ? ` · ${t(member.gender)}` : ""}
-                              </p>
-                              <span className="mt-2 inline-flex items-center gap-1 text-[11px] font-medium text-primary">
-                                {t("careOverview")} <ChevronRight className="size-3.5" />
+            <>
+              <div className="mb-3 flex items-center justify-between gap-3 px-0.5">
+                <h2 className="text-sm font-semibold text-foreground">{t("familyMembers")}</h2>
+                <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                  {memberList.length}
+                </span>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {memberList.map((member, index) => {
+                  const Icon = RELATIONSHIP_ICON[member.relationship] ?? User;
+                  const initials = member.name
+                    .split(/\s+/)
+                    .filter(Boolean)
+                    .slice(0, 2)
+                    .map((part) => part[0]?.toUpperCase())
+                    .join("");
+                  return (
+                    <motion.div
+                      key={member._id}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: Math.min(index * 0.03, 0.2) }}
+                      className="min-w-0"
+                    >
+                      <Card className="group flex h-full flex-col border-border/60 transition-all duration-200 hover:border-primary/25 hover:shadow-card-hover">
+                        <CardContent className="flex flex-1 flex-col p-4">
+                          <div className="flex items-start gap-3">
+                            <div className="relative flex size-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-sm font-bold text-primary ring-1 ring-primary/10">
+                              {initials || <Icon className="size-5" />}
+                              <span className="absolute -bottom-1 -right-1 flex size-5 items-center justify-center rounded-full border-2 border-card bg-background text-primary">
+                                <Icon className="size-2.5" />
                               </span>
                             </div>
-                          </button>
-                          <div className="flex shrink-0 gap-0.5">
+                            <div className="min-w-0 flex-1 pt-0.5">
+                              <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                                <h3 className="min-w-0 break-words text-[15px] font-semibold leading-tight text-foreground">
+                                  {member.name}
+                                </h3>
+                                <Badge
+                                  variant="secondary"
+                                  className="shrink-0 rounded-md px-1.5 py-0 text-[10px] capitalize"
+                                >
+                                  {t(member.relationship)}
+                                </Badge>
+                              </div>
+                              <p className="mt-1 text-xs capitalize text-muted-foreground">
+                                {[member.gender ? t(member.gender) : null, member.bloodGroup]
+                                  .filter(Boolean)
+                                  .join(" · ") || t("memberProfile")}
+                              </p>
+                            </div>
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="size-8"
-                              aria-label={t("editFamilyMember")}
-                              onClick={() => openEdit(member)}
-                            >
-                              <Pencil className="size-3.5" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="size-8 text-muted-foreground hover:text-destructive"
+                              className="size-8 shrink-0 text-muted-foreground hover:text-destructive"
                               aria-label={t("remove")}
                               onClick={() => setDeleteTarget(member)}
                             >
                               <Trash2 className="size-3.5" />
                             </Button>
                           </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                );
-              })}
-            </div>
+
+                          <div className="mt-3 flex flex-wrap gap-1.5">
+                            {member.phone && (
+                              <span className="max-w-full truncate rounded-md bg-muted/60 px-2 py-1 text-[10px] text-muted-foreground">
+                                {member.phone}
+                              </span>
+                            )}
+                            {member.dateOfBirth && (
+                              <span className="rounded-md bg-muted/60 px-2 py-1 text-[10px] text-muted-foreground">
+                                {new Date(member.dateOfBirth).toLocaleDateString("en-IN", {
+                                  day: "numeric",
+                                  month: "short",
+                                  year: "numeric",
+                                })}
+                              </span>
+                            )}
+                            {member.notes && (
+                              <span className="line-clamp-1 max-w-full rounded-md bg-muted/60 px-2 py-1 text-[10px] text-muted-foreground">
+                                {member.notes}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="mt-auto space-y-1.5 pt-4">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-10 w-full min-w-0 justify-between rounded-lg border-primary/20 bg-primary/[0.035] px-3 text-[11px] font-semibold text-primary hover:bg-primary/[0.07]"
+                              onClick={() => navigate(`/family-health/${member._id}`)}
+                            >
+                              <span className="flex min-w-0 items-center gap-1.5">
+                                <Activity className="size-3.5 shrink-0" />
+                                <span className="truncate">{t("healthTracker")}</span>
+                              </span>
+                              <ChevronRight className="size-3.5 shrink-0" />
+                            </Button>
+                            <div className="grid grid-cols-2 gap-1.5">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-9 min-w-0 rounded-lg px-2 text-[11px] text-muted-foreground"
+                                onClick={() => navigate(`/family-health/${member._id}`)}
+                              >
+                                <Icon className="size-3.5 shrink-0" />
+                                <span className="truncate">{t("profile")}</span>
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-9 min-w-0 rounded-lg px-2 text-[11px] text-muted-foreground"
+                                onClick={() => openEdit(member)}
+                              >
+                                <Pencil className="size-3.5 shrink-0" />
+                                <span className="truncate">{t("edit")}</span>
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            </>
           )}
 
-          <div className="mt-6 flex items-start gap-2 rounded-2xl border border-border/60 bg-muted/30 p-3.5">
-            <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" />
-            <p className="text-xs leading-relaxed text-muted-foreground">
-              {t("privacyNotice")}
-            </p>
+          <div className="mt-6 flex items-start gap-3 rounded-2xl border border-primary/10 bg-primary/[0.035] p-4">
+            <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+              <ShieldCheck className="size-4 text-primary" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-foreground">{t("privacySecurity")}</p>
+              <p className="mt-0.5 break-words text-[11px] leading-relaxed text-muted-foreground">
+                {t("privacyNotice")}
+              </p>
+            </div>
           </div>
         </div>
       </main>
       <Footer />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+        <DialogContent className="max-h-[90vh] w-[calc(100%-2rem)] overflow-y-auto rounded-2xl p-5 sm:max-w-lg sm:p-6">
           <DialogHeader>
             <DialogTitle>
               {editing ? t("editFamilyMember") : t("addFamilyMember")}
@@ -505,12 +575,12 @@ export default function FamilyHealth() {
               />
             </div>
           </div>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" className="h-10 w-full sm:w-auto" onClick={() => setDialogOpen(false)}>
               {t("cancel")}
             </Button>
             <Button
-              className="gradient-primary text-white"
+              className="h-10 w-full gradient-primary text-white sm:w-auto"
               onClick={handleSave}
               disabled={saving}
             >

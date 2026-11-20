@@ -463,40 +463,71 @@ export default function FamilyMemberHealth() {
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
       <main className="flex-1">
-        <div className="mx-auto max-w-5xl px-4 pb-12 pt-5 sm:px-6 lg:py-9">
-          <div className="mb-5 flex items-start gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label={t("back")}
-              className="mt-0.5 rounded-xl"
-              onClick={() => navigate("/family-health")}
-            >
-              <ArrowLeft className="size-5" />
-            </Button>
-            <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                {t("familyHealth")}
-              </p>
-              <h1 className="truncate text-xl font-bold text-foreground">{member.name}</h1>
-              <p className="mt-0.5 text-xs capitalize text-muted-foreground">
-                {t(member.relationship)}
-                {member.bloodGroup ? ` · ${member.bloodGroup}` : ""}
-                {member.phone ? ` · ${member.phone}` : ""}
-              </p>
+        <div className="mx-auto max-w-6xl px-4 pb-12 pt-4 sm:px-6 sm:pt-5 lg:py-9">
+          <div className="mb-5 overflow-hidden rounded-3xl border border-primary/10 bg-gradient-to-br from-primary/[0.09] via-primary/[0.035] to-background">
+            <div className="flex items-start gap-2 p-4 sm:gap-3 sm:p-6">
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={t("back")}
+                className="-ml-1 size-9 shrink-0 rounded-xl"
+                onClick={() => navigate("/family-health")}
+              >
+                <ArrowLeft className="size-5" />
+              </Button>
+              <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-primary text-sm font-bold text-primary-foreground shadow-sm sm:size-14 sm:text-base">
+                {member.name
+                  .split(/\s+/)
+                  .filter(Boolean)
+                  .slice(0, 2)
+                  .map((part) => part[0]?.toUpperCase())
+                  .join("")}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-primary/80">
+                  {t("familyHealth")}
+                </p>
+                <h1 className="break-words text-xl font-bold leading-tight text-foreground sm:text-2xl">
+                  {member.name}
+                </h1>
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                  <span className="rounded-full bg-background/80 px-2 py-0.5 text-[10px] font-medium capitalize text-muted-foreground ring-1 ring-border/60">
+                    {t(member.relationship)}
+                  </span>
+                  {member.bloodGroup && (
+                    <span className="rounded-full bg-background/80 px-2 py-0.5 text-[10px] font-medium text-muted-foreground ring-1 ring-border/60">
+                      {member.bloodGroup}
+                    </span>
+                  )}
+                  {member.phone && (
+                    <span className="max-w-full truncate rounded-full bg-background/80 px-2 py-0.5 text-[10px] font-medium text-muted-foreground ring-1 ring-border/60">
+                      {member.phone}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-0.5 hidden shrink-0 rounded-xl bg-background/70 sm:inline-flex"
+                onClick={() => navigate("/family-health")}
+              >
+                <Pencil className="size-3.5" /> {t("manageProfile")}
+              </Button>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="mt-1 rounded-xl"
-              onClick={() => navigate("/family-health")}
-            >
-              <Pencil className="size-3.5" />
-              <span className="hidden sm:inline">{t("manageProfile")}</span>
-            </Button>
+            <div className="border-t border-primary/10 bg-background/45 px-4 py-2.5 sm:hidden">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 w-full rounded-lg bg-background/70 text-[11px]"
+                onClick={() => navigate("/family-health")}
+              >
+                <Pencil className="size-3.5" /> {t("manageProfile")}
+              </Button>
+            </div>
           </div>
 
-          <div className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className="mb-5 grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
             {[
               { label: t("healthRecords"), count: allReadings.length, icon: Activity },
               { label: t("reports"), count: (reports ?? []).length, icon: FileText },
@@ -504,27 +535,34 @@ export default function FamilyMemberHealth() {
               { label: t("orders"), count: memberOrders.length, icon: Package },
             ].map((item) => (
               <Card key={item.label} className="border-border/60">
-                <CardContent className="flex items-center gap-2.5 p-3">
-                  <item.icon className="size-4 text-primary" />
-                  <div>
-                    <p className="text-base font-bold leading-none">{item.count}</p>
-                    <p className="mt-1 text-[10px] text-muted-foreground">{item.label}</p>
+                <CardContent className="flex items-center gap-2.5 p-3 sm:p-3.5">
+                  <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/[0.07]">
+                    <item.icon className="size-4 text-primary" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-lg font-bold leading-none tracking-tight">{item.count}</p>
+                    <p className="mt-1 truncate text-[10px] text-muted-foreground sm:text-[11px]">
+                      {item.label}
+                    </p>
                   </div>
                 </CardContent>
               </Card>
             ))}
           </div>
 
-          <div className="grid gap-5 lg:grid-cols-[1.45fr_1fr]">
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(280px,1fr)] lg:gap-5">
             <div className="space-y-5">
               {/* Health Tracker */}
               <Card className="border-border/60">
-                <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
-                  <div>
-                    <CardTitle className="flex items-center gap-2 text-base">
-                      <Activity className="size-4 text-primary" /> {t("healthTracker")}
+                <CardHeader className="flex flex-col gap-3 pb-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                    <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                      <span className="flex size-8 items-center justify-center rounded-xl bg-primary/[0.08]">
+                        <Activity className="size-4 text-primary" />
+                      </span>
+                      {t("healthTracker")}
                     </CardTitle>
-                    <p className="mt-1 text-xs text-muted-foreground">
+                    <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
                       {t("trackerSubtitle")}
                     </p>
                   </div>
@@ -532,11 +570,11 @@ export default function FamilyMemberHealth() {
                     <Button
                       size="sm"
                       aria-label={t("addReading")}
-                      className="shrink-0 rounded-xl"
+                      className="h-10 w-full shrink-0 rounded-xl sm:w-auto"
                       onClick={openAddReading}
                     >
                       <Plus className="size-4" />
-                      <span className="hidden sm:inline">{t("addReading")}</span>
+                      {t("addReading")}
                     </Button>
                   )}
                 </CardHeader>
@@ -547,21 +585,23 @@ export default function FamilyMemberHealth() {
                     </div>
                   ) : (
                     <>
-                      <div className="flex gap-1.5 overflow-x-auto pb-1">
-                        {types.map((type) => (
-                          <button
-                            key={type.key}
-                            type="button"
-                            onClick={() => setSelectedType(type.key)}
-                            className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
-                              activeType === type.key
-                                ? "bg-primary text-primary-foreground"
-                                : "bg-muted text-muted-foreground hover:text-foreground"
-                            }`}
-                          >
-                            {type.label}
-                          </button>
-                        ))}
+                      <div className="-mx-1 overflow-x-auto px-1 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                        <div className="flex w-max min-w-full gap-1 rounded-xl bg-muted/60 p-1">
+                          {types.map((type) => (
+                            <button
+                              key={type.key}
+                              type="button"
+                              onClick={() => setSelectedType(type.key)}
+                              className={`shrink-0 rounded-lg px-3 py-2 text-xs font-medium transition-colors ${
+                                activeType === type.key
+                                  ? "bg-background text-primary shadow-sm ring-1 ring-border/60"
+                                  : "text-muted-foreground hover:text-foreground"
+                              }`}
+                            >
+                              {type.label}
+                            </button>
+                          ))}
+                        </div>
                       </div>
 
                       {typeReadings.length === 0 ? (
@@ -574,20 +614,23 @@ export default function FamilyMemberHealth() {
                         </div>
                       ) : (
                         <>
-                          <div className="grid grid-cols-2 gap-2">
-                            <div className="rounded-xl bg-primary/[0.05] p-3">
-                              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                          <div className="grid grid-cols-1 gap-2 min-[400px]:grid-cols-2">
+                            <div className="relative overflow-hidden rounded-2xl border border-primary/15 bg-primary/[0.055] p-4">
+                              <div className="absolute right-3 top-3 flex size-8 items-center justify-center rounded-lg bg-primary/10">
+                                <Activity className="size-4 text-primary" />
+                              </div>
+                              <p className="pr-10 text-[10px] font-semibold uppercase tracking-[0.12em] text-primary/80">
                                 {t("latestReading")}
                               </p>
-                              <p className="mt-0.5 text-lg font-bold text-foreground">
+                              <p className="mt-1 break-words text-2xl font-bold leading-tight tracking-tight text-foreground">
                                 {readingLabel(latest!, types)}
                               </p>
-                              <p className="text-[10px] text-muted-foreground">
+                              <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
                                 {formatDateTime(latest!.recordedAt)}
                               </p>
                             </div>
-                            <div className="rounded-xl bg-muted/40 p-3">
-                              <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                            <div className="rounded-2xl border border-border/60 bg-muted/35 p-4">
+                              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                                 {t("comparison")}
                               </p>
                               {comparison === null ? (
@@ -596,7 +639,7 @@ export default function FamilyMemberHealth() {
                                 </p>
                               ) : (
                                 <p
-                                  className={`mt-0.5 flex items-center gap-1 text-lg font-bold ${
+                                  className={`mt-1 flex flex-wrap items-center gap-1 text-xl font-bold leading-tight ${
                                     comparison > 0
                                       ? "text-amber-600 dark:text-amber-400"
                                       : comparison < 0
@@ -605,69 +648,83 @@ export default function FamilyMemberHealth() {
                                   }`}
                                 >
                                   {comparison > 0 ? (
-                                    <TrendingUp className="size-4" />
+                                    <TrendingUp className="size-4 shrink-0" />
                                   ) : comparison < 0 ? (
-                                    <TrendingDown className="size-4" />
+                                    <TrendingDown className="size-4 shrink-0" />
                                   ) : null}
-                                  {comparison > 0 ? "+" : ""}
-                                  {comparison} {latest!.unit}
+                                  <span className="break-words">
+                                    {comparison > 0 ? "+" : ""}
+                                    {comparison} {latest!.unit}
+                                  </span>
                                 </p>
                               )}
-                              <p className="text-[10px] text-muted-foreground">
+                              <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
                                 {t("previousReading")}:{" "}
                                 {previous ? readingLabel(previous, types) : "—"}
                               </p>
                             </div>
                           </div>
 
-                          <div>
-                            <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                              {t("chart")}
-                            </p>
+                          <div className="rounded-2xl border border-border/60 p-3 sm:p-4">
+                            <div className="mb-2 flex items-center justify-between gap-2">
+                              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                                {t("chart")}
+                              </p>
+                              <span className="text-[10px] text-muted-foreground">
+                                {typeReadings.length} {t("healthRecords")}
+                              </span>
+                            </div>
                             <TrendChart readings={typeReadings} />
                           </div>
 
                           <div>
-                            <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                              {t("readingHistory")}
-                            </p>
-                            <div className="divide-y divide-border/50 overflow-hidden rounded-xl border border-border/60">
+                            <div className="mb-2 flex items-center justify-between gap-2">
+                              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                                {t("readingHistory")}
+                              </p>
+                              <span className="text-[10px] text-muted-foreground">
+                                {Math.min(typeReadings.length, 20)} / {typeReadings.length}
+                              </span>
+                            </div>
+                            <div className="divide-y divide-border/50 overflow-hidden rounded-2xl border border-border/60">
                               {typeReadings.slice(0, 20).map((reading) => (
                                 <div
                                   key={reading._id}
-                                  className="flex items-start gap-2 px-3 py-2.5"
+                                  className="flex items-start gap-2 px-3 py-3"
                                 >
                                   <div className="min-w-0 flex-1">
-                                    <p className="text-sm font-semibold text-foreground">
+                                    <p className="break-words text-sm font-semibold leading-snug text-foreground">
                                       {readingLabel(reading, types)}
                                     </p>
-                                    <p className="text-[11px] text-muted-foreground">
+                                    <p className="mt-0.5 text-[10px] leading-relaxed text-muted-foreground">
                                       {formatDateTime(reading.recordedAt)}
                                     </p>
                                     {reading.notes && (
-                                      <p className="mt-0.5 text-xs text-muted-foreground">
+                                      <p className="mt-1 break-words text-[11px] leading-relaxed text-muted-foreground">
                                         {reading.notes}
                                       </p>
                                     )}
                                   </div>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="size-7"
-                                    aria-label={t("editReading")}
-                                    onClick={() => openEditReading(reading)}
-                                  >
-                                    <Pencil className="size-3" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="size-7 text-muted-foreground hover:text-destructive"
-                                    aria-label={t("delete")}
-                                    onClick={() => setDeleteReading(reading)}
-                                  >
-                                    <Trash2 className="size-3" />
-                                  </Button>
+                                  <div className="flex shrink-0 gap-0.5">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="size-9"
+                                      aria-label={t("editReading")}
+                                      onClick={() => openEditReading(reading)}
+                                    >
+                                      <Pencil className="size-3.5" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="size-9 text-muted-foreground hover:text-destructive"
+                                      aria-label={t("delete")}
+                                      onClick={() => setDeleteReading(reading)}
+                                    >
+                                      <Trash2 className="size-3.5" />
+                                    </Button>
+                                  </div>
                                 </div>
                               ))}
                             </div>
@@ -686,32 +743,44 @@ export default function FamilyMemberHealth() {
 
               {/* Reports */}
               <Card className="border-border/60">
-                <CardHeader className="flex flex-row items-center justify-between gap-2 pb-2">
+                <CardHeader className="flex flex-col gap-3 pb-2 sm:flex-row sm:items-center sm:justify-between">
                   <CardTitle className="flex items-center gap-2 text-base">
-                    <FileText className="size-4 text-primary" /> {t("reports")}
+                    <span className="flex size-8 items-center justify-center rounded-xl bg-primary/[0.08]">
+                      <FileText className="size-4 text-primary" />
+                    </span>
+                    {t("reports")}
                   </CardTitle>
-                  <Button size="sm" variant="outline" className="rounded-xl" onClick={() => setReportOpen(true)}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-9 w-full rounded-xl sm:w-auto"
+                    onClick={() => setReportOpen(true)}
+                  >
                     <Upload className="size-3.5" /> {t("uploadReport")}
                   </Button>
                 </CardHeader>
                 <CardContent>
                   {(reports ?? []).length === 0 ? (
-                    <p className="rounded-xl border border-dashed border-border/70 px-4 py-6 text-center text-sm text-muted-foreground">
+                    <p className="rounded-xl border border-dashed border-border/70 px-4 py-6 text-center text-sm leading-relaxed text-muted-foreground">
                       {t("noReports")}
                     </p>
                   ) : (
                     <div className="divide-y divide-border/50 overflow-hidden rounded-xl border border-border/60">
                       {(reports as Report[]).map((report) => (
-                        <div key={report._id} className="flex items-center gap-2 px-3 py-2.5">
-                          <FileText className="size-4 shrink-0 text-primary" />
+                        <div key={report._id} className="flex items-center gap-2 px-3 py-3">
+                          <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/[0.07]">
+                            <FileText className="size-4 text-primary" />
+                          </div>
                           <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-medium">{report.title}</p>
-                            <p className="truncate text-[11px] text-muted-foreground">
+                            <p className="break-words text-sm font-medium leading-snug">
+                              {report.title}
+                            </p>
+                            <p className="truncate text-[10px] text-muted-foreground">
                               {report.fileName} · {formatDate(report.recordedAt)}
                             </p>
                           </div>
                           {report.url && (
-                            <Button asChild variant="ghost" size="sm" className="rounded-lg">
+                            <Button asChild variant="ghost" size="sm" className="h-9 shrink-0 rounded-lg px-2 text-[11px]">
                               <a href={report.url} target="_blank" rel="noreferrer">
                                 {t("viewReport")}
                               </a>
@@ -720,18 +789,18 @@ export default function FamilyMemberHealth() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="size-7 text-muted-foreground hover:text-destructive"
+                            className="size-9 shrink-0 text-muted-foreground hover:text-destructive"
                             aria-label={t("delete")}
                             onClick={() => removeReport({ reportId: report._id })}
                           >
-                            <Trash2 className="size-3" />
+                            <Trash2 className="size-3.5" />
                           </Button>
                         </div>
                       ))}
                     </div>
                   )}
-                  <p className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                    <ShieldCheck className="size-3.5 text-primary" /> {t("reportPrivacy")}
+                  <p className="mt-3 flex items-start gap-1.5 text-[10px] leading-relaxed text-muted-foreground">
+                    <ShieldCheck className="mt-0.5 size-3.5 shrink-0 text-primary" /> {t("reportPrivacy")}
                   </p>
                 </CardContent>
               </Card>
@@ -742,7 +811,10 @@ export default function FamilyMemberHealth() {
               <Card className="border-border/60">
                 <CardHeader className="pb-2">
                   <CardTitle className="flex items-center gap-2 text-sm">
-                    <Pill className="size-4 text-primary" /> {t("prescriptions")}
+                    <span className="flex size-7 items-center justify-center rounded-lg bg-primary/[0.08]">
+                      <Pill className="size-3.5 text-primary" />
+                    </span>
+                    {t("prescriptions")}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -751,9 +823,9 @@ export default function FamilyMemberHealth() {
                   ) : (
                     <div className="space-y-2">
                       {memberPrescriptions.slice(0, 4).map((rx: any) => (
-                        <div key={rx._id} className="rounded-xl border border-border/60 p-2.5">
-                          <p className="truncate text-xs font-medium">{rx.fileName}</p>
-                          <div className="mt-1 flex items-center justify-between gap-2">
+                        <div key={rx._id} className="rounded-xl border border-border/60 p-3">
+                          <p className="break-words text-xs font-medium leading-snug">{rx.fileName}</p>
+                          <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2">
                             <Badge variant="secondary" className="text-[10px] capitalize">
                               {String(rx.status).replace(/_/g, " ")}
                             </Badge>
@@ -775,7 +847,7 @@ export default function FamilyMemberHealth() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="w-full rounded-xl"
+                    className="h-10 w-full rounded-xl"
                     disabled={uploadingPrescription || uploadingRx}
                     onClick={() => prescriptionInput.current?.click()}
                   >
@@ -793,7 +865,10 @@ export default function FamilyMemberHealth() {
               <Card className="border-border/60">
                 <CardHeader className="pb-2">
                   <CardTitle className="flex items-center gap-2 text-sm">
-                    <Pill className="size-4 text-primary" /> {t("reminders")}
+                    <span className="flex size-7 items-center justify-center rounded-lg bg-primary/[0.08]">
+                      <Pill className="size-3.5 text-primary" />
+                    </span>
+                    {t("reminders")}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -804,10 +879,10 @@ export default function FamilyMemberHealth() {
                       {memberReminders.slice(0, 3).map((reminder: any) => (
                         <div
                           key={reminder._id}
-                          className="flex items-center justify-between gap-2 rounded-xl border border-border/60 p-2.5"
+                          className="flex items-center justify-between gap-2 rounded-xl border border-border/60 p-3"
                         >
                           <div className="min-w-0">
-                            <p className="truncate text-xs font-medium">
+                            <p className="break-words text-xs font-medium leading-snug">
                               {reminder.medicineName}
                             </p>
                             <p className="text-[10px] text-muted-foreground">
@@ -824,7 +899,7 @@ export default function FamilyMemberHealth() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="w-full rounded-xl"
+                    className="h-10 w-full rounded-xl"
                     onClick={() =>
                       navigate(`/account/pill-reminders?member=${member._id}`)
                     }
@@ -842,7 +917,10 @@ export default function FamilyMemberHealth() {
               <Card className="border-border/60">
                 <CardHeader className="pb-2">
                   <CardTitle className="flex items-center gap-2 text-sm">
-                    <ShoppingBag className="size-4 text-primary" /> {t("orders")}
+                    <span className="flex size-7 items-center justify-center rounded-lg bg-primary/[0.08]">
+                      <ShoppingBag className="size-3.5 text-primary" />
+                    </span>
+                    {t("orders")}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -874,10 +952,10 @@ export default function FamilyMemberHealth() {
                     </div>
                   )}
                   <div className="grid grid-cols-2 gap-2">
-                    <Button variant="outline" size="sm" className="rounded-xl" onClick={() => navigate("/products")}>
-                      <ShoppingBag className="size-3.5" /> Shop
+                    <Button variant="outline" size="sm" className="h-10 min-w-0 rounded-xl px-2 text-[11px]" onClick={() => navigate("/products")}>
+                      <ShoppingBag className="size-3.5 shrink-0" /> <span className="truncate">{t("shop")}</span>
                     </Button>
-                    <Button variant="outline" size="sm" className="rounded-xl" onClick={() => navigate("/account/orders")}>
+                    <Button variant="outline" size="sm" className="h-10 min-w-0 rounded-xl px-2 text-[11px]" onClick={() => navigate("/account/orders")}>
                       <ClipboardList className="size-3.5" /> {t("myOrders")}
                     </Button>
                   </div>
@@ -892,16 +970,16 @@ export default function FamilyMemberHealth() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="whitespace-pre-line text-xs leading-relaxed text-muted-foreground">
+                    <p className="whitespace-pre-line break-words text-xs leading-relaxed text-muted-foreground">
                       {config.educationalContent}
                     </p>
                   </CardContent>
                 </Card>
               )}
 
-              <div className="flex items-start gap-2 rounded-2xl border border-border/60 p-3.5">
+              <div className="flex items-start gap-2.5 rounded-2xl border border-primary/10 bg-primary/[0.03] p-4">
                 <ShieldCheck className="mt-0.5 size-4 shrink-0 text-primary" />
-                <p className="text-[11px] leading-relaxed text-muted-foreground">
+                <p className="break-words text-[10px] leading-relaxed text-muted-foreground sm:text-[11px]">
                   {t("privacyNotice")}
                 </p>
               </div>
@@ -941,7 +1019,7 @@ export default function FamilyMemberHealth() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="reading-value">
                   {types.find((x) => x.key === readingForm.typeKey)?.label ?? t("value")}
@@ -1001,12 +1079,12 @@ export default function FamilyMemberHealth() {
               />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" className="h-10 w-full sm:w-auto" onClick={() => setDialogOpen(false)}>
               {t("cancel")}
             </Button>
             <Button
-              className="gradient-primary text-white"
+              className="h-10 w-full gradient-primary text-white sm:w-auto"
               onClick={handleSaveReading}
               disabled={savingReading}
             >
@@ -1066,12 +1144,12 @@ export default function FamilyMemberHealth() {
               </Button>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setReportOpen(false)}>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" className="h-10 w-full sm:w-auto" onClick={() => setReportOpen(false)}>
               {t("cancel")}
             </Button>
             <Button
-              className="gradient-primary text-white"
+              className="h-10 w-full gradient-primary text-white sm:w-auto"
               onClick={handleUploadReport}
               disabled={uploadingReport}
             >

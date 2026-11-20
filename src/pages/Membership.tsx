@@ -169,60 +169,81 @@ export default function Membership() {
     <div className="min-h-screen flex flex-col bg-background">
       <Navbar />
       <main className="flex-1">
-        <div className="mx-auto max-w-6xl px-4 pb-12 pt-5 sm:px-6 lg:py-10">
-          <div className="mb-6 flex items-start gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label={t("back")}
-              className="mt-0.5 rounded-xl lg:hidden"
-              onClick={() => (window.history.length > 1 ? navigate(-1) : navigate("/menu"))}
-            >
-              <ArrowLeft className="size-5" />
-            </Button>
-            <div>
-              <h1 className="flex items-center gap-2 text-xl font-bold sm:text-2xl">
-                <Crown className="size-6 text-primary" /> {t("membership")}
-              </h1>
-              <p className="mt-1 text-sm text-muted-foreground">{t("membershipSubtitle")}</p>
+        <div className="mx-auto max-w-6xl px-4 pb-12 pt-4 sm:px-6 sm:pt-5 lg:py-10">
+          <div className="relative mb-6 overflow-hidden rounded-3xl bg-gradient-to-br from-primary via-emerald-700 to-emerald-900 p-4 text-white shadow-[0_18px_50px_-24px_hsl(var(--primary)/0.65)] sm:p-7">
+            <div className="pointer-events-none absolute -right-10 -top-12 size-40 rounded-full bg-white/10 blur-2xl" />
+            <div className="pointer-events-none absolute -bottom-16 right-12 size-32 rounded-full border border-white/10" />
+            <div className="relative flex items-start gap-2 sm:gap-3">
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={t("back")}
+                className="-ml-1 size-9 shrink-0 rounded-xl text-white hover:bg-white/10 hover:text-white lg:hidden"
+                onClick={() => (window.history.length > 1 ? navigate(-1) : navigate("/menu"))}
+              >
+                <ArrowLeft className="size-5" />
+              </Button>
+              <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/20 sm:size-14">
+                <Crown className="size-5 sm:size-6" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/70">
+                  Kalyan Chemist
+                </p>
+                <h1 className="text-xl font-bold tracking-tight sm:text-3xl">
+                  {t("membership")}
+                </h1>
+                <p className="mt-1 max-w-xl text-xs leading-relaxed text-white/80 sm:text-sm">
+                  {t("membershipSubtitle")}
+                </p>
+              </div>
             </div>
           </div>
 
           {current && (
-            <Card className="mb-6 overflow-hidden border-primary/20 bg-gradient-to-br from-primary/[0.1] via-primary/[0.04] to-transparent">
-              <CardContent className="p-5 sm:p-6">
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex items-start gap-3">
-                    <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
+            <Card className="mb-6 overflow-hidden border-primary/20 bg-gradient-to-br from-primary/[0.075] via-card to-card shadow-sm">
+              <CardContent className="p-0">
+                <div className="flex flex-col gap-4 p-4 sm:p-5 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="flex min-w-0 items-start gap-3">
+                    <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm">
                       <Crown className="size-5" />
                     </div>
-                    <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-wider text-primary">
-                        {t("currentPlan")}
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-primary">
+                          {t("currentPlan")}
+                        </p>
+                        <Badge className="rounded-full bg-primary/10 px-2 py-0 text-[9px] font-semibold text-primary hover:bg-primary/10">
+                          {t("active")}
+                        </Badge>
+                      </div>
+                      <h2 className="mt-0.5 break-words text-xl font-bold text-foreground sm:text-2xl">
+                        {current.planName}
+                      </h2>
+                      <p className="mt-0.5 break-words text-xs leading-relaxed text-muted-foreground">
+                        {current.description}
                       </p>
-                      <h2 className="text-xl font-bold text-foreground">{current.planName}</h2>
-                      <p className="mt-0.5 text-xs text-muted-foreground">{current.description}</p>
-                      <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
-                        <span className="inline-flex items-center gap-1 rounded-full bg-background/80 px-2 py-1 text-muted-foreground">
-                          <CalendarDays className="size-3" />
+                      <div className="mt-2 flex flex-wrap gap-1.5 text-[10px] sm:text-[11px]">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-background/90 px-2 py-1 text-muted-foreground ring-1 ring-border/50">
+                          <CalendarDays className="size-3 shrink-0" />
                           {t("expiresOn")} {formatDate(current.expiresAt)}
                         </span>
-                        <span className="inline-flex items-center gap-1 rounded-full bg-background/80 px-2 py-1 font-medium text-primary">
-                          <Sparkles className="size-3" />
+                        <span className="inline-flex items-center gap-1 rounded-full bg-primary/[0.07] px-2 py-1 font-medium text-primary">
+                          <Sparkles className="size-3 shrink-0" />
                           {current.daysRemaining} {t("daysRemaining")}
                         </span>
                       </div>
                     </div>
                   </div>
-                  <div className="rounded-xl bg-background/70 p-3 sm:min-w-[210px]">
+                  <div className="rounded-2xl border border-border/60 bg-background/75 p-3.5 lg:w-64 lg:shrink-0">
                     <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                       {t("memberSavings")}
                     </p>
-                    <ul className="mt-1.5 space-y-1">
+                    <ul className="mt-2 space-y-1.5">
                       {current.benefits.slice(0, 3).map((benefit) => (
-                        <li key={benefit} className="flex items-start gap-1.5 text-xs">
+                        <li key={benefit} className="flex items-start gap-2 text-xs leading-snug">
                           <Check className="mt-0.5 size-3 shrink-0 text-primary" />
-                          <span>{benefit}</span>
+                          <span className="break-words">{benefit}</span>
                         </li>
                       ))}
                     </ul>
@@ -232,10 +253,10 @@ export default function Membership() {
             </Card>
           )}
 
-          <div className="mb-3 flex items-end justify-between gap-2">
-            <div>
+          <div className="mb-3 flex items-end justify-between gap-2 px-0.5">
+            <div className="min-w-0">
               <h2 className="text-base font-semibold">{t("plans")}</h2>
-              <p className="text-xs text-muted-foreground">
+              <p className="mt-0.5 break-words text-[11px] leading-relaxed text-muted-foreground">
                 {t("renewalNote")}
               </p>
             </div>
@@ -247,10 +268,12 @@ export default function Membership() {
             </div>
           ) : plans.length === 0 ? (
             <Card className="border-dashed">
-              <CardContent className="flex flex-col items-center px-6 py-14 text-center">
-                <Crown className="size-9 text-muted-foreground/60" />
-                <h3 className="mt-3 text-base font-semibold">{t("plans")}</h3>
-                <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+              <CardContent className="flex flex-col items-center px-5 py-10 text-center sm:py-14">
+                <div className="flex size-14 items-center justify-center rounded-2xl bg-primary/[0.07]">
+                  <Crown className="size-7 text-primary/70" />
+                </div>
+                <h3 className="mt-4 text-base font-semibold">{t("plans")}</h3>
+                <p className="mt-1 max-w-sm text-sm leading-relaxed text-muted-foreground">
                   Membership plans are being prepared. Please check back soon.
                 </p>
               </CardContent>
@@ -268,57 +291,69 @@ export default function Membership() {
                     transition={{ delay: index * 0.05 }}
                   >
                     <Card
-                      className={`relative flex h-full flex-col ${
+                      className={`group relative flex h-full flex-col overflow-hidden rounded-2xl transition-all duration-200 ${
                         plan.highlight
-                          ? "border-primary/40 shadow-[0_12px_40px_-18px_hsl(var(--primary)/0.45)]"
-                          : "border-border/60"
-                      }`}
+                          ? "border-primary/40 shadow-[0_18px_44px_-22px_hsl(var(--primary)/0.55)]"
+                          : "border-border/60 hover:border-primary/20 hover:shadow-card-hover"
+                      } ${isCurrent ? "ring-1 ring-primary/30" : ""}`}
                     >
-                      {plan.highlight && (
-                        <div className="absolute right-4 top-4">
-                          <Badge className="gap-1 bg-primary text-primary-foreground">
-                            <Star className="size-3" /> {t("mostPopular")}
-                          </Badge>
-                        </div>
+                      {(plan.highlight || isCurrent) && (
+                        <div className="h-1 w-full bg-gradient-to-r from-primary via-emerald-500 to-primary" />
                       )}
-                      <CardContent className="flex flex-1 flex-col p-5">
-                        <div className="flex size-10 items-center justify-center rounded-xl bg-primary/[0.08] text-primary">
-                          {isFree ? <ShieldCheck className="size-5" /> : <Crown className="size-5" />}
+                      <CardContent className="flex flex-1 flex-col p-4 sm:p-5">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/[0.08] text-primary ring-1 ring-primary/10">
+                            {isFree ? <ShieldCheck className="size-5" /> : <Crown className="size-5" />}
+                          </div>
+                          <div className="flex flex-wrap justify-end gap-1.5">
+                            {isCurrent && (
+                              <Badge className="rounded-full bg-primary px-2 py-0 text-[9px] text-primary-foreground">
+                                {t("active")}
+                              </Badge>
+                            )}
+                            {plan.highlight && (
+                              <Badge className="gap-1 rounded-full bg-primary/10 px-2 py-0 text-[9px] text-primary hover:bg-primary/10">
+                                <Star className="size-2.5" /> {t("mostPopular")}
+                              </Badge>
+                            )}
+                          </div>
                         </div>
-                        <h3 className="mt-3 text-lg font-bold">{plan.name}</h3>
-                        <p className="mt-0.5 min-h-[36px] text-xs leading-relaxed text-muted-foreground">
+                        <h3 className="mt-3 break-words text-lg font-bold leading-tight">{plan.name}</h3>
+                        <p className="mt-1 min-h-[2.25rem] break-words text-xs leading-relaxed text-muted-foreground">
                           {plan.description}
                         </p>
-                        <div className="mt-3 flex items-end gap-1">
-                          <span className="text-2xl font-bold">
+                        <div className="mt-4 flex flex-wrap items-end gap-x-1.5 gap-y-1 border-y border-border/50 py-3">
+                          <span className="text-2xl font-bold tracking-tight">
                             {isFree ? t("freePlan") : formatCurrency(plan.price)}
                           </span>
                           {!isFree && (
-                            <span className="pb-0.5 text-xs text-muted-foreground">
+                            <span className="pb-0.5 text-[11px] text-muted-foreground">
                               / {durationLabel(plan.durationDays)}
                             </span>
                           )}
                         </div>
                         <div className="mt-4 flex-1">
-                          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
                             {t("benefits")}
                           </p>
-                          <ul className="mt-2 space-y-1.5">
+                          <ul className="mt-2 space-y-2">
                             {plan.benefits.map((benefit) => (
-                              <li key={benefit} className="flex items-start gap-2 text-xs">
-                                <Check className="mt-0.5 size-3.5 shrink-0 text-primary" />
-                                <span>{benefit}</span>
+                              <li key={benefit} className="flex items-start gap-2 text-xs leading-snug">
+                                <span className="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                                  <Check className="size-2.5 text-primary" />
+                                </span>
+                                <span className="break-words">{benefit}</span>
                               </li>
                             ))}
                           </ul>
                           {plan.restrictions.length > 0 && (
-                            <div className="mt-3 rounded-lg bg-muted/40 p-2.5">
+                            <div className="mt-3 rounded-xl bg-muted/40 p-2.5">
                               <p className="text-[10px] font-semibold text-muted-foreground">
                                 {t("restrictions")}
                               </p>
-                              <ul className="mt-1 space-y-0.5">
+                              <ul className="mt-1 space-y-1">
                                 {plan.restrictions.map((restriction) => (
-                                  <li key={restriction} className="text-[10px] text-muted-foreground">
+                                  <li key={restriction} className="break-words text-[10px] leading-relaxed text-muted-foreground">
                                     {restriction}
                                   </li>
                                 ))}
@@ -327,10 +362,10 @@ export default function Membership() {
                           )}
                         </div>
                         <Button
-                          className={`mt-5 w-full rounded-xl ${
-                            plan.highlight ? "gradient-primary text-white" : ""
+                          className={`mt-5 h-10 w-full rounded-xl text-xs font-semibold ${
+                            plan.highlight || isCurrent ? "gradient-primary text-white" : ""
                           }`}
-                          variant={plan.highlight ? "default" : "outline"}
+                          variant={plan.highlight || isCurrent ? "default" : "outline"}
                           disabled={buyingId !== null}
                           onClick={() => handleChoose(plan)}
                         >
@@ -359,7 +394,7 @@ export default function Membership() {
 
           <div className="mt-6 grid gap-4 md:grid-cols-2">
             <Card className="border-border/60">
-              <CardContent className="p-4">
+              <CardContent className="p-4 sm:p-5">
                 <h3 className="text-sm font-semibold">{t("membershipHistory")}</h3>
                 {mine === undefined ? (
                   <Loader2 className="mt-3 size-4 animate-spin text-muted-foreground" />
@@ -370,10 +405,12 @@ export default function Membership() {
                 ) : (
                   <div className="mt-3 divide-y divide-border/50">
                     {(mine?.history ?? []).slice(0, 6).map((entry) => (
-                      <div key={entry._id} className="flex items-center justify-between gap-2 py-2">
+                      <div key={entry._id} className="flex items-start justify-between gap-3 py-2.5">
                         <div className="min-w-0">
-                          <p className="truncate text-xs font-medium">{entry.planName}</p>
-                          <p className="text-[10px] text-muted-foreground">
+                          <p className="break-words text-xs font-medium leading-snug">
+                            {entry.planName}
+                          </p>
+                          <p className="mt-0.5 text-[10px] leading-relaxed text-muted-foreground">
                             {formatDate(entry.createdAt)}
                             {entry.expiresAt ? ` · ${formatDate(entry.expiresAt)}` : ""}
                           </p>
@@ -382,7 +419,7 @@ export default function Membership() {
                           <p className="text-xs font-semibold">
                             {entry.amount === 0 ? t("freePlan") : formatCurrency(entry.amount)}
                           </p>
-                          <Badge variant="secondary" className="text-[9px] capitalize">
+                          <Badge variant="secondary" className="mt-0.5 text-[9px] capitalize">
                             {entry.status}
                           </Badge>
                         </div>
@@ -393,14 +430,16 @@ export default function Membership() {
               </CardContent>
             </Card>
 
-            <div className="flex items-start gap-2 rounded-2xl border border-border/60 bg-muted/30 p-4">
-              <Info className="mt-0.5 size-4 shrink-0 text-primary" />
-              <div className="text-xs leading-relaxed text-muted-foreground">
-                <p>
+            <div className="flex items-start gap-3 rounded-2xl border border-primary/10 bg-primary/[0.035] p-4 sm:p-5">
+              <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                <Info className="size-4 text-primary" />
+              </div>
+              <div className="min-w-0 text-[11px] leading-relaxed text-muted-foreground sm:text-xs">
+                <p className="break-words">
                   Membership is activated only after a successful payment. Prices, duration and
                   benefits are set by Kalyan Chemist and may change for future purchases.
                 </p>
-                <p className="mt-2">
+                <p className="mt-2 break-words">
                   {t("renewalNote")} Existing orders, coupons and account features are unaffected.
                 </p>
               </div>
