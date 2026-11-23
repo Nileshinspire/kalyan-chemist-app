@@ -62,7 +62,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useLanguage } from "@/context/LanguageContext";
-import { usePrescriptionUpload } from "@/hooks/usePrescriptionUpload";
 
 type Reading = {
   _id: Id<"health_readings">;
@@ -231,7 +230,6 @@ export default function FamilyMemberHealth() {
   const generateUploadUrl = useMutation(api.healthTracker.generateReportUploadUrl);
   const addReport = useMutation(api.healthTracker.addReport);
   const removeReport = useMutation(api.healthTracker.removeReport);
-  const { uploadPrescription, uploading: uploadingPrescription } = usePrescriptionUpload();
 
   const member = (members ?? []).find((m) => m._id === memberId);
   const types = (config?.measurementTypes ?? []) as MeasurementType[];
@@ -262,8 +260,6 @@ export default function FamilyMemberHealth() {
   const [reportFile, setReportFile] = useState<File | null>(null);
   const [uploadingReport, setUploadingReport] = useState(false);
   const reportInput = useRef<HTMLInputElement>(null);
-  const prescriptionInput = useRef<HTMLInputElement>(null);
-  const [uploadingRx, setUploadingRx] = useState(false);
 
   const memberPrescriptions = (prescriptions ?? []).filter(
     (rx: any) => rx.memberId === memberId,
@@ -407,23 +403,6 @@ export default function FamilyMemberHealth() {
       toast.error(error?.message || t("somethingWentWrong"));
     } finally {
       setUploadingReport(false);
-    }
-  }
-
-  async function handlePrescriptionFile(file: File | null) {
-    if (!file || !member) return;
-    setUploadingRx(true);
-    try {
-      await uploadPrescription(file, {
-        patientName: member.name,
-        memberId: member._id,
-      });
-      toast.success("Prescription uploaded for review");
-      if (prescriptionInput.current) prescriptionInput.current.value = "";
-    } catch (error: any) {
-      toast.error(error?.message || t("somethingWentWrong"));
-    } finally {
-      setUploadingRx(false);
     }
   }
 
@@ -837,25 +816,15 @@ export default function FamilyMemberHealth() {
                       ))}
                     </div>
                   )}
-                  <input
-                    ref={prescriptionInput}
-                    type="file"
-                    accept="image/jpeg,image/png,application/pdf"
-                    className="hidden"
-                    onChange={(e) => handlePrescriptionFile(e.target.files?.[0] ?? null)}
-                  />
                   <Button
                     variant="outline"
                     size="sm"
                     className="h-10 w-full rounded-xl"
-                    disabled={uploadingPrescription || uploadingRx}
-                    onClick={() => prescriptionInput.current?.click()}
+                    onClick={() =>
+                      navigate(`/upload-prescription?memberId=${member._id}`)
+                    }
                   >
-                    {(uploadingPrescription || uploadingRx) ? (
-                      <Loader2 className="size-3.5 animate-spin" />
-                    ) : (
-                      <Upload className="size-3.5" />
-                    )}
+                    <Upload className="size-3.5" />
                     {t("uploadPrescription")}
                   </Button>
                 </CardContent>

@@ -1,5 +1,5 @@
 import { useRef, useState, useCallback } from "react";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useAuth } from "@/context/AuthContext";
@@ -32,9 +32,18 @@ const REQUIREMENTS = [
 
 export default function UploadPrescription() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const requestedMemberId = searchParams.get("memberId");
   const breadcrumbItems = usePageBreadcrumbs();
   const { user } = useAuth();
   const { uploading, uploadPrescription } = usePrescriptionUpload();
+  const familyMembers = useQuery(
+    api.familyHealth.list,
+    requestedMemberId ? {} : "skip",
+  );
+  const selectedMember = requestedMemberId
+    ? familyMembers?.find((member) => member._id === requestedMemberId)
+    : undefined;
   const prescriptions = useQuery(api.prescriptions.list);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -60,13 +69,25 @@ export default function UploadPrescription() {
 
       if (!user) {
         toast.error("Please sign in to upload a prescription.");
-        navigate("/auth?returnTo=/upload-prescription");
+        const returnPath = `/upload-prescription${searchParams.toString() ? `?${searchParams.toString()}` : ""}`;
+        navigate(`/auth?returnTo=${encodeURIComponent(returnPath)}`);
+        return;
+      }
+
+      if (requestedMemberId && familyMembers === undefined) {
+        toast.error("Family member details are still loading. Please try again.");
+        return;
+      }
+
+      if (requestedMemberId && !selectedMember) {
+        toast.error("Family member not found.");
         return;
       }
 
       try {
         await uploadPrescription(file, {
-          patientName: user?.name?.trim() || "Not specified",
+          patientName: selectedMember?.name?.trim() || user?.name?.trim() || "Not specified",
+          memberId: selectedMember?._id,
         });
 
         // Show preview + a persistent confirmation. The new record appears in
@@ -83,7 +104,15 @@ export default function UploadPrescription() {
       // Reset the input so the same file can be re-selected
       e.target.value = "";
     },
-    [user, uploadPrescription, navigate]
+    [
+      user,
+      uploadPrescription,
+      navigate,
+      searchParams,
+      requestedMemberId,
+      familyMembers,
+      selectedMember,
+    ]
   );
 
   return (
@@ -116,7 +145,10 @@ export default function UploadPrescription() {
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              disabled={uploading}
+              disabled={
+                uploading ||
+                (Boolean(requestedMemberId) && familyMembers === undefined)
+              }
               className="w-full flex items-center gap-3 rounded-xl border-2 border-dashed border-primary/30 bg-primary/5 hover:bg-primary/10 px-4 py-4 transition-all duration-200 group disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
