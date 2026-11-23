@@ -254,7 +254,7 @@ export default function FamilyHealth() {
                 variant="ghost"
                 size="icon"
                 aria-label={t("back")}
-                className="-ml-1 size-9 shrink-0 rounded-xl lg:hidden"
+                className="-ml-1 size-10 shrink-0 rounded-xl lg:hidden"
                 onClick={() => (window.history.length > 1 ? navigate(-1) : navigate("/"))}
               >
                 <ArrowLeft className="size-5" />
@@ -382,7 +382,7 @@ export default function FamilyHealth() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="size-8 shrink-0 text-muted-foreground hover:text-destructive"
+                              className="size-10 shrink-0 text-muted-foreground hover:text-destructive"
                               aria-label={t("remove")}
                               onClick={() => setDeleteTarget(member)}
                             >
@@ -429,7 +429,7 @@ export default function FamilyHealth() {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-9 min-w-0 rounded-lg px-2 text-[11px] text-muted-foreground"
+                                className="h-10 min-w-0 rounded-lg px-2 text-[11px] text-muted-foreground"
                                 onClick={() => navigate(`/family-health/${member._id}`)}
                               >
                                 <Icon className="size-3.5 shrink-0" />
@@ -438,7 +438,7 @@ export default function FamilyHealth() {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-9 min-w-0 rounded-lg px-2 text-[11px] text-muted-foreground"
+                                className="h-10 min-w-0 rounded-lg px-2 text-[11px] text-muted-foreground"
                                 onClick={() => openEdit(member)}
                               >
                                 <Pencil className="size-3.5 shrink-0" />

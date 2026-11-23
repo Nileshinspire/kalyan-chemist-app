@@ -173,7 +173,7 @@ export default function HealthKits() {
                 </span>
               </div>
               <Button
-                className="mt-7 rounded-full bg-white px-6 text-[#0b3f30] hover:bg-emerald-50"
+                className="mt-7 h-10 rounded-full bg-white px-6 text-[#0b3f30] hover:bg-emerald-50"
                 onClick={() =>
                   document.getElementById("all-health-kits")?.scrollIntoView({ behavior: "smooth" })
                 }
@@ -351,7 +351,7 @@ export default function HealthKits() {
                 />
               </div>
               <Select value={sort} onValueChange={(value) => setSort(value as KitSort)}>
-                <SelectTrigger className="h-10 rounded-full sm:w-[160px]" aria-label="Sort health kits">
+                <SelectTrigger className="h-10 min-h-10 w-full rounded-full sm:w-[160px]" aria-label="Sort health kits">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -366,7 +366,7 @@ export default function HealthKits() {
                 type="button"
                 onClick={() => setInStockOnly((value) => !value)}
                 aria-pressed={inStockOnly}
-                className={`inline-flex h-10 items-center justify-center gap-2 rounded-full border px-4 text-xs font-semibold transition-colors ${
+                className={`inline-flex h-10 w-full items-center justify-center gap-2 rounded-full border px-4 text-xs font-semibold transition-colors sm:w-auto ${
                   inStockOnly
                     ? "border-primary bg-primary text-primary-foreground"
                     : "border-border/80 bg-background text-muted-foreground hover:text-foreground"
@@ -378,7 +378,7 @@ export default function HealthKits() {
           </div>
 
           {kits === undefined ? (
-            <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4">
               {[0, 1, 2, 3, 4, 5, 6, 7].map((item) => (
                 <div key={item} className="animate-pulse overflow-hidden rounded-2xl border border-border/60 bg-card">
                   <div className="aspect-square bg-muted" />
@@ -420,7 +420,7 @@ export default function HealthKits() {
               )}
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-3 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4">
               {kits.map((kit, index) => (
                 <motion.article
                   key={kit._id}
@@ -499,14 +499,14 @@ export default function HealthKits() {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="h-8 rounded-full px-2 text-[11px] sm:text-xs"
+                        className="h-10 rounded-full px-3 text-[11px] sm:h-9 sm:text-xs"
                         onClick={() => navigate(`/health-kits/${kit.slug}`)}
                       >
                         View details
                       </Button>
                       <Button
                         size="sm"
-                        className="h-8 rounded-full px-2 text-[11px] sm:text-xs"
+                        className="h-10 rounded-full px-3 text-[11px] sm:h-9 sm:text-xs"
                         disabled={!kit.available}
                         onClick={() => handleAdd(kit)}
                       >

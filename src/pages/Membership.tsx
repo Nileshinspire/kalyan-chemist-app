@@ -178,7 +178,7 @@ export default function Membership() {
                 variant="ghost"
                 size="icon"
                 aria-label={t("back")}
-                className="-ml-1 size-9 shrink-0 rounded-xl text-white hover:bg-white/10 hover:text-white lg:hidden"
+                className="-ml-1 size-10 shrink-0 rounded-xl text-white hover:bg-white/10 hover:text-white lg:hidden"
                 onClick={() => (window.history.length > 1 ? navigate(-1) : navigate("/menu"))}
               >
                 <ArrowLeft className="size-5" />

@@ -470,7 +470,7 @@ export default function FamilyMemberHealth() {
                 variant="ghost"
                 size="icon"
                 aria-label={t("back")}
-                className="-ml-1 size-9 shrink-0 rounded-xl"
+                className="-ml-1 size-10 shrink-0 rounded-xl"
                 onClick={() => navigate("/family-health")}
               >
                 <ArrowLeft className="size-5" />
@@ -519,7 +519,7 @@ export default function FamilyMemberHealth() {
               <Button
                 variant="outline"
                 size="sm"
-                className="h-9 w-full rounded-lg bg-background/70 text-[11px]"
+                className="h-10 w-full rounded-lg bg-background/70 text-[11px]"
                 onClick={() => navigate("/family-health")}
               >
                 <Pencil className="size-3.5" /> {t("manageProfile")}
@@ -550,8 +550,8 @@ export default function FamilyMemberHealth() {
             ))}
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(280px,1fr)] lg:gap-5">
-            <div className="space-y-5">
+          <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(280px,1fr)] lg:gap-5">
+            <div className="min-w-0 space-y-5">
               {/* Health Tracker */}
               <Card className="border-border/60">
                 <CardHeader className="flex flex-col gap-3 pb-3 sm:flex-row sm:items-start sm:justify-between">
@@ -592,7 +592,7 @@ export default function FamilyMemberHealth() {
                               key={type.key}
                               type="button"
                               onClick={() => setSelectedType(type.key)}
-                              className={`shrink-0 rounded-lg px-3 py-2 text-xs font-medium transition-colors ${
+                              className={`min-h-10 shrink-0 rounded-lg px-3 py-2 text-xs font-medium transition-colors ${
                                 activeType === type.key
                                   ? "bg-background text-primary shadow-sm ring-1 ring-border/60"
                                   : "text-muted-foreground hover:text-foreground"
@@ -709,7 +709,7 @@ export default function FamilyMemberHealth() {
                                     <Button
                                       variant="ghost"
                                       size="icon"
-                                      className="size-9"
+                                      className="size-10"
                                       aria-label={t("editReading")}
                                       onClick={() => openEditReading(reading)}
                                     >
@@ -718,7 +718,7 @@ export default function FamilyMemberHealth() {
                                     <Button
                                       variant="ghost"
                                       size="icon"
-                                      className="size-9 text-muted-foreground hover:text-destructive"
+                                      className="size-10 text-muted-foreground hover:text-destructive"
                                       aria-label={t("delete")}
                                       onClick={() => setDeleteReading(reading)}
                                     >
@@ -753,7 +753,7 @@ export default function FamilyMemberHealth() {
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-9 w-full rounded-xl sm:w-auto"
+                    className="h-10 w-full rounded-xl sm:h-9 sm:w-auto"
                     onClick={() => setReportOpen(true)}
                   >
                     <Upload className="size-3.5" /> {t("uploadReport")}
@@ -780,7 +780,7 @@ export default function FamilyMemberHealth() {
                             </p>
                           </div>
                           {report.url && (
-                            <Button asChild variant="ghost" size="sm" className="h-9 shrink-0 rounded-lg px-2 text-[11px]">
+                            <Button asChild variant="ghost" size="sm" className="h-10 shrink-0 rounded-lg px-2 text-[11px]">
                               <a href={report.url} target="_blank" rel="noreferrer">
                                 {t("viewReport")}
                               </a>
@@ -789,7 +789,7 @@ export default function FamilyMemberHealth() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="size-9 shrink-0 text-muted-foreground hover:text-destructive"
+                            className="size-10 shrink-0 text-muted-foreground hover:text-destructive"
                             aria-label={t("delete")}
                             onClick={() => removeReport({ reportId: report._id })}
                           >
@@ -806,7 +806,7 @@ export default function FamilyMemberHealth() {
               </Card>
             </div>
 
-            <div className="space-y-4">
+            <div className="min-w-0 space-y-4">
               {/* Prescriptions */}
               <Card className="border-border/60">
                 <CardHeader className="pb-2">
@@ -990,7 +990,7 @@ export default function FamilyMemberHealth() {
       <Footer />
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="max-h-[90vh] w-[calc(100%-2rem)] overflow-y-auto sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{editing ? t("editReading") : t("addReading")}</DialogTitle>
             <DialogDescription>
@@ -1096,7 +1096,7 @@ export default function FamilyMemberHealth() {
       </Dialog>
 
       <Dialog open={reportOpen} onOpenChange={setReportOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="max-h-[90vh] w-[calc(100%-2rem)] overflow-y-auto sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{t("uploadReport")}</DialogTitle>
             <DialogDescription>{t("reportPrivacy")}</DialogDescription>

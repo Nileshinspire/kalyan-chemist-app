@@ -166,7 +166,7 @@ export default function HealthKitDetail() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.05 }}
-            className="lg:pt-1"
+            className="min-w-0 lg:pt-1"
           >
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="secondary" className="rounded-full bg-primary/10 text-[10px] font-semibold uppercase tracking-wider text-primary">
@@ -326,7 +326,7 @@ export default function HealthKitDetail() {
         </section>
 
         <div className="mt-9">
-          <Button variant="outline" className="rounded-full" onClick={() => navigate("/health-kits")}>
+          <Button variant="outline" className="h-10 rounded-full" onClick={() => navigate("/health-kits")}>
             <ArrowLeft className="size-4" /> Back to Health Kits
           </Button>
         </div>

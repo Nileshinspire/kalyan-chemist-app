@@ -233,7 +233,7 @@ export default function AccountSettings() {
             <Button
               variant="outline"
               size="sm"
-              className="mt-2 h-9 w-full rounded-lg bg-background/70 text-[11px] sm:w-auto"
+              className="mt-2 h-10 w-full rounded-lg bg-background/70 text-[11px] sm:w-auto"
               onClick={() => navigate("/account/notifications")}
             >
               <Bell className="size-3.5" /> {t("goToNotifications")}
