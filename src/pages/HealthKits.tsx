@@ -150,7 +150,7 @@ export default function HealthKits() {
             aria-hidden="true"
           />
 
-          <div className="mx-auto grid max-w-7xl gap-10 px-4 pb-12 pt-10 sm:px-6 sm:pb-16 sm:pt-14 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-end lg:gap-14 lg:pb-20 lg:pt-20">
+          <div className="mx-auto grid max-w-7xl gap-8 px-4 pb-10 pt-8 sm:px-6 sm:pb-16 sm:pt-14 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-end lg:gap-14 lg:pb-20 lg:pt-20">
             <motion.div
               initial={{ opacity: 0, y: 18 }}
               animate={{ opacity: 1, y: 0 }}
@@ -161,18 +161,18 @@ export default function HealthKits() {
                 <Sparkles className="size-3.5 text-emerald-200" />
                 Kalyan Chemist · Health Kits
               </div>
-              <h1 className="mt-5 max-w-xl font-serif text-4xl font-bold leading-[1.04] tracking-tight sm:text-5xl lg:text-[3.6rem]">
+              <h1 className="mt-4 max-w-xl font-serif text-[2rem] font-bold leading-[1.06] tracking-tight min-[360px]:text-[2.25rem] sm:mt-5 sm:text-5xl lg:text-[3.6rem]">
                 Health &amp; Care Kits
               </h1>
-              <p className="mt-4 max-w-lg text-base font-medium leading-relaxed text-emerald-50/95 sm:text-lg">
+              <p className="mt-3 max-w-lg text-[15px] font-medium leading-relaxed text-emerald-50/95 sm:mt-4 sm:text-lg">
                 Everyday health essentials, thoughtfully packed for you.
               </p>
-              <p className="mt-3 max-w-xl text-sm leading-relaxed text-emerald-50/70 sm:text-[15px]">
+              <p className="mt-2.5 max-w-xl text-[13px] leading-relaxed text-emerald-50/70 sm:mt-3 sm:text-[15px]">
                 Practical collections for home, travel and family care — with every
                 included product listed clearly before you buy.
               </p>
 
-              <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="mt-6 flex flex-col gap-3 sm:mt-7 sm:flex-row sm:items-center">
                 <Button
                   className="h-11 rounded-full bg-[#f8f5ec] px-6 text-sm font-semibold text-[#0a3d2e] shadow-lg shadow-black/10 hover:bg-white"
                   onClick={scrollToKits}
@@ -235,8 +235,8 @@ export default function HealthKits() {
 
         {/* ── Categories ── */}
         <section className="border-b border-border/60 bg-[#f7f5ee] dark:bg-background">
-          <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14">
-            <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+          <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-14">
+            <div className="mb-5 flex flex-wrap items-end justify-between gap-3 sm:mb-6">
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-primary/65">
                   Find your fit
@@ -259,7 +259,7 @@ export default function HealthKits() {
             {categories === undefined ? (
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5">
                 {[0, 1, 2, 3, 4].map((item) => (
-                  <div key={item} className="h-[168px] animate-pulse rounded-[22px] bg-muted" />
+                  <div key={item} className="h-[158px] animate-pulse rounded-[22px] bg-muted sm:h-[184px]" />
                 ))}
               </div>
             ) : categories.length === 0 ? (
@@ -267,7 +267,7 @@ export default function HealthKits() {
                 Kit collections will appear here as soon as they are published.
               </div>
             ) : (
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5">
+              <div className="grid auto-rows-fr grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5">
                 {categories.map((category, index) => {
                   const active = selectedCategory === category.slug;
                   return (
@@ -276,7 +276,7 @@ export default function HealthKits() {
                       type="button"
                       onClick={() => setCategory(active ? "" : category.slug)}
                       aria-pressed={active}
-                      className={`group relative flex min-h-[172px] min-w-0 flex-col overflow-hidden rounded-[22px] border p-4 text-left transition-all duration-300 sm:min-h-[184px] sm:p-5 ${
+                      className={`group relative flex h-full min-h-[158px] min-w-0 flex-col overflow-hidden rounded-[22px] border p-4 text-left transition-all duration-300 sm:min-h-[184px] sm:p-5 ${
                         active
                           ? "border-primary/40 bg-[#edf4ec] shadow-[0_10px_30px_-18px_rgba(10,61,46,0.45)] ring-1 ring-primary/15 dark:bg-primary/10"
                           : "border-border/60 bg-card/85 hover:-translate-y-1 hover:border-primary/25 hover:bg-card hover:shadow-[0_18px_36px_-24px_rgba(10,61,46,0.35)]"
@@ -310,18 +310,18 @@ export default function HealthKits() {
                         </span>
                       </div>
 
-                      <div className="relative mt-5 min-w-0">
-                        <p className="break-words text-sm font-semibold leading-snug tracking-tight sm:text-[15px]">
+                      <div className="relative mt-4 min-w-0 sm:mt-5">
+                        <p className="break-words text-[13px] font-semibold leading-snug tracking-tight sm:text-[15px]">
                           {category.name}
                         </p>
                         {category.description && (
-                          <p className="mt-1.5 line-clamp-2 text-[10px] leading-relaxed text-muted-foreground sm:text-[11px]">
+                          <p className="mt-1.5 hidden text-[11px] leading-relaxed text-muted-foreground sm:line-clamp-2">
                             {category.description}
                           </p>
                         )}
                       </div>
 
-                      <span className="relative mt-auto flex items-center gap-1 pt-4 text-[10px] font-semibold uppercase tracking-[0.12em] text-primary/75">
+                      <span className="relative mt-auto flex items-center gap-1 pt-3 text-[9px] font-semibold uppercase tracking-[0.12em] text-primary/75 sm:pt-4 sm:text-[10px]">
                         {active ? "Showing" : "Explore"}
                         <ArrowUpRight className="size-3.5 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
                       </span>
@@ -336,9 +336,9 @@ export default function HealthKits() {
         {/* ── Kits ── */}
         <section
           id="all-health-kits"
-          className="mx-auto max-w-7xl scroll-mt-24 px-4 py-10 sm:px-6 sm:py-14"
+          className="mx-auto max-w-7xl scroll-mt-24 px-4 py-8 sm:px-6 sm:py-14"
         >
-          <div className="mb-7 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+          <div className="mb-6 flex flex-col gap-4 sm:mb-7 sm:gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div className="min-w-0">
               <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-primary/65">
                 Thoughtfully assembled
@@ -355,8 +355,8 @@ export default function HealthKits() {
               </div>
             </div>
 
-            <div className="flex min-w-0 flex-col gap-2.5 sm:flex-row sm:items-center">
-              <div className="relative min-w-0 flex-1 lg:w-[260px] lg:flex-none">
+            <div className="grid w-full min-w-0 grid-cols-2 gap-2.5 sm:flex sm:w-auto sm:items-center">
+              <div className="relative col-span-2 min-w-0 sm:w-[240px] sm:flex-none lg:w-[260px]">
                 <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   value={search}
@@ -368,7 +368,7 @@ export default function HealthKits() {
               </div>
               <Select value={sort} onValueChange={(value) => setSort(value as KitSort)}>
                 <SelectTrigger
-                  className="h-11 min-h-11 w-full rounded-xl border-border/80 bg-card shadow-sm sm:w-[165px]"
+                  className="h-11 min-h-11 w-full min-w-0 rounded-xl border-border/80 bg-card text-xs shadow-sm sm:w-[165px]"
                   aria-label="Sort health kits"
                 >
                   <SelectValue />
@@ -385,7 +385,7 @@ export default function HealthKits() {
                 type="button"
                 onClick={() => setInStockOnly((value) => !value)}
                 aria-pressed={inStockOnly}
-                className={`inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border px-4 text-xs font-semibold shadow-sm transition-colors sm:w-auto ${
+                className={`inline-flex h-11 min-w-0 w-full items-center justify-center gap-1.5 rounded-xl border px-2.5 text-[11px] font-semibold shadow-sm transition-colors sm:w-auto sm:gap-2 sm:px-4 sm:text-xs ${
                   inStockOnly
                     ? "border-primary bg-primary text-primary-foreground"
                     : "border-border/80 bg-card text-muted-foreground hover:border-primary/25 hover:text-foreground"
@@ -397,7 +397,7 @@ export default function HealthKits() {
           </div>
 
           {kits === undefined ? (
-            <div className="grid auto-rows-fr grid-cols-1 gap-3 min-[360px]:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="grid auto-rows-fr grid-cols-1 gap-4 min-[480px]:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4">
               {[0, 1, 2, 3, 4, 5, 6, 7].map((item) => (
                 <div
                   key={item}
@@ -444,7 +444,7 @@ export default function HealthKits() {
               )}
             </div>
           ) : (
-            <div className="grid auto-rows-fr grid-cols-1 gap-3 min-[360px]:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="grid auto-rows-fr grid-cols-1 gap-4 min-[480px]:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4">
               {kits.map((kit, index) => (
                 <motion.article
                   key={kit._id}
@@ -456,7 +456,7 @@ export default function HealthKits() {
                   <button
                     type="button"
                     onClick={() => navigate(`/health-kits/${kit.slug}`)}
-                    className="relative block aspect-[4/3] w-full overflow-hidden bg-[#f4f6f1] p-4 max-sm:p-3.5"
+                    className="relative block aspect-[4/3] w-full overflow-hidden bg-[#f4f6f1] p-5 max-sm:p-4"
                     aria-label={`View ${kit.name}`}
                   >
                     <div
@@ -469,19 +469,19 @@ export default function HealthKits() {
                       className="relative transition-transform duration-500 group-hover:scale-[1.04]"
                     />
                     {kit.discountPercent > 0 && (
-                      <Badge className="absolute left-2.5 top-2.5 z-10 rounded-full border-0 bg-[#8a5a2b] px-2.5 py-0.5 text-[9px] font-bold tracking-wide text-[#fffaf2] shadow-sm sm:left-3 sm:top-3">
+                      <Badge className="absolute left-2.5 top-2.5 z-10 rounded-full border-0 bg-[#8a5a2b] px-2.5 py-0.5 text-[10px] font-bold tracking-wide text-[#fffaf2] shadow-sm sm:left-3 sm:top-3">
                         {kit.discountPercent}% OFF
                       </Badge>
                     )}
                   </button>
 
-                  <div className="flex flex-1 flex-col p-3.5 sm:p-4">
+                  <div className="flex flex-1 flex-col p-4 sm:p-5">
                     <div className="flex items-center justify-between gap-2">
-                      <p className="min-w-0 truncate text-[9.5px] font-semibold uppercase tracking-[0.16em] text-primary/65">
+                      <p className="min-w-0 truncate text-[10px] font-semibold uppercase tracking-[0.16em] text-primary/65">
                         {kit.categoryName ?? "Health kit"}
                       </p>
                       <span
-                        className={`inline-flex shrink-0 items-center gap-1 text-[9.5px] font-semibold sm:text-[10px] ${
+                        className={`inline-flex shrink-0 items-center gap-1 text-[10px] font-semibold ${
                           kit.available ? "text-emerald-700 dark:text-emerald-400" : "text-destructive"
                         }`}
                       >
@@ -497,20 +497,20 @@ export default function HealthKits() {
                     <button
                       type="button"
                       onClick={() => navigate(`/health-kits/${kit.slug}`)}
-                      className="mt-1.5 line-clamp-2 min-h-[2.5rem] text-left text-[13px] font-semibold leading-snug tracking-tight transition-colors hover:text-primary sm:min-h-[2.75rem] sm:text-[15px]"
+                      className="mt-2 line-clamp-2 min-h-[2.75rem] text-left text-[15px] font-semibold leading-snug tracking-tight transition-colors hover:text-primary sm:min-h-[2.75rem]"
                     >
                       {kit.name}
                     </button>
 
-                    <p className="mt-1 line-clamp-2 min-h-[2.35rem] text-[10.5px] leading-relaxed text-muted-foreground sm:min-h-[2.5rem] sm:text-[11px]">
+                    <p className="mt-1.5 line-clamp-2 min-h-[2.5rem] text-xs leading-relaxed text-muted-foreground sm:min-h-[2.5rem]">
                       {kit.description}
                     </p>
 
-                    <div className="mt-3 min-h-[58px] rounded-xl border border-primary/[0.09] bg-[#f3f6ef] px-2.5 py-2 dark:bg-primary/[0.06]">
-                      <p className="flex items-center gap-1 text-[9px] font-semibold uppercase tracking-[0.13em] text-primary/65">
-                        <Package className="size-2.5" /> Inside this kit
+                    <div className="mt-3 min-h-[64px] rounded-xl border border-primary/[0.09] bg-[#f3f6ef] px-3 py-2.5 dark:bg-primary/[0.06]">
+                      <p className="flex items-center gap-1 text-[9.5px] font-semibold uppercase tracking-[0.13em] text-primary/65">
+                        <Package className="size-3" /> Inside this kit
                       </p>
-                      <p className="mt-1 line-clamp-2 text-[10px] leading-relaxed text-foreground/70 sm:text-[11px]">
+                      <p className="mt-1 line-clamp-2 text-[11.5px] leading-relaxed text-foreground/70 sm:text-[11px]">
                         {kit.componentNames.length > 0
                           ? `${kit.componentNames.slice(0, 3).join(" · ")}${
                               kit.componentNames.length > 3
@@ -524,35 +524,35 @@ export default function HealthKits() {
                     </div>
 
                     <div className="mt-3 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                      <span className="text-lg font-bold tracking-tight sm:text-xl">
+                      <span className="text-xl font-bold tracking-tight sm:text-[1.35rem]">
                         {formatCurrency(kit.sellingPrice)}
                       </span>
                       {kit.savings > 0 && (
                         <>
-                          <span className="text-[10px] text-muted-foreground line-through sm:text-[11px]">
+                          <span className="text-[11px] text-muted-foreground line-through">
                             {formatCurrency(kit.mrp)}
                           </span>
-                          <span className="text-[9px] font-semibold text-emerald-700 dark:text-emerald-400 sm:text-[10px]">
+                          <span className="text-[10px] font-semibold text-emerald-700 dark:text-emerald-400 sm:text-[10.5px]">
                             Save {formatCurrency(kit.savings)}
                           </span>
                         </>
                       )}
                     </div>
 
-                    <div className="mt-auto flex items-center gap-2 pt-3.5">
+                    <div className="mt-auto flex items-center gap-2 pt-4">
                       <Button
                         size="sm"
-                        className="h-10 min-w-0 flex-1 rounded-xl px-2.5 text-[11px] font-semibold sm:text-xs"
+                        className="h-11 min-w-0 flex-1 rounded-xl px-3 text-xs font-semibold"
                         disabled={!kit.available}
                         onClick={() => handleAdd(kit)}
                       >
-                        <ShoppingCart className="size-3.5 shrink-0" />
+                        <ShoppingCart className="size-4 shrink-0" />
                         <span className="truncate">Add to cart</span>
                       </Button>
                       <Button
                         variant="outline"
                         size="icon"
-                        className="size-10 shrink-0 rounded-xl border-border/80 bg-transparent"
+                        className="size-11 shrink-0 rounded-xl border-border/80 bg-transparent"
                         onClick={() => navigate(`/health-kits/${kit.slug}`)}
                         aria-label={`View details for ${kit.name}`}
                       >
