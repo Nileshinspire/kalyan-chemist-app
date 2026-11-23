@@ -1,13 +1,14 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { useMutation, useQuery } from "convex/react";
 import { motion } from "framer-motion";
 import {
   ArrowRight,
+  ArrowUpRight,
   Check,
-  ChevronRight,
   Filter,
   Package,
+  PackageCheck,
   Search,
   ShieldCheck,
   ShoppingCart,
@@ -32,6 +33,9 @@ import { api } from "@/convex/_generated/api";
 import { useAuth } from "@/context/AuthContext";
 import { stagePendingCartLine } from "@/lib/pending-cart";
 import { formatCurrency } from "@/lib/auth-utils";
+
+const HERO_IMAGE =
+  "https://images.unsplash.com/photo-1603398938378-e54eab446dde?auto=format&fit=crop&w=2000&q=85";
 
 function isAuthError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error ?? "");
@@ -90,16 +94,15 @@ export default function HealthKits() {
   });
   const addToCart = useMutation(api.cart.addItem);
 
-  const heroKits = useMemo(
-    () => (kits ?? []).filter((kit) => kit.imageUrl).slice(0, 3),
-    [kits],
-  );
-
   const setCategory = (slug: string) => {
     const next = new URLSearchParams(searchParams);
     if (slug) next.set("category", slug);
     else next.delete("category");
     setSearchParams(next, { replace: true });
+  };
+
+  const scrollToKits = () => {
+    document.getElementById("all-health-kits")?.scrollIntoView({ behavior: "smooth" });
   };
 
   const handleAdd = async (kit: NonNullable<typeof kits>[number]) => {
@@ -132,138 +135,121 @@ export default function HealthKits() {
       <Navbar />
       <main>
         {/* ── Hero ── */}
-        <section className="relative overflow-hidden bg-[#0b3f30] text-white">
-          <div
-            className="pointer-events-none absolute inset-0 opacity-[0.13]"
-            style={{
-              backgroundImage:
-                "radial-gradient(circle at 18% 25%, #ffffff 0, transparent 28%), radial-gradient(circle at 82% 70%, #a7f3d0 0, transparent 32%)",
-            }}
+        <section className="relative isolate overflow-hidden bg-[#072f25] text-white">
+          <img
+            src={HERO_IMAGE}
+            alt=""
+            aria-hidden="true"
+            fetchPriority="high"
+            className="absolute inset-0 -z-20 h-full w-full object-cover object-center opacity-80"
           />
-          <div className="relative mx-auto grid max-w-7xl items-center gap-8 px-4 py-10 sm:px-6 sm:py-14 lg:grid-cols-[1.05fr_0.95fr] lg:gap-12 lg:py-16">
+          <div className="absolute inset-0 -z-10 bg-[linear-gradient(105deg,rgba(5,37,29,0.97)_0%,rgba(7,47,37,0.93)_42%,rgba(8,52,40,0.62)_72%,rgba(8,52,40,0.72)_100%)]" />
+          <div className="absolute inset-x-0 bottom-0 -z-10 h-36 bg-gradient-to-t from-[#062a21]/85 to-transparent" />
+          <div
+            className="pointer-events-none absolute -right-24 top-8 -z-10 size-80 rounded-full bg-[#a9c7ad]/15 blur-3xl"
+            aria-hidden="true"
+          />
+
+          <div className="mx-auto grid max-w-7xl gap-10 px-4 pb-12 pt-10 sm:px-6 sm:pb-16 sm:pt-14 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-end lg:gap-14 lg:pb-20 lg:pt-20">
             <motion.div
               initial={{ opacity: 0, y: 18 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-              className="max-w-xl"
+              className="max-w-2xl"
             >
-              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-emerald-50">
-                <Sparkles className="size-3.5" /> Curated by Kalyan Chemist
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-50 backdrop-blur-sm">
+                <Sparkles className="size-3.5 text-emerald-200" />
+                Kalyan Chemist · Health Kits
               </div>
-              <h1 className="font-serif text-3xl font-bold leading-[1.08] tracking-tight sm:text-4xl lg:text-5xl">
+              <h1 className="mt-5 max-w-xl font-serif text-4xl font-bold leading-[1.04] tracking-tight sm:text-5xl lg:text-[3.6rem]">
                 Health &amp; Care Kits
               </h1>
-              <p className="mt-3 text-base font-medium text-emerald-100 sm:text-lg">
-                Everyday care, thoughtfully packed.
+              <p className="mt-4 max-w-lg text-base font-medium leading-relaxed text-emerald-50/95 sm:text-lg">
+                Everyday health essentials, thoughtfully packed for you.
               </p>
-              <p className="mt-4 max-w-lg text-sm leading-relaxed text-emerald-50/85 sm:text-[15px]">
-                Explore curated healthcare kits for home, travel, little ones and
-                everyday personal care. Each kit brings essential products together,
-                with every included item listed clearly before you buy.
+              <p className="mt-3 max-w-xl text-sm leading-relaxed text-emerald-50/70 sm:text-[15px]">
+                Practical collections for home, travel and family care — with every
+                included product listed clearly before you buy.
               </p>
-              <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-emerald-50/85">
-                <span className="inline-flex items-center gap-1.5">
-                  <Check className="size-3.5 text-emerald-300" /> Real catalogue products
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <Check className="size-3.5 text-emerald-300" /> One cart &amp; checkout
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <Check className="size-3.5 text-emerald-300" /> Live availability
-                </span>
+
+              <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <Button
+                  className="h-11 rounded-full bg-[#f8f5ec] px-6 text-sm font-semibold text-[#0a3d2e] shadow-lg shadow-black/10 hover:bg-white"
+                  onClick={scrollToKits}
+                >
+                  Explore Kits <ArrowRight className="size-4" />
+                </Button>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] text-emerald-50/75">
+                  <span className="inline-flex items-center gap-1.5">
+                    <Check className="size-3.5 text-emerald-300" /> Catalogue-backed
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <Check className="size-3.5 text-emerald-300" /> Clear contents
+                  </span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <Check className="size-3.5 text-emerald-300" /> Same checkout
+                  </span>
+                </div>
               </div>
-              <Button
-                className="mt-7 h-10 rounded-full bg-white px-6 text-[#0b3f30] hover:bg-emerald-50"
-                onClick={() =>
-                  document.getElementById("all-health-kits")?.scrollIntoView({ behavior: "smooth" })
-                }
-              >
-                Explore health kits <ArrowRight className="size-4" />
-              </Button>
             </motion.div>
 
-            {/* Real kit imagery when available, premium first-aid composition otherwise. */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.97 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.6, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
-              className="relative mx-auto w-full max-w-md lg:max-w-none"
+            <motion.aside
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+              className="hidden lg:block"
+              aria-label="What to expect from our health kits"
             >
-              <div className="grid grid-cols-5 grid-rows-6 gap-2.5 sm:gap-3">
-                <div className="col-span-3 row-span-4 overflow-hidden rounded-2xl border border-white/15 bg-white p-3 shadow-2xl">
-                  {heroKits[0] ? (
-                    <KitImage src={heroKits[0].imageUrl} alt={heroKits[0].name} />
-                  ) : (
-                    <FirstAidIllustration />
-                  )}
+              <div className="rounded-[28px] border border-white/15 bg-[#05281f]/45 p-6 shadow-2xl shadow-black/20 backdrop-blur-md">
+                <div className="flex items-center justify-between">
+                  <span className="flex size-10 items-center justify-center rounded-2xl bg-white/10 text-emerald-100">
+                    <PackageCheck className="size-5" strokeWidth={1.5} />
+                  </span>
+                  <span className="text-[9px] font-semibold uppercase tracking-[0.2em] text-emerald-100/55">
+                    Inside every kit
+                  </span>
                 </div>
-                <div className="col-span-2 row-span-3 overflow-hidden rounded-2xl border border-white/10 bg-[#145a45] p-3">
-                  {heroKits[1] ? (
-                    <KitImage src={heroKits[1].imageUrl} alt={heroKits[1].name} />
-                  ) : (
-                    <div className="flex h-full flex-col justify-between text-emerald-50">
-                      <ShieldCheck className="size-7 text-emerald-200" strokeWidth={1.3} />
-                      <div>
-                        <p className="text-[11px] font-semibold uppercase tracking-wider text-emerald-200">
-                          Quality first
-                        </p>
-                        <p className="mt-1 text-xs leading-snug">
-                          Products selected from our existing pharmacy catalogue.
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <div className="col-span-2 row-span-3 overflow-hidden rounded-2xl border border-white/10 bg-emerald-50 p-3 text-[#0b3f30]">
-                  {heroKits[2] ? (
-                    <KitImage src={heroKits[2].imageUrl} alt={heroKits[2].name} />
-                  ) : (
-                    <div className="flex h-full flex-col justify-between">
-                      <div className="flex size-8 items-center justify-center rounded-full bg-[#0b3f30]/10">
-                        <Package className="size-4" strokeWidth={1.6} />
-                      </div>
-                      <div>
-                        <p className="text-[11px] font-semibold uppercase tracking-wider text-[#0b3f30]/60">
-                          Packed with care
-                        </p>
-                        <p className="mt-1 text-xs leading-snug">
-                          Clear contents, quantities and pricing — no surprises.
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-                <div className="col-span-3 row-span-2 flex items-center justify-between rounded-2xl border border-white/10 bg-white/10 px-4 backdrop-blur">
-                  <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-200">
-                      Kalyan Chemist
+                <p className="mt-6 font-serif text-2xl font-semibold leading-snug">
+                  Essential care,
+                  <br />
+                  considered.
+                </p>
+                <div className="mt-6 space-y-3.5">
+                  {[
+                    "Products grouped around everyday needs",
+                    "Contents and quantities shown upfront",
+                    "Live availability from our catalogue",
+                  ].map((text) => (
+                    <p key={text} className="flex items-start gap-2.5 text-xs leading-relaxed text-emerald-50/80">
+                      <span className="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full bg-emerald-300/15 text-emerald-200">
+                        <Check className="size-2.5" strokeWidth={2.5} />
+                      </span>
+                      {text}
                     </p>
-                    <p className="mt-0.5 text-sm font-semibold">Care, together.</p>
-                  </div>
-                  <Stethoscope className="size-7 text-emerald-200" strokeWidth={1.4} />
+                  ))}
                 </div>
               </div>
-            </motion.div>
+            </motion.aside>
           </div>
         </section>
 
-        {/* ── Category discovery ── */}
-        <section className="border-b border-border/60 bg-card">
-          <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10">
-            <div className="mb-5 flex flex-wrap items-end justify-between gap-2">
+        {/* ── Categories ── */}
+        <section className="border-b border-border/60 bg-[#f7f5ee] dark:bg-background">
+          <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14">
+            <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary/70">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-primary/65">
                   Find your fit
                 </p>
-                <h2 className="mt-1 font-serif text-2xl font-bold tracking-tight sm:text-3xl">
-                  Explore Health Kits
+                <h2 className="mt-1.5 font-serif text-2xl font-bold tracking-tight sm:text-3xl">
+                  Shop by category
                 </h2>
               </div>
               {selectedCategory && (
                 <button
                   type="button"
                   onClick={() => setCategory("")}
-                  className="text-xs font-semibold text-primary hover:underline"
+                  className="text-xs font-semibold text-primary underline-offset-4 hover:underline"
                 >
                   View all kits
                 </button>
@@ -271,17 +257,17 @@ export default function HealthKits() {
             </div>
 
             {categories === undefined ? (
-              <div className="flex gap-3 overflow-hidden">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5">
                 {[0, 1, 2, 3, 4].map((item) => (
-                  <div key={item} className="h-28 min-w-[150px] flex-1 animate-pulse rounded-2xl bg-muted" />
+                  <div key={item} className="h-[168px] animate-pulse rounded-[22px] bg-muted" />
                 ))}
               </div>
             ) : categories.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-border bg-muted/30 px-5 py-8 text-center text-sm text-muted-foreground">
+              <div className="rounded-[22px] border border-dashed border-border bg-card/60 px-5 py-10 text-center text-sm text-muted-foreground">
                 Kit collections will appear here as soon as they are published.
               </div>
             ) : (
-              <div className="-mx-4 flex snap-x gap-3 overflow-x-auto px-4 pb-2 scrollbar-none sm:mx-0 sm:grid sm:grid-cols-3 sm:overflow-visible sm:px-0 lg:grid-cols-5">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-5">
                 {categories.map((category, index) => {
                   const active = selectedCategory === category.slug;
                   return (
@@ -289,37 +275,56 @@ export default function HealthKits() {
                       key={category._id}
                       type="button"
                       onClick={() => setCategory(active ? "" : category.slug)}
-                      className={`group relative min-w-[152px] snap-start overflow-hidden rounded-2xl border p-4 text-left transition-all duration-300 sm:min-w-0 ${
+                      aria-pressed={active}
+                      className={`group relative flex min-h-[172px] min-w-0 flex-col overflow-hidden rounded-[22px] border p-4 text-left transition-all duration-300 sm:min-h-[184px] sm:p-5 ${
                         active
-                          ? "border-primary bg-primary/5 shadow-sm"
-                          : "border-border/70 bg-background hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
+                          ? "border-primary/40 bg-[#edf4ec] shadow-[0_10px_30px_-18px_rgba(10,61,46,0.45)] ring-1 ring-primary/15 dark:bg-primary/10"
+                          : "border-border/60 bg-card/85 hover:-translate-y-1 hover:border-primary/25 hover:bg-card hover:shadow-[0_18px_36px_-24px_rgba(10,61,46,0.35)]"
                       }`}
                     >
                       <div
-                        className={`mb-3 flex size-11 items-center justify-center overflow-hidden rounded-xl ${
-                          active ? "bg-primary text-primary-foreground" : "bg-primary/10 text-primary"
-                        }`}
-                      >
-                        {category.imageUrl ? (
-                          <img
-                            src={category.imageUrl}
-                            alt=""
-                            loading="lazy"
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          categoryIcon(index)
+                        className="pointer-events-none absolute -right-8 -top-8 size-24 rounded-full bg-primary/[0.04] transition-transform duration-500 group-hover:scale-125 dark:bg-white/[0.03]"
+                        aria-hidden="true"
+                      />
+                      <div className="flex items-start justify-between gap-2">
+                        <span
+                          className={`flex size-11 items-center justify-center overflow-hidden rounded-2xl transition-colors ${
+                            active
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-primary/[0.08] text-primary group-hover:bg-primary/10"
+                          }`}
+                        >
+                          {category.imageUrl ? (
+                            <img
+                              src={category.imageUrl}
+                              alt=""
+                              loading="lazy"
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            categoryIcon(index)
+                          )}
+                        </span>
+                        <span className="rounded-full border border-border/60 bg-background/80 px-2 py-1 text-[9px] font-semibold text-muted-foreground">
+                          {category.kitCount} {category.kitCount === 1 ? "kit" : "kits"}
+                        </span>
+                      </div>
+
+                      <div className="relative mt-5 min-w-0">
+                        <p className="break-words text-sm font-semibold leading-snug tracking-tight sm:text-[15px]">
+                          {category.name}
+                        </p>
+                        {category.description && (
+                          <p className="mt-1.5 line-clamp-2 text-[10px] leading-relaxed text-muted-foreground sm:text-[11px]">
+                            {category.description}
+                          </p>
                         )}
                       </div>
-                      <p className="text-sm font-semibold leading-snug">{category.name}</p>
-                      <p className="mt-1 text-[11px] text-muted-foreground">
-                        {category.kitCount} {category.kitCount === 1 ? "kit" : "kits"}
-                      </p>
-                      <ChevronRight
-                        className={`absolute right-3 top-4 size-4 transition-transform ${
-                          active ? "text-primary" : "text-muted-foreground/40 group-hover:translate-x-0.5 group-hover:text-primary"
-                        }`}
-                      />
+
+                      <span className="relative mt-auto flex items-center gap-1 pt-4 text-[10px] font-semibold uppercase tracking-[0.12em] text-primary/75">
+                        {active ? "Showing" : "Explore"}
+                        <ArrowUpRight className="size-3.5 transition-transform duration-300 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+                      </span>
                     </button>
                   );
                 })}
@@ -328,30 +333,44 @@ export default function HealthKits() {
           </div>
         </section>
 
-        {/* ── All kits ── */}
-        <section id="all-health-kits" className="mx-auto max-w-7xl scroll-mt-24 px-4 py-9 sm:px-6 sm:py-12">
-          <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary/70">
+        {/* ── Kits ── */}
+        <section
+          id="all-health-kits"
+          className="mx-auto max-w-7xl scroll-mt-24 px-4 py-10 sm:px-6 sm:py-14"
+        >
+          <div className="mb-7 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-primary/65">
                 Thoughtfully assembled
               </p>
-              <h2 className="mt-1 font-serif text-2xl font-bold tracking-tight sm:text-3xl">
-                All Health Kits
-              </h2>
+              <div className="mt-1.5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                <h2 className="font-serif text-2xl font-bold tracking-tight sm:text-3xl">
+                  All Health Kits
+                </h2>
+                {kits !== undefined && (
+                  <span className="text-xs font-medium text-muted-foreground">
+                    {kits.length} {kits.length === 1 ? "kit" : "kits"}
+                  </span>
+                )}
+              </div>
             </div>
-            <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+
+            <div className="flex min-w-0 flex-col gap-2.5 sm:flex-row sm:items-center">
+              <div className="relative min-w-0 flex-1 lg:w-[260px] lg:flex-none">
+                <Search className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
                   placeholder="Search kits or included products"
-                  className="h-10 w-full rounded-full border-border/80 bg-background pl-9 text-sm sm:w-[260px]"
+                  className="h-11 w-full rounded-xl border-border/80 bg-card pl-10 text-sm shadow-sm"
                   aria-label="Search health kits"
                 />
               </div>
               <Select value={sort} onValueChange={(value) => setSort(value as KitSort)}>
-                <SelectTrigger className="h-10 min-h-10 w-full rounded-full sm:w-[160px]" aria-label="Sort health kits">
+                <SelectTrigger
+                  className="h-11 min-h-11 w-full rounded-xl border-border/80 bg-card shadow-sm sm:w-[165px]"
+                  aria-label="Sort health kits"
+                >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -366,10 +385,10 @@ export default function HealthKits() {
                 type="button"
                 onClick={() => setInStockOnly((value) => !value)}
                 aria-pressed={inStockOnly}
-                className={`inline-flex h-10 w-full items-center justify-center gap-2 rounded-full border px-4 text-xs font-semibold transition-colors sm:w-auto ${
+                className={`inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl border px-4 text-xs font-semibold shadow-sm transition-colors sm:w-auto ${
                   inStockOnly
                     ? "border-primary bg-primary text-primary-foreground"
-                    : "border-border/80 bg-background text-muted-foreground hover:text-foreground"
+                    : "border-border/80 bg-card text-muted-foreground hover:border-primary/25 hover:text-foreground"
                 }`}
               >
                 <Filter className="size-3.5" /> In stock only
@@ -378,29 +397,34 @@ export default function HealthKits() {
           </div>
 
           {kits === undefined ? (
-            <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="grid auto-rows-fr grid-cols-1 gap-3 min-[360px]:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4">
               {[0, 1, 2, 3, 4, 5, 6, 7].map((item) => (
-                <div key={item} className="animate-pulse overflow-hidden rounded-2xl border border-border/60 bg-card">
-                  <div className="aspect-square bg-muted" />
-                  <div className="space-y-2 p-3">
-                    <div className="h-3 w-2/3 rounded bg-muted" />
+                <div
+                  key={item}
+                  className="animate-pulse overflow-hidden rounded-[22px] border border-border/60 bg-card"
+                >
+                  <div className="aspect-[4/3] bg-muted" />
+                  <div className="space-y-2.5 p-4">
+                    <div className="h-2.5 w-1/3 rounded bg-muted" />
+                    <div className="h-3.5 w-4/5 rounded bg-muted" />
                     <div className="h-3 w-full rounded bg-muted" />
-                    <div className="h-7 w-full rounded bg-muted" />
+                    <div className="h-14 w-full rounded-xl bg-muted" />
+                    <div className="h-10 w-full rounded-xl bg-muted" />
                   </div>
                 </div>
               ))}
             </div>
           ) : kits.length === 0 ? (
-            <div className="rounded-3xl border border-dashed border-border bg-card px-6 py-16 text-center">
-              <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <div className="rounded-[28px] border border-dashed border-border bg-[#f7f5ee] px-6 py-16 text-center dark:bg-card/40 sm:py-20">
+              <div className="mx-auto flex size-14 items-center justify-center rounded-2xl border border-primary/10 bg-primary/[0.07] text-primary">
                 <Package className="size-6" strokeWidth={1.5} />
               </div>
-              <h3 className="mt-4 text-lg font-semibold">
+              <h3 className="mt-5 font-serif text-xl font-semibold">
                 {search || selectedCategory || inStockOnly
                   ? "No kits match this selection"
                   : "Health kits are on the way"}
               </h3>
-              <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
+              <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-muted-foreground">
                 {search || selectedCategory || inStockOnly
                   ? "Try another category, clear your search, or turn off the stock filter."
                   : "New curated kits will appear here as soon as they are published."}
@@ -408,7 +432,7 @@ export default function HealthKits() {
               {(search || selectedCategory || inStockOnly) && (
                 <Button
                   variant="outline"
-                  className="mt-5 rounded-full"
+                  className="mt-6 rounded-full bg-card px-5"
                   onClick={() => {
                     setSearch("");
                     setInStockOnly(false);
@@ -420,70 +444,45 @@ export default function HealthKits() {
               )}
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-3 min-[360px]:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4">
+            <div className="grid auto-rows-fr grid-cols-1 gap-3 min-[360px]:grid-cols-2 sm:gap-5 lg:grid-cols-3 xl:grid-cols-4">
               {kits.map((kit, index) => (
                 <motion.article
                   key={kit._id}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.35, delay: Math.min(index, 8) * 0.035 }}
-                  className="group flex h-full flex-col overflow-hidden rounded-2xl border border-border/70 bg-card transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-lg"
+                  className="group flex h-full min-w-0 flex-col overflow-hidden rounded-[22px] border border-border/65 bg-card transition-all duration-300 hover:-translate-y-1 hover:border-primary/20 hover:shadow-[0_22px_45px_-28px_rgba(10,61,46,0.42)]"
                 >
                   <button
                     type="button"
                     onClick={() => navigate(`/health-kits/${kit.slug}`)}
-                    className="relative block aspect-square w-full overflow-hidden bg-white p-3 max-sm:p-2"
+                    className="relative block aspect-[4/3] w-full overflow-hidden bg-[#f4f6f1] p-4 max-sm:p-3.5"
                     aria-label={`View ${kit.name}`}
                   >
-                    {kit.discountPercent > 0 && (
-                      <Badge className="absolute left-2 top-2 z-10 rounded-full bg-primary text-[10px] text-primary-foreground sm:left-3 sm:top-3">
-                        {kit.discountPercent}% OFF
-                      </Badge>
-                    )}
+                    <div
+                      className="pointer-events-none absolute inset-x-0 top-0 h-1/2 bg-gradient-to-b from-white/75 to-transparent"
+                      aria-hidden="true"
+                    />
                     <KitImage
                       src={kit.imageUrl}
                       alt={kit.name}
-                      className="transition-transform duration-500 group-hover:scale-[1.03]"
+                      className="relative transition-transform duration-500 group-hover:scale-[1.04]"
                     />
+                    {kit.discountPercent > 0 && (
+                      <Badge className="absolute left-2.5 top-2.5 z-10 rounded-full border-0 bg-[#8a5a2b] px-2.5 py-0.5 text-[9px] font-bold tracking-wide text-[#fffaf2] shadow-sm sm:left-3 sm:top-3">
+                        {kit.discountPercent}% OFF
+                      </Badge>
+                    )}
                   </button>
-                  <div className="flex flex-1 flex-col p-3 sm:p-4">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-primary/70">
-                      {kit.categoryName ?? "Health kit"}
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => navigate(`/health-kits/${kit.slug}`)}
-                      className="mt-1 line-clamp-2 text-left text-[13px] font-semibold leading-snug hover:text-primary sm:text-[15px]"
-                    >
-                      {kit.name}
-                    </button>
-                    <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-muted-foreground sm:text-xs">
-                      {kit.description}
-                    </p>
-                    <p className="mt-2 text-[10px] text-muted-foreground sm:text-[11px]">
-                      {kit.componentCount} included {kit.componentCount === 1 ? "product" : "products"}
-                    </p>
 
-                    <div className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                      <span className="text-base font-bold tracking-tight sm:text-lg">
-                        {formatCurrency(kit.sellingPrice)}
-                      </span>
-                      {kit.savings > 0 && (
-                        <>
-                          <span className="text-[11px] text-muted-foreground line-through">
-                            {formatCurrency(kit.mrp)}
-                          </span>
-                          <span className="text-[10px] font-semibold text-emerald-700">
-                            Save {formatCurrency(kit.savings)}
-                          </span>
-                        </>
-                      )}
-                    </div>
-
-                    <div className="mt-1.5">
+                  <div className="flex flex-1 flex-col p-3.5 sm:p-4">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="min-w-0 truncate text-[9.5px] font-semibold uppercase tracking-[0.16em] text-primary/65">
+                        {kit.categoryName ?? "Health kit"}
+                      </p>
                       <span
-                        className={`inline-flex items-center gap-1 text-[10px] font-semibold ${
-                          kit.available ? "text-emerald-700" : "text-destructive"
+                        className={`inline-flex shrink-0 items-center gap-1 text-[9.5px] font-semibold sm:text-[10px] ${
+                          kit.available ? "text-emerald-700 dark:text-emerald-400" : "text-destructive"
                         }`}
                       >
                         <span
@@ -495,22 +494,69 @@ export default function HealthKits() {
                       </span>
                     </div>
 
-                    <div className="mt-auto grid grid-cols-1 gap-1.5 pt-3 sm:grid-cols-2">
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/health-kits/${kit.slug}`)}
+                      className="mt-1.5 line-clamp-2 min-h-[2.5rem] text-left text-[13px] font-semibold leading-snug tracking-tight transition-colors hover:text-primary sm:min-h-[2.75rem] sm:text-[15px]"
+                    >
+                      {kit.name}
+                    </button>
+
+                    <p className="mt-1 line-clamp-2 min-h-[2.35rem] text-[10.5px] leading-relaxed text-muted-foreground sm:min-h-[2.5rem] sm:text-[11px]">
+                      {kit.description}
+                    </p>
+
+                    <div className="mt-3 min-h-[58px] rounded-xl border border-primary/[0.09] bg-[#f3f6ef] px-2.5 py-2 dark:bg-primary/[0.06]">
+                      <p className="flex items-center gap-1 text-[9px] font-semibold uppercase tracking-[0.13em] text-primary/65">
+                        <Package className="size-2.5" /> Inside this kit
+                      </p>
+                      <p className="mt-1 line-clamp-2 text-[10px] leading-relaxed text-foreground/70 sm:text-[11px]">
+                        {kit.componentNames.length > 0
+                          ? `${kit.componentNames.slice(0, 3).join(" · ")}${
+                              kit.componentNames.length > 3
+                                ? ` +${kit.componentNames.length - 3} more`
+                                : ""
+                            }`
+                          : `${kit.componentCount} included ${
+                              kit.componentCount === 1 ? "product" : "products"
+                            }`}
+                      </p>
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                      <span className="text-lg font-bold tracking-tight sm:text-xl">
+                        {formatCurrency(kit.sellingPrice)}
+                      </span>
+                      {kit.savings > 0 && (
+                        <>
+                          <span className="text-[10px] text-muted-foreground line-through sm:text-[11px]">
+                            {formatCurrency(kit.mrp)}
+                          </span>
+                          <span className="text-[9px] font-semibold text-emerald-700 dark:text-emerald-400 sm:text-[10px]">
+                            Save {formatCurrency(kit.savings)}
+                          </span>
+                        </>
+                      )}
+                    </div>
+
+                    <div className="mt-auto flex items-center gap-2 pt-3.5">
                       <Button
-                        variant="outline"
                         size="sm"
-                        className="h-10 rounded-full px-3 text-[11px] sm:h-9 sm:text-xs"
-                        onClick={() => navigate(`/health-kits/${kit.slug}`)}
-                      >
-                        View details
-                      </Button>
-                      <Button
-                        size="sm"
-                        className="h-10 rounded-full px-3 text-[11px] sm:h-9 sm:text-xs"
+                        className="h-10 min-w-0 flex-1 rounded-xl px-2.5 text-[11px] font-semibold sm:text-xs"
                         disabled={!kit.available}
                         onClick={() => handleAdd(kit)}
                       >
-                        <ShoppingCart className="size-3.5" /> Add
+                        <ShoppingCart className="size-3.5 shrink-0" />
+                        <span className="truncate">Add to cart</span>
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="size-10 shrink-0 rounded-xl border-border/80 bg-transparent"
+                        onClick={() => navigate(`/health-kits/${kit.slug}`)}
+                        aria-label={`View details for ${kit.name}`}
+                      >
+                        <ArrowUpRight className="size-4" />
                       </Button>
                     </div>
                   </div>
@@ -520,59 +566,86 @@ export default function HealthKits() {
           )}
         </section>
 
-        {/* ── Closing reassurance strip ── */}
-        <section className="border-t border-border/60 bg-primary/[0.035]">
-          <div className="mx-auto grid max-w-7xl gap-4 px-4 py-8 sm:grid-cols-3 sm:px-6">
-            {[
-              {
-                icon: ShieldCheck,
-                title: "Genuine products",
-                text: "Every kit is built from products already stocked in our catalogue.",
-              },
-              {
-                icon: Package,
-                title: "Clear contents",
-                text: "See every included product and its quantity before adding a kit.",
-              },
-              {
-                icon: Truck,
-                title: "Existing checkout",
-                text: "Kits use the same cart, delivery and payment flow you already know.",
-              },
-            ].map((item) => (
-              <div key={item.title} className="flex items-start gap-3">
-                <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                  <item.icon className="size-4" strokeWidth={1.6} />
+        {/* ── Why choose our kits ── */}
+        <section className="border-y border-border/60 bg-[#f7f5ee] dark:bg-card/30">
+          <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14">
+            <div className="max-w-xl">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-primary/65">
+                Care, considered
+              </p>
+              <h2 className="mt-1.5 font-serif text-2xl font-bold tracking-tight sm:text-3xl">
+                Why choose our kits?
+              </h2>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                A simpler way to keep everyday health essentials close at hand.
+              </p>
+            </div>
+            <div className="mt-7 grid gap-3 sm:grid-cols-3 sm:gap-4">
+              {[
+                {
+                  icon: PackageCheck,
+                  title: "Thoughtfully grouped",
+                  text: "Each kit brings related essentials together from our existing pharmacy catalogue.",
+                },
+                {
+                  icon: ShieldCheck,
+                  title: "Clear from the start",
+                  text: "See every included product and quantity before you add a kit to your cart.",
+                },
+                {
+                  icon: Truck,
+                  title: "One familiar checkout",
+                  text: "Kits use the same cart, delivery and payment flow you already know.",
+                },
+              ].map((item) => (
+                <div
+                  key={item.title}
+                  className="rounded-[22px] border border-border/60 bg-card p-5 shadow-[0_12px_30px_-26px_rgba(10,61,46,0.32)]"
+                >
+                  <div className="flex size-10 items-center justify-center rounded-xl bg-primary/[0.08] text-primary">
+                    <item.icon className="size-[18px]" strokeWidth={1.6} />
+                  </div>
+                  <p className="mt-4 text-sm font-semibold tracking-tight">{item.title}</p>
+                  <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{item.text}</p>
                 </div>
-                <div>
-                  <p className="text-sm font-semibold">{item.title}</p>
-                  <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{item.text}</p>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ── Closing ── */}
+        <section className="relative isolate overflow-hidden bg-[#0a3d2e] text-white">
+          <div
+            className="pointer-events-none absolute inset-0 -z-10 opacity-70"
+            style={{
+              backgroundImage:
+                "radial-gradient(circle at 78% 20%, rgba(167,243,208,0.16) 0, transparent 30%), radial-gradient(circle at 12% 90%, rgba(255,255,255,0.08) 0, transparent 28%)",
+            }}
+            aria-hidden="true"
+          />
+          <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-10 sm:px-6 sm:py-12 md:flex-row md:items-center md:justify-between">
+            <div className="max-w-xl">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-200/70">
+                Ready when you are
+              </p>
+              <h2 className="mt-2 font-serif text-2xl font-semibold tracking-tight sm:text-3xl">
+                Find a kit that fits your everyday.
+              </h2>
+              <p className="mt-2 text-sm leading-relaxed text-emerald-50/70">
+                Browse the full collection, compare what&apos;s inside, and choose
+                the essentials that suit your home.
+              </p>
+            </div>
+            <Button
+              className="h-11 w-full shrink-0 rounded-full bg-[#f8f5ec] px-6 text-sm font-semibold text-[#0a3d2e] hover:bg-white md:w-auto"
+              onClick={scrollToKits}
+            >
+              Explore all kits <ArrowRight className="size-4" />
+            </Button>
           </div>
         </section>
       </main>
       <Footer />
     </div>
-  );
-}
-
-function FirstAidIllustration() {
-  return (
-    <svg viewBox="0 0 320 260" className="h-full w-full" role="img" aria-label="First aid kit illustration">
-      <rect x="42" y="72" width="236" height="144" rx="22" fill="#f0fdf4" stroke="#0b3f30" strokeWidth="3" />
-      <path d="M112 72V54a14 14 0 0 1 14-14h68a14 14 0 0 1 14 14v18" fill="none" stroke="#0b3f30" strokeWidth="4" strokeLinecap="round" />
-      <rect x="52" y="160" width="216" height="46" rx="12" fill="#dcfce7" />
-      <rect x="133" y="104" width="54" height="54" rx="13" fill="#ffffff" stroke="#0b3f30" strokeWidth="3" />
-      <path d="M160 116v30M145 131h30" stroke="#0b3f30" strokeWidth="4" strokeLinecap="round" />
-      <circle cx="86" cy="118" r="12" fill="#ffffff" stroke="#0b3f30" strokeWidth="2.5" />
-      <path d="M86 111v14M79 118h14" stroke="#0b3f30" strokeWidth="2.5" strokeLinecap="round" />
-      <rect x="220" y="102" width="34" height="46" rx="9" fill="#ffffff" stroke="#0b3f30" strokeWidth="2.5" />
-      <path d="M228 116h18M228 124h18M228 132h12" stroke="#0b3f30" strokeWidth="2" strokeLinecap="round" opacity="0.55" />
-      <path d="M84 178h50" stroke="#0b3f30" strokeWidth="2.5" strokeLinecap="round" opacity="0.55" />
-      <path d="M146 178h48" stroke="#0b3f30" strokeWidth="2.5" strokeLinecap="round" opacity="0.3" />
-      <path d="M206 178h28" stroke="#0b3f30" strokeWidth="2.5" strokeLinecap="round" opacity="0.18" />
-    </svg>
   );
 }
