@@ -2216,6 +2216,11 @@ const schema = defineSchema(
       bloodGroup: v.optional(v.string()),
       phone: v.optional(v.string()),
       notes: v.optional(v.string()),
+      /** Optional profile photo stored in private Convex storage. */
+      photoFileId: v.optional(v.string()),
+      photoFileName: v.optional(v.string()),
+      photoFileType: v.optional(v.string()),
+      photoUpdatedAt: v.optional(v.number()),
       createdAt: v.number(),
       updatedAt: v.number(),
     })
@@ -2266,6 +2271,8 @@ const schema = defineSchema(
           secondaryUnit: v.optional(v.string()),
           min: v.number(),
           max: v.number(),
+          /** Absent = active, for backward compatibility with old settings. */
+          isActive: v.optional(v.boolean()),
         }),
       ),
       educationalContent: v.string(),

@@ -67,11 +67,20 @@ export const list = query({
       .withIndex("by_owner", (q) => q.eq("ownerId", userId))
       .collect();
 
-    return members.sort((a, b) => {
+    members.sort((a, b) => {
       if (a.relationship === "self" && b.relationship !== "self") return -1;
       if (b.relationship === "self" && a.relationship !== "self") return 1;
       return a.createdAt - b.createdAt;
     });
+
+    return await Promise.all(
+      members.map(async (member) => ({
+        ...member,
+        photoUrl: member.photoFileId
+          ? await ctx.storage.getUrl(member.photoFileId)
+          : null,
+      })),
+    );
   },
 });
 
@@ -257,8 +266,169 @@ export const remove = mutation({
       throw new Error("This member has orders. Keep the profile so order history stays linked.");
     }
 
+    if (member.photoFileId) {
+      try {
+        await ctx.storage.delete(member.photoFileId as Id<"_storage">);
+      } catch {
+        // The profile can still be removed if its old photo was already gone.
+      }
+    }
     await ctx.db.delete(member._id);
     return { success: true };
+  },
+});
+
+/** Secure upload URL for an optional family-member profile photo. */
+export const generateProfilePhotoUploadUrl = mutation({
+  args: {},
+  handler: async (ctx) => {
+    await requireUser(ctx);
+    return await ctx.storage.generateUploadUrl();
+  },
+});
+
+/** Attach/replace a member photo after validating ownership and file metadata. */
+export const setProfilePhoto = mutation({
+  args: {
+    memberId: v.id("family_members"),
+    fileId: v.string(),
+    fileName: v.string(),
+    fileType: v.string(),
+    fileSize: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const userId = await requireUser(ctx);
+    const member = await ownedMember(ctx, userId, args.memberId);
+
+    const allowed = ["image/jpeg", "image/png", "image/webp"];
+    if (!allowed.includes(args.fileType)) {
+      throw new Error("Choose a JPG, PNG or WebP photo.");
+    }
+    if (!Number.isFinite(args.fileSize) || args.fileSize <= 0 || args.fileSize > 5 * 1024 * 1024) {
+      throw new Error("Profile photos must be 5 MB or smaller.");
+    }
+    if (!args.fileId.trim()) throw new Error("Photo upload did not complete. Please try again.");
+
+    const previousFileId = member.photoFileId;
+    await ctx.db.patch(member._id, {
+      photoFileId: args.fileId,
+      photoFileName: args.fileName.slice(0, 200),
+      photoFileType: args.fileType,
+      photoUpdatedAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    if (previousFileId && previousFileId !== args.fileId) {
+      try {
+        await ctx.storage.delete(previousFileId as Id<"_storage">);
+      } catch {
+        // Replacing the photo must not fail because the old object expired.
+      }
+    }
+    return { success: true };
+  },
+});
+
+export const removeProfilePhoto = mutation({
+  args: { memberId: v.id("family_members") },
+  handler: async (ctx, args) => {
+    const userId = await requireUser(ctx);
+    const member = await ownedMember(ctx, userId, args.memberId);
+    if (member.photoFileId) {
+      try {
+        await ctx.storage.delete(member.photoFileId as Id<"_storage">);
+      } catch {
+        // The DB reference is cleared either way.
+      }
+    }
+    await ctx.db.patch(member._id, {
+      photoFileId: undefined,
+      photoFileName: undefined,
+      photoFileType: undefined,
+      photoUpdatedAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+    return { success: true };
+  },
+});
+
+/** All readings for the signed-in customer's family, with member context. */
+export const listFamilyReadings = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) return [];
+    const [members, readings] = await Promise.all([
+      ctx.db
+        .query("family_members")
+        .withIndex("by_owner", (q) => q.eq("ownerId", userId))
+        .collect(),
+      ctx.db
+        .query("health_readings")
+        .withIndex("by_owner", (q) => q.eq("ownerId", userId))
+        .collect(),
+    ]);
+    const memberById = new Map(members.map((member) => [member._id, member]));
+    return readings
+      .filter((reading) => memberById.has(reading.memberId))
+      .sort((a, b) => b.recordedAt - a.recordedAt)
+      .map((reading) => {
+        const member = memberById.get(reading.memberId)!;
+        return {
+          _id: reading._id,
+          memberId: reading.memberId,
+          memberName: member.name,
+          relationship: member.relationship,
+          typeKey: reading.typeKey,
+          value: reading.value,
+          secondaryValue: reading.secondaryValue,
+          unit: reading.unit,
+          recordedAt: reading.recordedAt,
+          notes: reading.notes,
+          createdAt: reading.createdAt,
+        };
+      });
+  },
+});
+
+/** All private reports for the signed-in customer's family, with member context. */
+export const listFamilyReports = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) return [];
+    const [members, reports] = await Promise.all([
+      ctx.db
+        .query("family_members")
+        .withIndex("by_owner", (q) => q.eq("ownerId", userId))
+        .collect(),
+      ctx.db
+        .query("health_reports")
+        .withIndex("by_owner", (q) => q.eq("ownerId", userId))
+        .collect(),
+    ]);
+    const memberById = new Map(members.map((member) => [member._id, member]));
+    const visible = reports
+      .filter((report) => memberById.has(report.memberId))
+      .sort((a, b) => b.recordedAt - a.recordedAt);
+    return await Promise.all(
+      visible.map(async (report) => {
+        const member = memberById.get(report.memberId)!;
+        return {
+          _id: report._id,
+          memberId: report.memberId,
+          memberName: member.name,
+          relationship: member.relationship,
+          title: report.title,
+          fileName: report.fileName,
+          fileType: report.fileType,
+          fileSize: report.fileSize,
+          recordedAt: report.recordedAt,
+          createdAt: report.createdAt,
+          url: await ctx.storage.getUrl(report.fileId),
+        };
+      }),
+    );
   },
 });
 

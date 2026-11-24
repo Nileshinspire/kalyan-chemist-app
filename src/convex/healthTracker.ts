@@ -16,6 +16,8 @@ export type MeasurementType = {
   secondaryUnit?: string;
   min: number;
   max: number;
+  /** Absent means active; archived types stay visible for historical readings. */
+  isActive?: boolean;
 };
 
 export const DEFAULT_MEASUREMENT_TYPES: MeasurementType[] = [
@@ -148,7 +150,9 @@ export const addReading = mutation({
     }
     const types: MeasurementType[] = settings?.measurementTypes ?? DEFAULT_MEASUREMENT_TYPES;
     const type = types.find((t) => t.key === args.typeKey);
-    if (!type) throw new Error("Choose a valid measurement type.");
+    if (!type || type.isActive === false) {
+      throw new Error("Choose a valid active measurement type.");
+    }
 
     if (!Number.isFinite(args.value) || args.value < type.min || args.value > type.max) {
       throw new Error(
@@ -245,7 +249,9 @@ export const updateReading = mutation({
       secondaryValue,
       recordedAt: args.recordedAt,
       notes: notes || undefined,
-      unit: type.unit,
+      // Keep the unit captured with the original reading. Admin unit changes
+      // apply to new readings only, preserving historical records.
+      unit: reading.unit,
       updatedAt: Date.now(),
     });
     return { success: true };

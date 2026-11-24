@@ -40,8 +40,6 @@ import {
   Activity,
   AlertCircle,
   ArrowLeft,
-  ArrowRight,
-  CalendarDays,
   ChevronRight,
   ClipboardList,
   FileText,
@@ -58,10 +56,11 @@ import {
   TrendingDown,
   TrendingUp,
   Upload,
-  User,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useLanguage } from "@/context/LanguageContext";
+import { MemberAvatar, MemberPhotoDialog } from "@/components/family/MemberPhoto";
 
 type Reading = {
   _id: Id<"health_readings">;
@@ -91,6 +90,7 @@ type MeasurementType = {
   secondaryUnit?: string;
   min: number;
   max: number;
+  isActive?: boolean;
 };
 
 function pad(value: number) {
@@ -122,13 +122,17 @@ function formatDate(ms: number) {
   });
 }
 
-function readingLabel(reading: Reading, types: MeasurementType[]) {
-  const type = types.find((t) => t.key === reading.typeKey);
-  const unit = type?.unit ?? reading.unit;
+function errorText(error: unknown, fallback: string) {
+  return error instanceof Error && error.message ? error.message : fallback;
+}
+
+function readingLabel(reading: Reading) {
+  // Use the unit stored with the reading so later admin unit changes never
+  // rewrite the displayed history.
   if (reading.secondaryValue !== undefined) {
-    return `${reading.value}/${reading.secondaryValue} ${unit}`;
+    return `${reading.value}/${reading.secondaryValue} ${reading.unit}`;
   }
-  return `${reading.value} ${unit}`;
+  return `${reading.value} ${reading.unit}`;
 }
 
 function TrendChart({ readings }: { readings: Reading[] }) {
@@ -220,9 +224,15 @@ export default function FamilyMemberHealth() {
     api.healthTracker.listReports,
     memberId ? { memberId: memberId as Id<"family_members"> } : "skip",
   );
-  const prescriptions = useQuery(api.prescriptions.list);
+  const prescriptions = useQuery(
+    api.prescriptions.listByMember,
+    memberId ? { memberId: memberId as Id<"family_members"> } : "skip",
+  );
   const reminders = useQuery(api.pillReminders.list);
-  const orders = useQuery(api.orders.list);
+  const orders = useQuery(
+    api.orders.listByMember,
+    memberId ? { memberId: memberId as Id<"family_members"> } : "skip",
+  );
 
   const addReading = useMutation(api.healthTracker.addReading);
   const updateReading = useMutation(api.healthTracker.updateReading);
@@ -234,22 +244,31 @@ export default function FamilyMemberHealth() {
   const member = (members ?? []).find((m) => m._id === memberId);
   const types = (config?.measurementTypes ?? []) as MeasurementType[];
   const [selectedType, setSelectedType] = useState<string>("");
-  const activeType = selectedType || types[0]?.key || "";
-
   const allReadings = (readings ?? []) as Reading[];
+  const activeTypes = types.filter((type) => type.isActive !== false);
+  const visibleTypes = types.filter(
+    (type) => type.isActive !== false || allReadings.some((r) => r.typeKey === type.key),
+  );
+  const activeType = selectedType || activeTypes[0]?.key || types[0]?.key || "";
+  const [detailView, setDetailView] = useState<
+    "records" | "reports" | "prescriptions" | "orders" | null
+  >(null);
+  const [photoOpen, setPhotoOpen] = useState(false);
+
   const typeReadings = allReadings.filter((r) => r.typeKey === activeType);
   const latest = typeReadings[0];
   const previous = typeReadings[1];
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Reading | null>(null);
-  const [readingForm, setReadingForm] = useState({
+  const [readingForm, setReadingForm] = useState(() => ({
     typeKey: "",
     value: "",
     secondaryValue: "",
     recordedAt: dateTimeInput(Date.now()),
     notes: "",
-  });
+  }));
+  const [maxReadingTime] = useState(() => dateTimeInput(Date.now()));
   const [savingReading, setSavingReading] = useState(false);
   const [deleteReading, setDeleteReading] = useState<Reading | null>(null);
   const [deletingReading, setDeletingReading] = useState(false);
@@ -261,19 +280,16 @@ export default function FamilyMemberHealth() {
   const [uploadingReport, setUploadingReport] = useState(false);
   const reportInput = useRef<HTMLInputElement>(null);
 
-  const memberPrescriptions = (prescriptions ?? []).filter(
-    (rx: any) => rx.memberId === memberId,
-  );
+  // These backend queries are already scoped to this owned member.
+  const memberPrescriptions = prescriptions ?? [];
   const memberReminders = (reminders ?? []).filter(
-    (reminder: any) => reminder.memberId === memberId,
+    (reminder) => reminder.memberId === memberId,
   );
-  const memberOrders = (orders ?? []).filter(
-    (order: any) => order.familyMemberId === memberId,
-  );
+  const memberOrders = orders ?? [];
 
   function openAddReading() {
     setEditing(null);
-    const first = types[0];
+    const first = activeTypes[0];
     setReadingForm({
       typeKey: activeType || first?.key || "",
       value: "",
@@ -345,8 +361,8 @@ export default function FamilyMemberHealth() {
       }
       setSelectedType(type.key);
       setDialogOpen(false);
-    } catch (error: any) {
-      toast.error(error?.message || t("somethingWentWrong"));
+    } catch (error: unknown) {
+      toast.error(errorText(error, t("somethingWentWrong")));
     } finally {
       setSavingReading(false);
     }
@@ -359,8 +375,8 @@ export default function FamilyMemberHealth() {
       await removeReading({ readingId: deleteReading._id });
       toast.success(t("readingDeleted"));
       setDeleteReading(null);
-    } catch (error: any) {
-      toast.error(error?.message || t("somethingWentWrong"));
+    } catch (error: unknown) {
+      toast.error(errorText(error, t("somethingWentWrong")));
     } finally {
       setDeletingReading(false);
     }
@@ -399,8 +415,8 @@ export default function FamilyMemberHealth() {
       setReportOpen(false);
       setReportFile(null);
       setReportTitle("");
-    } catch (error: any) {
-      toast.error(error?.message || t("somethingWentWrong"));
+    } catch (error: unknown) {
+      toast.error(errorText(error, t("somethingWentWrong")));
     } finally {
       setUploadingReport(false);
     }
@@ -454,14 +470,21 @@ export default function FamilyMemberHealth() {
               >
                 <ArrowLeft className="size-5" />
               </Button>
-              <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-primary text-sm font-bold text-primary-foreground shadow-sm sm:size-14 sm:text-base">
-                {member.name
-                  .split(/\s+/)
-                  .filter(Boolean)
-                  .slice(0, 2)
-                  .map((part) => part[0]?.toUpperCase())
-                  .join("")}
-              </div>
+              <button
+                type="button"
+                onClick={() => setPhotoOpen(true)}
+                className="group/photo relative shrink-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                aria-label={`Change photo for ${member.name}`}
+              >
+                <MemberAvatar
+                  name={member.name}
+                  photoUrl={member.photoUrl}
+                  className="size-12 rounded-2xl text-sm shadow-sm sm:size-14 sm:text-base"
+                />
+                <span className="absolute -bottom-1 -right-1 flex size-6 items-center justify-center rounded-full border-2 border-background bg-primary text-primary-foreground shadow-sm">
+                  <Upload className="size-3" />
+                </span>
+              </button>
               <div className="min-w-0 flex-1">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-primary/80">
                   {t("familyHealth")}
@@ -508,26 +531,236 @@ export default function FamilyMemberHealth() {
 
           <div className="mb-5 grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
             {[
-              { label: t("healthRecords"), count: allReadings.length, icon: Activity },
-              { label: t("reports"), count: (reports ?? []).length, icon: FileText },
-              { label: t("prescriptions"), count: memberPrescriptions.length, icon: Pill },
-              { label: t("orders"), count: memberOrders.length, icon: Package },
-            ].map((item) => (
-              <Card key={item.label} className="border-border/60">
-                <CardContent className="flex items-center gap-2.5 p-3 sm:p-3.5">
-                  <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/[0.07]">
-                    <item.icon className="size-4 text-primary" />
+              { key: "records" as const, label: t("healthRecords"), count: allReadings.length, icon: Activity },
+              { key: "reports" as const, label: t("reports"), count: (reports ?? []).length, icon: FileText },
+              { key: "prescriptions" as const, label: t("prescriptions"), count: memberPrescriptions.length, icon: Pill },
+              { key: "orders" as const, label: t("orders"), count: memberOrders.length, icon: Package },
+            ].map((item) => {
+              const active = detailView === item.key;
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() =>
+                    setDetailView((current) => (current === item.key ? null : item.key))
+                  }
+                  className={`group min-w-0 rounded-2xl border bg-card p-3 text-left transition-all sm:p-3.5 ${
+                    active
+                      ? "border-primary/50 ring-1 ring-primary/15"
+                      : "border-border/60 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-sm"
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-1.5">
+                    <div
+                      className={`flex size-9 shrink-0 items-center justify-center rounded-xl ${
+                        active ? "bg-primary text-primary-foreground" : "bg-primary/[0.07] text-primary"
+                      }`}
+                    >
+                      <item.icon className="size-4" />
+                    </div>
+                    <ChevronRight
+                      className={`size-3.5 transition-transform ${
+                        active ? "rotate-90 text-primary" : "text-muted-foreground/50 group-hover:translate-x-0.5"
+                      }`}
+                    />
                   </div>
+                  <p className="mt-2 text-lg font-bold leading-none tracking-tight">{item.count}</p>
+                  <p className="mt-1 break-words text-[10px] leading-tight text-muted-foreground sm:text-[11px]">
+                    {item.label}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+
+          {detailView && (
+            <Card className="mb-5 border-primary/20">
+              <CardContent className="p-3.5 sm:p-5">
+                <div className="mb-3 flex items-start justify-between gap-2">
                   <div className="min-w-0">
-                    <p className="text-lg font-bold leading-none tracking-tight">{item.count}</p>
-                    <p className="mt-1 truncate text-[10px] text-muted-foreground sm:text-[11px]">
-                      {item.label}
+                    <h2 className="text-sm font-semibold sm:text-base">
+                      {detailView === "records"
+                        ? `${member.name}'s health records`
+                        : detailView === "reports"
+                          ? `${member.name}'s reports`
+                          : detailView === "prescriptions"
+                            ? `${member.name}'s prescriptions`
+                            : `${member.name}'s orders`}
+                    </h2>
+                    <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+                      Only records linked to this family member are shown.
                     </p>
                   </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-8 shrink-0"
+                    aria-label={t("cancel")}
+                    onClick={() => setDetailView(null)}
+                  >
+                    <X className="size-4" />
+                  </Button>
+                </div>
+
+                {detailView === "records" &&
+                  (allReadings.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-border/70 px-4 py-8 text-center">
+                      <Activity className="mx-auto size-7 text-muted-foreground/70" />
+                      <p className="mt-2 text-sm font-medium">No health records yet</p>
+                      <p className="mx-auto mt-1 max-w-sm text-xs text-muted-foreground">
+                        Add a reading to start a measurement history for {member.name}.
+                      </p>
+                      <Button
+                        className="mt-3 h-10"
+                        onClick={openAddReading}
+                        disabled={config?.enabled === false || activeTypes.length === 0}
+                      >
+                        <Plus className="size-4" /> {t("addReading")}
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="max-h-80 divide-y divide-border/50 overflow-y-auto rounded-xl border border-border/60">
+                      {allReadings.map((reading) => (
+                        <div key={reading._id} className="flex min-w-0 items-start gap-2 px-3 py-2.5">
+                          <div className="min-w-0 flex-1">
+                            <p className="break-words text-sm font-semibold">{readingLabel(reading)}</p>
+                            <p className="mt-0.5 text-[10px] text-muted-foreground">
+                              {types.find((type) => type.key === reading.typeKey)?.label ?? reading.typeKey}
+                              {" · "}
+                              {formatDateTime(reading.recordedAt)}
+                            </p>
+                            {reading.notes && (
+                              <p className="mt-1 break-words text-[11px] leading-relaxed text-muted-foreground">
+                                {reading.notes}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex shrink-0 gap-0.5">
+                            <Button variant="ghost" size="icon" className="size-9" aria-label={t("editReading")} onClick={() => openEditReading(reading)}>
+                              <Pencil className="size-3.5" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="size-9 text-muted-foreground hover:text-destructive" aria-label={t("delete")} onClick={() => setDeleteReading(reading)}>
+                              <Trash2 className="size-3.5" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+
+                {detailView === "reports" &&
+                  ((reports ?? []).length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-border/70 px-4 py-8 text-center">
+                      <FileText className="mx-auto size-7 text-muted-foreground/70" />
+                      <p className="mt-2 text-sm font-medium">No reports for {member.name}</p>
+                      <p className="mx-auto mt-1 max-w-sm text-xs text-muted-foreground">
+                        Upload a lab report or scanned prescription to keep it with this member.
+                      </p>
+                      <Button className="mt-3 h-10" onClick={() => setReportOpen(true)}>
+                        <Upload className="size-4" /> {t("uploadReport")}
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="max-h-80 divide-y divide-border/50 overflow-y-auto rounded-xl border border-border/60">
+                      {(reports as Report[]).map((report) => (
+                        <div key={report._id} className="flex min-w-0 items-center gap-2 px-3 py-2.5">
+                          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/[0.07] text-primary">
+                            <FileText className="size-3.5" />
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium">{report.title}</p>
+                            <p className="truncate text-[10px] text-muted-foreground">
+                              {report.fileName} · {formatDate(report.recordedAt)}
+                            </p>
+                          </div>
+                          {report.url && (
+                            <Button asChild variant="outline" size="sm" className="h-8 shrink-0 text-[11px]">
+                              <a href={report.url} target="_blank" rel="noreferrer">
+                                {t("viewReport")}
+                              </a>
+                            </Button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+
+                {detailView === "prescriptions" &&
+                  (memberPrescriptions.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-border/70 px-4 py-8 text-center">
+                      <Pill className="mx-auto size-7 text-muted-foreground/70" />
+                      <p className="mt-2 text-sm font-medium">No prescriptions for {member.name}</p>
+                      <p className="mx-auto mt-1 max-w-sm text-xs text-muted-foreground">
+                        Prescriptions uploaded for this member will appear here.
+                      </p>
+                      <Button className="mt-3 h-10" onClick={() => navigate(`/upload-prescription?memberId=${member._id}`)}>
+                        <Upload className="size-4" /> {t("uploadPrescription")}
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="max-h-80 divide-y divide-border/50 overflow-y-auto rounded-xl border border-border/60">
+                      {memberPrescriptions.map((rx) => (
+                        <div key={rx._id} className="flex min-w-0 flex-wrap items-center gap-2 px-3 py-2.5">
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium">{rx.fileName}</p>
+                            <p className="mt-0.5 text-[10px] text-muted-foreground">
+                              Uploaded {formatDate(rx.createdAt)}
+                            </p>
+                          </div>
+                          <Badge variant="secondary" className="shrink-0 text-[10px] capitalize">
+                            {String(rx.status).replace(/_/g, " ")}
+                          </Badge>
+                          {rx.fileUrl && (
+                            <Button asChild variant="outline" size="sm" className="h-8 shrink-0 text-[11px]">
+                              <a href={rx.fileUrl} target="_blank" rel="noreferrer">Preview</a>
+                            </Button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+
+                {detailView === "orders" &&
+                  (memberOrders.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-border/70 px-4 py-8 text-center">
+                      <Package className="mx-auto size-7 text-muted-foreground/70" />
+                      <p className="mt-2 text-sm font-medium">No orders for {member.name}</p>
+                      <p className="mx-auto mt-1 max-w-sm text-xs text-muted-foreground">
+                        Choose this member at checkout to link an order to their profile.
+                      </p>
+                      <Button className="mt-3 h-10" onClick={() => navigate("/products")}>
+                        <ShoppingBag className="size-4" /> {t("shop")}
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="max-h-80 divide-y divide-border/50 overflow-y-auto rounded-xl border border-border/60">
+                      {memberOrders.map((order) => (
+                        <button
+                          key={order._id}
+                          type="button"
+                          onClick={() => navigate(`/account/orders/${order._id}`)}
+                          className="flex w-full min-w-0 items-center gap-2 px-3 py-2.5 text-left hover:bg-muted/40"
+                        >
+                          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/[0.07] text-primary">
+                            <Package className="size-3.5" />
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-medium">
+                              {order.invoiceNumber ?? "Order"}
+                            </span>
+                            <span className="block text-[10px] capitalize text-muted-foreground">
+                              {String(order.status).replace(/_/g, " ")} · {formatDate(order.createdAt)}
+                            </span>
+                          </span>
+                          <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+                        </button>
+                      ))}
+                    </div>
+                  ))}
+              </CardContent>
+            </Card>
+          )}
 
           <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1.55fr)_minmax(280px,1fr)] lg:gap-5">
             <div className="min-w-0 space-y-5">
@@ -551,6 +784,8 @@ export default function FamilyMemberHealth() {
                       aria-label={t("addReading")}
                       className="h-10 w-full shrink-0 rounded-xl sm:w-auto"
                       onClick={openAddReading}
+                      disabled={activeTypes.length === 0}
+                      title={activeTypes.length === 0 ? "No active measurement types are configured" : undefined}
                     >
                       <Plus className="size-4" />
                       {t("addReading")}
@@ -566,7 +801,7 @@ export default function FamilyMemberHealth() {
                     <>
                       <div className="-mx-1 overflow-x-auto px-1 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                         <div className="flex w-max min-w-full gap-1 rounded-xl bg-muted/60 p-1">
-                          {types.map((type) => (
+                          {visibleTypes.map((type) => (
                             <button
                               key={type.key}
                               type="button"
@@ -578,6 +813,11 @@ export default function FamilyMemberHealth() {
                               }`}
                             >
                               {type.label}
+                              {type.isActive === false && (
+                                <span className="ml-1 text-[9px] uppercase tracking-wide text-muted-foreground">
+                                  Archived
+                                </span>
+                              )}
                             </button>
                           ))}
                         </div>
@@ -587,8 +827,16 @@ export default function FamilyMemberHealth() {
                         <div className="flex flex-col items-center rounded-xl border border-dashed border-border/70 px-4 py-8 text-center">
                           <Activity className="size-7 text-muted-foreground/70" />
                           <p className="mt-2 text-sm text-muted-foreground">{t("noReadings")}</p>
-                          <Button variant="outline" size="sm" className="mt-3 rounded-xl" onClick={openAddReading}>
-                            {t("addFirstReading")}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="mt-3 rounded-xl"
+                            onClick={openAddReading}
+                            disabled={activeTypes.length === 0}
+                          >
+                            {activeTypes.length === 0
+                              ? "No active measurement types"
+                              : t("addFirstReading")}
                           </Button>
                         </div>
                       ) : (
@@ -602,7 +850,7 @@ export default function FamilyMemberHealth() {
                                 {t("latestReading")}
                               </p>
                               <p className="mt-1 break-words text-2xl font-bold leading-tight tracking-tight text-foreground">
-                                {readingLabel(latest!, types)}
+                                {readingLabel(latest!)}
                               </p>
                               <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
                                 {formatDateTime(latest!.recordedAt)}
@@ -639,7 +887,7 @@ export default function FamilyMemberHealth() {
                               )}
                               <p className="mt-1 text-[10px] leading-relaxed text-muted-foreground">
                                 {t("previousReading")}:{" "}
-                                {previous ? readingLabel(previous, types) : "—"}
+                                {previous ? readingLabel(previous) : "—"}
                               </p>
                             </div>
                           </div>
@@ -673,7 +921,7 @@ export default function FamilyMemberHealth() {
                                 >
                                   <div className="min-w-0 flex-1">
                                     <p className="break-words text-sm font-semibold leading-snug text-foreground">
-                                      {readingLabel(reading, types)}
+                                      {readingLabel(reading)}
                                     </p>
                                     <p className="mt-0.5 text-[10px] leading-relaxed text-muted-foreground">
                                       {formatDateTime(reading.recordedAt)}
@@ -801,7 +1049,7 @@ export default function FamilyMemberHealth() {
                     <p className="text-xs text-muted-foreground">{t("noPrescriptions")}</p>
                   ) : (
                     <div className="space-y-2">
-                      {memberPrescriptions.slice(0, 4).map((rx: any) => (
+                      {memberPrescriptions.slice(0, 4).map((rx) => (
                         <div key={rx._id} className="rounded-xl border border-border/60 p-3">
                           <p className="break-words text-xs font-medium leading-snug">{rx.fileName}</p>
                           <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2">
@@ -845,7 +1093,7 @@ export default function FamilyMemberHealth() {
                     <p className="text-xs text-muted-foreground">{t("noReminders")}</p>
                   ) : (
                     <div className="space-y-2">
-                      {memberReminders.slice(0, 3).map((reminder: any) => (
+                      {memberReminders.slice(0, 3).map((reminder) => (
                         <div
                           key={reminder._id}
                           className="flex items-center justify-between gap-2 rounded-xl border border-border/60 p-3"
@@ -899,7 +1147,7 @@ export default function FamilyMemberHealth() {
                     </p>
                   ) : (
                     <div className="space-y-2">
-                      {memberOrders.slice(0, 3).map((order: any) => (
+                      {memberOrders.slice(0, 3).map((order) => (
                         <button
                           key={order._id}
                           type="button"
@@ -980,9 +1228,10 @@ export default function FamilyMemberHealth() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {types.map((type) => (
+                  {(editing ? types : activeTypes).map((type) => (
                     <SelectItem key={type.key} value={type.key}>
                       {type.label}
+                      {type.isActive === false ? " (archived)" : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -1031,7 +1280,7 @@ export default function FamilyMemberHealth() {
               <Input
                 id="reading-time"
                 type="datetime-local"
-                max={dateTimeInput(Date.now())}
+                max={maxReadingTime}
                 value={readingForm.recordedAt}
                 onChange={(e) => setReadingForm({ ...readingForm, recordedAt: e.target.value })}
               />
@@ -1151,6 +1400,14 @@ export default function FamilyMemberHealth() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <MemberPhotoDialog
+        open={photoOpen}
+        onOpenChange={setPhotoOpen}
+        memberId={member._id}
+        name={member.name}
+        photoUrl={member.photoUrl}
+      />
     </div>
   );
 }

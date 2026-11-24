@@ -60,6 +60,56 @@ export const list = query({
   },
 });
 
+/** Prescriptions linked only to one owned family member. */
+export const listByMember = query({
+  args: { memberId: v.id("family_members") },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) return [];
+    const member = await ctx.db.get(args.memberId);
+    if (!member || member.ownerId !== userId) return [];
+
+    const prescriptions = await ctx.db
+      .query("prescriptions")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .order("desc")
+      .collect();
+
+    return await Promise.all(
+      prescriptions
+        .filter((rx) => rx.memberId === args.memberId)
+        .map(async (rx) => {
+          const [fileUrl, orders] = await Promise.all([
+            ctx.storage.getUrl(rx.fileId),
+            ctx.db
+              .query("orders")
+              .withIndex("by_prescription", (q) => q.eq("prescriptionId", rx._id))
+              .collect(),
+          ]);
+          const expiresAt = prescriptionExpiresAt(
+            rx.prescriptionDate,
+            rx.createdAt,
+          );
+          return {
+            ...rx,
+            fileUrl,
+            expiresAt,
+            expired: Date.now() > expiresAt,
+            relatedOrders: orders
+              .filter((order) => order.userId === userId)
+              .map((order) => ({
+                _id: order._id,
+                invoiceNumber: order.invoiceNumber ?? null,
+                status: order.status,
+                createdAt: order.createdAt,
+              }))
+              .sort((a, b) => b.createdAt - a.createdAt),
+          };
+        }),
+    );
+  },
+});
+
 /**
  * Prescriptions with reuse rules for the current checkout.
  *

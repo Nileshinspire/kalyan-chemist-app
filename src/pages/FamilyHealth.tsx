@@ -41,7 +41,9 @@ import {
   Activity,
   ArrowLeft,
   Baby,
+  Camera,
   ChevronRight,
+  FileText,
   HeartHandshake,
   Loader2,
   Pencil,
@@ -50,9 +52,11 @@ import {
   Trash2,
   User,
   Users,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useLanguage } from "@/context/LanguageContext";
+import { MemberAvatar, MemberPhotoDialog } from "@/components/family/MemberPhoto";
 
 type Member = {
   _id: Id<"family_members">;
@@ -63,6 +67,7 @@ type Member = {
   bloodGroup?: string;
   phone?: string;
   notes?: string;
+  photoUrl?: string | null;
   createdAt: number;
 };
 
@@ -111,12 +116,26 @@ function fromInputDate(value: string) {
   return new Date(year, month - 1, day).getTime();
 }
 
+function errorText(error: unknown, fallback: string) {
+  return error instanceof Error && error.message ? error.message : fallback;
+}
+
 export default function FamilyHealth() {
   const navigate = useNavigate();
   const { t } = useLanguage();
   const availability = useQuery(api.familyHealth.getAvailability);
   const members = useQuery(api.familyHealth.list);
   const summary = useQuery(api.familyHealth.summary);
+  const config = useQuery(api.healthTracker.getConfig);
+  const [activeStat, setActiveStat] = useState<"members" | "records" | "reports" | null>(null);
+  const familyReadings = useQuery(
+    api.familyHealth.listFamilyReadings,
+    activeStat === "records" ? {} : "skip",
+  );
+  const familyReports = useQuery(
+    api.familyHealth.listFamilyReports,
+    activeStat === "reports" ? {} : "skip",
+  );
   const ensureSelf = useMutation(api.familyHealth.ensureSelf);
   const createMember = useMutation(api.familyHealth.create);
   const updateMember = useMutation(api.familyHealth.update);
@@ -129,6 +148,8 @@ export default function FamilyHealth() {
   const [saving, setSaving] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Member | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [photoMember, setPhotoMember] = useState<Member | null>(null);
+  const [todayInput] = useState(() => toInputDate(Date.now()));
 
   useEffect(() => {
     if (ensured.current || members === undefined) return;
@@ -206,8 +227,8 @@ export default function FamilyHealth() {
       }
       toast.success(t("memberSaved"));
       setDialogOpen(false);
-    } catch (error: any) {
-      toast.error(error?.message || t("somethingWentWrong"));
+    } catch (error: unknown) {
+      toast.error(errorText(error, t("somethingWentWrong")));
     } finally {
       setSaving(false);
     }
@@ -220,8 +241,8 @@ export default function FamilyHealth() {
       await removeMember({ memberId: deleteTarget._id });
       toast.success(t("memberRemoved"));
       setDeleteTarget(null);
-    } catch (error: any) {
-      toast.error(error?.message || t("somethingWentWrong"));
+    } catch (error: unknown) {
+      toast.error(errorText(error, t("somethingWentWrong")));
     } finally {
       setDeleting(false);
     }
@@ -288,25 +309,255 @@ export default function FamilyHealth() {
             </div>
           </div>
 
-          <div className="mb-6 grid grid-cols-3 divide-x divide-border/60 overflow-hidden rounded-2xl border border-border/60 bg-card">
+          <div className="mb-5 grid grid-cols-3 gap-2 sm:mb-6 sm:gap-3">
             {[
-              { label: t("familyMembers"), value: summary?.members ?? memberList.length, icon: Users },
-              { label: t("healthRecords"), value: summary?.readings ?? 0, icon: Activity },
-              { label: t("reports"), value: summary?.reports ?? 0, icon: ShieldCheck },
-            ].map((stat) => (
-              <div key={stat.label} className="min-w-0 px-2 py-3.5 text-center sm:px-4 sm:text-left">
-                <div className="mx-auto mb-1.5 flex size-8 items-center justify-center rounded-lg bg-primary/[0.07] sm:mx-0 sm:hidden">
-                  <stat.icon className="size-3.5 text-primary" />
-                </div>
-                <p className="text-xl font-bold leading-none tracking-tight text-foreground">
-                  {stat.value}
-                </p>
-                <p className="mx-auto mt-1.5 max-w-[88px] text-[10px] leading-tight text-muted-foreground sm:max-w-none sm:text-[11px]">
-                  {stat.label}
-                </p>
-              </div>
-            ))}
+              {
+                key: "members" as const,
+                label: t("familyMembers"),
+                value: summary?.members ?? memberList.length,
+                icon: Users,
+              },
+              {
+                key: "records" as const,
+                label: t("healthRecords"),
+                value: summary?.readings ?? 0,
+                icon: Activity,
+              },
+              {
+                key: "reports" as const,
+                label: t("reports"),
+                value: summary?.reports ?? 0,
+                icon: FileText,
+              },
+            ].map((stat) => {
+              const active = activeStat === stat.key;
+              return (
+                <button
+                  key={stat.key}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() =>
+                    setActiveStat((current) => (current === stat.key ? null : stat.key))
+                  }
+                  className={`group min-w-0 rounded-2xl border bg-card p-3 text-left transition-all sm:p-4 ${
+                    active
+                      ? "border-primary/50 ring-1 ring-primary/15"
+                      : "border-border/60 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-sm"
+                  }`}
+                >
+                  <div className="mb-2 flex items-center justify-between gap-1">
+                    <span
+                      className={`flex size-8 items-center justify-center rounded-xl ${
+                        active ? "bg-primary text-primary-foreground" : "bg-primary/[0.07] text-primary"
+                      }`}
+                    >
+                      <stat.icon className="size-4" />
+                    </span>
+                    <ChevronRight
+                      className={`size-3.5 transition-transform ${
+                        active ? "rotate-90 text-primary" : "text-muted-foreground/50 group-hover:translate-x-0.5"
+                      }`}
+                    />
+                  </div>
+                  <p className="text-xl font-bold leading-none tracking-tight text-foreground sm:text-2xl">
+                    {stat.value}
+                  </p>
+                  <p className="mt-1.5 break-words text-[10px] leading-tight text-muted-foreground sm:text-[11px]">
+                    {stat.label}
+                  </p>
+                </button>
+              );
+            })}
           </div>
+
+          {activeStat && (
+            <Card className="mb-5 border-primary/20 sm:mb-6">
+              <CardContent className="p-3.5 sm:p-5">
+                <div className="mb-3 flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <h2 className="text-sm font-semibold sm:text-base">
+                      {activeStat === "members"
+                        ? t("familyMembers")
+                        : activeStat === "records"
+                          ? t("healthRecords")
+                          : t("reports")}
+                    </h2>
+                    <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+                      {activeStat === "members"
+                        ? "Every profile in your family, with separate private records."
+                        : activeStat === "records"
+                          ? "All saved readings across your family. Open a member to add or edit."
+                          : "Reports uploaded for your family. Files stay private to your account."}
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-8 shrink-0"
+                    aria-label={t("cancel")}
+                    onClick={() => setActiveStat(null)}
+                  >
+                    <X className="size-4" />
+                  </Button>
+                </div>
+
+                {activeStat === "members" &&
+                  (memberList.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-border/70 px-4 py-7 text-center">
+                      <p className="text-sm text-muted-foreground">{t("noMembers")}</p>
+                      <Button className="mt-3 h-10" onClick={openCreate}>
+                        <Plus className="size-4" /> {t("addFamilyMember")}
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {memberList.map((member) => (
+                        <button
+                          key={member._id}
+                          type="button"
+                          onClick={() => navigate(`/family-health/${member._id}`)}
+                          className="flex min-w-0 items-center gap-3 rounded-xl border border-border/60 p-2.5 text-left transition-colors hover:bg-muted/40"
+                        >
+                          <MemberAvatar
+                            name={member.name}
+                            photoUrl={member.photoUrl}
+                            className="size-10 rounded-xl text-xs"
+                          />
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-medium">{member.name}</span>
+                            <span className="block text-[10px] capitalize text-muted-foreground">
+                              {t(member.relationship)}
+                            </span>
+                          </span>
+                          <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
+                        </button>
+                      ))}
+                    </div>
+                  ))}
+
+                {activeStat === "records" &&
+                  (familyReadings === undefined ? (
+                    <div className="flex justify-center py-8">
+                      <Loader2 className="size-5 animate-spin text-primary" />
+                    </div>
+                  ) : familyReadings.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-border/70 px-4 py-8 text-center">
+                      <Activity className="mx-auto size-7 text-muted-foreground/70" />
+                      <p className="mt-2 text-sm font-medium">No health records yet</p>
+                      <p className="mx-auto mt-1 max-w-sm text-xs leading-relaxed text-muted-foreground">
+                        Add height, weight, blood pressure or another configured measurement for a family member.
+                      </p>
+                      <Button
+                        className="mt-3 h-10"
+                        onClick={() =>
+                          memberList.length > 0
+                            ? navigate(`/family-health/${memberList[0]._id}`)
+                            : openCreate()
+                        }
+                      >
+                        <Plus className="size-4" />
+                        {memberList.length > 0 ? t("addReading") : t("addFamilyMember")}
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="max-h-80 divide-y divide-border/50 overflow-y-auto rounded-xl border border-border/60">
+                      {familyReadings.map((reading) => {
+                        const type = (config?.measurementTypes ?? []).find(
+                          (item: { key: string }) => item.key === reading.typeKey,
+                        );
+                        return (
+                          <button
+                            key={reading._id}
+                            type="button"
+                            onClick={() => navigate(`/family-health/${reading.memberId}`)}
+                            className="flex w-full min-w-0 items-center gap-2.5 px-3 py-2.5 text-left hover:bg-muted/40"
+                          >
+                            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/[0.07] text-primary">
+                              <Activity className="size-3.5" />
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-xs font-medium sm:text-sm">
+                                {reading.memberName} · {type?.label ?? reading.typeKey}
+                              </span>
+                              <span className="block text-[10px] text-muted-foreground">
+                                {new Date(reading.recordedAt).toLocaleDateString("en-IN", {
+                                  day: "numeric",
+                                  month: "short",
+                                  year: "numeric",
+                                })}
+                              </span>
+                            </span>
+                            <span className="max-w-[45%] shrink-0 truncate text-xs font-semibold sm:text-sm">
+                              {reading.secondaryValue !== undefined
+                                ? `${reading.value}/${reading.secondaryValue}`
+                                : reading.value}{" "}
+                              {reading.unit}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ))}
+
+                {activeStat === "reports" &&
+                  (familyReports === undefined ? (
+                    <div className="flex justify-center py-8">
+                      <Loader2 className="size-5 animate-spin text-primary" />
+                    </div>
+                  ) : familyReports.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-border/70 px-4 py-8 text-center">
+                      <FileText className="mx-auto size-7 text-muted-foreground/70" />
+                      <p className="mt-2 text-sm font-medium">No reports uploaded yet</p>
+                      <p className="mx-auto mt-1 max-w-sm text-xs leading-relaxed text-muted-foreground">
+                        Upload lab reports or prescriptions to keep them with the right family member.
+                      </p>
+                      <Button
+                        className="mt-3 h-10"
+                        onClick={() =>
+                          memberList.length > 0
+                            ? navigate(`/family-health/${memberList[0]._id}`)
+                            : openCreate()
+                        }
+                      >
+                        <Plus className="size-4" />
+                        {memberList.length > 0 ? t("uploadReport") : t("addFamilyMember")}
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="max-h-80 divide-y divide-border/50 overflow-y-auto rounded-xl border border-border/60">
+                      {familyReports.map((report) => (
+                        <div
+                          key={report._id}
+                          className="flex min-w-0 items-center gap-2.5 px-3 py-2.5"
+                        >
+                          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/[0.07] text-primary">
+                            <FileText className="size-3.5" />
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-xs font-medium sm:text-sm">{report.title}</p>
+                            <p className="truncate text-[10px] text-muted-foreground">
+                              {report.memberName} ·{" "}
+                              {new Date(report.recordedAt).toLocaleDateString("en-IN", {
+                                day: "numeric",
+                                month: "short",
+                                year: "numeric",
+                              })}
+                            </p>
+                          </div>
+                          {report.url && (
+                            <Button asChild variant="outline" size="sm" className="h-8 shrink-0 text-[11px]">
+                              <a href={report.url} target="_blank" rel="noreferrer">
+                                {t("viewReport")}
+                              </a>
+                            </Button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+              </CardContent>
+            </Card>
+          )}
 
           {members === undefined ? (
             <div className="flex justify-center py-20">
@@ -338,12 +589,6 @@ export default function FamilyHealth() {
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {memberList.map((member, index) => {
                   const Icon = RELATIONSHIP_ICON[member.relationship] ?? User;
-                  const initials = member.name
-                    .split(/\s+/)
-                    .filter(Boolean)
-                    .slice(0, 2)
-                    .map((part) => part[0]?.toUpperCase())
-                    .join("");
                   return (
                     <motion.div
                       key={member._id}
@@ -355,12 +600,21 @@ export default function FamilyHealth() {
                       <Card className="group flex h-full flex-col border-border/60 transition-all duration-200 hover:border-primary/25 hover:shadow-card-hover">
                         <CardContent className="flex flex-1 flex-col p-4">
                           <div className="flex items-start gap-3">
-                            <div className="relative flex size-12 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-sm font-bold text-primary ring-1 ring-primary/10">
-                              {initials || <Icon className="size-5" />}
-                              <span className="absolute -bottom-1 -right-1 flex size-5 items-center justify-center rounded-full border-2 border-card bg-background text-primary">
-                                <Icon className="size-2.5" />
+                            <button
+                              type="button"
+                              className="group/photo relative shrink-0 rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                              aria-label={`Change photo for ${member.name}`}
+                              onClick={() => setPhotoMember(member)}
+                            >
+                              <MemberAvatar
+                                name={member.name}
+                                photoUrl={member.photoUrl}
+                                className="size-12 rounded-2xl text-sm"
+                              />
+                              <span className="absolute -bottom-1 -right-1 flex size-5 items-center justify-center rounded-full border-2 border-card bg-primary text-primary-foreground shadow-sm">
+                                <Camera className="size-2.5" />
                               </span>
-                            </div>
+                            </button>
                             <div className="min-w-0 flex-1 pt-0.5">
                               <div className="flex min-w-0 flex-wrap items-center gap-1.5">
                                 <h3 className="min-w-0 break-words text-[15px] font-semibold leading-tight text-foreground">
@@ -425,11 +679,11 @@ export default function FamilyHealth() {
                               </span>
                               <ChevronRight className="size-3.5 shrink-0" />
                             </Button>
-                            <div className="grid grid-cols-2 gap-1.5">
+                            <div className="grid grid-cols-3 gap-1">
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-10 min-w-0 rounded-lg px-2 text-[11px] text-muted-foreground"
+                                className="h-10 min-w-0 rounded-lg px-1 text-[10px] text-muted-foreground sm:px-2 sm:text-[11px]"
                                 onClick={() => navigate(`/family-health/${member._id}`)}
                               >
                                 <Icon className="size-3.5 shrink-0" />
@@ -438,7 +692,16 @@ export default function FamilyHealth() {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-10 min-w-0 rounded-lg px-2 text-[11px] text-muted-foreground"
+                                className="h-10 min-w-0 rounded-lg px-1 text-[10px] text-muted-foreground sm:px-2 sm:text-[11px]"
+                                onClick={() => setPhotoMember(member)}
+                              >
+                                <Camera className="size-3.5 shrink-0" />
+                                <span className="truncate">Photo</span>
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-10 min-w-0 rounded-lg px-1 text-[10px] text-muted-foreground sm:px-2 sm:text-[11px]"
                                 onClick={() => openEdit(member)}
                               >
                                 <Pencil className="size-3.5 shrink-0" />
@@ -516,7 +779,7 @@ export default function FamilyHealth() {
                   id="member-dob"
                   type="date"
                   value={form.dateOfBirth}
-                  max={toInputDate(Date.now())}
+                  max={todayInput}
                   onChange={(e) => setForm({ ...form, dateOfBirth: e.target.value })}
                 />
               </div>
@@ -616,6 +879,16 @@ export default function FamilyHealth() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {photoMember && (
+        <MemberPhotoDialog
+          open={!!photoMember}
+          onOpenChange={(open) => !open && setPhotoMember(null)}
+          memberId={photoMember._id}
+          name={photoMember.name}
+          photoUrl={photoMember.photoUrl}
+        />
+      )}
     </div>
   );
 }

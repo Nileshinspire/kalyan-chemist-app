@@ -48,6 +48,41 @@ export const list = query({
   },
 });
 
+// ── Orders linked to one owned family member ──
+export const listByMember = query({
+  args: { memberId: v.id("family_members") },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (userId === null) return [];
+    const member = await ctx.db.get(args.memberId);
+    if (!member || member.ownerId !== userId) return [];
+
+    const orders = await ctx.db
+      .query("orders")
+      .withIndex("by_user_created", (q) => q.eq("userId", userId))
+      .order("desc")
+      .collect();
+
+    const memberOrders = orders.filter(
+      (order) => order.familyMemberId === args.memberId,
+    );
+    return await Promise.all(
+      memberOrders.map(async (order) => {
+        const prescription = order.prescriptionId
+          ? await ctx.db.get(order.prescriptionId)
+          : null;
+        return {
+          ...order,
+          prescriptionStatus: prescription?.status ?? null,
+          prescriptionRejectionReason: prescription?.rejectionReason ?? null,
+          prescriptionClarificationNote:
+            prescription?.clarificationNote ?? null,
+        };
+      }),
+    );
+  },
+});
+
 // ── Get a single order by ID (owner only) ──
 export const getById = query({
   args: { orderId: v.id("orders") },
