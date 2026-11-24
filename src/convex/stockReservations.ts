@@ -29,6 +29,9 @@ type OrderItem = {
   name: string;
   price: number;
   quantity: number;
+  kitCustomization?: {
+    items: Array<{ productId: Id<"products">; quantity: number }>;
+  };
 };
 
 type MovementRow = {
@@ -188,7 +191,15 @@ export async function reserveStockForOrder(
     // the sale draws from the exact same inventory as buying those items
     // individually. A kit bought twice reserves twice the component quantity.
     if (product.healthKit) {
-      for (const component of product.healthKit.components) {
+      // A customized kit reserves only the components the customer kept. The
+      // order snapshots that selection, so retries/cancellations restore the
+      // same units that were actually taken.
+      const selectedComponents =
+        item.kitCustomization?.items && item.kitCustomization.items.length > 0
+          ? item.kitCustomization.items
+          : product.healthKit.components;
+      for (const component of selectedComponents) {
+        if (component.quantity <= 0) continue;
         const componentProduct = await ctx.db.get(component.productId);
         if (!componentProduct || !componentProduct.isActive) {
           throw new Error(`An item in "${product.name}" is no longer available.`);

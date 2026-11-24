@@ -2,6 +2,7 @@ import { query } from "./_generated/server";
 import { v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
 import { withEnginePrices } from "./discountEngine";
+import { getHealthKitAvailability, resolveHealthKitPricing } from "./healthKitsCore";
 
 // ── List active products (with optional category filter) ──
 export const list = query({
@@ -33,7 +34,21 @@ export const getById = query({
     // must show the number checkout will charge (orders re-resolve the same
     // rules when the order is placed). A kit's explicit bundle price is never
     // touched by the product discount engine.
-    if (product.healthKit) return { ...product, category };
+    if (product.healthKit) {
+      const [pricing, availability] = await Promise.all([
+        resolveHealthKitPricing(ctx.db, product),
+        getHealthKitAvailability(ctx.db, product),
+      ]);
+      return {
+        ...product,
+        price: pricing.catalogueMrp,
+        discountPrice:
+          pricing.sellingPrice < pricing.catalogueMrp ? pricing.sellingPrice : undefined,
+        stockQuantity: availability.maxQuantity,
+        category,
+        kitPricing: pricing,
+      };
+    }
     const [priced] = await withEnginePrices(ctx.db, [product]);
     return { ...priced, category };
   },
@@ -48,7 +63,21 @@ export const getBySlug = query({
       .withIndex("by_slug", (q) => q.eq("slug", args.slug))
       .first();    if (!product) return null;
     const category = await ctx.db.get(product.categoryId);
-    if (product.healthKit) return { ...product, category };
+    if (product.healthKit) {
+      const [pricing, availability] = await Promise.all([
+        resolveHealthKitPricing(ctx.db, product),
+        getHealthKitAvailability(ctx.db, product),
+      ]);
+      return {
+        ...product,
+        price: pricing.catalogueMrp,
+        discountPrice:
+          pricing.sellingPrice < pricing.catalogueMrp ? pricing.sellingPrice : undefined,
+        stockQuantity: availability.maxQuantity,
+        category,
+        kitPricing: pricing,
+      };
+    }
     const [priced] = await withEnginePrices(ctx.db, [product]);
     return { ...priced, category };
   },

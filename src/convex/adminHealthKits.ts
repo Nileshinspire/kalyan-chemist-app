@@ -2,7 +2,12 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
-import { getHealthKitAvailability, kitDiscountPercent, kitSellingPrice } from "./healthKitsCore";
+import {
+  getHealthKitAvailability,
+  resolveHealthKitPricing,
+} from "./healthKitsCore";
+import { computeAutoKitPrice, clampKitDiscountPercent, roundMoney } from "../lib/healthKitQuote";
+import { withEnginePrices } from "./discountEngine";
 
 async function requireAdmin(ctx: { db: any; auth: any }) {
   const userId = await getAuthUserId(ctx);
@@ -55,7 +60,10 @@ const kitInput = {
   description: v.string(),
   categoryId: v.id("healthKitCategories"),
   sellingPrice: v.number(),
+  /** Ignored on write: the catalogue MRP is always derived from components. */
   mrp: v.optional(v.number()),
+  pricingMode: v.optional(v.union(v.literal("auto"), v.literal("manual"))),
+  kitDiscountPercent: v.optional(v.number()),
   imageUrl: v.optional(v.string()),
   additionalImages: v.optional(v.array(v.string())),
   isActive: v.boolean(),
@@ -71,6 +79,8 @@ async function validateKitInput(
     categoryId: Id<"healthKitCategories">;
     sellingPrice: number;
     mrp?: number;
+    pricingMode?: "auto" | "manual";
+    kitDiscountPercent?: number;
     imageUrl?: string;
     additionalImages?: string[];
     components: Array<{ productId: Id<"products">; quantity: number }>;
@@ -85,28 +95,18 @@ async function validateKitInput(
   const category = await ctx.db.get(args.categoryId);
   if (!category) throw new Error("Choose a valid kit category.");
 
-  if (!Number.isFinite(args.sellingPrice) || args.sellingPrice <= 0) {
-    throw new Error("Selling price must be greater than zero.");
-  }
-  const sellingPrice = Math.round(args.sellingPrice * 100) / 100;
-  const mrp =
-    args.mrp === undefined || !Number.isFinite(args.mrp)
-      ? sellingPrice
-      : Math.round(args.mrp * 100) / 100;
-  if (mrp < sellingPrice) {
-    throw new Error("Compare-at price cannot be lower than the selling price.");
-  }
-
   if (!args.components.length) throw new Error("Select at least one product for the kit.");
   if (args.components.length > 40) throw new Error("A kit can include at most 40 products.");
 
   const quantities = new Map<string, { productId: Id<"products">; quantity: number }>();
+  const productById = new Map<string, any>();
   for (const component of args.components) {
     if (!Number.isInteger(component.quantity) || component.quantity < 1 || component.quantity > 99) {
       throw new Error("Each included product quantity must be a whole number between 1 and 99.");
     }
     const product = await ctx.db.get(component.productId);
     if (!product) throw new Error("One of the selected products no longer exists.");
+    productById.set(product._id as string, product);
     if (product.healthKit) {
       throw new Error("A health kit cannot include another health kit.");
     }
@@ -128,6 +128,60 @@ async function validateKitInput(
     if (component.quantity > 99) {
       throw new Error("Each included product quantity must be between 1 and 99.");
     }
+  }
+
+  // Price from the live effective selling prices, not MRP or a stale client
+  // snapshot. Active product discounts are therefore included exactly once.
+  const pricedProducts = await withEnginePrices(ctx.db, [...productById.values()]);
+  const priceById = new Map(pricedProducts.map((product) => [product._id, product]));
+  let catalogueMrp = 0;
+  let effectiveCatalogueValue = 0;
+  const pricedComponents = [...quantities.values()].map((component) => {
+    const product = priceById.get(component.productId) ?? productById.get(component.productId);
+    if (!product) throw new Error("One of the selected products no longer exists.");
+    const unitMrp = Math.max(0, product.price);
+    const unitEffective =
+      product.discountPrice && product.discountPrice > 0 && product.discountPrice < unitMrp
+        ? product.discountPrice
+        : unitMrp;
+    catalogueMrp += unitMrp * component.quantity;
+    effectiveCatalogueValue += unitEffective * component.quantity;
+    return {
+      productId: component.productId,
+      name: product.name as string,
+      quantity: component.quantity,
+      mrp: roundMoney(unitMrp),
+      effectivePrice: roundMoney(unitEffective),
+    };
+  });
+  catalogueMrp = roundMoney(catalogueMrp);
+  effectiveCatalogueValue = roundMoney(effectiveCatalogueValue);
+  if (effectiveCatalogueValue <= 0) {
+    throw new Error("The selected products do not have a valid selling price.");
+  }
+
+  const pricingMode = args.pricingMode ?? "manual";
+  const kitDiscountPercent = clampKitDiscountPercent(args.kitDiscountPercent ?? 0);
+  let sellingPrice: number;
+  if (pricingMode === "auto") {
+    sellingPrice = computeAutoKitPrice(effectiveCatalogueValue, kitDiscountPercent);
+  } else {
+    if (!Number.isFinite(args.sellingPrice) || args.sellingPrice <= 0) {
+      throw new Error("Final kit price must be greater than zero.");
+    }
+    sellingPrice = roundMoney(args.sellingPrice);
+  }
+  if (!(sellingPrice > 0)) {
+    throw new Error("Final kit price must be greater than zero.");
+  }
+  if (sellingPrice > effectiveCatalogueValue) {
+    throw new Error(
+      "Final kit price cannot be higher than the current effective value of its included products.",
+    );
+  }
+  const mrp = catalogueMrp;
+  if (mrp < sellingPrice) {
+    throw new Error("Compare-at price cannot be lower than the selling price.");
   }
 
   const slug = slugify(args.slug?.trim() || name);
@@ -155,6 +209,15 @@ async function validateKitInput(
     description,
     sellingPrice,
     mrp,
+    effectiveCatalogueValue,
+    pricing: {
+      mode: pricingMode,
+      kitDiscountPercent,
+      catalogueMrp,
+      effectiveCatalogueValue,
+      calculatedAt: Date.now(),
+    },
+    pricedComponents,
     imageUrl,
     additionalImages,
     components: [...quantities.values()],
@@ -174,24 +237,36 @@ export const list = query({
     const kits = products.filter((product) => !!product.healthKit);
     return await Promise.all(
       kits.map(async (product) => {
-        const availability = await getHealthKitAvailability(ctx.db, product);
+        const [availability, pricing] = await Promise.all([
+          getHealthKitAvailability(ctx.db, product),
+          resolveHealthKitPricing(ctx.db, product),
+        ]);
         const category = product.healthKit
           ? categoryById.get(product.healthKit.categoryId)
           : null;
-        const components = await Promise.all(
-          (product.healthKit?.components ?? []).map(async (component) => {
-            const included = await ctx.db.get(component.productId);
-            return {
-              productId: component.productId,
-              quantity: component.quantity,
-              name: included?.name ?? "Unavailable product",
-              imageUrl: included?.imageUrl ?? null,
-              packSize: included?.packSize ?? null,
-            };
-          }),
-        );
+        const components = pricing.components.map((line) => {
+          const availabilityLine = availability.components.find(
+            (row) => row.product._id === line.productId,
+          );
+          return {
+            productId: line.productId,
+            quantity: line.configuredQuantity,
+            name: line.name,
+            imageUrl: line.imageUrl,
+            packSize: line.packSize,
+            mrp: line.mrp,
+            effectivePrice: line.effectiveUnitPrice,
+            stockQuantity: line.stockQuantity,
+            availableKits: availabilityLine?.availableKits ?? 0,
+            inStock: availabilityLine?.inStock ?? false,
+            expiryDate: line.expiryDate,
+          };
+        });
         return {
           ...product,
+          price: pricing.catalogueMrp,
+          discountPrice:
+            pricing.sellingPrice < pricing.catalogueMrp ? pricing.sellingPrice : undefined,
           components,
           kitCategoryName: category?.name ?? "Uncategorised",
           kitCategoryId: category?._id ?? null,
@@ -199,8 +274,15 @@ export const list = query({
           maxQuantity: availability.maxQuantity,
           available: availability.available,
           unavailableReason: availability.unavailableReason,
-          sellingPrice: kitSellingPrice(product),
-          discountPercent: kitDiscountPercent(product),
+          sellingPrice: pricing.sellingPrice,
+          mrp: pricing.catalogueMrp,
+          effectiveCatalogueValue: pricing.effectiveCatalogueValue,
+          productSavings: pricing.productSavings,
+          kitDiscountAmount: pricing.kitDiscountAmount,
+          discountPercent: pricing.discountPercent,
+          pricingMode: pricing.mode,
+          kitDiscountPercent: pricing.kitDiscountPercent,
+          pricing: product.healthKit?.pricing ?? null,
         };
       }),
     );
@@ -218,7 +300,7 @@ export const productOptions = query({
       ctx.db.query("categories").collect(),
     ]);
     const categoryById = new Map(categories.map((category) => [category._id, category.name]));
-    return products
+    const eligible = products
       .filter((product) => !product.healthKit && !product.prescriptionRequired)
       .filter((product) =>
         !search
@@ -229,16 +311,29 @@ export const productOptions = query({
               .includes(search),
       )
       .sort((a, b) => a.name.localeCompare(b.name))
-      .slice(0, 100)
-      .map((product) => ({
+      .slice(0, 100);
+    const priced = await withEnginePrices(ctx.db, eligible);
+    return priced.map((product) => {
+      const effectivePrice =
+        product.discountPrice && product.discountPrice > 0 && product.discountPrice < product.price
+          ? product.discountPrice
+          : product.price;
+      return {
         _id: product._id,
         name: product.name,
         imageUrl: product.imageUrl ?? null,
         packSize: product.packSize,
-        price: product.discountPrice ?? product.price,
+        price: effectivePrice,
+        effectivePrice,
+        mrp: product.price,
+        discountPercent:
+          product.price > 0
+            ? Math.round(((product.price - effectivePrice) / product.price) * 100)
+            : 0,
         stockQuantity: product.stockQuantity,
         categoryName: categoryById.get(product.categoryId) ?? null,
-      }));
+      };
+    });
   },
 });
 
@@ -367,6 +462,7 @@ export const create = mutation({
       healthKit: {
         categoryId: args.categoryId,
         components: validated.components,
+        pricing: validated.pricing,
       },
       createdAt: now,
       updatedAt: now,
@@ -397,6 +493,7 @@ export const update = mutation({
       healthKit: {
         categoryId: args.categoryId,
         components: validated.components,
+        pricing: validated.pricing,
       },
       updatedAt: Date.now(),
     });

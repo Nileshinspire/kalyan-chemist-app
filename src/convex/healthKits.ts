@@ -3,9 +3,10 @@ import { v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
 import {
   getHealthKitAvailability,
-  kitDiscountPercent,
-  kitSellingPrice,
+  getHealthKitQuote,
+  resolveHealthKitPricing,
 } from "./healthKitsCore";
+import type { KitSelectionLine } from "../lib/healthKitQuote";
 
 const sortValidator = v.optional(
   v.union(
@@ -30,11 +31,11 @@ async function kitCard(
   product: KitProduct,
   categoryName: string | null,
 ) {
-  const availability = await getHealthKitAvailability(db, product);
-  const selling = kitSellingPrice(product);
-  const componentNames = availability.components
-    .filter((line) => !!line.product._id)
-    .map((line) => line.product.name);
+  const [availability, pricing] = await Promise.all([
+    getHealthKitAvailability(db, product),
+    resolveHealthKitPricing(db, product),
+  ]);
+  const componentNames = pricing.components.map((line) => line.name);
   return {
     _id: product._id,
     name: product.name,
@@ -42,13 +43,19 @@ async function kitCard(
     description: product.description,
     imageUrl:
       product.imageUrl ??
-      availability.components.find((line) => !!line.product.imageUrl)?.product.imageUrl,
+      pricing.components.find((line) => !!line.imageUrl)?.imageUrl ??
+      null,
     additionalImages: product.additionalImages ?? [],
     categoryName,
-    sellingPrice: selling,
-    mrp: product.price,
-    discountPercent: kitDiscountPercent(product),
-    savings: Math.max(0, product.price - selling),
+    sellingPrice: pricing.sellingPrice,
+    mrp: pricing.catalogueMrp,
+    effectiveCatalogueValue: pricing.effectiveCatalogueValue,
+    discountPercent: pricing.discountPercent,
+    savings: pricing.savings,
+    productSavings: pricing.productSavings,
+    kitDiscountAmount: pricing.kitDiscountAmount,
+    pricingMode: pricing.mode,
+    kitDiscountPercent: pricing.kitDiscountPercent,
     available: availability.available,
     maxQuantity: availability.maxQuantity,
     unavailableReason: availability.unavailableReason,
@@ -178,8 +185,10 @@ export const getBySlug = query({
     const category = await ctx.db.get(product.healthKit.categoryId);
     if (!category || !category.isActive) return null;
 
-    const availability = await getHealthKitAvailability(ctx.db, product);
-    const selling = kitSellingPrice(product);
+    const [availability, pricing] = await Promise.all([
+      getHealthKitAvailability(ctx.db, product),
+      resolveHealthKitPricing(ctx.db, product),
+    ]);
     return {
       ...(await kitCard(ctx.db, product, category.name)),
       category: {
@@ -195,27 +204,74 @@ export const getBySlug = query({
           [
             product.imageUrl,
             ...(product.additionalImages ?? []),
-            ...availability.components.map((line) => line.product.imageUrl),
+            ...pricing.components.map((line) => line.imageUrl),
           ].filter((image): image is string => !!image),
         ),
       ),
-      components: availability.components.map((line) => ({
-        productId: line.product._id ?? null,
-        name: line.product.name,
-        slug: line.product.slug ?? null,
-        imageUrl: line.product.imageUrl ?? null,
-        quantity: line.quantity,
-        packSize: line.product.packSize ?? null,
-        inStock: line.inStock,
-        availableKits: line.availableKits,
-      })),
+      components: pricing.components.map((line) => {
+        const availabilityLine = availability.components.find(
+          (row) => row.product._id === line.productId,
+        );
+        return {
+          productId: line.productId,
+          name: line.name,
+          slug: line.slug,
+          imageUrl: line.imageUrl,
+          quantity: line.configuredQuantity,
+          packSize: line.packSize,
+          manufacturer: line.manufacturer,
+          stockQuantity: line.stockQuantity,
+          mrp: line.mrp,
+          effectiveUnitPrice: line.effectiveUnitPrice,
+          expiryDate: line.expiryDate,
+          inStock: availabilityLine?.inStock ?? false,
+          availableKits: availabilityLine?.availableKits ?? 0,
+        };
+      }),
       available: availability.available,
       maxQuantity: availability.maxQuantity,
       unavailableReason: availability.unavailableReason,
-      sellingPrice: selling,
-      mrp: product.price,
-      discountPercent: kitDiscountPercent(product),
-      savings: Math.max(0, product.price - selling),
+      sellingPrice: pricing.sellingPrice,
+      mrp: pricing.catalogueMrp,
+      effectiveCatalogueValue: pricing.effectiveCatalogueValue,
+      discountPercent: pricing.discountPercent,
+      savings: pricing.savings,
+      productSavings: pricing.productSavings,
+      kitDiscountAmount: pricing.kitDiscountAmount,
+      pricingMode: pricing.mode,
+      kitDiscountPercent: pricing.kitDiscountPercent,
+    };
+  },
+});
+
+/** Authoritative preview used by custom Buy Now and the kit customizer. */
+export const getQuote = query({
+  args: {
+    productId: v.id("products"),
+    selection: v.optional(
+      v.array(v.object({ productId: v.id("products"), quantity: v.number() })),
+    ),
+  },
+  handler: async (ctx, args) => {
+    const product = await ctx.db.get(args.productId);
+    if (!product || !product.isActive || !isKit(product)) return null;
+    const result = await getHealthKitQuote(
+      ctx.db,
+      product,
+      args.selection as KitSelectionLine[] | undefined,
+    );
+    if (!result) return null;
+    return {
+      kit: {
+        _id: product._id,
+        name: product.name,
+        slug: product.slug,
+        imageUrl: product.imageUrl ?? null,
+      },
+      quote: result.quote,
+      available: result.availability.available,
+      maxQuantity: result.availability.maxQuantity,
+      unavailableReason: result.availability.unavailableReason,
     };
   },
 });

@@ -243,6 +243,21 @@ const schema = defineSchema(
               quantity: v.number(),
             }),
           ),
+          /**
+           * How the kit selling price is derived. `auto` recomputes from the
+           * current effective component prices and the kit discount; `manual`
+           * uses the admin's explicit final price. Optional so kits created
+           * before this were saved keep working as manual-price kits.
+           */
+          pricing: v.optional(
+            v.object({
+              mode: v.union(v.literal("auto"), v.literal("manual")),
+              kitDiscountPercent: v.number(),
+              catalogueMrp: v.number(),
+              effectiveCatalogueValue: v.number(),
+              calculatedAt: v.number(),
+            }),
+          ),
         }),
       ),
       /**
@@ -593,6 +608,16 @@ const schema = defineSchema(
       userId: v.id("users"),
       productId: v.id("products"),
       quantity: v.number(),
+      /** Sorted component configuration for a customized health kit. */
+      configurationKey: v.optional(v.string()),
+      kitSelection: v.optional(
+        v.array(
+          v.object({
+            productId: v.id("products"),
+            quantity: v.number(),
+          }),
+        ),
+      ),
     })
       .index("by_user", ["userId"])
       .index("by_user_product", ["userId", "productId"]),
@@ -606,6 +631,23 @@ const schema = defineSchema(
           name: v.string(),
           price: v.number(),
           quantity: v.number(),
+          /** Snapshot of a customized kit so order history stays accurate. */
+          kitCustomization: v.optional(
+            v.object({
+              basePrice: v.number(),
+              customizedPrice: v.number(),
+              items: v.array(
+                v.object({
+                  productId: v.id("products"),
+                  name: v.string(),
+                  quantity: v.number(),
+                  mrp: v.number(),
+                  effectiveUnitPrice: v.number(),
+                  allocatedPrice: v.number(),
+                }),
+              ),
+            }),
+          ),
         })
       ),
       subtotal: v.number(),

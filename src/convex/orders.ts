@@ -3,7 +3,8 @@ import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import { reserveWalletForOrder } from "./referralWallet";
 import { loadEngine } from "./discountEngine";
-import { getHealthKitAvailability, kitSellingPrice } from "./healthKitsCore";
+import { getHealthKitQuote } from "./healthKitsCore";
+import type { KitSelectionLine } from "../lib/healthKitQuote";
 import { loadPrescriptionUsage } from "./prescriptionServer";
 import { resolveProductDiscount } from "../lib/discount";
 import { releaseStockForOrder, reserveStockForOrder } from "./stockReservations";
@@ -165,7 +166,24 @@ export const create = mutation({
     }
 
     // Build order items and compute totals
-    const orderItems: { productId: any; name: string; price: number; quantity: number }[] = [];
+    const orderItems: {
+      productId: any;
+      name: string;
+      price: number;
+      quantity: number;
+      kitCustomization?: {
+        basePrice: number;
+        customizedPrice: number;
+        items: Array<{
+          productId: any;
+          name: string;
+          quantity: number;
+          mrp: number;
+          effectiveUnitPrice: number;
+          allocatedPrice: number;
+        }>;
+      };
+    }[] = [];
     // Per-line category + discounted amount, so category-restricted coupons
     // can be evaluated against exactly what the customer is buying.
     const couponLines: { categoryId: string | null; amount: number }[] = [];
@@ -192,18 +210,44 @@ export const create = mutation({
         );
       }
       let effectivePrice: number;
+      let originalPrice = product.price;
+      let kitCustomization: (typeof orderItems)[number]["kitCustomization"];
       if (product.healthKit) {
-        // Kit pricing is an explicit admin-set bundle price, never governed by
-        // the product discount engine. Availability is derived from the real
-        // included products (which reserveStockForOrder decrements below).
-        const availability = await getHealthKitAvailability(ctx.db, product);
-        if (ci.quantity > availability.maxQuantity) {
+        // Recompute the customer's exact kit configuration and price from the
+        // live catalogue. The selection block stored in the cart is only an
+        // input; neither its composition nor its price is trusted.
+        const resolved = await getHealthKitQuote(
+          ctx.db,
+          product,
+          ci.kitSelection as KitSelectionLine[] | undefined,
+          engineNow,
+        );
+        if (!resolved) throw new Error(`"${product.name}" is no longer available.`);
+        const quote = resolved.quote;
+        if (!quote.available || ci.quantity > quote.maxQuantity) {
           throw new Error(
-            availability.unavailableReason ??
-              `Insufficient stock for "${product.name}". Available kits: ${availability.maxQuantity}`,
+            quote.unavailableReason ??
+              `Insufficient stock for "${product.name}". Available customized kits: ${quote.maxQuantity}`,
           );
         }
-        effectivePrice = kitSellingPrice(product);
+        effectivePrice = quote.customizedPrice;
+        originalPrice = quote.selectedMrp;
+        if (quote.isCustomized) {
+          kitCustomization = {
+            basePrice: quote.basePrice,
+            customizedPrice: quote.customizedPrice,
+            items: quote.components
+              .filter((line) => line.selectedQuantity > 0)
+              .map((line) => ({
+                productId: line.productId,
+                name: line.name,
+                quantity: line.selectedQuantity,
+                mrp: line.mrp,
+                effectiveUnitPrice: line.effectiveUnitPrice,
+                allocatedPrice: line.allocatedPrice,
+              })),
+          };
+        }
       } else {
         if (product.stockQuantity < ci.quantity) {
           throw new Error(
@@ -225,13 +269,13 @@ export const create = mutation({
         );
         effectivePrice = resolved.effectivePrice;
       }
-      const originalPrice = product.price;
 
       orderItems.push({
         productId: ci.productId,
         name: product.name,
         price: effectivePrice,
         quantity: ci.quantity,
+        ...(kitCustomization ? { kitCustomization } : {}),
       });
       couponLines.push({
         categoryId: product.categoryId ?? null,
@@ -740,6 +784,10 @@ export const createDirectOrder = mutation({
   args: {
     productId: v.id("products"),
     quantity: v.number(),
+    /** Selected components for a customized kit Buy Now. */
+    kitSelection: v.optional(
+      v.array(v.object({ productId: v.id("products"), quantity: v.number() })),
+    ),
     shippingAddress: v.string(),
     phone: v.string(),
     paymentMethod: v.union(v.literal("cod"), v.literal("online")),
@@ -767,13 +815,16 @@ export const createDirectOrder = mutation({
       familyMemberName = member.name;
     }
 
+    if (!Number.isInteger(args.quantity) || args.quantity <= 0) {
+      throw new Error("Quantity must be a whole number greater than zero.");
+    }
     const product = await ctx.db.get(args.productId);
     if (!product || !product.isActive) throw new Error("Product is no longer available");
     // Buy Now bypasses the cart, so it needs the same expiry gate as checkout.
-    if (product.expiryDate && product.expiryDate <= Date.now()) {
+    if (product.expiryDate && product.expiryDate <= Date.now() && !product.healthKit) {
       throw new Error(`"${product.name}" has expired and cannot be sold.`);
     }
-    if (product.stockQuantity < args.quantity) {
+    if (!product.healthKit && product.stockQuantity < args.quantity) {
       throw new Error(`Insufficient stock for "${product.name}". Available: ${product.stockQuantity}`);
     }
 
@@ -809,34 +860,86 @@ export const createDirectOrder = mutation({
       }
     }
 
-    const originalPrice = product.price;
-    // Settle through the discount engine — the same resolver every storefront
-    // price uses, so Buy Now, cart and checkout always agree with each other.
     const { engine: buyNowEngine, now: buyNowNow } = await loadEngine(ctx.db);
-    const buyNowResolution = resolveProductDiscount(
-      {
-        _id: product._id,
-        price: product.price,
-        discountPrice: product.discountPrice ?? null,
-        categoryId: product.categoryId,
-        isActive: product.isActive,
-        discountSource: product.discountSource ?? null,
-        createdAt: product.createdAt,
-      },
-      buyNowEngine,
-      buyNowNow,
-    );
-    const effectivePrice = buyNowResolution.effectivePrice;
+    let originalPrice = product.price;
+    let effectivePrice: number;
+    let kitCustomization:
+      | {
+          basePrice: number;
+          customizedPrice: number;
+          items: Array<{
+            productId: any;
+            name: string;
+            quantity: number;
+            mrp: number;
+            effectiveUnitPrice: number;
+            allocatedPrice: number;
+          }>;
+        }
+      | undefined;
+
+    if (product.healthKit) {
+      const resolved = await getHealthKitQuote(
+        ctx.db,
+        product,
+        args.kitSelection as KitSelectionLine[] | undefined,
+        buyNowNow,
+      );
+      if (!resolved) throw new Error(`"${product.name}" is no longer available.`);
+      const quote = resolved.quote;
+      if (!quote.available || args.quantity > quote.maxQuantity) {
+        throw new Error(
+          quote.unavailableReason ??
+            `Insufficient stock for "${product.name}". Available customized kits: ${quote.maxQuantity}`,
+        );
+      }
+      effectivePrice = quote.customizedPrice;
+      originalPrice = quote.selectedMrp;
+      if (quote.isCustomized) {
+        kitCustomization = {
+          basePrice: quote.basePrice,
+          customizedPrice: quote.customizedPrice,
+          items: quote.components
+            .filter((line) => line.selectedQuantity > 0)
+            .map((line) => ({
+              productId: line.productId,
+              name: line.name,
+              quantity: line.selectedQuantity,
+              mrp: line.mrp,
+              effectiveUnitPrice: line.effectiveUnitPrice,
+              allocatedPrice: line.allocatedPrice,
+            })),
+        };
+      }
+    } else {
+      // Settle through the discount engine — the same resolver every storefront
+      // price uses, so Buy Now, cart and checkout always agree with each other.
+      const buyNowResolution = resolveProductDiscount(
+        {
+          _id: product._id,
+          price: product.price,
+          discountPrice: product.discountPrice ?? null,
+          categoryId: product.categoryId,
+          isActive: product.isActive,
+          discountSource: product.discountSource ?? null,
+          createdAt: product.createdAt,
+        },
+        buyNowEngine,
+        buyNowNow,
+      );
+      effectivePrice = buyNowResolution.effectivePrice;
+    }
 
     const orderItems = [{
       productId: args.productId,
       name: product.name,
       price: effectivePrice,
       quantity: args.quantity,
+      ...(kitCustomization ? { kitCustomization } : {}),
     }];
 
     let subtotal = effectivePrice * args.quantity;
-    let discount = (originalPrice - effectivePrice) * args.quantity;
+    let discount = Math.max(0, originalPrice - effectivePrice) * args.quantity;
 
     // Stock is reserved FEFO right after the order row is inserted (below), in
     // the same transaction.

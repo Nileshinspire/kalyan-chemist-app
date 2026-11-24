@@ -3,6 +3,7 @@ import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 import type { Doc } from "./_generated/dataModel";
 import { withEnginePrices } from "./discountEngine";
+import { getHealthKitAvailability, resolveHealthKitPricing } from "./healthKitsCore";
 
 // ── List wishlist items with product details ──
 export const list = query({
@@ -28,15 +29,42 @@ export const list = query({
         row.product !== null,
     );
 
-    // Wishlist cards show the same engine-resolved price as everywhere else.
-    const pricedProducts = await withEnginePrices(
+    // Wishlist cards show the same live price/availability as everywhere else.
+    const standardRows = present.filter((row) => !row.product.healthKit);
+    const pricedStandard = await withEnginePrices(
       ctx.db,
-      present.map((row) => row.product),
+      standardRows.map((row) => row.product),
     );
-    return present.map((row, index) => ({
-      ...row.item,
-      product: pricedProducts[index],
-    }));
+    const standardById = new Map(
+      pricedStandard.map((product) => [product._id as string, product]),
+    );
+
+    return await Promise.all(
+      present.map(async (row) => {
+        if (!row.product.healthKit) {
+          return {
+            ...row.item,
+            product: standardById.get(row.product._id as string) ?? row.product,
+          };
+        }
+        const [pricing, availability] = await Promise.all([
+          resolveHealthKitPricing(ctx.db, row.product),
+          getHealthKitAvailability(ctx.db, row.product),
+        ]);
+        return {
+          ...row.item,
+          product: {
+            ...row.product,
+            price: pricing.catalogueMrp,
+            discountPrice:
+              pricing.sellingPrice < pricing.catalogueMrp
+                ? pricing.sellingPrice
+                : undefined,
+            stockQuantity: availability.maxQuantity,
+          },
+        };
+      }),
+    );
   },
 });
 
@@ -115,7 +143,12 @@ export const moveToCart = mutation({
 
     const product = await ctx.db.get(args.productId);
     if (!product || !product.isActive) throw new Error("Product not available");
-    if (product.stockQuantity < 1) throw new Error("Out of stock");
+    let available = product.stockQuantity;
+    if (product.healthKit) {
+      const availability = await getHealthKitAvailability(ctx.db, product);
+      available = availability.available ? availability.maxQuantity : 0;
+    }
+    if (available < 1) throw new Error("Out of stock");
 
     // Remove from wishlist
     const wishlistItem = await ctx.db
@@ -129,17 +162,21 @@ export const moveToCart = mutation({
       await ctx.db.delete(wishlistItem._id);
     }
 
-    // Add to cart (or increment if already exists)
-    const existingCartItem = await ctx.db
+    // Add to cart (or increment if already exists). Kits use the standard
+    // (uncustomized) line, which keeps this simple wishlist action unchanged.
+    const existingCartItems = await ctx.db
       .query("cart_items")
       .withIndex("by_user_product", (q) =>
         q.eq("userId", userId).eq("productId", args.productId)
       )
-      .first();
+      .collect();
+    const existingCartItem = product.healthKit
+      ? existingCartItems.find((item) => !item.configurationKey)
+      : existingCartItems[0];
 
     if (existingCartItem) {
       const newQty = existingCartItem.quantity + 1;
-      if (newQty > product.stockQuantity) throw new Error("Insufficient stock");
+      if (newQty > available) throw new Error("Insufficient stock");
       await ctx.db.patch(existingCartItem._id, { quantity: newQty });
     } else {
       await ctx.db.insert("cart_items", {

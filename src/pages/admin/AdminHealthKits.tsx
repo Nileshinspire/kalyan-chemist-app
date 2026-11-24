@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import {
+  BadgePercent,
   BriefcaseMedical,
   Check,
+  CircleDollarSign,
   Image as ImageIcon,
+  Layers,
   Loader2,
   Minus,
   Package,
@@ -47,6 +50,11 @@ import {
 } from "@/components/ui/table";
 import { api } from "@/convex/_generated/api";
 import { formatCurrency } from "@/lib/auth-utils";
+import {
+  clampKitDiscountPercent,
+  computeAutoKitPrice,
+  type KitPricingMode,
+} from "@/lib/healthKitQuote";
 
 type ComponentLine = {
   productId: string;
@@ -54,6 +62,10 @@ type ComponentLine = {
   name: string;
   imageUrl: string | null;
   packSize: string | null;
+  mrp: number;
+  effectivePrice: number;
+  stockQuantity: number;
+  availableKits: number;
 };
 
 type KitForm = {
@@ -62,8 +74,9 @@ type KitForm = {
   slug: string;
   description: string;
   categoryId: string;
-  sellingPrice: string;
-  mrp: string;
+  pricingMode: KitPricingMode;
+  kitDiscountPercent: string;
+  manualPrice: string;
   imageUrl: string;
   additionalImages: string;
   isActive: boolean;
@@ -75,13 +88,16 @@ const EMPTY_FORM: KitForm = {
   slug: "",
   description: "",
   categoryId: "",
-  sellingPrice: "",
-  mrp: "",
+  pricingMode: "auto",
+  kitDiscountPercent: "0",
+  manualPrice: "",
   imageUrl: "",
   additionalImages: "",
   isActive: true,
   components: [],
 };
+
+type DashboardView = "all" | "active" | "categories";
 
 function slugify(text: string) {
   return text
@@ -119,6 +135,8 @@ export default function AdminHealthKits() {
   const [newCategoryName, setNewCategoryName] = useState("");
   const [newCategoryImage, setNewCategoryImage] = useState("");
   const [addingCategory, setAddingCategory] = useState(false);
+  const [view, setView] = useState<DashboardView>("all");
+  const [availabilityTarget, setAvailabilityTarget] = useState<any | null>(null);
 
   const productOptions = useQuery(api.adminHealthKits.productOptions, {
     search: productSearch.trim() || undefined,
@@ -128,6 +146,51 @@ export default function AdminHealthKits() {
     () => new Set(form.components.map((line) => line.productId)),
     [form.components],
   );
+
+  const pricingSummary = useMemo(() => {
+    const catalogueMrp = form.components.reduce(
+      (sum, line) => sum + line.mrp * line.quantity,
+      0,
+    );
+    const effectiveCatalogueValue = form.components.reduce(
+      (sum, line) => sum + line.effectivePrice * line.quantity,
+      0,
+    );
+    const kitDiscountPercent = clampKitDiscountPercent(
+      Number(form.kitDiscountPercent) || 0,
+    );
+    const autoPrice = computeAutoKitPrice(effectiveCatalogueValue, kitDiscountPercent);
+    const manualPrice = Number(form.manualPrice);
+    const finalPrice = form.pricingMode === "auto"
+      ? autoPrice
+      : Number.isFinite(manualPrice) && manualPrice > 0
+        ? manualPrice
+        : 0;
+    return {
+      catalogueMrp,
+      effectiveCatalogueValue,
+      productSavings: Math.max(0, catalogueMrp - effectiveCatalogueValue),
+      kitDiscountPercent,
+      kitDiscountAmount:
+        form.pricingMode === "auto"
+          ? Math.max(0, effectiveCatalogueValue - autoPrice)
+          : 0,
+      autoPrice,
+      finalPrice,
+      savings: Math.max(0, catalogueMrp - finalPrice),
+      effectiveDiscountPercent:
+        catalogueMrp > 0 ? Math.round(((catalogueMrp - finalPrice) / catalogueMrp) * 100) : 0,
+      invalid:
+        finalPrice <= 0 ||
+        finalPrice > effectiveCatalogueValue + 0.001 ||
+        (form.pricingMode === "manual" && !(manualPrice > 0)),
+    };
+  }, [form.components, form.kitDiscountPercent, form.pricingMode, form.manualPrice]);
+
+  const visibleKits = useMemo(() => {
+    const rows = kits ?? [];
+    return view === "active" ? rows.filter((kit) => kit.isActive) : rows;
+  }, [kits, view]);
 
   useEffect(() => {
     if (!form.categoryId && categories?.length) {
@@ -149,8 +212,9 @@ export default function AdminHealthKits() {
       slug: kit.slug,
       description: kit.description,
       categoryId: kit.kitCategoryId ?? categories?.[0]?._id ?? "",
-      sellingPrice: String(kit.sellingPrice),
-      mrp: String(kit.price),
+      pricingMode: kit.pricingMode === "auto" ? "auto" : "manual",
+      kitDiscountPercent: String(kit.kitDiscountPercent ?? 0),
+      manualPrice: String(kit.sellingPrice ?? kit.price ?? ""),
       imageUrl: kit.imageUrl ?? "",
       additionalImages: (kit.additionalImages ?? []).join("\n"),
       isActive: kit.isActive,
@@ -160,6 +224,10 @@ export default function AdminHealthKits() {
         name: line.name,
         imageUrl: line.imageUrl,
         packSize: line.packSize,
+        mrp: line.mrp ?? 0,
+        effectivePrice: line.effectivePrice ?? line.mrp ?? 0,
+        stockQuantity: line.stockQuantity ?? 0,
+        availableKits: line.availableKits ?? 0,
       })),
     });
     setSlugEdited(true);
@@ -180,6 +248,12 @@ export default function AdminHealthKits() {
             name: product.name,
             imageUrl: product.imageUrl,
             packSize: product.packSize,
+            mrp: product.mrp ?? product.price ?? 0,
+            effectivePrice: product.effectivePrice ?? product.price ?? 0,
+            stockQuantity: product.stockQuantity ?? 0,
+            availableKits: Math.floor(
+              Math.max(0, product.stockQuantity ?? 0) / Math.max(1, 1),
+            ),
           },
         ],
       };
@@ -230,6 +304,14 @@ export default function AdminHealthKits() {
       toast.error("Add at least one product to the kit");
       return;
     }
+    if (pricingSummary.invalid) {
+      toast.error(
+        form.pricingMode === "manual"
+          ? "Enter a final price between ₹0.01 and the current effective catalogue value."
+          : "This kit price is not valid. Check the kit discount.",
+      );
+      return;
+    }
     setSaving(true);
     try {
       const payload = {
@@ -237,8 +319,10 @@ export default function AdminHealthKits() {
         slug: form.slug || slugify(form.name),
         description: form.description,
         categoryId: form.categoryId as any,
-        sellingPrice: Number(form.sellingPrice),
-        mrp: form.mrp.trim() ? Number(form.mrp) : undefined,
+        sellingPrice: pricingSummary.finalPrice,
+        mrp: pricingSummary.catalogueMrp,
+        pricingMode: form.pricingMode,
+        kitDiscountPercent: pricingSummary.kitDiscountPercent,
         imageUrl: form.imageUrl.trim() || undefined,
         additionalImages: form.additionalImages
           .split("\n")
@@ -318,23 +402,145 @@ export default function AdminHealthKits() {
           </div>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-3">
-          <Card><CardContent className="pt-5"><p className="text-xs text-muted-foreground">Total kits</p><p className="mt-1 text-2xl font-bold">{kits?.length ?? "—"}</p></CardContent></Card>
-          <Card><CardContent className="pt-5"><p className="text-xs text-muted-foreground">Active kits</p><p className="mt-1 text-2xl font-bold">{kits?.filter((kit) => kit.isActive).length ?? "—"}</p></CardContent></Card>
-          <Card><CardContent className="pt-5"><p className="text-xs text-muted-foreground">Kit categories</p><p className="mt-1 text-2xl font-bold">{categories?.length ?? "—"}</p></CardContent></Card>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {[
+            {
+              key: "all" as const,
+              label: "Total kits",
+              description: "Every kit in the catalogue",
+              value: kits?.length ?? 0,
+              icon: BriefcaseMedical,
+            },
+            {
+              key: "active" as const,
+              label: "Active kits",
+              description: "Visible to customers",
+              value: kits?.filter((kit) => kit.isActive).length ?? 0,
+              icon: Check,
+            },
+            {
+              key: "categories" as const,
+              label: "Kit categories",
+              description: "Discovery groups",
+              value: categories?.length ?? 0,
+              icon: Layers,
+            },
+          ].map((stat) => {
+            const Icon = stat.icon;
+            const active = view === stat.key;
+            return (
+              <button
+                key={stat.key}
+                type="button"
+                aria-pressed={active}
+                onClick={() => setView(stat.key)}
+                className={`text-left transition-all ${active ? "scale-[1.01]" : "hover:-translate-y-0.5"}`}
+              >
+                <Card className={active ? "border-primary/60 ring-1 ring-primary/20" : "border-border/60 hover:border-primary/30"}>
+                  <CardContent className="flex items-center gap-3 pt-5">
+                    <div className={`flex size-10 items-center justify-center rounded-xl ${active ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
+                      <Icon className="size-5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs text-muted-foreground">{stat.label}</p>
+                      <p className="mt-0.5 text-2xl font-bold">{kits === undefined ? "—" : stat.value}</p>
+                      <p className="text-[10px] text-muted-foreground">{stat.description}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </button>
+            );
+          })}
         </div>
 
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-base">All health kits</CardTitle></CardHeader>
+          <CardHeader className="pb-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <CardTitle className="text-base">
+                  {view === "categories"
+                    ? "Kit categories"
+                    : view === "active"
+                      ? "Active health kits"
+                      : "All health kits"}
+                </CardTitle>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {view === "categories"
+                    ? "Categories and their live kit counts. Manage visibility and details with the existing category tools."
+                    : `${visibleKits.length} kit${visibleKits.length === 1 ? "" : "s"} shown · Available Kits is the number of complete kits that can be fulfilled now.`}
+                </p>
+              </div>
+              {view !== "all" && (
+                <Button variant="ghost" size="sm" onClick={() => setView("all")}>
+                  View all
+                </Button>
+              )}
+            </div>
+          </CardHeader>
           <CardContent>
             {kits === undefined ? (
               <div className="flex justify-center py-12"><Loader2 className="size-6 animate-spin text-primary" /></div>
-            ) : kits.length === 0 ? (
+            ) : view === "categories" ? (
+              categories === undefined ? (
+                <div className="flex justify-center py-12"><Loader2 className="size-6 animate-spin text-primary" /></div>
+              ) : categories.length === 0 ? (
+                <div className="py-12 text-center text-sm text-muted-foreground">No kit categories yet.</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Category</TableHead>
+                        <TableHead>Description</TableHead>
+                        <TableHead>Kits</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Details</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {categories.map((category) => (
+                        <TableRow key={category._id}>
+                          <TableCell>
+                            <div className="flex min-w-[180px] items-center gap-2.5">
+                              <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-primary/10 text-primary">
+                                {category.imageUrl ? <img src={category.imageUrl} alt="" className="h-full w-full object-cover" /> : <Layers className="size-4" />}
+                              </div>
+                              <div>
+                                <p className="text-sm font-semibold">{category.name}</p>
+                                <p className="text-[11px] text-muted-foreground">/{category.slug}</p>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="max-w-[320px] text-sm text-muted-foreground">
+                            {category.description || "No description"}
+                          </TableCell>
+                          <TableCell className="text-sm">{category.kitCount}</TableCell>
+                          <TableCell><Badge variant={category.isActive ? "default" : "secondary"}>{category.isActive ? "Visible" : "Hidden"}</Badge></TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="outline" size="sm" onClick={() => setCategoryOpen(true)}>Manage</Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )
+            ) : visibleKits.length === 0 ? (
               <div className="py-14 text-center">
                 <BriefcaseMedical className="mx-auto size-10 text-primary/40" />
-                <p className="mt-3 font-semibold">No health kits yet</p>
-                <p className="mt-1 text-sm text-muted-foreground">Create your first kit from existing products in the catalogue.</p>
-                <Button className="mt-4" onClick={openCreate}><Plus className="size-4" /> Create Health Kit</Button>
+                <p className="mt-3 font-semibold">
+                  {view === "active" ? "No active health kits" : "No health kits yet"}
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {view === "active"
+                    ? "Activate a kit to make it visible to customers."
+                    : "Create your first kit from existing products in the catalogue."}
+                </p>
+                {view === "active" ? (
+                  <Button className="mt-4" variant="outline" onClick={() => setView("all")}>View all kits</Button>
+                ) : (
+                  <Button className="mt-4" onClick={openCreate}><Plus className="size-4" /> Create Health Kit</Button>
+                )}
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -342,12 +548,12 @@ export default function AdminHealthKits() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Kit</TableHead><TableHead>Category</TableHead><TableHead>Price</TableHead>
-                      <TableHead>Contents</TableHead><TableHead>Availability</TableHead><TableHead>Status</TableHead>
+                      <TableHead>Contents</TableHead><TableHead>Available Kits</TableHead><TableHead>Status</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {kits.map((kit) => (
+                    {visibleKits.map((kit) => (
                       <TableRow key={kit._id}>
                         <TableCell>
                           <div className="flex min-w-[190px] items-center gap-2.5">
@@ -360,10 +566,21 @@ export default function AdminHealthKits() {
                         <TableCell className="text-sm">{kit.kitCategoryName}</TableCell>
                         <TableCell>
                           <p className="text-sm font-semibold">{formatCurrency(kit.sellingPrice)}</p>
-                          {kit.discountPercent > 0 && <p className="text-[11px] text-muted-foreground line-through">{formatCurrency(kit.price)}</p>}
+                          {kit.savings > 0 && <p className="text-[11px] text-muted-foreground line-through">{formatCurrency(kit.mrp)}</p>}
+                          <p className="text-[10px] text-primary">{kit.pricingMode === "auto" ? "Auto-priced" : "Manual price"}</p>
                         </TableCell>
                         <TableCell className="text-sm">{kit.componentCount} products</TableCell>
-                        <TableCell><span className={`text-xs font-medium ${kit.available ? "text-emerald-700" : "text-destructive"}`}>{kit.available ? `${kit.maxQuantity} available` : "Out of stock"}</span></TableCell>
+                        <TableCell>
+                          <button
+                            type="button"
+                            onClick={() => setAvailabilityTarget(kit)}
+                            className={`text-left text-xs font-medium underline-offset-2 hover:underline ${kit.available ? "text-emerald-700" : "text-destructive"}`}
+                            title="Inspect the limiting included product"
+                          >
+                            {kit.available ? `${kit.maxQuantity} available` : "Unavailable"}
+                            <span className="block text-[10px] font-normal text-muted-foreground">View breakdown</span>
+                          </button>
+                        </TableCell>
                         <TableCell><Badge variant={kit.isActive ? "default" : "secondary"}>{kit.isActive ? "Active" : "Inactive"}</Badge></TableCell>
                         <TableCell>
                           <div className="flex justify-end gap-1">
