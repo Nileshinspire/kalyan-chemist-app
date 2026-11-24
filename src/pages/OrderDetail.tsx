@@ -475,6 +475,19 @@ export default function OrderDetail() {
                         <p className="text-xs text-muted-foreground">
                           Qty: {item.quantity} × {formatCurrency(item.price)}
                         </p>
+                        {item.kitCustomization && (
+                          <div className="mt-1 rounded-lg border border-primary/15 bg-primary/[0.03] px-2 py-1.5">
+                            <p className="text-[10px] font-semibold text-primary">Customized kit contents</p>
+                            <p className="mt-0.5 text-[10px] leading-relaxed text-muted-foreground">
+                              {item.kitCustomization.items
+                                .map((line: any) => `${line.name} × ${line.quantity}`)
+                                .join(" · ")}
+                            </p>
+                            <p className="mt-0.5 text-[9.5px] text-muted-foreground">
+                              Original {formatCurrency(item.kitCustomization.basePrice)} · customized {formatCurrency(item.kitCustomization.customizedPrice)}
+                            </p>
+                          </div>
+                        )}
                       </div>
                       <p className="text-sm font-semibold">{formatCurrency(item.price * item.quantity)}</p>
                     </div>

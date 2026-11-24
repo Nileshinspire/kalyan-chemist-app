@@ -158,6 +158,8 @@ export default function Wishlist() {
 
               const hasDiscount = product.discountPrice && product.discountPrice < product.price;
               const displayPrice = hasDiscount ? product.discountPrice! : product.price;
+              const isKit = Boolean((product as any).healthKit);
+              const productPath = isKit ? `/health-kits/${product.slug}` : `/products/${product.slug}`;
               const isInStock = product.stockQuantity > 0;
               const isLowStock = product.stockQuantity > 0 && product.stockQuantity < 10;
 
@@ -179,17 +181,21 @@ export default function Wishlist() {
                         aria-label={`View ${product.name}`}
                         onClick={() => {
                           beginProductTransition();
-                          navigate(`/products/${product.slug}`);
+                          navigate(productPath);
                         }}
                         onKeyDown={(e) => {
                           if (e.key === "Enter" || e.key === " ") {
                             e.preventDefault();
                             beginProductTransition();
-                            navigate(`/products/${product.slug}`);
+                            navigate(productPath);
                           }
                         }}
                       >
-                        <Pill className="size-12 text-primary/20 group-hover:scale-110 transition-all duration-500" />
+                        {product.imageUrl ? (
+                          <img src={product.imageUrl} alt={product.name} className="h-full w-full object-contain p-4" />
+                        ) : (
+                          <Pill className="size-12 text-primary/20 group-hover:scale-110 transition-all duration-500" />
+                        )}
                       </div>
                       <Button
                         variant="ghost"
@@ -208,7 +214,11 @@ export default function Wishlist() {
                     <CardContent className="p-4">
                       {/* Badges */}
                       <div className="flex flex-wrap gap-1.5 mb-2">
-                        {product.prescriptionRequired ? (
+                        {isKit ? (
+                          <Badge variant="secondary" className="bg-primary/10 text-[10px] text-primary">
+                            Health Kit
+                          </Badge>
+                        ) : product.prescriptionRequired ? (
                           <Badge variant="destructive" className="text-[10px]">
                             <AlertTriangle className="size-2.5 mr-1" />
                             Rx Required
@@ -227,20 +237,20 @@ export default function Wishlist() {
                         tabIndex={0}
                         onClick={() => {
                         beginProductTransition();
-                        navigate(`/products/${product.slug}`);
+                        navigate(productPath);
                       }}
                         onKeyDown={(e) => {
                           if (e.key === "Enter" || e.key === " ") {
                             e.preventDefault();
                             beginProductTransition();
-                            navigate(`/products/${product.slug}`);
+                            navigate(productPath);
                           }
                         }}
                       >
                         {product.name}
                       </h3>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        {product.manufacturer}
+                        {isKit ? "Curated health kit" : product.manufacturer}
                       </p>
 
                       {/* Price — the discount percentage lives here, once,
@@ -292,7 +302,7 @@ export default function Wishlist() {
                           className="h-9 text-xs rounded-lg"
                           onClick={() => {
                         beginProductTransition();
-                        navigate(`/products/${product.slug}`);
+                        navigate(productPath);
                       }}
                         >
                           <ArrowRight className="size-3" />

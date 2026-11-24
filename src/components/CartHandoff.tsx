@@ -32,7 +32,11 @@ export default function CartHandoff() {
       for (const line of pending) {
         if (cancelled) return;
         try {
-          await addItem({ productId: line.productId as any, quantity: line.quantity });
+          await addItem({
+            productId: line.productId as any,
+            quantity: line.quantity,
+            ...(line.kitSelection ? { kitSelection: line.kitSelection as any } : {}),
+          });
         } catch {
           // The product may have gone out of stock meanwhile; the rest of the
           // hand-off still runs and the cart page reports its real state.

@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import {
-  BadgePercent,
   BriefcaseMedical,
   Check,
   CircleDollarSign,
@@ -566,7 +565,7 @@ export default function AdminHealthKits() {
                         <TableCell className="text-sm">{kit.kitCategoryName}</TableCell>
                         <TableCell>
                           <p className="text-sm font-semibold">{formatCurrency(kit.sellingPrice)}</p>
-                          {kit.savings > 0 && <p className="text-[11px] text-muted-foreground line-through">{formatCurrency(kit.mrp)}</p>}
+                          {kit.mrp > kit.sellingPrice && <p className="text-[11px] text-muted-foreground line-through">{formatCurrency(kit.mrp)}</p>}
                           <p className="text-[10px] text-primary">{kit.pricingMode === "auto" ? "Auto-priced" : "Manual price"}</p>
                         </TableCell>
                         <TableCell className="text-sm">{kit.componentCount} products</TableCell>
@@ -627,13 +626,83 @@ export default function AdminHealthKits() {
               <Label htmlFor="kit-description">Description</Label>
               <Textarea id="kit-description" rows={3} value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} placeholder="A short description of who this kit is for and what it helps with." />
             </div>
-            <div>
-              <Label htmlFor="kit-price">Selling price (₹)</Label>
-              <Input id="kit-price" type="number" min={0.01} step="0.01" value={form.sellingPrice} onChange={(event) => setForm((current) => ({ ...current, sellingPrice: event.target.value }))} />
-            </div>
-            <div>
-              <Label htmlFor="kit-mrp">Compare-at price (₹, optional)</Label>
-              <Input id="kit-mrp" type="number" min={0} step="0.01" value={form.mrp} onChange={(event) => setForm((current) => ({ ...current, mrp: event.target.value }))} placeholder="Leave blank for no discount" />
+            <div className="rounded-xl border bg-muted/20 p-3 sm:col-span-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="flex items-center gap-1.5 text-sm font-semibold"><CircleDollarSign className="size-4 text-primary" /> Kit pricing</p>
+                  <p className="text-[11px] text-muted-foreground">Built from current effective product selling prices — product discounts are already included.</p>
+                </div>
+                <div className="flex rounded-lg border bg-background p-0.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (form.pricingMode === "auto") return;
+                      setForm((current) => ({ ...current, pricingMode: "auto", manualPrice: pricingSummary.autoPrice.toFixed(2) }));
+                    }}
+                    className={`rounded-md px-3 py-1.5 text-xs font-medium ${form.pricingMode === "auto" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
+                  >
+                    Automatic
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (form.pricingMode === "manual") return;
+                      setForm((current) => ({ ...current, pricingMode: "manual", manualPrice: pricingSummary.autoPrice.toFixed(2) }));
+                    }}
+                    className={`rounded-md px-3 py-1.5 text-xs font-medium ${form.pricingMode === "manual" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
+                  >
+                    Manual override
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <div>
+                  <Label htmlFor="kit-discount">Kit discount (%)</Label>
+                  <Input
+                    id="kit-discount"
+                    type="number"
+                    min={0}
+                    max={99}
+                    step="1"
+                    value={form.kitDiscountPercent}
+                    onChange={(event) => setForm((current) => ({ ...current, kitDiscountPercent: event.target.value }))}
+                    disabled={form.pricingMode === "manual"}
+                  />
+                  <p className="mt-1 text-[10px] text-muted-foreground">Applied once to the effective catalogue value.</p>
+                </div>
+                <div>
+                  <Label htmlFor="kit-final-price">{form.pricingMode === "manual" ? "Final kit price (₹)" : "Final kit price (auto)"}</Label>
+                  <Input
+                    id="kit-final-price"
+                    type="number"
+                    min={0.01}
+                    step="0.01"
+                    value={form.pricingMode === "manual" ? form.manualPrice : pricingSummary.autoPrice.toFixed(2)}
+                    onChange={(event) => setForm((current) => ({ ...current, manualPrice: event.target.value }))}
+                    disabled={form.pricingMode === "auto"}
+                  />
+                  <p className="mt-1 text-[10px] text-muted-foreground">
+                    {form.pricingMode === "manual"
+                      ? "Must not exceed the effective catalogue value."
+                      : "Updates automatically with component prices and the kit discount."}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-3 space-y-1.5 rounded-lg border bg-background p-3 text-xs">
+                <div className="flex justify-between"><span className="text-muted-foreground">Original catalogue value</span><span>{formatCurrency(pricingSummary.catalogueMrp)}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Effective catalogue value (after product discounts)</span><span className="font-medium">{formatCurrency(pricingSummary.effectiveCatalogueValue)}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Product discounts included</span><span className="text-emerald-700">−{formatCurrency(pricingSummary.productSavings)}</span></div>
+                {form.pricingMode === "auto" && (
+                  <div className="flex justify-between"><span className="text-muted-foreground">Additional kit discount ({pricingSummary.kitDiscountPercent}%)</span><span className="text-emerald-700">−{formatCurrency(pricingSummary.kitDiscountAmount)}</span></div>
+                )}
+                <div className="flex justify-between border-t pt-1.5 text-sm"><span className="font-semibold">Final kit price</span><span className="font-bold text-primary">{formatCurrency(pricingSummary.finalPrice)}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Customer savings</span><span className="font-medium text-emerald-700">{formatCurrency(pricingSummary.savings)} ({pricingSummary.effectiveDiscountPercent}% off MRP)</span></div>
+                {pricingSummary.invalid && (
+                  <p className="pt-1 text-[11px] font-medium text-destructive">Enter a final price above ₹0 and no higher than the effective catalogue value.</p>
+                )}
+              </div>
             </div>
             <div className="sm:col-span-2">
               <Label>Kit image</Label>
@@ -675,7 +744,13 @@ export default function AdminHealthKits() {
                     <div className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded bg-white p-1">
                       {line.imageUrl ? <img src={line.imageUrl} alt="" className="h-full w-full object-contain" /> : <Package className="size-4 text-muted-foreground" />}
                     </div>
-                    <div className="min-w-0 flex-1"><p className="truncate text-xs font-medium">{line.name}</p><p className="text-[10px] text-muted-foreground">{line.packSize}</p></div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-xs font-medium">{line.name}</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {line.packSize} · {formatCurrency(line.effectivePrice)} × {line.quantity} = {formatCurrency(line.effectivePrice * line.quantity)}
+                        {line.mrp > line.effectivePrice && <span className="ml-1 line-through">{formatCurrency(line.mrp * line.quantity)}</span>}
+                      </p>
+                    </div>
                     <div className="flex items-center rounded-full border bg-background">
                       <button type="button" className="flex size-7 items-center justify-center" onClick={() => changeQuantity(line.productId, -1)}><Minus className="size-3" /></button>
                       <span className="w-5 text-center text-xs font-semibold">{line.quantity}</span>
@@ -701,7 +776,14 @@ export default function AdminHealthKits() {
                     <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded bg-white p-0.5">
                       {product.imageUrl ? <img src={product.imageUrl} alt="" className="h-full w-full object-contain" /> : <Package className="size-3.5 text-muted-foreground" />}
                     </div>
-                    <div className="min-w-0 flex-1"><p className="truncate text-xs font-medium">{product.name}</p><p className="text-[10px] text-muted-foreground">{product.packSize} · {formatCurrency(product.price)} · {product.stockQuantity} in stock</p></div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-xs font-medium">{product.name}</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {product.packSize} · {formatCurrency(product.effectivePrice ?? product.price)}
+                        {product.mrp > (product.effectivePrice ?? product.price) && <span className="ml-1 line-through">{formatCurrency(product.mrp)}</span>}
+                        {" "}· {product.stockQuantity} in stock
+                      </p>
+                    </div>
                     {selectedIds.has(product._id) ? <Check className="size-3.5 text-primary" /> : <Plus className="size-3.5 text-muted-foreground" />}
                   </button>
                 ))
@@ -713,6 +795,78 @@ export default function AdminHealthKits() {
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
             <Button onClick={submit} disabled={saving}>{saving && <Loader2 className="size-4 animate-spin" />}{form.productId ? "Save changes" : "Create kit"}</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!availabilityTarget} onOpenChange={(open) => !open && setAvailabilityTarget(null)}>
+        <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Available Kits · {availabilityTarget?.name}</DialogTitle>
+          </DialogHeader>
+          {availabilityTarget && (
+            <>
+              <div className="rounded-xl border bg-muted/20 p-3">
+                <div className="flex items-baseline justify-between gap-3">
+                  <p className="text-sm font-semibold">Complete kits fulfillable now</p>
+                  <p className={`text-2xl font-bold ${availabilityTarget.available ? "text-emerald-700" : "text-destructive"}`}>
+                    {availabilityTarget.maxQuantity}
+                  </p>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Minimum of floor(current stock ÷ quantity required per kit) across every included product. Stock already reflects reserved units.
+                </p>
+                {!availabilityTarget.available && availabilityTarget.unavailableReason && (
+                  <p className="mt-2 text-xs font-medium text-destructive">{availabilityTarget.unavailableReason}</p>
+                )}
+              </div>
+              <div className="overflow-x-auto rounded-xl border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Included product</TableHead>
+                      <TableHead>Stock</TableHead>
+                      <TableHead>Per kit</TableHead>
+                      <TableHead>Kits supported</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {(availabilityTarget.components ?? []).map((line: any) => {
+                      const limiting = line.availableKits === availabilityTarget.maxQuantity;
+                      return (
+                        <TableRow key={line.productId} className={limiting ? "bg-amber-50/60" : ""}>
+                          <TableCell>
+                            <div className="flex min-w-[170px] items-center gap-2">
+                              <div className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded border bg-white p-0.5">
+                                {line.imageUrl ? <img src={line.imageUrl} alt="" className="h-full w-full object-contain" /> : <Package className="size-3.5 text-muted-foreground" />}
+                              </div>
+                              <div>
+                                <p className="text-xs font-medium">{line.name}</p>
+                                <p className="text-[10px] text-muted-foreground">{line.packSize}</p>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-sm">{line.stockQuantity}</TableCell>
+                          <TableCell className="text-sm">{line.quantity}</TableCell>
+                          <TableCell className={`text-sm font-semibold ${limiting ? "text-amber-700" : ""}`}>{line.availableKits}</TableCell>
+                          <TableCell>
+                            {line.availableKits <= 0 ? (
+                              <Badge variant="destructive">Unavailable</Badge>
+                            ) : limiting ? (
+                              <Badge variant="secondary" className="bg-amber-100 text-amber-800">Limiting item</Badge>
+                            ) : (
+                              <Badge variant="secondary">OK</Badge>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
+          )}
+          <DialogFooter><Button variant="outline" onClick={() => setAvailabilityTarget(null)}>Close</Button></DialogFooter>
         </DialogContent>
       </Dialog>
 

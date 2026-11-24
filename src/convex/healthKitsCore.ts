@@ -40,7 +40,9 @@ export type HealthKitAvailability = {
 export function kitSellingPrice(
   kit: Pick<Doc<"products">, "price" | "discountPrice">,
 ): number {
-  return kit.discountPrice !== undefined && kit.discountPrice < kit.price
+  return kit.discountPrice !== undefined &&
+    kit.discountPrice > 0 &&
+    kit.discountPrice < kit.price
     ? kit.discountPrice
     : kit.price;
 }
@@ -194,10 +196,9 @@ export async function resolveHealthKitPricing(
   const productSavings = roundMoney(
     Math.max(0, catalogueMrp - effectiveCatalogueValue),
   );
-  const kitDiscountAmount =
-    mode === "auto"
-      ? roundMoney(Math.max(0, effectiveCatalogueValue - sellingPrice))
-      : roundMoney(Math.max(0, effectiveCatalogueValue - sellingPrice));
+  const kitDiscountAmount = roundMoney(
+    Math.max(0, effectiveCatalogueValue - sellingPrice),
+  );
   const savings = roundMoney(Math.max(0, catalogueMrp - sellingPrice));
   const discountPercent = catalogueMrp > 0
     ? Math.round((savings / catalogueMrp) * 100)
@@ -225,6 +226,34 @@ export function autoKitPriceFor(
   return computeAutoKitPrice(effectiveCatalogueValue, kitDiscountPercent);
 }
 
+/**
+ * Make a stored/customer selection safe against a kit the admin has since
+ * edited: unknown products are ignored, removed products stay removed, new
+ * products default to removed, and quantities are clamped to the current
+ * configured quantity. This keeps old cart lines from breaking the cart, while
+ * every quota and price is still recalculated authoritatively.
+ */
+function sanitizeKitSelection(
+  kit: Doc<"products">,
+  selection: KitSelectionLine[] | undefined,
+): KitSelectionLine[] | undefined {
+  if (!selection || !kit.healthKit) return selection;
+  const chosen = new Map<string, number>();
+  for (const line of selection) {
+    const productId = String(line.productId);
+    const quantity = Number(line.quantity);
+    if (!productId || !Number.isFinite(quantity)) continue;
+    chosen.set(productId, Math.max(0, Math.floor(quantity)));
+  }
+  return kit.healthKit.components.map((component) => ({
+    productId: component.productId as string,
+    quantity: Math.min(
+      component.quantity,
+      Math.max(0, chosen.get(component.productId as string) ?? 0),
+    ),
+  }));
+}
+
 /** Authoritative per-kit quote used by the kit page, cart, checkout and orders. */
 export async function getHealthKitQuote(
   db: any,
@@ -238,10 +267,11 @@ export async function getHealthKitQuote(
 }) | null> {
   if (!kit.healthKit || !kit.isActive) return null;
   const pricing = await resolveHealthKitPricing(db, kit, now);
+  const safeSelection = sanitizeKitSelection(kit, selection);
   const quote = buildCustomKitQuote({
     components: pricing.components,
     basePrice: pricing.sellingPrice,
-    selection,
+    selection: safeSelection,
     baseCatalogueMrp: pricing.catalogueMrp,
     baseEffectiveCatalogueValue: pricing.effectiveCatalogueValue,
   });

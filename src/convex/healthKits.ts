@@ -224,6 +224,7 @@ export const getBySlug = query({
           mrp: line.mrp,
           effectiveUnitPrice: line.effectiveUnitPrice,
           expiryDate: line.expiryDate,
+          isActive: line.isActive,
           inStock: availabilityLine?.inStock ?? false,
           availableKits: availabilityLine?.availableKits ?? 0,
         };
@@ -269,9 +270,9 @@ export const getQuote = query({
         imageUrl: product.imageUrl ?? null,
       },
       quote: result.quote,
-      available: result.availability.available,
-      maxQuantity: result.availability.maxQuantity,
-      unavailableReason: result.availability.unavailableReason,
+      available: result.quote.available,
+      maxQuantity: result.quote.maxQuantity,
+      unavailableReason: result.quote.unavailableReason,
     };
   },
 });

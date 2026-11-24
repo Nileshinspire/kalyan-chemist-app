@@ -294,6 +294,9 @@ export default function Cart() {
               {cartItems.map((item) => {
                 const product = item.product;
                 if (!product) return null;
+                const kitQuote = (item as any).kitQuote;
+                const isKit = Boolean((product as any).healthKit);
+                const productPath = isKit ? `/health-kits/${product.slug}` : `/products/${product.slug}`;
                 const hasDiscount = product.discountPrice && product.discountPrice < product.price;
                 const unitPrice = hasDiscount ? product.discountPrice! : product.price;
                 const itemTotal = unitPrice * item.quantity;
@@ -317,10 +320,14 @@ export default function Cart() {
                           className="shrink-0 w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-gradient-to-br from-primary/[0.04] to-primary/[0.01] flex items-center justify-center cursor-pointer"
                           onClick={() => {
                             beginProductTransition();
-                            navigate(`/products/${product.slug}`);
+                            navigate(productPath);
                           }}
                         >
-                          <Pill className="size-8 text-primary/20" />
+                          {product.imageUrl ? (
+                            <img src={product.imageUrl} alt={product.name} className="h-full w-full object-contain p-1" />
+                          ) : (
+                            <Pill className="size-8 text-primary/20" />
+                          )}
                         </div>
 
                         {/* Info */}
@@ -331,14 +338,29 @@ export default function Cart() {
                                 className="text-sm font-semibold truncate hover:text-primary cursor-pointer transition-colors"
                                 onClick={() => {
                             beginProductTransition();
-                            navigate(`/products/${product.slug}`);
+                            navigate(productPath);
                           }}
                               >
                                 {product.name}
                               </h3>
-                              <p className="text-xs text-muted-foreground">{product.manufacturer}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {isKit ? "Health kit" : product.manufacturer}
+                              </p>
+                              {kitQuote?.isCustomized && (
+                                <Badge variant="secondary" className="mt-1 bg-primary/10 text-[9px] text-primary">
+                                  Customized kit
+                                </Badge>
+                              )}
                               {product.prescriptionRequired && (
                                 <Badge variant="destructive" className="text-[10px] mt-1">Rx</Badge>
+                              )}
+                              {kitQuote?.isCustomized && (
+                                <p className="mt-1 line-clamp-2 text-[10px] leading-relaxed text-muted-foreground">
+                                  {kitQuote.components
+                                    .filter((line: any) => line.selectedQuantity > 0)
+                                    .map((line: any) => `${line.name} × ${line.selectedQuantity}`)
+                                    .join(" · ")}
+                                </p>
                               )}
                             </div>
                             <Button
@@ -380,6 +402,9 @@ export default function Cart() {
                               {hasDiscount && (
                                 <p className="text-xs text-muted-foreground">
                                   {formatCurrency(unitPrice)} × {item.quantity}
+                                  {kitQuote?.isCustomized && (
+                                    <span className="block text-[10px] text-primary">Customized price</span>
+                                  )}
                                 </p>
                               )}
                             </div>

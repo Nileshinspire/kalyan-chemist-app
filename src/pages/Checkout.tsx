@@ -46,6 +46,7 @@ import { computeDeliveryFee } from "@/lib/deliveryFee";
 import { toast } from "sonner";
 import { openStoreWhatsApp } from "@/lib/whatsappConfig";
 import { loadRazorpayScript } from "@/lib/razorpay";
+import { parseKitSelection } from "@/lib/healthKitQuote";
 import { CheckCircle2 as CheckCircle, XCircle } from "lucide-react";
 import type { RazorpayResponse } from "@/types/global";
 
@@ -104,15 +105,55 @@ export default function Checkout() {
     api.products.getById,
     isBuyNow && buyNowProductId ? { productId: buyNowProductId as any } : "skip"
   );
+  const buyNowKitSelection = useMemo(
+    () => parseKitSelection(searchParams.get("kitSelection")),
+    [searchParams],
+  );
+  const buyNowKitQuote = useQuery(
+    api.healthKits.getQuote,
+    isBuyNow && buyNowProductId
+      ? {
+          productId: buyNowProductId as any,
+          ...(buyNowKitSelection.length > 0
+            ? { selection: buyNowKitSelection.map((line) => ({ ...line, productId: line.productId as any })) }
+            : {}),
+        }
+      : "skip",
+  );
+  const buyNowQuantity = useMemo(() => {
+    const requested = Number(searchParams.get("qty") || 1);
+    const safe = Number.isInteger(requested) && requested > 0 ? requested : 1;
+    const max = buyNowKitQuote?.quote.available
+      ? Math.max(1, buyNowKitQuote.quote.maxQuantity)
+      : safe;
+    return Math.min(safe, max);
+  }, [searchParams, buyNowKitQuote]);
 
   const cartItemsRaw = useQuery(api.cart.list);
-  // In buyNow mode, create a synthetic cart item from the product
+  // In buyNow mode, create a synthetic cart item from the product. A kit's
+  // price comes from the server quote for the exact selected composition.
   const cartItems = useMemo(() => {
     if (isBuyNow && buyNowProduct) {
-      return [{ _id: "buynow" as any, productId: buyNowProduct._id, quantity: 1, product: buyNowProduct }];
+      const quote = buyNowKitQuote?.quote;
+      const product = quote
+        ? {
+            ...buyNowProduct,
+            price: quote.selectedMrp,
+            discountPrice:
+              quote.customizedPrice < quote.selectedMrp ? quote.customizedPrice : undefined,
+            stockQuantity: quote.maxQuantity,
+          }
+        : buyNowProduct;
+      return [{
+        _id: "buynow" as any,
+        productId: buyNowProduct._id,
+        quantity: buyNowQuantity,
+        product,
+        kitQuote: quote ?? null,
+      }];
     }
     return cartItemsRaw;
-  }, [isBuyNow, buyNowProduct, cartItemsRaw]);
+  }, [isBuyNow, buyNowProduct, buyNowKitQuote, buyNowQuantity, cartItemsRaw]);
 
   const addresses = useQuery(api.addresses.list);
   const familyMembers = useQuery(api.familyHealth.list);
@@ -513,7 +554,15 @@ export default function Checkout() {
       if (isBuyNow && buyNowProduct) {
         result = await createDirectOrder({
           productId: buyNowProduct._id,
-          quantity: 1,
+          quantity: buyNowQuantity,
+          ...(buyNowKitSelection.length > 0
+            ? {
+                kitSelection: buyNowKitSelection.map((line) => ({
+                  productId: line.productId as any,
+                  quantity: line.quantity,
+                })),
+              }
+            : {}),
           shippingAddress: addressToString(selectedAddress),
           addressId: selectedAddressId as any,
           phone: selectedAddress.phone,
@@ -1163,6 +1212,29 @@ export default function Checkout() {
             <Card className="border-border/60">
               <CardContent className="p-6 space-y-4">
                 <h3 className="font-bold text-foreground">Order Details</h3>
+
+                {(cartItems ?? []).some((item: any) => item.kitQuote?.isCustomized) && (
+                  <div className="space-y-2 rounded-xl border border-primary/20 bg-primary/[0.03] p-3">
+                    {(cartItems ?? [])
+                      .filter((item: any) => item.kitQuote?.isCustomized)
+                      .map((item: any) => (
+                        <div key={item._id}>
+                          <p className="text-xs font-semibold text-primary">
+                            Customized kit · {item.product?.name}
+                          </p>
+                          <p className="mt-1 text-[10.5px] leading-relaxed text-muted-foreground">
+                            {item.kitQuote.components
+                              .filter((line: any) => line.selectedQuantity > 0)
+                              .map((line: any) => `${line.name} × ${line.selectedQuantity}`)
+                              .join(" · ")}
+                          </p>
+                          <p className="mt-1 text-[10px] text-muted-foreground">
+                            Original {formatCurrency(item.kitQuote.basePrice)} · customized {formatCurrency(item.kitQuote.customizedPrice)}
+                          </p>
+                        </div>
+                      ))}
+                  </div>
+                )}
 
                 <div className="space-y-2.5 text-sm">
                   <div className="flex justify-between">

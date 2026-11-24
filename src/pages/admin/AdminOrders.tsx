@@ -997,6 +997,13 @@ export default function AdminOrders() {
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium truncate">{item.name}</p>
                           <p className="text-xs text-muted-foreground">Qty: {item.quantity} × {formatCurrency(item.price)}</p>
+                          {item.kitCustomization && (
+                            <p className="mt-0.5 text-[10px] leading-relaxed text-primary/80">
+                              Customized: {item.kitCustomization.items
+                                .map((line: any) => `${line.name} × ${line.quantity}`)
+                                .join(" · ")}
+                            </p>
+                          )}
                         </div>
                         <p className="text-sm font-semibold">{formatCurrency(item.price * item.quantity)}</p>
                       </div>
