@@ -433,17 +433,17 @@ export default function AdminHealthKits() {
                 type="button"
                 aria-pressed={active}
                 onClick={() => setView(stat.key)}
-                className={`text-left transition-all ${active ? "scale-[1.01]" : "hover:-translate-y-0.5"}`}
+                className={`text-left transition-all duration-200 ${active ? "scale-[1.01]" : "hover:-translate-y-0.5"}`}
               >
                 <Card className={active ? "border-primary/60 ring-1 ring-primary/20" : "border-border/60 hover:border-primary/30"}>
-                  <CardContent className="flex items-center gap-3 pt-5">
-                    <div className={`flex size-10 items-center justify-center rounded-xl ${active ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
-                      <Icon className="size-5" />
+                  <CardContent className="flex items-center gap-3 pt-4">
+                    <div className={`flex size-9 items-center justify-center rounded-xl ${active ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
+                      <Icon className="size-4.5" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-xs text-muted-foreground">{stat.label}</p>
-                      <p className="mt-0.5 text-2xl font-bold">{kits === undefined ? "—" : stat.value}</p>
-                      <p className="text-[10px] text-muted-foreground">{stat.description}</p>
+                      <p className="text-[10px] text-muted-foreground">{stat.label}</p>
+                      <p className="mt-0.5 text-xl font-bold">{kits === undefined ? "—" : stat.value}</p>
+                      <p className="text-[9px] text-muted-foreground">{stat.description}</p>
                     </div>
                   </CardContent>
                 </Card>

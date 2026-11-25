@@ -768,86 +768,7 @@ export default function AdminHealthcareDevices() {
               </span>
             </div>
 
-        {/* Add Category Sheet */}
-        <Sheet open={showAddCategory} onOpenChange={(open) => {
-          setShowAddCategory(open);
-          if (!open) {
-            // Reset form when closing
-            setNewCatName("");
-            setNewCatSlug("");
-            setNewCatDesc("");
-            setCreatingCategory(false);
-          }
-        }}>
-          <SheetContent className="w-full sm:max-w-md p-6">
-            <SheetHeader>
-              <SheetTitle className="text-xl font-bold">Add Device Category</SheetTitle>
-            </SheetHeader>
-            <div className="mt-6 space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Create a new category for medical devices. It will use the existing category system and appear
-                immediately in the grid above. Products added to this category will show on the customer
-                homepage under Healthcare Devices.
-              </p>
-              <div className="space-y-2">
-                <Label>Category Name *</Label>
-                <Input
-                  value={newCatName}
-                  onChange={(e) => setNewCatName(e.target.value)}
-                  onInput={(e) => {
-                    const val = (e.target as HTMLInputElement).value;
-                    setNewCatName(val);
-                    if (!newCatSlug || slugify(newCatName) !== newCatSlug) {
-                      setNewCatSlug(slugify(val));
-                    }
-                  }}
-                  placeholder="e.g. ECG Machines"
-                  autoFocus
-                />
-                <p className="text-[11px] text-muted-foreground">The slug is auto-generated from the name. You can edit it below.</p>
-              </div>
-              <div className="space-y-2">
-                <Label>Slug *</Label>
-                <Input
-                  value={newCatSlug}
-                  onChange={(e) => setNewCatSlug(e.target.value)}
-                  placeholder="auto-generated"
-                />
-                <p className="text-[11px] text-muted-foreground">Lowercase, hyphen-separated. Must be unique across all categories.</p>
-              </div>
-              <div className="space-y-2">
-                <Label>Short Description</Label>
-                <Input
-                  value={newCatDesc}
-                  onChange={(e) => setNewCatDesc(e.target.value)}
-                  placeholder="e.g. ECG machines for home and clinical use"
-                />
-              </div>
-              <div className="flex items-center gap-4 pt-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowAddCategory(false)}
-                  className="flex-1"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleCreateCategory}
-                  disabled={!newCatName.trim() || !newCatSlug.trim() || creatingCategory}
-                  className="flex-1 gradient-primary text-white"
-                >
-                  {creatingCategory ? (
-                    <><Loader2 className="mr-2 size-4 animate-spin" /> Creating...</>
-                  ) : (
-                    <><Plus className="mr-2 size-4" /> Create Category</>
-                  )}
-                </Button>
-              </div>
-            </div>
-          </SheetContent>
-        </Sheet>
-        {/* Delete Confirmation */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-4">
+            <div className="grid gap-4 py-4">
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label>Name *</Label>
@@ -1049,20 +970,124 @@ export default function AdminHealthcareDevices() {
           </DialogContent>
         </Dialog>
 
-        {/* Delete Confirmation */}
-        <Dialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
-          <DialogContent className="max-w-sm">
-            <DialogHeader>
-              <DialogTitle>Delete Device</DialogTitle>
-            </DialogHeader>
-            <p className="text-sm text-muted-foreground">Are you sure? This action cannot be undone.</p>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setDeleteConfirm(null)}>Cancel</Button>
-              <Button variant="destructive" onClick={() => deleteConfirm && handleDelete(deleteConfirm)}>Delete</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
-    </AdminLayout>
-  );
+      {/* ── Add Category Sheet (outside the Device Dialog) ── */}
+      <Sheet
+        open={showAddCategory}
+        onOpenChange={(open) => {
+          setShowAddCategory(open);
+          if (!open) {
+            setNewCatName("");
+            setNewCatSlug("");
+            setNewCatDesc("");
+            setCreatingCategory(false);
+          }
+        }}
+      >
+        <SheetContent className="w-full sm:max-w-md p-6">
+          <SheetHeader>
+            <SheetTitle className="text-xl font-bold">Add Device Category</SheetTitle>
+          </SheetHeader>
+          <div className="mt-5 space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Create a new category for medical devices. It will use the existing category system and appear
+              immediately in the grid above. Products added to this category will show on the customer
+              homepage under Healthcare Devices.
+            </p>
+            <div className="space-y-2">
+              <Label>Category Name *</Label>
+              <Input
+                value={newCatName}
+                onChange={(e) => setNewCatName(e.target.value)}
+                onInput={(e) => {
+                  const val = (e.target as HTMLInputElement).value;
+                  setNewCatName(val);
+                  if (!newCatSlug || slugify(newCatName) !== newCatSlug) {
+                    setNewCatSlug(slugify(val));
+                  }
+                }}
+                placeholder="e.g. ECG Machines"
+                autoFocus
+              />
+              <p className="text-[11px] text-muted-foreground">
+                The slug is auto-generated from the name. You can edit it below.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label>Slug *</Label>
+              <Input
+                value={newCatSlug}
+                onChange={(e) => setNewCatSlug(e.target.value)}
+                placeholder="auto-generated"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Lowercase, hyphen-separated. Must be unique across all categories.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label>Short Description</Label>
+              <Input
+                value={newCatDesc}
+                onChange={(e) => setNewCatDesc(e.target.value)}
+                placeholder="e.g. ECG machines for home and clinical use"
+              />
+            </div>
+            <div className="flex items-center gap-3 pt-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowAddCategory(false)}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleCreateCategory}
+                disabled={!newCatName.trim() || !newCatSlug.trim() || creatingCategory}
+                className="flex-1 gradient-primary text-white"
+              >
+                {creatingCategory ? (
+                  <>
+                    <Loader2 className="mr-2 size-4 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  <>
+                    <Plus className="mr-2 size-4" />
+                    Create Category
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* ── Delete Confirmation Dialog ── */}
+      <Dialog
+        open={!!deleteConfirm}
+        onOpenChange={() => setDeleteConfirm(null)}
+      >
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Delete Device</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Are you sure? This action cannot be undone.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirm(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => deleteConfirm && handleDelete(deleteConfirm)}
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  </AdminLayout>
+);
 }
+
