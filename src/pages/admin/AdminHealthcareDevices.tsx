@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import AdminLayout from "@/components/admin/AdminLayout";
@@ -29,6 +29,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import {
@@ -40,8 +47,8 @@ import {
   X,
   Wand2,
   Activity,
-  ArrowLeft,
   Eye,
+  Tag,
 } from "lucide-react";
 import { useNavigate } from "react-router";
 
@@ -252,9 +259,32 @@ export default function AdminHealthcareDevices() {
   const [creatingCategory, setCreatingCategory] = useState(false);
   const [deviceCategorySlugs, setDeviceCategorySlugs] = useState<Set<string>>(BASE_DEVICE_SLUGS);
 
+  const createCategory = useMutation(api.adminCategories.create);
+
   const categories = useQuery(api.adminCategories.list, {});
   const hierarchicalCategories = useQuery(api.adminCategories.listHierarchical);
   const brands = useQuery(api.adminBrands.list, { isActive: true });
+
+  // Build the dynamic list of device categories: base 6 + any added via Add Category
+  const filteredDeviceCategories = useMemo(() => {
+    if (!categories) return BASE_DEVICE_CATEGORIES.map((c) => ({ _id: "", name: c.name, slug: c.slug }));
+    const result: Array<{ _id: string; name: string; slug: string }> = [];
+    for (const base of BASE_DEVICE_CATEGORIES) {
+      const live = categories.find((c: any) => c.slug === base.slug);
+      if (live) {
+        result.push({ _id: live._id, name: live.name, slug: live.slug });
+      } else {
+        result.push({ _id: "", name: base.name, slug: base.slug });
+      }
+    }
+    // Add any extra categories that were created via Add Category on this page
+    for (const cat of categories) {
+      if (!BASE_DEVICE_SLUGS.has(cat.slug) && deviceCategorySlugs.has(cat.slug) && cat.isActive) {
+        result.push({ _id: cat._id, name: cat.name, slug: cat.slug });
+      }
+    }
+    return result;
+  }, [categories, deviceCategorySlugs]);
 
   // The selected device category object (real category from the shared system)
   const selectedCategory =
@@ -279,10 +309,18 @@ export default function AdminHealthcareDevices() {
 
   // Keep the selection valid once categories load (defaults to BP Monitors)
   useEffect(() => {
-    if (categories && !DEVICE_SLUGS.has(selectedSlug)) {
-      setSelectedSlug(DEVICE_CATEGORIES[0].slug);
+    if (categories && !deviceCategorySlugs.has(selectedSlug)) {
+      setSelectedSlug(BASE_DEVICE_CATEGORIES[0].slug);
     }
-  }, [categories, selectedSlug]);
+  }, [categories, selectedSlug, deviceCategorySlugs]);
+
+  const openAddCategory = () => {
+    setNewCatName("");
+    setNewCatSlug("");
+    setNewCatDesc("");
+    setCreatingCategory(false);
+    setShowAddCategory(true);
+  };
 
   const openCreate = () => {
     if (!selectedCategory) return;
@@ -385,6 +423,30 @@ export default function AdminHealthcareDevices() {
       setDeleteConfirm(null);
     } catch (error: any) {
       toast.error(error.message || "Failed to delete device");
+    }
+  };
+
+  const handleCreateCategory = async () => {
+    if (!newCatName.trim() || !newCatSlug.trim()) {
+      toast.error("Category name and slug are required");
+      return;
+    }
+    setCreatingCategory(true);
+    try {
+      await createCategory({
+        name: newCatName.trim(),
+        slug: newCatSlug.trim().toLowerCase(),
+        description: newCatDesc.trim() || undefined,
+        sortOrder: (categories?.length ?? 0) + 1,
+      });
+      toast.success(`Category "${newCatName.trim()}" created successfully`);
+      setShowAddCategory(false);
+      // Add the new slug to our tracking set so it appears in the grid
+      setDeviceCategorySlugs((prev) => new Set([...prev, newCatSlug.trim().toLowerCase()]));
+    } catch (error: any) {
+      toast.error(error.message || "Failed to create category");
+    } finally {
+      setCreatingCategory(false);
     }
   };
 
@@ -553,21 +615,24 @@ export default function AdminHealthcareDevices() {
             <Button variant="outline" onClick={() => navigate("/")} className="gap-1.5">
               <Eye className="size-4" /> View Store Section
             </Button>
+            <Button onClick={openAddCategory} variant="outline" className="gap-1.5">
+              <Tag className="mr-2 size-4" /> Add Category
+            </Button>
             <Button onClick={openCreate} disabled={!selectedCategory} className="gradient-primary text-white shadow-glow">
               <Plus className="mr-2 size-4" /> Add Device
             </Button>
           </div>
         </motion.div>
 
-        {/* Device category picker */}
+        {/* Device category picker — responsive grid */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-          {DEVICE_CATEGORIES.map((cat) => {
+          {filteredDeviceCategories.map((cat) => {
             const live = categories?.find((c: any) => c.slug === cat.slug);
             const count = live?.productCount ?? 0;
             const isSelected = selectedSlug === cat.slug;
             return (
               <button
-                key={cat._id}
+                key={cat._id || cat.slug}
                 type="button"
                 onClick={() => setSelectedSlug(cat.slug)}
                 className={`group flex flex-col items-center rounded-xl border p-4 text-center transition-all duration-300 cursor-pointer ${
@@ -704,7 +769,16 @@ export default function AdminHealthcareDevices() {
             </div>
 
         {/* Add Category Sheet */}
-        <Sheet open={showAddCategory} onOpenChange={setShowAddCategory}>
+        <Sheet open={showAddCategory} onOpenChange={(open) => {
+          setShowAddCategory(open);
+          if (!open) {
+            // Reset form when closing
+            setNewCatName("");
+            setNewCatSlug("");
+            setNewCatDesc("");
+            setCreatingCategory(false);
+          }
+        }}>
           <SheetContent className="w-full sm:max-w-md p-6">
             <SheetHeader>
               <SheetTitle className="text-xl font-bold">Add Device Category</SheetTitle>
@@ -752,7 +826,7 @@ export default function AdminHealthcareDevices() {
               <div className="flex items-center gap-4 pt-2">
                 <Button
                   variant="outline"
-                  onClick={() => { setShowAddCategory(false); resetCategoryForm(); }}
+                  onClick={() => setShowAddCategory(false)}
                   className="flex-1"
                 >
                   Cancel
@@ -991,9 +1065,4 @@ export default function AdminHealthcareDevices() {
       </div>
     </AdminLayout>
   );
-}
-
-function resetCategoryForm() {
-  // This is called from the Sheet's onOpenChange; we use a simple approach
-  // via the component state setters directly in the component.
 }
