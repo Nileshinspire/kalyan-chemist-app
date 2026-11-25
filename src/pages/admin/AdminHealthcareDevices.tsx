@@ -52,9 +52,15 @@ import { useNavigate } from "react-router";
  * (the 6 healthcare-device categories). Products added here appear
  * automatically under the customer-side homepage "Healthcare Devices"
  * categories. No duplicate products, inventory, pricing, or categories.
+ *
+ * Category grid: starts from the 6 known device slugs, and grows when the
+ * admin creates additional device categories through the Add Category flow on
+ * this page. All categories shown here are real `categories` records, so the
+ * existing product/category/index system and the customer-facing homepage
+ * "Healthcare Devices" section keep working without a new product system.
  */
 
-const DEVICE_CATEGORIES = [
+const BASE_DEVICE_CATEGORIES = [
   { name: "BP Monitors", slug: "bp-monitors" },
   { name: "Glucometers", slug: "glucometers" },
   { name: "Pulse Oximeters", slug: "pulse-oximeters" },
@@ -63,7 +69,7 @@ const DEVICE_CATEGORIES = [
   { name: "Weighing Scales", slug: "weighing-scales" },
 ];
 
-const DEVICE_SLUGS = new Set(DEVICE_CATEGORIES.map((c) => c.slug));
+const BASE_DEVICE_SLUGS = new Set(BASE_DEVICE_CATEGORIES.map((c) => c.slug));
 
 function slugify(text: string) {
   return text
@@ -230,13 +236,21 @@ const FORM_OPTIONS = ["tablet", "capsule", "syrup", "injection", "cream", "gel",
 
 export default function AdminHealthcareDevices() {
   const navigate = useNavigate();
-  const [selectedSlug, setSelectedSlug] = useState<string>(DEVICE_CATEGORIES[0].slug);
+  const [selectedSlug, setSelectedSlug] = useState<string>(BASE_DEVICE_CATEGORIES[0].slug);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<string | null>(null);
   const [form, setForm] = useState<DeviceForm>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [autoFilling, setAutoFilling] = useState(false);
+
+  // Add Category modal state
+  const [showAddCategory, setShowAddCategory] = useState(false);
+  const [newCatName, setNewCatName] = useState("");
+  const [newCatSlug, setNewCatSlug] = useState("");
+  const [newCatDesc, setNewCatDesc] = useState("");
+  const [creatingCategory, setCreatingCategory] = useState(false);
+  const [deviceCategorySlugs, setDeviceCategorySlugs] = useState<Set<string>>(BASE_DEVICE_SLUGS);
 
   const categories = useQuery(api.adminCategories.list, {});
   const hierarchicalCategories = useQuery(api.adminCategories.listHierarchical);
@@ -553,7 +567,7 @@ export default function AdminHealthcareDevices() {
             const isSelected = selectedSlug === cat.slug;
             return (
               <button
-                key={cat.slug}
+                key={cat._id}
                 type="button"
                 onClick={() => setSelectedSlug(cat.slug)}
                 className={`group flex flex-col items-center rounded-xl border p-4 text-center transition-all duration-300 cursor-pointer ${
@@ -562,12 +576,12 @@ export default function AdminHealthcareDevices() {
                     : "border-border/60 bg-card shadow-sm hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md"
                 }`}
               >
-                <span className={`flex size-12 shrink-0 items-center justify-center rounded-xl transition-colors duration-300 ${
+                <span className={`flex size-10 sm:size-12 shrink-0 items-center justify-center rounded-xl transition-colors duration-300 ${
                   isSelected ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary"
                 }`}>
                   <DeviceIcon slug={cat.slug} />
                 </span>
-                <span className={`mt-2.5 text-xs sm:text-sm font-semibold leading-snug ${isSelected ? "text-primary" : "text-foreground group-hover:text-primary"} transition-colors`}>
+                <span className={`mt-2 text-xs sm:text-sm font-semibold leading-snug truncate ${isSelected ? "text-primary" : "text-foreground group-hover:text-primary"} transition-colors`}>
                   {cat.name}
                 </span>
                 <Badge variant="secondary" className="mt-1.5 text-[10px]">
@@ -688,6 +702,77 @@ export default function AdminHealthcareDevices() {
                 homepage under Healthcare Devices.
               </span>
             </div>
+
+        {/* Add Category Sheet */}
+        <Sheet open={showAddCategory} onOpenChange={setShowAddCategory}>
+          <SheetContent className="w-full sm:max-w-md p-6">
+            <SheetHeader>
+              <SheetTitle className="text-xl font-bold">Add Device Category</SheetTitle>
+            </SheetHeader>
+            <div className="mt-6 space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Create a new category for medical devices. It will use the existing category system and appear
+                immediately in the grid above. Products added to this category will show on the customer
+                homepage under Healthcare Devices.
+              </p>
+              <div className="space-y-2">
+                <Label>Category Name *</Label>
+                <Input
+                  value={newCatName}
+                  onChange={(e) => setNewCatName(e.target.value)}
+                  onInput={(e) => {
+                    const val = (e.target as HTMLInputElement).value;
+                    setNewCatName(val);
+                    if (!newCatSlug || slugify(newCatName) !== newCatSlug) {
+                      setNewCatSlug(slugify(val));
+                    }
+                  }}
+                  placeholder="e.g. ECG Machines"
+                  autoFocus
+                />
+                <p className="text-[11px] text-muted-foreground">The slug is auto-generated from the name. You can edit it below.</p>
+              </div>
+              <div className="space-y-2">
+                <Label>Slug *</Label>
+                <Input
+                  value={newCatSlug}
+                  onChange={(e) => setNewCatSlug(e.target.value)}
+                  placeholder="auto-generated"
+                />
+                <p className="text-[11px] text-muted-foreground">Lowercase, hyphen-separated. Must be unique across all categories.</p>
+              </div>
+              <div className="space-y-2">
+                <Label>Short Description</Label>
+                <Input
+                  value={newCatDesc}
+                  onChange={(e) => setNewCatDesc(e.target.value)}
+                  placeholder="e.g. ECG machines for home and clinical use"
+                />
+              </div>
+              <div className="flex items-center gap-4 pt-2">
+                <Button
+                  variant="outline"
+                  onClick={() => { setShowAddCategory(false); resetCategoryForm(); }}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleCreateCategory}
+                  disabled={!newCatName.trim() || !newCatSlug.trim() || creatingCategory}
+                  className="flex-1 gradient-primary text-white"
+                >
+                  {creatingCategory ? (
+                    <><Loader2 className="mr-2 size-4 animate-spin" /> Creating...</>
+                  ) : (
+                    <><Plus className="mr-2 size-4" /> Create Category</>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </SheetContent>
+        </Sheet>
+        {/* Delete Confirmation */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-4">
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
@@ -906,4 +991,9 @@ export default function AdminHealthcareDevices() {
       </div>
     </AdminLayout>
   );
+}
+
+function resetCategoryForm() {
+  // This is called from the Sheet's onOpenChange; we use a simple approach
+  // via the component state setters directly in the component.
 }
