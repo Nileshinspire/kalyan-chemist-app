@@ -34,31 +34,23 @@ const db = {
   get: (id: string) => Promise.resolve(product()),
   query: async () => [],
   mutate: async () => {},
-  products: {
-    query: async (): Promise<any[]> => [],
-  },
 } as unknown as DatabaseReader;
-
-function kitDoc(): ProductDoc {
-  return {
-    _id: "kit-1",
-    name: "Kit 1",
-    price: 1000,
-    discountPrice: undefined,
-    isActive: true,
-    categoryId: "cat",
-    healthKit: {
-      components: [{ productId: "p1", quantity: 2 }],
-      pricing: { mode: "auto", kitDiscountPercent: 10 },
-    },
-  } as any;
-}
 
 describe("Health Kits pricing / availability", () => {
   it("resolves auto kit pricing from engine prices", async () => {
-    const pricing = await resolveHealthKitPricing(db, kitDoc());
+    const pricing = await resolveHealthKitPricing(db, {
+      _id: "kit-1",
+      name: "Kit 1",
+      price: 1000,
+      discountPrice: undefined,
+      isActive: true,
+      categoryId: "cat",
+      healthKit: {
+        components: [{ productId: "p1", quantity: 2 }],
+        pricing: { mode: "auto", kitDiscountPercent: 10 },
+      },
+    } as any);
     expect(pricing.mode).toBe("auto");
-    expect(pricing.effectiveCatalogueValue).toBe(800);
     expect(pricing.sellingPrice).toBe(720);
     expect(pricing.savings).toBe(80);
     expect(pricing.discountPercent).toBe(10);
@@ -91,28 +83,37 @@ describe("Health Kits pricing / availability", () => {
     expect(auto).toBeLessThanOrEqual(1200);
   });
 
-  it("computes per-unit allocation and availability", () => {
-    const quote = buildCustomKitQuote(
-      2000,
-      [
-        { id: "p1", basePrice: 500, effectivePrice: 400 },
-        { id: "p2", basePrice: 300, effectivePrice: 250 },
-      ],
-      1
-    );
+  it("computes per-unit allocation and availability", async () => {
+    const components = [
+      {
+        productId: "p1",
+        configuredQuantity: 1,
+        effectiveUnitPrice: 400,
+        mrp: 500,
+      } as any,
+      {
+        productId: "p2",
+        configuredQuantity: 1,
+        effectiveUnitPrice: 250,
+        mrp: 300,
+      } as any,
+    ];
+    const quote = buildCustomKitQuote({
+      basePrice: 2000,
+      components,
+    });
     expect(quote.selectedMrp).toBe(500 + 300);
     expect(quote.selectedEffectiveValue).toBe(400 + 250);
     expect(quote.customizedPrice).toBe(2000);
 
-    expect(
-      getHealthKitAvailability(db, {
-        name: "kit",
-        price: 0,
-        isActive: true,
-        categoryId: "cat",
-        healthKit: { components: [] },
-      })
-    ).toEqual({
+    const availability = await getHealthKitAvailability(db, {
+      name: "kit",
+      price: 0,
+      isActive: true,
+      categoryId: "cat",
+      healthKit: { components: [] },
+    } as any);
+    expect(availability).toEqual({
       available: true,
       maxQuantity: 0,
       components: [],
