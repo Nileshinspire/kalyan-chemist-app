@@ -516,6 +516,15 @@ export default function FamilyMemberHealth() {
               >
                 <Pencil className="size-3.5" /> {t("manageProfile")}
               </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="-ml-1 size-10 shrink-0 rounded-xl"
+                onClick={() => navigate("/family-health")}
+                aria-label={t("back")}
+              >
+                <ArrowLeft className="size-5" />
+              </Button>
             </div>
             <div className="border-t border-primary/10 bg-background/45 px-4 py-2.5 sm:hidden">
               <Button
@@ -525,6 +534,15 @@ export default function FamilyMemberHealth() {
                 onClick={() => navigate("/family-health")}
               >
                 <Pencil className="size-3.5" /> {t("manageProfile")}
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="-ml-0.5 h-9 w-9 rounded-lg"
+                onClick={() => navigate("/family-health")}
+                aria-label={t("back")}
+              >
+                <ArrowLeft className="size-4" />
               </Button>
             </div>
           </div>
