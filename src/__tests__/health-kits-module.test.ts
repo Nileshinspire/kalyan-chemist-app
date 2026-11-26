@@ -1,10 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { buildCustomKitQuote, computeAutoKitPrice } from "../lib/healthKitQuote";
-import { clampKitDiscountPercent } from "../lib/discount";
-import { getHealthKitAvailability, resolveHealthKitPricing } from "../convex/healthKitsCore";
-import type { Database } from "../convex/_generated/dataModel";
+import {
+  buildCustomKitQuote,
+  computeAutoKitPrice,
+  clampKitDiscountPercent,
+} from "../lib/healthKitQuote";
+import {
+  getHealthKitAvailability,
+  resolveHealthKitPricing,
+} from "../convex/healthKitsCore";
+import type { DatabaseReader } from "../convex/_generated/server";
+import type { Doc } from "../convex/_generated/dataModel";
 
-function product(): any {
+type ProductDoc = Doc<"products">;
+
+function product(): ProductDoc {
   return {
     _id: "p1",
     name: "component",
@@ -18,27 +27,31 @@ function product(): any {
     packSize: null,
     expiryDate: null,
     manufacturer: null,
-  };
+  } as any;
 }
 
-const db: Database = {
+const db = {
   get: (id: string) => Promise.resolve(product()),
   query: async () => [],
   mutate: async () => {},
-};
+  products: {
+    query: async (): Promise<any[]> => [],
+  },
+} as unknown as DatabaseReader;
 
-function kitDoc(): any {
+function kitDoc(): ProductDoc {
   return {
     _id: "kit-1",
     name: "Kit 1",
     price: 1000,
-    discountPrice: 0,
+    discountPrice: undefined,
     isActive: true,
+    categoryId: "cat",
     healthKit: {
       components: [{ productId: "p1", quantity: 2 }],
       pricing: { mode: "auto", kitDiscountPercent: 10 },
     },
-  };
+  } as any;
 }
 
 describe("Health Kits pricing / availability", () => {
@@ -46,9 +59,9 @@ describe("Health Kits pricing / availability", () => {
     const pricing = await resolveHealthKitPricing(db, kitDoc());
     expect(pricing.mode).toBe("auto");
     expect(pricing.effectiveCatalogueValue).toBe(800);
-    expect(pricing.autoPricePerUnit).toBe(800);
     expect(pricing.sellingPrice).toBe(720);
-    expect(pricing.priceAfterDiscount).toBe(720);
+    expect(pricing.savings).toBe(80);
+    expect(pricing.discountPercent).toBe(10);
   });
 
   it("resolves manual kit pricing", async () => {
@@ -58,15 +71,16 @@ describe("Health Kits pricing / availability", () => {
       price: 1000,
       discountPrice: 0,
       isActive: true,
+      categoryId: "cat",
       healthKit: {
         components: [{ productId: "p1", quantity: 2 }],
-        pricing: { mode: "manual", kitDiscountPercent: 10, adminPrice: 2000 },
+        pricing: { mode: "manual", kitDiscountPercent: 10 },
       },
-    });
+    } as any);
     expect(pricing.mode).toBe("manual");
-    expect(pricing.autoPricePerUnit).toBe(800);
     expect(pricing.sellingPrice).toBe(2000);
-    expect(pricing.priceAfterDiscount).toBe(1800);
+    expect(pricing.savings).toBe(200);
+    expect(pricing.discountPercent).toBe(20);
   });
 
   it("clamps kit discount percent and auto price to effective catalogue value", () => {
@@ -86,14 +100,16 @@ describe("Health Kits pricing / availability", () => {
       ],
       1
     );
-    expect(quote.perUnitPrices).toEqual({ p1: 400, p2: 250 });
-    expect(quote.effectiveKitPrice).toBe(650);
+    expect(quote.selectedMrp).toBe(500 + 300);
+    expect(quote.selectedEffectiveValue).toBe(400 + 250);
+    expect(quote.customizedPrice).toBe(2000);
 
     expect(
       getHealthKitAvailability(db, {
         name: "kit",
         price: 0,
         isActive: true,
+        categoryId: "cat",
         healthKit: { components: [] },
       })
     ).toEqual({
